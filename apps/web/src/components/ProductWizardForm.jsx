@@ -13,11 +13,11 @@ import { Toggle } from './ui';
  *   open, onClose, onSubmit(payload), initialData (for edit), categories
  */
 const TABS = [
-  { id: 'info',    label: 'Informasi Produk' },
-  { id: 'varian',  label: 'Varian',        locked: true, lockReason: 'Fitur paket Prime' },
-  { id: 'ekstra',  label: 'Ekstra' },
-  { id: 'resep',   label: 'Resep',         locked: true, lockReason: 'Fitur paket Advance / Prime' },
-  { id: 'order',   label: 'majoo Order',   locked: true, lockReason: 'Memerlukan integrasi outlet' },
+  { id: 'info', label: 'Informasi Produk' },
+  { id: 'varian', label: 'Varian', locked: true, lockReason: 'Fitur paket Prime' },
+  { id: 'ekstra', label: 'Ekstra' },
+  { id: 'resep', label: 'Resep', locked: true, lockReason: 'Fitur paket Advance / Prime' },
+  { id: 'order', label: 'majoo Order', locked: true, lockReason: 'Memerlukan integrasi outlet' },
 ];
 
 const DEFAULT_FORM = {
@@ -80,14 +80,17 @@ export default function ProductWizardForm({
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
 
-  const tabComplete = useMemo(() => ({
-    info:
-      form.name.trim().length > 0 &&
-      form.sku.trim().length > 0 &&
-      form.category_id !== '' &&
-      String(form.price).trim().length > 0,
-    ekstra: true,
-  }), [form]);
+  const tabComplete = useMemo(
+    () => ({
+      info:
+        form.name.trim().length > 0 &&
+        form.sku.trim().length > 0 &&
+        form.category_id !== '' &&
+        String(form.price).trim().length > 0,
+      ekstra: true,
+    }),
+    [form]
+  );
 
   if (!open) return null;
 
@@ -200,9 +203,7 @@ export default function ProductWizardForm({
                   ${t.locked ? 'opacity-60 cursor-not-allowed' : ''}`}
                 title={t.locked ? t.lockReason : ''}
               >
-                {complete && !active && (
-                  <Check className="w-4 h-4 text-primary-500" />
-                )}
+                {complete && !active && <Check className="w-4 h-4 text-primary-500" />}
                 {t.locked && <Lock className="w-3.5 h-3.5" />}
                 <span>{t.label}</span>
                 {active && (
@@ -220,10 +221,19 @@ export default function ProductWizardForm({
           {tab === 'info' && (
             <InfoTab form={form} set={set} errors={errors} categories={categories} />
           )}
-          {tab === 'varian' && <LockedTab title="Varian" reason="Fitur ini tersedia di paket Prime." />}
+          {tab === 'varian' && (
+            <LockedTab title="Varian" reason="Fitur ini tersedia di paket Prime." />
+          )}
           {tab === 'ekstra' && <EkstraTab form={form} set={set} />}
-          {tab === 'resep' && <LockedTab title="Resep" reason="Fitur ini tersedia di paket Advance / Prime." />}
-          {tab === 'order' && <LockedTab title="majoo Order" reason="Perlu mengajukan integrasi outlet terlebih dahulu." />}
+          {tab === 'resep' && (
+            <LockedTab title="Resep" reason="Fitur ini tersedia di paket Advance / Prime." />
+          )}
+          {tab === 'order' && (
+            <LockedTab
+              title="majoo Order"
+              reason="Perlu mengajukan integrasi outlet terlebih dahulu."
+            />
+          )}
         </div>
       </div>
 
@@ -251,11 +261,7 @@ export default function ProductWizardForm({
               Selanjutnya
             </button>
           )}
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="btn-primary text-sm"
-          >
+          <button onClick={handleSave} disabled={saving} className="btn-primary text-sm">
             {saving ? 'Menyimpan...' : 'Simpan'}
           </button>
         </div>

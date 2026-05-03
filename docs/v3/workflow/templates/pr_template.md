@@ -11,6 +11,7 @@
 ```
 
 Contoh:
+
 - `feat(P1-04): Products page dengan 5-tab wizard`
 - `feat(P3-07): POS cart UI dengan adaptive layout`
 - `fix(P3-07): cart total tidak update saat quantity stepper`
@@ -37,20 +38,25 @@ Contoh:
 ## Changes
 
 ### Added
+
 - {{list file/feature baru}}
 
 ### Modified
+
 - {{list file diubah}}
 
 ### Deleted
+
 - {{list file dihapus}}
 
 ### Backend (kalau ada)
+
 - New endpoints: {{list}}
 - DB migration: {{ada/tidak}}
 - Breaking change: {{ada/tidak}}
 
 ### Frontend / Mobile (kalau ada)
+
 - New screens: {{list}}
 - New components: {{list}}
 - New API client functions: {{list}}
@@ -66,16 +72,19 @@ Contoh:
 ## Testing
 
 ### Manual smoke test
+
 1. {{step 1}}
 2. {{step 2}}
 3. {{step 3}}
 
 ### Automated tests
+
 - Unit test added: {{N tests, M coverage}}
 - Integration test added: {{N tests}}
 - UI test added: {{N tests, only Android}}
 
 ### Screenshots / video
+
 {{tempel screenshot di sini, kalau UI task. Path file: misalnya docs/screenshots/p1-04-products.png}}
 
 ## Reference docs
@@ -141,7 +150,7 @@ P{{phase}}-{{nn}}: {{judul}}
 ## Checklist
 
 - [ ] Lint pass
-- [ ] Tests pass  
+- [ ] Tests pass
 - [ ] CI green
 - [ ] Phase doc updated
 ```
@@ -164,6 +173,7 @@ PR: #{{N}}
 ```
 
 Contoh:
+
 ```
 feat(P1-04): Products page dengan 5-tab wizard (#15)
 

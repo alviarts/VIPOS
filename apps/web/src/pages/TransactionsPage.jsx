@@ -12,7 +12,9 @@ export default function TransactionsPage() {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadData(); }, [page, dateFilter]);
+  useEffect(() => {
+    loadData();
+  }, [page, dateFilter]);
 
   const loadData = async () => {
     setLoading(true);
@@ -62,7 +64,10 @@ export default function TransactionsPage() {
         <input
           type="date"
           value={dateFilter}
-          onChange={(e) => { setDateFilter(e.target.value); setPage(1); }}
+          onChange={(e) => {
+            setDateFilter(e.target.value);
+            setPage(1);
+          }}
           className="input-field sm:w-48"
         />
         {dateFilter && (
@@ -96,7 +101,9 @@ export default function TransactionsPage() {
                 </tr>
               ) : transactions.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="text-center py-12 text-gray-400">Belum ada transaksi</td>
+                  <td colSpan="7" className="text-center py-12 text-gray-400">
+                    Belum ada transaksi
+                  </td>
                 </tr>
               ) : (
                 transactions.map((tx) => (
@@ -105,21 +112,35 @@ export default function TransactionsPage() {
                     <td className="px-4 py-3">{tx.cashier_name}</td>
                     <td className="px-4 py-3 font-semibold">{formatCurrency(tx.total_amount)}</td>
                     <td className="px-4 py-3">
-                      <span className="badge bg-gray-100 text-gray-600 uppercase">{tx.payment_method}</span>
+                      <span className="badge bg-gray-100 text-gray-600 uppercase">
+                        {tx.payment_method}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`badge ${tx.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                      <span
+                        className={`badge ${tx.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}
+                      >
                         {tx.status === 'completed' ? 'Selesai' : 'Batal'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">{formatDateTime(tx.created_at)}</td>
+                    <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
+                      {formatDateTime(tx.created_at)}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
-                        <button onClick={() => viewDetail(tx.id)} className="p-2 hover:bg-gray-100 rounded-lg" title="Detail">
+                        <button
+                          onClick={() => viewDetail(tx.id)}
+                          className="p-2 hover:bg-gray-100 rounded-lg"
+                          title="Detail"
+                        >
                           <Eye className="w-4 h-4 text-gray-500" />
                         </button>
                         {tx.status === 'completed' && (
-                          <button onClick={() => voidTransaction(tx.id)} className="p-2 hover:bg-red-50 rounded-lg" title="Batalkan">
+                          <button
+                            onClick={() => voidTransaction(tx.id)}
+                            className="p-2 hover:bg-red-50 rounded-lg"
+                            title="Batalkan"
+                          >
                             <XCircle className="w-4 h-4 text-red-500" />
                           </button>
                         )}
@@ -140,14 +161,14 @@ export default function TransactionsPage() {
             </p>
             <div className="flex gap-2">
               <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
                 className="btn-secondary p-2 disabled:opacity-50"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button
-                onClick={() => setPage(p => Math.min(pagination.total_pages, p + 1))}
+                onClick={() => setPage((p) => Math.min(pagination.total_pages, p + 1))}
                 disabled={page >= pagination.total_pages}
                 className="btn-secondary p-2 disabled:opacity-50"
               >
@@ -165,7 +186,10 @@ export default function TransactionsPage() {
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-gray-900">Detail Transaksi</h2>
-                <button onClick={() => setDetail(null)} className="p-2 hover:bg-gray-100 rounded-xl">
+                <button
+                  onClick={() => setDetail(null)}
+                  className="p-2 hover:bg-gray-100 rounded-xl"
+                >
                   <XCircle className="w-5 h-5" />
                 </button>
               </div>
@@ -185,7 +209,9 @@ export default function TransactionsPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Status</span>
-                  <span className={`badge ${detail.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                  <span
+                    className={`badge ${detail.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}
+                  >
                     {detail.status === 'completed' ? 'Selesai' : 'Batal'}
                   </span>
                 </div>
@@ -195,7 +221,9 @@ export default function TransactionsPage() {
                 <p className="font-medium text-gray-900">Item Produk</p>
                 {detail.items?.map((item, i) => (
                   <div key={i} className="flex justify-between">
-                    <span className="text-gray-600">{item.product_name} x{item.quantity}</span>
+                    <span className="text-gray-600">
+                      {item.product_name} x{item.quantity}
+                    </span>
                     <span className="font-medium">{formatCurrency(item.subtotal)}</span>
                   </div>
                 ))}

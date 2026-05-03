@@ -4,13 +4,13 @@ Dokumentasi deployment VIPOS ke VPS publik dengan Node.js + nginx + PM2.
 
 ## 1. Stack & Versi
 
-| Komponen | Versi (target) |
-|---|---|
-| OS | Ubuntu 22.04 LTS |
-| Node.js | v20.x (atau lebih baru) |
-| npm | v10.x |
-| nginx | 1.18+ |
-| PM2 | 6.x |
+| Komponen | Versi (target)          |
+| -------- | ----------------------- |
+| OS       | Ubuntu 22.04 LTS        |
+| Node.js  | v20.x (atau lebih baru) |
+| npm      | v10.x                   |
+| nginx    | 1.18+                   |
+| PM2      | 6.x                     |
 
 ## 2. Arsitektur Production
 
@@ -52,15 +52,14 @@ VIPOS di-deploy di **path prefix `/vipos`** supaya domain root tetap bebas untuk
 
 Frontend di-build dengan `base: '/vipos/'` di `apps/web/vite.config.js` supaya semua asset URL di-prefix `/vipos/`. Komponen yang menggunakan path:
 
-| Pakai | Mode dev (`/`) | Mode prod (`/vipos/`) |
-|---|---|---|
-| Vite asset paths | `/assets/*.js` | `/vipos/assets/*.js` |
-| `BrowserRouter basename` | `/` | `/vipos/` (auto via `import.meta.env.BASE_URL`) |
-| Axios baseURL | `/api` | `/vipos/api` |
-| Favicon | `/vite.svg` | `/vipos/vite.svg` (via `%BASE_URL%`) |
+| Pakai                    | Mode dev (`/`) | Mode prod (`/vipos/`)                           |
+| ------------------------ | -------------- | ----------------------------------------------- |
+| Vite asset paths         | `/assets/*.js` | `/vipos/assets/*.js`                            |
+| `BrowserRouter basename` | `/`            | `/vipos/` (auto via `import.meta.env.BASE_URL`) |
+| Axios baseURL            | `/api`         | `/vipos/api`                                    |
+| Favicon                  | `/vite.svg`    | `/vipos/vite.svg` (via `%BASE_URL%`)            |
 
 Dev mode (`npm run dev`) tetap di `localhost:5173/` (tanpa prefix) supaya nyaman.
-
 
 ## 3. Quick Deploy (One-Shot Script)
 
@@ -175,6 +174,7 @@ cd /var/www/vipos && bash tools/scripts/deploy.sh
 ```
 
 Script akan:
+
 1. `git fetch + checkout main + reset --hard` ke `origin/main`
 2. `npm install` untuk semua workspaces
 3. `npm run build:web` (output di `apps/web/dist/`)
@@ -278,6 +278,7 @@ NODE_ENV=production
   - `/var/www/vipos/backend/database.db` — layout pre-PR #1
 
 Untuk reset ke seed default:
+
 ```bash
 rm /var/www/vipos/apps/backend/data/vipos.db
 cd /var/www/vipos && npm run seed
@@ -322,20 +323,21 @@ Sebelum jalankan certbot, pastikan A record domain mengarah ke IP VPS.
 
 VPS ini sudah punya proses lain (`finance-bot-tg`, `bot-wa`, `captcha-proxy` di port 8090). Konflik port:
 
-| App | Port | Status |
-|---|---|---|
-| OpenSSH | 22 | (managed by systemd) |
-| Captcha proxy (nginx) | 8090 (HTTPS) | (separate vhost) |
-| **VIPOS nginx (default_server)** | **80** | (this app) |
-| **VIPOS backend** | **3001** | (this app) |
-| finance-bot-tg | (no listening port) | (online) |
-| bot-wa | (no listening port) | (stopped) |
+| App                              | Port                | Status               |
+| -------------------------------- | ------------------- | -------------------- |
+| OpenSSH                          | 22                  | (managed by systemd) |
+| Captcha proxy (nginx)            | 8090 (HTTPS)        | (separate vhost)     |
+| **VIPOS nginx (default_server)** | **80**              | (this app)           |
+| **VIPOS backend**                | **3001**            | (this app)           |
+| finance-bot-tg                   | (no listening port) | (online)             |
+| bot-wa                           | (no listening port) | (stopped)            |
 
 Tidak ada konflik. VIPOS aman jalan di port 80.
 
 ## 10. Troubleshooting
 
 ### Backend tidak start
+
 ```bash
 pm2 logs vipos-backend --err --lines 50
 # cek apakah port 3001 sudah terpakai
@@ -343,12 +345,15 @@ ss -tnlp | grep 3001
 ```
 
 ### Frontend 404 di SPA route (refresh halaman /products dapat 404)
+
 Pastikan `try_files $uri $uri/ /index.html;` ada di nginx config (sudah ada di config di atas).
 
 ### CORS errors di browser
+
 Backend punya `app.use(cors())` (allow all origin). Kalau perlu restrict, edit `apps/backend/src/index.js`.
 
 ### Database locked / corrupt
+
 ```bash
 pm2 stop vipos-backend
 sqlite3 /var/www/vipos/apps/backend/data/vipos.db "PRAGMA integrity_check;"
@@ -356,6 +361,7 @@ pm2 start vipos-backend
 ```
 
 ### Lupa JWT secret (existing tokens jadi invalid setelah re-deploy)
+
 JWT secret di `apps/backend/.env` PERSISTENT — kalau hilang, semua token user existing harus login ulang. Backup file `.env` (dengan aman) sebelum redeploy.
 
 ## 11. Deployment Status (3 Mei 2026)
@@ -371,7 +377,7 @@ JWT secret di `apps/backend/.env` PERSISTENT — kalau hilang, semua token user 
   - GET /vipos → 301 → /vipos/
   - GET /vipos/ → 200 (SPA shell, asset paths /vipos/...)
   - GET /vipos/dashboard → 200 (SPA fallback works on refresh)
-  - GET /vipos/assets/index-*.js → 200
+  - GET /vipos/assets/index-\*.js → 200
   - POST /vipos/api/auth/login (admin/admin123) → 200, returns JWT
   - GET /vipos/api/categories (with Bearer token) → 200
   - GET /vipos/api/products (with Bearer token) → 200

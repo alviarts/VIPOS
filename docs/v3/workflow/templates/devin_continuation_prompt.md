@@ -45,7 +45,7 @@ LANGKAH 1 — Identify next task:
 LANGKAH 2 — Verify task spec:
 1. Baca task spec lengkap di phase doc.
 2. Baca semua reference docs yang disebut (docs/v2/*.md).
-3. Recap ke user: "Saya akan kerjakan {{task ID}}: {{title}}. Estimasi {{X}} hari. Ini acceptance criteria: ..." 
+3. Recap ke user: "Saya akan kerjakan {{task ID}}: {{title}}. Estimasi {{X}} hari. Ini acceptance criteria: ..."
    (NON-BLOCKING message, langsung lanjut tanpa tunggu balasan; user bisa interrupt kalau salah pilih.)
 
 LANGKAH 3 — Eksekusi dengan commit incremental:
@@ -121,16 +121,18 @@ Prompt universal cocok untuk **mayoritas task** (75-80% dari 86 tasks). Devin ak
 ### Kapan prompt ini KURANG cukup?
 
 Untuk task yang butuh **input spesifik** dari Anda (yang tidak bisa di-auto-detect):
+
 - **P0-02 (CI/CD)**: butuh konfirmasi Anda mau pakai GitHub Actions vs alternatif (Jenkins/CircleCI). Default = GitHub Actions; ikuti spec.
 - **P3-12 (EDC integration)**: butuh hardware fisik EDC bank → Devin akan message Anda kalau tidak bisa test, mungkin minta bridge atau skip testing.
-- **P5-* (specialized apps)**: butuh keputusan apakah deploy KDS/Self Order sebagai APK terpisah atau modul di main app. Default = APK terpisah; ikuti spec.
-- **P6-* (GTM)**: butuh content writing yang opinion-heavy (positioning, tagline). Devin akan generate draft, minta Anda approve.
+- **P5-\* (specialized apps)**: butuh keputusan apakah deploy KDS/Self Order sebagai APK terpisah atau modul di main app. Default = APK terpisah; ikuti spec.
+- **P6-\* (GTM)**: butuh content writing yang opinion-heavy (positioning, tagline). Devin akan generate draft, minta Anda approve.
 
 Untuk task spesial ini, Devin akan pause + message Anda dengan opsi konkret. Anda tinggal pilih.
 
 ### Bagaimana cara handoff Devin 01 → Devin 02?
 
 Anda **tidak perlu intervensi**:
+
 1. Devin 01 selesai task → buat PR.
 2. Anda review + merge PR (atau kasih akses Devin auto-merge kalau Anda nyaman).
 3. Buka session Devin baru → paste prompt universal di atas → Devin 02 auto-detect bahwa Devin 01 selesai (lihat phase doc + merged PR), pilih task berikutnya, lanjut.
@@ -144,11 +146,13 @@ Anda **tidak perlu intervensi**:
 ### Monitoring progress
 
 Real-time:
+
 - Branch commit: `https://github.com/alviarts/VIPOS/commits/main` (lihat squash merged commit per task)
 - Per-branch live progress: `https://github.com/alviarts/VIPOS/tree/devin/{{task-ID}}-{{slug}}` (lihat WIP commit)
 - PR list: `https://github.com/alviarts/VIPOS/pulls`
 - Phase progress: scan `[pending]` vs `[done]` di `docs/v3/workflow/phase_*.md`
 
 Aggregate:
+
 - `grep -c '\[done\]' docs/v3/workflow/phase_*.md` — count selesai per phase
 - `grep -c '\[pending\]' docs/v3/workflow/phase_*.md` — count pending per phase

@@ -13,11 +13,18 @@ export default function SettingsPage() {
   const [showUserForm, setShowUserForm] = useState(false);
   const [editCat, setEditCat] = useState(null);
   const [catForm, setCatForm] = useState({ name: '', description: '' });
-  const [userForm, setUserForm] = useState({ username: '', password: '', name: '', role: 'cashier' });
+  const [userForm, setUserForm] = useState({
+    username: '',
+    password: '',
+    name: '',
+    role: 'cashier',
+  });
 
   const isAdmin = user?.role === 'admin';
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const loadData = async () => {
     try {
@@ -35,7 +42,9 @@ export default function SettingsPage() {
   // Category handlers
   const openCatForm = (cat = null) => {
     setEditCat(cat);
-    setCatForm(cat ? { name: cat.name, description: cat.description || '' } : { name: '', description: '' });
+    setCatForm(
+      cat ? { name: cat.name, description: cat.description || '' } : { name: '', description: '' }
+    );
     setShowCatForm(true);
   };
 
@@ -114,24 +123,36 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-gray-900">Daftar Kategori</h2>
             {isAdmin && (
-              <button onClick={() => openCatForm()} className="btn-primary flex items-center gap-2 text-sm py-2">
+              <button
+                onClick={() => openCatForm()}
+                className="btn-primary flex items-center gap-2 text-sm py-2"
+              >
                 <Plus className="w-4 h-4" /> Tambah
               </button>
             )}
           </div>
           <div className="space-y-2">
             {categories.map((cat) => (
-              <div key={cat.id} className="flex items-center justify-between bg-gray-50 rounded-xl p-3">
+              <div
+                key={cat.id}
+                className="flex items-center justify-between bg-gray-50 rounded-xl p-3"
+              >
                 <div>
                   <p className="font-medium text-gray-900">{cat.name}</p>
                   {cat.description && <p className="text-xs text-gray-400">{cat.description}</p>}
                 </div>
                 {isAdmin && (
                   <div className="flex gap-1">
-                    <button onClick={() => openCatForm(cat)} className="p-2 hover:bg-gray-200 rounded-lg">
+                    <button
+                      onClick={() => openCatForm(cat)}
+                      className="p-2 hover:bg-gray-200 rounded-lg"
+                    >
                       <Edit2 className="w-4 h-4 text-gray-500" />
                     </button>
-                    <button onClick={() => deleteCat(cat)} className="p-2 hover:bg-red-50 rounded-lg">
+                    <button
+                      onClick={() => deleteCat(cat)}
+                      className="p-2 hover:bg-red-50 rounded-lg"
+                    >
                       <Trash2 className="w-4 h-4 text-red-500" />
                     </button>
                   </div>
@@ -150,23 +171,35 @@ export default function SettingsPage() {
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-gray-900">Daftar Pengguna</h2>
-            <button onClick={() => setShowUserForm(true)} className="btn-primary flex items-center gap-2 text-sm py-2">
+            <button
+              onClick={() => setShowUserForm(true)}
+              className="btn-primary flex items-center gap-2 text-sm py-2"
+            >
               <Plus className="w-4 h-4" /> Tambah User
             </button>
           </div>
           <div className="space-y-2">
             {users.map((u) => (
-              <div key={u.id} className="flex items-center justify-between bg-gray-50 rounded-xl p-3">
+              <div
+                key={u.id}
+                className="flex items-center justify-between bg-gray-50 rounded-xl p-3"
+              >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
-                    <span className="text-primary-600 font-semibold text-sm">{u.name.charAt(0).toUpperCase()}</span>
+                    <span className="text-primary-600 font-semibold text-sm">
+                      {u.name.charAt(0).toUpperCase()}
+                    </span>
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">{u.name}</p>
-                    <p className="text-xs text-gray-400">@{u.username} &middot; {u.role}</p>
+                    <p className="text-xs text-gray-400">
+                      @{u.username} &middot; {u.role}
+                    </p>
                   </div>
                 </div>
-                <span className={`badge ${u.role === 'admin' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
+                <span
+                  className={`badge ${u.role === 'admin' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}
+                >
                   {u.role}
                 </span>
               </div>
@@ -181,21 +214,39 @@ export default function SettingsPage() {
           <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold">{editCat ? 'Edit Kategori' : 'Tambah Kategori'}</h2>
-                <button onClick={() => setShowCatForm(false)} className="p-2 hover:bg-gray-100 rounded-xl">
+                <h2 className="text-xl font-bold">
+                  {editCat ? 'Edit Kategori' : 'Tambah Kategori'}
+                </h2>
+                <button
+                  onClick={() => setShowCatForm(false)}
+                  className="p-2 hover:bg-gray-100 rounded-xl"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
               <form onSubmit={handleCatSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nama</label>
-                  <input type="text" value={catForm.name} onChange={(e) => setCatForm({ ...catForm, name: e.target.value })} className="input-field" required />
+                  <input
+                    type="text"
+                    value={catForm.name}
+                    onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
+                    className="input-field"
+                    required
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
-                  <input type="text" value={catForm.description} onChange={(e) => setCatForm({ ...catForm, description: e.target.value })} className="input-field" />
+                  <input
+                    type="text"
+                    value={catForm.description}
+                    onChange={(e) => setCatForm({ ...catForm, description: e.target.value })}
+                    className="input-field"
+                  />
                 </div>
-                <button type="submit" className="btn-primary w-full">Simpan</button>
+                <button type="submit" className="btn-primary w-full">
+                  Simpan
+                </button>
               </form>
             </div>
           </div>
@@ -209,31 +260,60 @@ export default function SettingsPage() {
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold">Tambah User</h2>
-                <button onClick={() => setShowUserForm(false)} className="p-2 hover:bg-gray-100 rounded-xl">
+                <button
+                  onClick={() => setShowUserForm(false)}
+                  className="p-2 hover:bg-gray-100 rounded-xl"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
               <form onSubmit={handleUserSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
-                  <input type="text" value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} className="input-field" required />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nama Lengkap
+                  </label>
+                  <input
+                    type="text"
+                    value={userForm.name}
+                    onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                    className="input-field"
+                    required
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                  <input type="text" value={userForm.username} onChange={(e) => setUserForm({ ...userForm, username: e.target.value })} className="input-field" required />
+                  <input
+                    type="text"
+                    value={userForm.username}
+                    onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
+                    className="input-field"
+                    required
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                  <input type="password" value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} className="input-field" required />
+                  <input
+                    type="password"
+                    value={userForm.password}
+                    onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                    className="input-field"
+                    required
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                  <select value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value })} className="input-field">
+                  <select
+                    value={userForm.role}
+                    onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
+                    className="input-field"
+                  >
                     <option value="cashier">Kasir</option>
                     <option value="admin">Admin</option>
                   </select>
                 </div>
-                <button type="submit" className="btn-primary w-full">Buat User</button>
+                <button type="submit" className="btn-primary w-full">
+                  Buat User
+                </button>
               </form>
             </div>
           </div>

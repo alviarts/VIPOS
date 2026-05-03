@@ -12,7 +12,9 @@ function generateInvoiceNumber() {
   const h = String(now.getHours()).padStart(2, '0');
   const min = String(now.getMinutes()).padStart(2, '0');
   const s = String(now.getSeconds()).padStart(2, '0');
-  const rand = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+  const rand = Math.floor(Math.random() * 1000)
+    .toString()
+    .padStart(3, '0');
   return `INV${y}${m}${d}${h}${min}${s}${rand}`;
 }
 
@@ -49,7 +51,13 @@ router.post('/', authenticateToken, (req, res) => {
 
     const transact = db.transaction(() => {
       const result = insertTransaction.run(
-        invoice_number, req.user.id, total_amount, payment_amount, change_amount, payment_method || 'cash', notes || null
+        invoice_number,
+        req.user.id,
+        total_amount,
+        payment_amount,
+        change_amount,
+        payment_method || 'cash',
+        notes || null
       );
 
       const transactionId = result.lastInsertRowid;
@@ -63,7 +71,14 @@ router.post('/', authenticateToken, (req, res) => {
           throw new Error(`Stok ${product.name} tidak mencukupi (tersedia: ${product.stock})`);
         }
 
-        insertItem.run(transactionId, item.product_id, product.name, item.price, item.quantity, item.price * item.quantity);
+        insertItem.run(
+          transactionId,
+          item.product_id,
+          product.name,
+          item.price,
+          item.quantity,
+          item.price * item.quantity
+        );
         updateStock.run(item.quantity, item.product_id);
       }
 
@@ -72,14 +87,20 @@ router.post('/', authenticateToken, (req, res) => {
 
     const transactionId = transact();
 
-    const transaction = db.prepare(`
+    const transaction = db
+      .prepare(
+        `
       SELECT t.*, u.name as cashier_name
       FROM transactions t
       JOIN users u ON t.user_id = u.id
       WHERE t.id = ?
-    `).get(transactionId);
+    `
+      )
+      .get(transactionId);
 
-    const transactionItems = db.prepare('SELECT * FROM transaction_items WHERE transaction_id = ?').all(transactionId);
+    const transactionItems = db
+      .prepare('SELECT * FROM transaction_items WHERE transaction_id = ?')
+      .all(transactionId);
 
     res.status(201).json({ ...transaction, items: transactionItems });
   } catch (err) {
@@ -104,17 +125,17 @@ router.get('/', authenticateToken, (req, res) => {
     const params = [];
 
     if (date) {
-      conditions.push("DATE(t.created_at) = ?");
+      conditions.push('DATE(t.created_at) = ?');
       params.push(date);
     }
 
     if (start_date && end_date) {
-      conditions.push("DATE(t.created_at) BETWEEN ? AND ?");
+      conditions.push('DATE(t.created_at) BETWEEN ? AND ?');
       params.push(start_date, end_date);
     }
 
     if (status) {
-      conditions.push("t.status = ?");
+      conditions.push('t.status = ?');
       params.push(status);
     }
 
@@ -135,8 +156,8 @@ router.get('/', authenticateToken, (req, res) => {
         total: totalResult.total,
         page: parseInt(page),
         limit: parseInt(limit),
-        total_pages: Math.ceil(totalResult.total / limit)
-      }
+        total_pages: Math.ceil(totalResult.total / limit),
+      },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -147,18 +168,24 @@ router.get('/', authenticateToken, (req, res) => {
 router.get('/:id', authenticateToken, (req, res) => {
   try {
     const db = getDb();
-    const transaction = db.prepare(`
+    const transaction = db
+      .prepare(
+        `
       SELECT t.*, u.name as cashier_name
       FROM transactions t
       JOIN users u ON t.user_id = u.id
       WHERE t.id = ?
-    `).get(req.params.id);
+    `
+      )
+      .get(req.params.id);
 
     if (!transaction) {
       return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
     }
 
-    const items = db.prepare('SELECT * FROM transaction_items WHERE transaction_id = ?').all(req.params.id);
+    const items = db
+      .prepare('SELECT * FROM transaction_items WHERE transaction_id = ?')
+      .all(req.params.id);
     res.json({ ...transaction, items });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -179,12 +206,17 @@ router.post('/:id/void', authenticateToken, (req, res) => {
       return res.status(400).json({ error: 'Transaksi sudah dibatalkan' });
     }
 
-    const items = db.prepare('SELECT * FROM transaction_items WHERE transaction_id = ?').all(req.params.id);
+    const items = db
+      .prepare('SELECT * FROM transaction_items WHERE transaction_id = ?')
+      .all(req.params.id);
 
     const voidTransaction = db.transaction(() => {
       db.prepare("UPDATE transactions SET status = 'voided' WHERE id = ?").run(req.params.id);
       for (const item of items) {
-        db.prepare('UPDATE products SET stock = stock + ? WHERE id = ?').run(item.quantity, item.product_id);
+        db.prepare('UPDATE products SET stock = stock + ? WHERE id = ?').run(
+          item.quantity,
+          item.product_id
+        );
       }
     });
 

@@ -10,14 +10,14 @@
 
 Tested 6 primary flows end-to-end in production VPS deploy. **All 6 passed** with concrete value-checks (no vibes-based assertions). State-changing tests use math the rest of the system would visibly fail at if the code were broken (e.g. opname additive instead of overwrite, saldo formula sign-error).
 
-| # | Test | Result |
-|---|---|---|
-| 1 | Sidebar exposes 10 menu items including 4 new ones (Kategori/Inventori/Pelanggan/Keuangan) | passed |
-| 2 | Kategori displays urutan/departemen/product_count for 5 seed rows | passed |
-| 3 | Produk wizard opens with 5 tabs; Varian/Resep/majoo Order locked | passed |
-| 4 | Inventori opname overwrites Air Mineral stock 300 → 250 (DB + API + UI) | passed |
-| 5 | Pelanggan auto-generates kode `PLG0006` on save | passed |
-| 6 | Keuangan recomputes Kas Outlet saldo to **Rp700.000** after +Rp100k pemasukan | passed |
+| #   | Test                                                                                       | Result |
+| --- | ------------------------------------------------------------------------------------------ | ------ |
+| 1   | Sidebar exposes 10 menu items including 4 new ones (Kategori/Inventori/Pelanggan/Keuangan) | passed |
+| 2   | Kategori displays urutan/departemen/product_count for 5 seed rows                          | passed |
+| 3   | Produk wizard opens with 5 tabs; Varian/Resep/majoo Order locked                           | passed |
+| 4   | Inventori opname overwrites Air Mineral stock 300 → 250 (DB + API + UI)                    | passed |
+| 5   | Pelanggan auto-generates kode `PLG0006` on save                                            | passed |
+| 6   | Keuangan recomputes Kas Outlet saldo to **Rp700.000** after +Rp100k pemasukan              | passed |
 
 No failed or untested assertions. No regressions observed in existing pages (Dashboard, Kasir, Produk listing).
 
@@ -27,9 +27,9 @@ No failed or untested assertions. No regressions observed in existing pages (Das
 
 ### Test 1 — Sidebar (login + nav)
 
-| 🟢 After fix |
-|---|
-| ![Sidebar shows 10 items](https://app.devin.ai/attachments/6b099805-2bf3-4c34-bea3-8f76c27c79a7/screenshot_54e80d2bfde34e3ca605ab2399d64ff3.png) |
+| 🟢 After fix                                                                                                                                                                               |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ![Sidebar shows 10 items](https://app.devin.ai/attachments/6b099805-2bf3-4c34-bea3-8f76c27c79a7/screenshot_54e80d2bfde34e3ca605ab2399d64ff3.png)                                           |
 | Dashboard / Kasir / Produk / **Kategori** / **Inventori** / **Pelanggan** / **Keuangan** / Transaksi / Laporan / Pengaturan — bold = newly clickable (sebelumnya disabled di sidebar lama) |
 
 ### Test 2 — Kategori with new fields
@@ -38,13 +38,13 @@ No failed or untested assertions. No regressions observed in existing pages (Das
 
 5 rows, exact match seed:
 
-| Nama | Urutan | Departemen | Tampil di Menu | Produk |
-|---|---|---|---|---|
-| Makanan | 1 | F&B | ON | 8 |
-| Minuman | 2 | F&B | ON | 8 |
-| Dessert | 3 | F&B | ON | 3 |
-| Paket | 4 | F&B | ON | 2 |
-| Lainnya | 99 | – | ON | 0 |
+| Nama    | Urutan | Departemen | Tampil di Menu | Produk |
+| ------- | ------ | ---------- | -------------- | ------ |
+| Makanan | 1      | F&B        | ON             | 8      |
+| Minuman | 2      | F&B        | ON             | 8      |
+| Dessert | 3      | F&B        | ON             | 3      |
+| Paket   | 4      | F&B        | ON             | 2      |
+| Lainnya | 99     | –          | ON             | 0      |
 
 FilterTabs ("Semua 5 / Tampil di Menu 5 / Tidak Tampil di Menu 0") and Pagination ("Tampilkan 10 — Ditampilkan 1-5 dari 5 data") render Majoo-style.
 
@@ -62,11 +62,11 @@ Form tab 1 punya field: Nama, Deskripsi, Kategori (dropdown), toggles **Tampil d
 
 ### Test 4 — Inventori Stok Opname (THE adversarial test)
 
-| Before opname (Produk page) | After opname (movements + summary) |
-|---|---|
-| Air Mineral stock = **300** (seed) | Movement stok_sebelum=**300** stok_sesudah=**250** ✓ |
-| Total Stok = 2.050 unit | Total Stok = **2.000 unit** (−50 = 300−250) ✓ |
-| Nilai Modal Rp 12.950.000 | Nilai Modal **Rp 12.875.000** (−Rp 75.000 = 50 × 1.500) ✓ |
+| Before opname (Produk page)        | After opname (movements + summary)                        |
+| ---------------------------------- | --------------------------------------------------------- |
+| Air Mineral stock = **300** (seed) | Movement stok_sebelum=**300** stok_sesudah=**250** ✓      |
+| Total Stok = 2.050 unit            | Total Stok = **2.000 unit** (−50 = 300−250) ✓             |
+| Nilai Modal Rp 12.950.000          | Nilai Modal **Rp 12.875.000** (−Rp 75.000 = 50 × 1.500) ✓ |
 
 ![After opname](https://app.devin.ai/attachments/47e99953-ab53-46be-a274-5fd40adeef5e/screenshot_0bf4dfb38b3445b8ace01db2140adee9.png)
 
@@ -84,11 +84,11 @@ Smoke Test customer ditambah tanpa input kode → API generate **PLG0006** (`PLG
 
 ### Test 6 — Keuangan saldo recompute
 
-| Pre-state (seeded) | Post-pemasukan +Rp100k |
-|---|---|
-| Total Pemasukan Rp 750.000 | Total Pemasukan **Rp 850.000** (+100k) ✓ |
-| Kas Outlet saldo Rp 600.000 | Kas Outlet saldo **Rp 700.000** ✓ |
-| Total Transaksi 4 | Total Transaksi **5** ✓ |
+| Pre-state (seeded)          | Post-pemasukan +Rp100k                   |
+| --------------------------- | ---------------------------------------- |
+| Total Pemasukan Rp 750.000  | Total Pemasukan **Rp 850.000** (+100k) ✓ |
+| Kas Outlet saldo Rp 600.000 | Kas Outlet saldo **Rp 700.000** ✓        |
+| Total Transaksi 4           | Total Transaksi **5** ✓                  |
 
 ![Buku Kas — saldo recomputed](https://app.devin.ai/attachments/f0100a65-aada-4b72-bde4-27756c83e464/screenshot_27ed31c421bc473dae60964810a99cb4.png)
 
@@ -101,6 +101,7 @@ Saldo "Kas Outlet" = Saldo Awal Rp 500.000 + (sum pemasukan 850.000 − sum peng
 ## Cleanup
 
 Test data di-revert via API:
+
 - Customer PLG0006 deleted
 - Cash transaction "Smoke test pemasukan" deleted
 - Air Mineral stock di-opname-kan kembali ke 300

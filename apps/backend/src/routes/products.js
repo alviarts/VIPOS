@@ -111,30 +111,34 @@ router.post('/', authenticateToken, requireAdmin, (req, res) => {
     }
 
     const db = getDb();
-    const result = db.prepare(`
+    const result = db
+      .prepare(
+        `
       INSERT INTO products (
         name, sku, barcode, description, satuan,
         price, harga_modal, harga_beli, stock,
         category_id, image_url,
         is_tampil_di_menu, is_favorit, monitor_stok, stok_minimum
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      name.trim(),
-      sku.trim(),
-      barcode ? barcode.trim() : null,
-      description ? description.trim() : null,
-      satuan ? satuan.trim() : 'pcs',
-      priceNum,
-      toFloatOrNull(harga_modal) ?? 0,
-      toFloatOrNull(harga_beli) ?? 0,
-      toIntOrNull(stock) ?? 0,
-      toIntOrNull(category_id),
-      image_url || null,
-      toBoolInt(is_tampil_di_menu, 1),
-      toBoolInt(is_favorit, 0),
-      toBoolInt(monitor_stok, 0),
-      toIntOrNull(stok_minimum) ?? 0
-    );
+    `
+      )
+      .run(
+        name.trim(),
+        sku.trim(),
+        barcode ? barcode.trim() : null,
+        description ? description.trim() : null,
+        satuan ? satuan.trim() : 'pcs',
+        priceNum,
+        toFloatOrNull(harga_modal) ?? 0,
+        toFloatOrNull(harga_beli) ?? 0,
+        toIntOrNull(stock) ?? 0,
+        toIntOrNull(category_id),
+        image_url || null,
+        toBoolInt(is_tampil_di_menu, 1),
+        toBoolInt(is_favorit, 0),
+        toBoolInt(monitor_stok, 0),
+        toIntOrNull(stok_minimum) ?? 0
+      );
 
     const product = db.prepare(`${PRODUCT_SELECT} WHERE p.id = ?`).get(result.lastInsertRowid);
     res.status(201).json(product);
@@ -169,7 +173,8 @@ router.put('/:id', authenticateToken, requireAdmin, (req, res) => {
     } = req.body;
 
     const db = getDb();
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE products
          SET name = ?,
              sku = ?,
@@ -189,7 +194,8 @@ router.put('/:id', authenticateToken, requireAdmin, (req, res) => {
              stok_minimum = ?,
              updated_at = CURRENT_TIMESTAMP
        WHERE id = ?
-    `).run(
+    `
+    ).run(
       (name || '').trim(),
       (sku || '').trim(),
       barcode ? barcode.trim() : null,
@@ -223,16 +229,18 @@ router.put('/:id', authenticateToken, requireAdmin, (req, res) => {
 router.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
   try {
     const db = getDb();
-    const hasTransactions = db.prepare(
-      'SELECT COUNT(*) as count FROM transaction_items WHERE product_id = ?'
-    ).get(req.params.id);
-    const hasMovements = db.prepare(
-      'SELECT COUNT(*) as count FROM inventory_movements WHERE product_id = ?'
-    ).get(req.params.id);
+    const hasTransactions = db
+      .prepare('SELECT COUNT(*) as count FROM transaction_items WHERE product_id = ?')
+      .get(req.params.id);
+    const hasMovements = db
+      .prepare('SELECT COUNT(*) as count FROM inventory_movements WHERE product_id = ?')
+      .get(req.params.id);
 
     if (hasTransactions.count > 0 || hasMovements.count > 0) {
       db.prepare('UPDATE products SET is_active = 0 WHERE id = ?').run(req.params.id);
-      return res.json({ message: 'Produk dinonaktifkan karena sudah memiliki riwayat transaksi/stok' });
+      return res.json({
+        message: 'Produk dinonaktifkan karena sudah memiliki riwayat transaksi/stok',
+      });
     }
 
     db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);

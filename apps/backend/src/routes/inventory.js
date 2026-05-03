@@ -11,13 +11,27 @@ router.get('/movements', authenticateToken, (req, res) => {
     const { product_id, tipe, from, to, limit = 100 } = req.query;
     const conditions = [];
     const params = [];
-    if (product_id) { conditions.push('m.product_id = ?'); params.push(product_id); }
-    if (tipe)       { conditions.push('m.tipe = ?'); params.push(tipe); }
-    if (from)       { conditions.push('m.tanggal >= ?'); params.push(from); }
-    if (to)         { conditions.push('m.tanggal <= ?'); params.push(to); }
+    if (product_id) {
+      conditions.push('m.product_id = ?');
+      params.push(product_id);
+    }
+    if (tipe) {
+      conditions.push('m.tipe = ?');
+      params.push(tipe);
+    }
+    if (from) {
+      conditions.push('m.tanggal >= ?');
+      params.push(from);
+    }
+    if (to) {
+      conditions.push('m.tanggal <= ?');
+      params.push(to);
+    }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT
         m.*,
         p.name AS product_name,
@@ -30,7 +44,9 @@ router.get('/movements', authenticateToken, (req, res) => {
       ${where}
       ORDER BY m.tanggal DESC, m.id DESC
       LIMIT ?
-    `).all(...params, parseInt(limit, 10) || 100);
+    `
+      )
+      .all(...params, parseInt(limit, 10) || 100);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -68,28 +84,37 @@ router.post('/movements', authenticateToken, requireAdmin, (req, res) => {
     }
 
     const trx = db.transaction(() => {
-      const result = db.prepare(`
+      const result = db
+        .prepare(
+          `
         INSERT INTO inventory_movements
           (tanggal, product_id, tipe, qty, stok_sebelum, stok_sesudah, keterangan, user_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        tanggal || new Date().toISOString().slice(0, 10),
-        product_id,
-        tipe,
-        qtyNum,
-        stokSebelum,
-        stokSesudah,
-        keterangan ? keterangan.trim() : null,
-        req.user.id
-      );
+      `
+        )
+        .run(
+          tanggal || new Date().toISOString().slice(0, 10),
+          product_id,
+          tipe,
+          qtyNum,
+          stokSebelum,
+          stokSesudah,
+          keterangan ? keterangan.trim() : null,
+          req.user.id
+        );
 
-      db.prepare(`UPDATE products SET stock = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(stokSesudah, product_id);
+      db.prepare(`UPDATE products SET stock = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(
+        stokSesudah,
+        product_id
+      );
 
       return result.lastInsertRowid;
     });
 
     const id = trx();
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT
         m.*,
         p.name AS product_name,
@@ -99,7 +124,9 @@ router.post('/movements', authenticateToken, requireAdmin, (req, res) => {
       LEFT JOIN products p ON p.id = m.product_id
       LEFT JOIN users u ON u.id = m.user_id
       WHERE m.id = ?
-    `).get(id);
+    `
+      )
+      .get(id);
     res.status(201).json(row);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -110,7 +137,9 @@ router.post('/movements', authenticateToken, requireAdmin, (req, res) => {
 router.get('/low-stock', authenticateToken, (req, res) => {
   try {
     const db = getDb();
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT
         p.*,
         c.name AS category_name
@@ -118,7 +147,9 @@ router.get('/low-stock', authenticateToken, (req, res) => {
       LEFT JOIN categories c ON c.id = p.category_id
       WHERE p.is_active = 1 AND p.monitor_stok = 1 AND p.stock <= p.stok_minimum
       ORDER BY p.stock ASC
-    `).all();
+    `
+      )
+      .all();
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -129,7 +160,9 @@ router.get('/low-stock', authenticateToken, (req, res) => {
 router.get('/summary', authenticateToken, (req, res) => {
   try {
     const db = getDb();
-    const totals = db.prepare(`
+    const totals = db
+      .prepare(
+        `
       SELECT
         COUNT(*) AS total_products,
         COALESCE(SUM(stock), 0) AS total_stock,
@@ -138,7 +171,9 @@ router.get('/summary', authenticateToken, (req, res) => {
         SUM(CASE WHEN monitor_stok = 1 AND stock <= stok_minimum THEN 1 ELSE 0 END) AS low_stock_count
       FROM products
       WHERE is_active = 1
-    `).get();
+    `
+      )
+      .get();
     res.json(totals);
   } catch (err) {
     res.status(500).json({ error: err.message });

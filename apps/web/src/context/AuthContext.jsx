@@ -11,9 +11,12 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (token) {
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      api.get('/auth/me')
-        .then(res => setUser(res.data.user))
-        .catch(() => { logout(); })
+      api
+        .get('/auth/me')
+        .then((res) => setUser(res.data.user))
+        .catch(() => {
+          logout();
+        })
         .finally(() => setLoading(false));
     } else {
       setLoading(false);

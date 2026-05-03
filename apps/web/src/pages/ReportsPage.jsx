@@ -10,7 +10,9 @@ export default function ReportsPage() {
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadData(); }, [period]);
+  useEffect(() => {
+    loadData();
+  }, [period]);
 
   const loadData = async () => {
     setLoading(true);
@@ -33,7 +35,7 @@ export default function ReportsPage() {
   const totalRevenue = chartData.reduce((sum, d) => sum + d.total, 0);
   const totalTx = chartData.reduce((sum, d) => sum + d.transactions, 0);
   const avgDaily = chartData.length > 0 ? totalRevenue / chartData.length : 0;
-  const maxChart = Math.max(...chartData.map(d => d.total), 1);
+  const maxChart = Math.max(...chartData.map((d) => d.total), 1);
 
   if (loading) {
     return (
@@ -109,13 +111,18 @@ export default function ReportsPage() {
                     style={{ height: `${(d.total / maxChart) * 200}px` }}
                   />
                   <span className="text-xs text-gray-400 whitespace-nowrap">
-                    {new Date(d.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
+                    {new Date(d.date).toLocaleDateString('id-ID', {
+                      day: '2-digit',
+                      month: 'short',
+                    })}
                   </span>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="flex items-center justify-center h-64 text-gray-400">Belum ada data</div>
+            <div className="flex items-center justify-center h-64 text-gray-400">
+              Belum ada data
+            </div>
           )}
         </div>
 
@@ -139,7 +146,9 @@ export default function ReportsPage() {
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <p className="text-xs text-gray-400 mt-1">{m.count} transaksi ({pct.toFixed(0)}%)</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {m.count} transaksi ({pct.toFixed(0)}%)
+                    </p>
                   </div>
                 );
               })}
@@ -173,11 +182,17 @@ export default function ReportsPage() {
                   </td>
                   <td className="px-4 py-3 font-medium">{p.product_name}</td>
                   <td className="px-4 py-3 text-right">{p.total_sold}</td>
-                  <td className="px-4 py-3 text-right font-semibold">{formatCurrency(p.total_revenue)}</td>
+                  <td className="px-4 py-3 text-right font-semibold">
+                    {formatCurrency(p.total_revenue)}
+                  </td>
                 </tr>
               ))}
               {topProducts.length === 0 && (
-                <tr><td colSpan="4" className="text-center py-8 text-gray-400">Belum ada data</td></tr>
+                <tr>
+                  <td colSpan="4" className="text-center py-8 text-gray-400">
+                    Belum ada data
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>

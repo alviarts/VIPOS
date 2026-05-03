@@ -9,13 +9,14 @@
 
 ---
 
-### P1-01: Layout shell  `[pending]`
+### P1-01: Layout shell `[pending]`
 
 **Goal**: Layout dasar — sidebar + header + breadcrumb + outlet switcher + role-based menu visibility.
 
 **Dependencies**: P0-04 (API contract), P0-05 (testing)
 
 **Outputs**:
+
 - `apps/web/src/components/layout/AppShell.jsx`
 - `apps/web/src/components/layout/Sidebar.jsx` (collapsible, role-aware)
 - `apps/web/src/components/layout/Header.jsx` (logo, search, profile, notif badge)
@@ -24,6 +25,7 @@
 - `apps/web/src/contexts/PermissionContext.jsx` (role + tier feature flag)
 
 **Acceptance criteria**:
+
 - [ ] Sidebar punya 11 menu group (Penjualan, Order Online, Appointment, Karyawan, Keuangan, Pengaturan, Lainnya, Bantuan, LAYANAN, INSPIRASI, Capital, SUPPLIES)
 - [ ] Sidebar collapsible (icon-only mode)
 - [ ] Outlet switcher di header berfungsi (mock 2 outlet)
@@ -34,6 +36,7 @@
 - [ ] Mobile-responsive (sidebar jadi drawer di < 768px)
 
 **Reference**:
+
 - `docs/v2/05_PERMISSIONS.md`
 - `docs/v2/06_FEATURE_TIERS.md`
 - `docs/v2/menus/*/  _README.md` (untuk struktur menu)
@@ -43,13 +46,14 @@
 
 ---
 
-### P1-02: Auth flow refinement  `[pending]`
+### P1-02: Auth flow refinement `[pending]`
 
 **Goal**: Login + logout + token refresh + remember me + reset password + change password + 2FA setup. Replace existing simple login dengan flow lengkap.
 
 **Dependencies**: P0-04
 
 **Outputs**:
+
 - `apps/web/src/pages/auth/LoginPage.jsx` (refresh)
 - `apps/web/src/pages/auth/ForgotPasswordPage.jsx`
 - `apps/web/src/pages/auth/ResetPasswordPage.jsx`
@@ -60,6 +64,7 @@
 - Email/SMS sender via SendGrid/Nexmo (atau mock di dev)
 
 **Acceptance criteria**:
+
 - [ ] Login pakai email + password (atau username), JWT issued
 - [ ] Token expiry 15 min, refresh token 30 hari
 - [ ] Auto-refresh token via axios interceptor
@@ -76,19 +81,21 @@
 
 ---
 
-### P1-03: Dashboard (POS Dashboard) page  `[pending]`
+### P1-03: Dashboard (POS Dashboard) page `[pending]`
 
 **Goal**: Halaman Dashboard utama di Penjualan group — KPI cards, charts, quick actions.
 
 **Dependencies**: P1-01
 
 **Outputs**:
+
 - `apps/web/src/pages/penjualan/DashboardPage.jsx`
 - `apps/web/src/components/charts/RevenueChart.jsx`
 - `apps/web/src/components/charts/TopProductChart.jsx`
 - Backend: endpoint `/api/v1/dashboard/summary`, `/api/v1/dashboard/sales-trend`, `/api/v1/dashboard/top-products`
 
 **Acceptance criteria**:
+
 - [ ] KPI cards: pendapatan today/MTD, transaksi count, avg ticket, item terjual
 - [ ] Chart pendapatan 30 hari terakhir (Recharts)
 - [ ] Chart top 10 produk
@@ -105,19 +112,21 @@
 
 ---
 
-### P1-04: Produk Master + 5-tab wizard  `[pending]`
+### P1-04: Produk Master + 5-tab wizard `[pending]`
 
 **Goal**: Halaman Produk + form Tambah/Edit Produk dengan 5 tab (Detail / Kategori / Stok / Varian / Resep). Saat ini sudah ada di PR #1 tapi tab Varian/Resep/Order locked — buka.
 
 **Dependencies**: P1-01
 
 **Outputs**:
+
 - `apps/web/src/pages/penjualan/ProductsPage.jsx` (refresh)
 - `apps/web/src/components/products/ProductForm/{TabDetail,TabCategory,TabStock,TabVariant,TabRecipe,TabMajooOrder}.jsx`
 - Backend: endpoint `/api/v1/product-variant`, `/api/v1/product-recipe`, `/api/v1/product-online`
 - DB schema: tabel `product_variants`, `product_recipe_items`
 
 **Acceptance criteria**:
+
 - [ ] List produk dengan filter (kategori, status, search), pagination
 - [ ] Tambah produk wizard 5 tab semua working
 - [ ] Tab Varian: tambah opsi (Ukuran/Warna/dll) + price modifier per opsi
@@ -135,18 +144,20 @@
 
 ---
 
-### P1-05: Kategori + Departemen master  `[pending]`
+### P1-05: Kategori + Departemen master `[pending]`
 
 **Goal**: Halaman Kategori (existing) + Departemen master (group of category). Drag-reorder.
 
 **Dependencies**: P1-01
 
 **Outputs**:
+
 - `apps/web/src/pages/penjualan/CategoriesPage.jsx` (refresh, sudah ada)
 - `apps/web/src/pages/penjualan/DepartmentsPage.jsx` (baru)
 - Backend: tambah endpoint untuk reorder
 
 **Acceptance criteria**:
+
 - [ ] List kategori per departemen
 - [ ] CRUD kategori (already sebagian di PR #1, lengkapi)
 - [ ] CRUD departemen
@@ -160,13 +171,14 @@
 
 ---
 
-### P1-06: Pelanggan (Customer) + grouping + tag  `[pending]`
+### P1-06: Pelanggan (Customer) + grouping + tag `[pending]`
 
 **Goal**: Halaman Pelanggan dengan list + form + grouping + tag + import.
 
 **Dependencies**: P1-01
 
 **Outputs**:
+
 - `apps/web/src/pages/penjualan/CustomersPage.jsx` (refresh)
 - `apps/web/src/pages/penjualan/CustomerDetailPage.jsx`
 - `apps/web/src/components/customers/CustomerForm.jsx`
@@ -174,6 +186,7 @@
 - Backend: tambah `customer_groups`, `customer_tags`
 
 **Acceptance criteria**:
+
 - [ ] List pelanggan dengan filter (group, tag, status), search by nama/phone/email
 - [ ] CRUD pelanggan (already sebagian, lengkapi)
 - [ ] Group pelanggan (Member, VIP, Reseller)
@@ -189,13 +202,14 @@
 
 ---
 
-### P1-07: Inventory (Daftar Stok + opname + mutasi)  `[pending]`
+### P1-07: Inventory (Daftar Stok + opname + mutasi) `[pending]`
 
 **Goal**: Halaman Inventory: daftar stok per outlet + stok opname + mutasi antar outlet.
 
 **Dependencies**: P1-01, P1-04
 
 **Outputs**:
+
 - `apps/web/src/pages/penjualan/InventoryPage.jsx` (refresh)
 - `apps/web/src/pages/penjualan/StockOpnamePage.jsx`
 - `apps/web/src/pages/penjualan/StockMutationPage.jsx`
@@ -203,6 +217,7 @@
 - Backend: `/api/v1/stock-opname`, `/api/v1/stock-mutation`
 
 **Acceptance criteria**:
+
 - [ ] Daftar stok per outlet (qty, reorder point, last in/out)
 - [ ] Stock opname: input fisik vs sistem, hitung selisih, posting jurnal
 - [ ] Stock mutation: kirim dari outlet A ke outlet B (status: requested → in transit → received)
@@ -217,13 +232,14 @@
 
 ---
 
-### P1-08: Promo + Kupon + Loyalty  `[pending]`
+### P1-08: Promo + Kupon + Loyalty `[pending]`
 
 **Goal**: Halaman Promo dengan 8 jenis (diskon flat, persentase, BXGY, bundle, dst) + Kupon + Poin Loyalty.
 
 **Dependencies**: P1-01, P1-04
 
 **Outputs**:
+
 - `apps/web/src/pages/penjualan/PromosPage.jsx`
 - `apps/web/src/pages/penjualan/CouponsPage.jsx`
 - `apps/web/src/pages/penjualan/LoyaltyPage.jsx`
@@ -231,6 +247,7 @@
 - Backend: `/api/v1/promo`, `/api/v1/coupon`, `/api/v1/loyalty-rule`
 
 **Acceptance criteria**:
+
 - [ ] Builder promo support 8 jenis (lihat reference)
 - [ ] Kondisi: time, day of week, customer group, min purchase, product/category
 - [ ] Bulk generate kupon (random/custom code)
@@ -245,17 +262,19 @@
 
 ---
 
-### P1-09: Komisi  `[pending]`
+### P1-09: Komisi `[pending]`
 
 **Goal**: Halaman Komisi: setup grup komisi (fixed % atau tiered) + tag per transaksi.
 
 **Dependencies**: P1-01, P1-04
 
 **Outputs**:
+
 - `apps/web/src/pages/penjualan/CommissionsPage.jsx`
 - Backend: `/api/v1/commission-group`, `/api/v1/commission-rule`
 
 **Acceptance criteria**:
+
 - [ ] Grup komisi: fixed % atau tiered (per range qty/nominal)
 - [ ] Assign produk → grup komisi
 - [ ] Per transaksi tag karyawan yang dapat komisi
@@ -268,13 +287,14 @@
 
 ---
 
-### P1-10: Invoice B2B (5-stage flow)  `[pending]`
+### P1-10: Invoice B2B (5-stage flow) `[pending]`
 
 **Goal**: Halaman Invoice B2B: Quotation → Sales Order → Delivery Order → Invoice → Receipt.
 
 **Dependencies**: P1-01, P1-04, P1-06
 
 **Outputs**:
+
 - `apps/web/src/pages/penjualan/QuotationsPage.jsx`
 - `apps/web/src/pages/penjualan/SalesOrdersPage.jsx`
 - `apps/web/src/pages/penjualan/DeliveryOrdersPage.jsx`
@@ -283,6 +303,7 @@
 - Backend: `/api/v1/quotation`, `/api/v1/sales-order`, `/api/v1/delivery-order`, `/api/v1/invoice`, `/api/v1/receipt`
 
 **Acceptance criteria**:
+
 - [ ] Buat Quotation → convert ke SO
 - [ ] SO → DO (partial allowed) → Invoice (partial allowed) → Receipt
 - [ ] Status flow per stage: DRAFT, SENT, ACCEPTED, REJECTED
@@ -297,18 +318,20 @@
 
 ---
 
-### P1-11: Marketing (WA Blast + SMS + Email + IG)  `[pending]`
+### P1-11: Marketing (WA Blast + SMS + Email + IG) `[pending]`
 
 **Goal**: Halaman Marketing: WA Blast, SMS Broadcast, Email Blast, IG Feed scheduler.
 
 **Dependencies**: P1-01, P1-06
 
 **Outputs**:
+
 - `apps/web/src/pages/penjualan/MarketingPage.jsx`
 - `apps/web/src/components/marketing/CampaignBuilder.jsx`
 - Backend: `/api/v1/campaign`, integrasi WhatsApp Business API, SMS gateway, SendGrid
 
 **Acceptance criteria**:
+
 - [ ] Pilih channel (WA/SMS/Email/IG)
 - [ ] Pilih audience (semua pelanggan, group, tag, custom segment)
 - [ ] Template message dengan variable substitution ({{nama}}, {{outlet}}, dll)
@@ -323,13 +346,14 @@
 
 ---
 
-### P1-12: Order Online + Marketplace + Consumer App config  `[pending]`
+### P1-12: Order Online + Marketplace + Consumer App config `[pending]`
 
 **Goal**: Halaman Order Online: pesanan masuk, majoo Order config, marketplace integration, consumer app config.
 
 **Dependencies**: P1-01, P1-04
 
 **Outputs**:
+
 - `apps/web/src/pages/order_online/OrdersPage.jsx`
 - `apps/web/src/pages/order_online/MajooOrderPage.jsx` (storefront config)
 - `apps/web/src/pages/order_online/MarketplacePage.jsx` (GoFood/GrabFood/Shopee oauth)
@@ -337,6 +361,7 @@
 - Backend: `/api/v1/online-order`, `/api/v1/marketplace/{provider}`
 
 **Acceptance criteria**:
+
 - [ ] Queue pesanan online (NEW → PREPARING → READY → COMPLETED)
 - [ ] Storefront config: domain custom, branding, payment methods, delivery zone, ongkir
 - [ ] Marketplace OAuth flow per provider
@@ -351,19 +376,21 @@
 
 ---
 
-### P1-13: Appointment / Reservasi  `[pending]`
+### P1-13: Appointment / Reservasi `[pending]`
 
 **Goal**: Halaman Appointment: list, calendar view, add/edit form.
 
 **Dependencies**: P1-01, P1-04, P1-06
 
 **Outputs**:
+
 - `apps/web/src/pages/appointment/AppointmentListPage.jsx`
 - `apps/web/src/pages/appointment/CalendarPage.jsx`
 - `apps/web/src/components/appointment/AppointmentForm.jsx`
 - Backend: `/api/v1/appointment`
 
 **Acceptance criteria**:
+
 - [ ] List view dengan filter (status, staff, tanggal)
 - [ ] Calendar view (day/week/month) dengan drag-reschedule
 - [ ] Form: customer, staff, services (multi), waktu, durasi
@@ -377,13 +404,14 @@
 
 ---
 
-### P1-14: Karyawan + Payroll + Absensi  `[pending]`
+### P1-14: Karyawan + Payroll + Absensi `[pending]`
 
 **Goal**: Halaman Karyawan: master data, payroll, hak akses, absensi, jadwal.
 
 **Dependencies**: P1-01, P1-02
 
 **Outputs**:
+
 - `apps/web/src/pages/karyawan/EmployeesPage.jsx`
 - `apps/web/src/pages/karyawan/PayrollPage.jsx`
 - `apps/web/src/pages/karyawan/PermissionsPage.jsx`
@@ -393,6 +421,7 @@
 - Backend: `/api/v1/employee`, `/api/v1/payroll`, `/api/v1/attendance`, `/api/v1/schedule`
 
 **Acceptance criteria**:
+
 - [ ] Master karyawan: form lengkap (KTP, NPWP, dst), dokumen, foto
 - [ ] Payroll: setup struktur, hitung otomatis, generate payslip, bank transfer file
 - [ ] Permissions: assign role + per-employee override
@@ -407,13 +436,14 @@
 
 ---
 
-### P1-15: Keuangan (Buku Kas + Penerimaan + Pengeluaran + Aset + Laporan)  `[pending]`
+### P1-15: Keuangan (Buku Kas + Penerimaan + Pengeluaran + Aset + Laporan) `[pending]`
 
 **Goal**: Halaman Keuangan lengkap.
 
 **Dependencies**: P1-01, P1-02
 
 **Outputs**:
+
 - `apps/web/src/pages/keuangan/CashBookPage.jsx`
 - `apps/web/src/pages/keuangan/IncomePage.jsx`
 - `apps/web/src/pages/keuangan/ExpensesPage.jsx`
@@ -423,6 +453,7 @@
 - Backend: `/api/v1/cash-account`, `/api/v1/income`, `/api/v1/expense`, `/api/v1/fixed-asset`, `/api/v1/journal`, `/api/v1/account`
 
 **Acceptance criteria**:
+
 - [ ] Buku kas: list + transfer + ledger per akun
 - [ ] Penerimaan: manual + reconciliation POS sales
 - [ ] Pengeluaran: list + kategori biaya + recurring bill + vendor master
@@ -437,13 +468,14 @@
 
 ---
 
-### P1-16: Pengaturan (Settings)  `[pending]`
+### P1-16: Pengaturan (Settings) `[pending]`
 
 **Goal**: Halaman Pengaturan lengkap.
 
 **Dependencies**: P1-01, P1-02
 
 **Outputs**:
+
 - `apps/web/src/pages/pengaturan/AccountProfilePage.jsx`
 - `apps/web/src/pages/pengaturan/OutletsPage.jsx` + `FloorPlanPage.jsx`
 - `apps/web/src/pages/pengaturan/NotificationsPage.jsx`
@@ -456,6 +488,7 @@
 - `apps/web/src/pages/pengaturan/ImportExportPage.jsx`
 
 **Acceptance criteria**:
+
 - [ ] Account profile: foto, nama, password, 2FA
 - [ ] Outlet: CRUD, floor plan editor (drag table)
 - [ ] Notifications: per-channel preference (push/WA/SMS/email)
@@ -474,18 +507,20 @@
 
 ---
 
-### P1-17: Reports (Laporan)  `[pending]`
+### P1-17: Reports (Laporan) `[pending]`
 
 **Goal**: Halaman Laporan: 30+ report dengan filter + export.
 
 **Dependencies**: P1-01
 
 **Outputs**:
+
 - `apps/web/src/pages/reports/{various}.jsx` per kategori report
 - `apps/web/src/components/reports/ReportTemplate.jsx` (reusable filter + table + export)
 - Backend: `/api/v1/report/{report-name}`
 
 **Acceptance criteria**:
+
 - [ ] 30+ report sesuai catalog di `docs/v2/16_REPORTS_CATALOG.md`
 - [ ] Setiap report: filter standard (date range, outlet, kategori), kolom configurable
 - [ ] Export: CSV, Excel, PDF
@@ -498,13 +533,14 @@
 
 ---
 
-### P1-18: LAINNYA (Bantuan, LAYANAN, INSPIRASI, Capital, SUPPLIES)  `[pending]`
+### P1-18: LAINNYA (Bantuan, LAYANAN, INSPIRASI, Capital, SUPPLIES) `[pending]`
 
 **Goal**: Halaman ancillary group.
 
 **Dependencies**: P1-01
 
 **Outputs**:
+
 - `apps/web/src/pages/lainnya/HelpPage.jsx`
 - `apps/web/src/pages/lainnya/ServicesPage.jsx`
 - `apps/web/src/pages/lainnya/InspirationPage.jsx`
@@ -512,6 +548,7 @@
 - `apps/web/src/pages/lainnya/SuppliesPage.jsx`
 
 **Acceptance criteria**:
+
 - [ ] Help: panduan + feedback form
 - [ ] Services: Majoopay/QRIS, EDC, Satu Sehat, Aura placeholder
 - [ ] Inspiration: blog (mock), event, magazine

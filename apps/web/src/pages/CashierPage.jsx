@@ -1,7 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  Search, Plus, Minus, Trash2, ShoppingCart, CreditCard,
-  Banknote, QrCode, X, Check, Printer
+  Search,
+  Plus,
+  Minus,
+  Trash2,
+  ShoppingCart,
+  CreditCard,
+  Banknote,
+  QrCode,
+  X,
+  Check,
+  Printer,
+  Package,
 } from 'lucide-react';
 import api from '../utils/api';
 import { formatCurrency } from '../utils/format';
@@ -38,8 +48,12 @@ export default function CashierPage() {
   };
 
   const filteredProducts = products.filter((p) => {
-    const matchCategory = selectedCategory === 'all' || p.category_id === parseInt(selectedCategory);
-    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase());
+    const matchCategory =
+      selectedCategory === 'all' || p.category_id === parseInt(selectedCategory);
+    const matchSearch =
+      !search ||
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.sku.toLowerCase().includes(search.toLowerCase());
     return matchCategory && matchSearch;
   });
 
@@ -57,33 +71,36 @@ export default function CashierPage() {
           return prev;
         }
         return prev.map((item) =>
-          item.product_id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
+          item.product_id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
-      return [...prev, {
-        product_id: product.id,
-        name: product.name,
-        price: product.price,
-        quantity: 1,
-        stock: product.stock,
-      }];
+      return [
+        ...prev,
+        {
+          product_id: product.id,
+          name: product.name,
+          price: product.price,
+          quantity: 1,
+          stock: product.stock,
+        },
+      ];
     });
   };
 
   const updateQuantity = (productId, delta) => {
     setCart((prev) => {
-      return prev.map((item) => {
-        if (item.product_id !== productId) return item;
-        const newQty = item.quantity + delta;
-        if (newQty <= 0) return null;
-        if (newQty > item.stock) {
-          toast.error('Stok tidak mencukupi');
-          return item;
-        }
-        return { ...item, quantity: newQty };
-      }).filter(Boolean);
+      return prev
+        .map((item) => {
+          if (item.product_id !== productId) return item;
+          const newQty = item.quantity + delta;
+          if (newQty <= 0) return null;
+          if (newQty > item.stock) {
+            toast.error('Stok tidak mencukupi');
+            return item;
+          }
+          return { ...item, quantity: newQty };
+        })
+        .filter(Boolean);
     });
   };
 
@@ -128,7 +145,8 @@ export default function CashierPage() {
   };
 
   const quickAmounts = [50000, 100000, 150000, 200000, 500000];
-  const changeAmount = (paymentMethod === 'cash' ? (parseInt(paymentAmount) || 0) : cartTotal) - cartTotal;
+  const changeAmount =
+    (paymentMethod === 'cash' ? parseInt(paymentAmount) || 0 : cartTotal) - cartTotal;
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-8rem)]">
@@ -187,8 +205,12 @@ export default function CashierPage() {
                 <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{product.sku}</p>
                 <div className="flex items-center justify-between mt-2">
-                  <p className="text-sm font-bold text-primary-600">{formatCurrency(product.price)}</p>
-                  <span className={`text-xs ${product.stock <= 5 ? 'text-amber-500' : 'text-gray-400'}`}>
+                  <p className="text-sm font-bold text-primary-600">
+                    {formatCurrency(product.price)}
+                  </p>
+                  <span
+                    className={`text-xs ${product.stock <= 5 ? 'text-amber-500' : 'text-gray-400'}`}
+                  >
                     {product.stock} stk
                   </span>
                 </div>
@@ -225,7 +247,10 @@ export default function CashierPage() {
             </div>
           ) : (
             cart.map((item) => (
-              <div key={item.product_id} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+              <div
+                key={item.product_id}
+                className="flex items-center gap-3 bg-gray-50 rounded-xl p-3"
+              >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
                   <p className="text-xs text-gray-400">{formatCurrency(item.price)}</p>
@@ -266,7 +291,10 @@ export default function CashierPage() {
               <span className="text-xl font-bold text-gray-900">{formatCurrency(cartTotal)}</span>
             </div>
             <button
-              onClick={() => { setShowPayment(true); setPaymentAmount(String(cartTotal)); }}
+              onClick={() => {
+                setShowPayment(true);
+                setPaymentAmount(String(cartTotal));
+              }}
               className="btn-success w-full flex items-center justify-center gap-2 text-lg"
             >
               <CreditCard className="w-5 h-5" />
@@ -283,14 +311,19 @@ export default function CashierPage() {
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-900">Pembayaran</h2>
-                <button onClick={() => setShowPayment(false)} className="p-2 hover:bg-gray-100 rounded-xl">
+                <button
+                  onClick={() => setShowPayment(false)}
+                  className="p-2 hover:bg-gray-100 rounded-xl"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               {/* Payment Method */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-3">Metode Pembayaran</label>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Metode Pembayaran
+                </label>
                 <div className="grid grid-cols-3 gap-3">
                   {[
                     { id: 'cash', label: 'Tunai', icon: Banknote },
@@ -303,8 +336,12 @@ export default function CashierPage() {
                       className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all
                         ${paymentMethod === method.id ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300'}`}
                     >
-                      <method.icon className={`w-6 h-6 ${paymentMethod === method.id ? 'text-primary-600' : 'text-gray-400'}`} />
-                      <span className={`text-sm font-medium ${paymentMethod === method.id ? 'text-primary-600' : 'text-gray-600'}`}>
+                      <method.icon
+                        className={`w-6 h-6 ${paymentMethod === method.id ? 'text-primary-600' : 'text-gray-400'}`}
+                      />
+                      <span
+                        className={`text-sm font-medium ${paymentMethod === method.id ? 'text-primary-600' : 'text-gray-600'}`}
+                      >
                         {method.label}
                       </span>
                     </button>
@@ -321,7 +358,9 @@ export default function CashierPage() {
               {/* Payment Amount (Cash only) */}
               {paymentMethod === 'cash' && (
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Jumlah Bayar</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Jumlah Bayar
+                  </label>
                   <input
                     type="number"
                     value={paymentAmount}
@@ -352,7 +391,9 @@ export default function CashierPage() {
                   {changeAmount >= 0 && parseInt(paymentAmount) > 0 && (
                     <div className="mt-4 bg-emerald-50 rounded-xl p-4">
                       <p className="text-sm text-emerald-600">Kembalian</p>
-                      <p className="text-xl font-bold text-emerald-700">{formatCurrency(changeAmount)}</p>
+                      <p className="text-xl font-bold text-emerald-700">
+                        {formatCurrency(changeAmount)}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -360,7 +401,10 @@ export default function CashierPage() {
 
               <button
                 onClick={handlePayment}
-                disabled={processing || (paymentMethod === 'cash' && (parseInt(paymentAmount) || 0) < cartTotal)}
+                disabled={
+                  processing ||
+                  (paymentMethod === 'cash' && (parseInt(paymentAmount) || 0) < cartTotal)
+                }
                 className="btn-success w-full flex items-center justify-center gap-2 text-lg mt-4"
               >
                 {processing ? (
@@ -391,7 +435,9 @@ export default function CashierPage() {
               <div className="mt-6 text-left space-y-2">
                 {receipt.items?.map((item, i) => (
                   <div key={i} className="flex justify-between text-sm">
-                    <span className="text-gray-600">{item.product_name} x{item.quantity}</span>
+                    <span className="text-gray-600">
+                      {item.product_name} x{item.quantity}
+                    </span>
                     <span className="font-medium">{formatCurrency(item.subtotal)}</span>
                   </div>
                 ))}
@@ -411,10 +457,7 @@ export default function CashierPage() {
               </div>
 
               <div className="mt-6 flex gap-3">
-                <button
-                  onClick={() => setReceipt(null)}
-                  className="btn-primary flex-1"
-                >
+                <button onClick={() => setReceipt(null)} className="btn-primary flex-1">
                   Transaksi Baru
                 </button>
               </div>

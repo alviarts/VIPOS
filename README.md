@@ -84,6 +84,7 @@ Frontend: http://localhost:5173
 Backend API: http://localhost:3001
 
 Untuk start individual:
+
 ```bash
 npm run dev:web         # frontend only
 npm run dev:backend     # backend only
@@ -104,37 +105,37 @@ Frontend di-serve via nginx static dari `apps/web/dist/`. Lihat [DEPLOYMENT.md](
 
 ## Workspace scripts
 
-| Script | Apa yang dilakukan |
-|---|---|
-| `npm run dev` | Concurrently jalankan backend + web (dev mode) |
-| `npm run dev:web` | Vite dev server di apps/web (port 5173) |
-| `npm run dev:backend` | Nodemon backend di apps/backend (port 3001) |
-| `npm run build` | Build semua workspaces (`--if-present`) |
-| `npm run build:web` | Build apps/web saja |
-| `npm start` | Start production backend |
-| `npm run seed` | Seed data sample ke SQLite |
-| `npm test` | Jalankan tests semua workspaces (placeholder, P0-05) |
-| `npm run lint` | Jalankan linter semua workspaces (placeholder, P0-03) |
+| Script                | Apa yang dilakukan                                    |
+| --------------------- | ----------------------------------------------------- |
+| `npm run dev`         | Concurrently jalankan backend + web (dev mode)        |
+| `npm run dev:web`     | Vite dev server di apps/web (port 5173)               |
+| `npm run dev:backend` | Nodemon backend di apps/backend (port 3001)           |
+| `npm run build`       | Build semua workspaces (`--if-present`)               |
+| `npm run build:web`   | Build apps/web saja                                   |
+| `npm start`           | Start production backend                              |
+| `npm run seed`        | Seed data sample ke SQLite                            |
+| `npm test`            | Jalankan tests semua workspaces (placeholder, P0-05)  |
+| `npm run lint`        | Jalankan linter semua workspaces (placeholder, P0-03) |
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | /api/auth/login | Login |
-| GET | /api/auth/me | Current user |
-| POST | /api/auth/register | Register (admin) |
-| GET | /api/products | List products |
-| POST | /api/products | Create product (admin) |
-| PUT | /api/products/:id | Update product (admin) |
-| DELETE | /api/products/:id | Delete product (admin) |
-| GET | /api/categories | List categories |
-| POST | /api/categories | Create category (admin) |
-| GET | /api/transactions | List transactions |
-| POST | /api/transactions | Create transaction |
-| POST | /api/transactions/:id/void | Void transaction |
-| GET | /api/dashboard/stats | Dashboard stats |
-| GET | /api/dashboard/chart | Sales chart data |
-| GET | /api/dashboard/top-products | Top selling products |
+| Method | Endpoint                    | Description             |
+| ------ | --------------------------- | ----------------------- |
+| POST   | /api/auth/login             | Login                   |
+| GET    | /api/auth/me                | Current user            |
+| POST   | /api/auth/register          | Register (admin)        |
+| GET    | /api/products               | List products           |
+| POST   | /api/products               | Create product (admin)  |
+| PUT    | /api/products/:id           | Update product (admin)  |
+| DELETE | /api/products/:id           | Delete product (admin)  |
+| GET    | /api/categories             | List categories         |
+| POST   | /api/categories             | Create category (admin) |
+| GET    | /api/transactions           | List transactions       |
+| POST   | /api/transactions           | Create transaction      |
+| POST   | /api/transactions/:id/void  | Void transaction        |
+| GET    | /api/dashboard/stats        | Dashboard stats         |
+| GET    | /api/dashboard/chart        | Sales chart data        |
+| GET    | /api/dashboard/top-products | Top selling products    |
 
 Production: prefix `/vipos` di-strip oleh nginx (lihat [DEPLOYMENT.md](./DEPLOYMENT.md)). Endpoint internal tetap `/api/*`.
 
