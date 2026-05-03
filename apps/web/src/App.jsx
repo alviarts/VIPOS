@@ -26,6 +26,10 @@ import DeliveryOrdersPage from './pages/DeliveryOrdersPage';
 import InvoicesPage from './pages/InvoicesPage';
 import ReceiptsPage from './pages/ReceiptsPage';
 import AgingReportPage from './pages/AgingReportPage';
+import CommissionsPage from './pages/CommissionsPage';
+import PromosPage from './pages/penjualan/PromosPage';
+import CouponsPage from './pages/penjualan/CouponsPage';
+import LoyaltyPage from './pages/penjualan/LoyaltyPage';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -65,6 +69,9 @@ export default function App() {
         <Route path="inventory" element={<InventoryPage />} />
         <Route path="inventory/opname" element={<StockOpnamePage />} />
         <Route path="inventory/opname/:id" element={<StockOpnamePage />} />
+        <Route path="promos" element={<PromosPage />} />
+        <Route path="coupons" element={<CouponsPage />} />
+        <Route path="loyalty" element={<LoyaltyPage />} />
         <Route path="finance" element={<FinancePage />} />
         <Route path="transactions" element={<TransactionsPage />} />
         <Route path="quotations" element={<QuotationsPage />} />
@@ -73,6 +80,7 @@ export default function App() {
         <Route path="invoices" element={<InvoicesPage />} />
         <Route path="receipts" element={<ReceiptsPage />} />
         <Route path="aging-report" element={<AgingReportPage />} />
+        <Route path="commissions" element={<CommissionsPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="settings/change-password" element={<ChangePasswordPage />} />

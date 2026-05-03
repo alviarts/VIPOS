@@ -46,6 +46,17 @@ function buildApp(opts = {}) {
   app.use('/api/finance', require('./routes/finance'));
   app.use('/api/inventory', require('./routes/inventory'));
   app.use('/api/stock-opname', require('./routes/stock-opname'));
+  app.use('/api/promo', require('./routes/promo'));
+  app.use('/api/coupon', require('./routes/coupon'));
+  const {
+    ruleRouter: loyaltyRuleRouter,
+    ledgerRouter: loyaltyLedgerRouter,
+  } = require('./routes/loyalty');
+  app.use('/api/loyalty-rule', loyaltyRuleRouter);
+  app.use('/api/loyalty', loyaltyLedgerRouter);
+  app.use('/api/commission-group', require('./routes/commission-group'));
+  app.use('/api/commission-assignment', require('./routes/commission-assignment'));
+  app.use('/api/commission-report', require('./routes/commission-report'));
   app.use('/api/quotation', require('./routes/quotation'));
   app.use('/api/sales-order', require('./routes/sales-order'));
   app.use('/api/delivery-order', require('./routes/delivery-order'));

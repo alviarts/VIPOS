@@ -54,11 +54,12 @@ describe('Sidebar', () => {
     window.localStorage.clear();
   });
 
-  it('renders 13 menu groups for OWNER on PRIME tier', () => {
+  it('renders 14 menu groups for OWNER on PRIME tier', () => {
     renderSidebar({ role: ROLES.OWNER, tier: TIERS.PRIME });
     // Each group renders a button with data-testid="group-{id}".
+    // 12 base groups + Promosi (P1-08) + Invoice B2B (P1-10).
     const groupButtons = document.querySelectorAll('[data-testid^="group-"]');
-    expect(groupButtons.length).toBe(13);
+    expect(groupButtons.length).toBe(14);
   });
 
   it('hides finance group entirely for KASIR role', () => {
