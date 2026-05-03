@@ -7,6 +7,7 @@
 export * from "./common";
 export * from "./auth";
 export * from "./categories";
+export * from "./departments";
 export * from "./products";
 export * from "./customers";
 export * from "./customer-groups";

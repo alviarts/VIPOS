@@ -38,6 +38,7 @@ import {
   Users,
   Wallet,
   Warehouse,
+  Boxes,
 } from 'lucide-react';
 import { ROLES, TIERS } from '../context/PermissionContext';
 
@@ -65,6 +66,12 @@ export const MENU_GROUPS = [
         label: 'Kategori',
         icon: Tag,
         roles: [ROLES.MANAGER, ROLES.KASIR, ROLES.STAFF],
+      },
+      {
+        path: '/departments',
+        label: 'Departemen',
+        icon: Boxes,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
       },
       {
         path: '/inventory',

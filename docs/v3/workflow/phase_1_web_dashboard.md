@@ -152,7 +152,9 @@
 
 ---
 
-### P1-05: Kategori + Departemen master `[pending]`
+### P1-05: Kategori + Departemen master `[done]`
+
+> PR: [#20](https://github.com/alviarts/VIPOS/pull/20) (merged 2026-05-03), session: https://app.devin.ai/sessions/87cd360ce1084f07897d809585523a61
 
 **Goal**: Halaman Kategori (existing) + Departemen master (group of category). Drag-reorder.
 

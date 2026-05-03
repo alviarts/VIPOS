@@ -63,6 +63,8 @@ function initDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT UNIQUE NOT NULL,
       description TEXT,
+      urutan INTEGER DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -72,6 +74,8 @@ function initDatabase() {
       description TEXT,
       urutan INTEGER DEFAULT 0,
       department_id INTEGER,
+      color TEXT,
+      icon_url TEXT,
       is_tampil_di_menu INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (department_id) REFERENCES departments(id)
@@ -322,6 +326,12 @@ function initDatabase() {
   addColumnIfMissing(db, 'categories', 'urutan', 'INTEGER DEFAULT 0');
   addColumnIfMissing(db, 'categories', 'department_id', 'INTEGER');
   addColumnIfMissing(db, 'categories', 'is_tampil_di_menu', 'INTEGER DEFAULT 1');
+
+  // P1-05: Kategori + Departemen master.
+  addColumnIfMissing(db, 'departments', 'urutan', 'INTEGER DEFAULT 0');
+  addColumnIfMissing(db, 'departments', 'is_active', 'INTEGER DEFAULT 1');
+  addColumnIfMissing(db, 'categories', 'color', 'TEXT');
+  addColumnIfMissing(db, 'categories', 'icon_url', 'TEXT');
 
   addColumnIfMissing(db, 'products', 'barcode', 'TEXT');
   addColumnIfMissing(db, 'products', 'harga_modal', 'REAL DEFAULT 0');
