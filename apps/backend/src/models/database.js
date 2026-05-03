@@ -879,6 +879,189 @@ function initDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    -- ============================================================
+    -- P1-15: Keuangan (Buku Kas + Penerimaan + Pengeluaran + Aset Tetap + Laporan)
+    -- ============================================================
+
+    -- Chart of Accounts (CoA). Indonesian SAK ETAP-style:
+    --   1xxx Aset, 2xxx Kewajiban, 3xxx Modal, 4xxx Pendapatan, 5xxx Beban
+    CREATE TABLE IF NOT EXISTS gl_accounts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('ASET', 'KEWAJIBAN', 'MODAL', 'PENDAPATAN', 'BEBAN')),
+      subtype TEXT,
+      parent_id INTEGER REFERENCES gl_accounts(id),
+      normal_balance TEXT NOT NULL CHECK(normal_balance IN ('debit', 'credit')),
+      opening_balance REAL DEFAULT 0,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      description TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_gl_accounts_type ON gl_accounts(type);
+    CREATE INDEX IF NOT EXISTS idx_gl_accounts_parent ON gl_accounts(parent_id);
+
+    -- General journals (header). Every business event posts a journal:
+    --   manual / sale / income / expense / transfer / payroll / depreciation / disposal / opening
+    CREATE TABLE IF NOT EXISTS gl_journals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      journal_no TEXT UNIQUE NOT NULL,
+      journal_date DATE NOT NULL,
+      description TEXT,
+      source_type TEXT NOT NULL DEFAULT 'manual'
+        CHECK(source_type IN ('manual', 'sale', 'income', 'expense', 'transfer', 'payroll', 'depreciation', 'disposal', 'opening')),
+      source_id INTEGER,
+      total_amount REAL NOT NULL DEFAULT 0,
+      is_locked INTEGER NOT NULL DEFAULT 0,
+      created_by INTEGER REFERENCES users(id),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_gl_journals_date ON gl_journals(journal_date);
+    CREATE INDEX IF NOT EXISTS idx_gl_journals_source ON gl_journals(source_type, source_id);
+
+    -- Journal lines (per account debit/credit). Sum debit must equal sum credit.
+    CREATE TABLE IF NOT EXISTS gl_journal_lines (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      journal_id INTEGER NOT NULL REFERENCES gl_journals(id) ON DELETE CASCADE,
+      account_id INTEGER NOT NULL REFERENCES gl_accounts(id),
+      debit REAL NOT NULL DEFAULT 0,
+      credit REAL NOT NULL DEFAULT 0,
+      description TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS idx_gl_journal_lines_journal ON gl_journal_lines(journal_id);
+    CREATE INDEX IF NOT EXISTS idx_gl_journal_lines_account ON gl_journal_lines(account_id);
+
+    -- Vendors / Mitra (for expense / fixed asset purchase).
+    CREATE TABLE IF NOT EXISTS gl_vendors (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      npwp TEXT,
+      address TEXT,
+      phone TEXT,
+      email TEXT,
+      bank_name TEXT,
+      bank_account_no TEXT,
+      bank_account_holder TEXT,
+      default_account_id INTEGER REFERENCES gl_accounts(id),
+      payment_terms_days INTEGER NOT NULL DEFAULT 0,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      note TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Income (Penerimaan): manual income, auto-posts journal Dr Cash/Bank, Cr Revenue.
+    CREATE TABLE IF NOT EXISTS gl_incomes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ref_no TEXT UNIQUE NOT NULL,
+      income_date DATE NOT NULL,
+      source_type TEXT NOT NULL DEFAULT 'other' CHECK(source_type IN ('customer', 'other')),
+      customer_id INTEGER REFERENCES customers(id),
+      source_other TEXT,
+      category TEXT,
+      amount REAL NOT NULL,
+      cash_account_id INTEGER NOT NULL REFERENCES gl_accounts(id),
+      revenue_account_id INTEGER NOT NULL REFERENCES gl_accounts(id),
+      tax_amount REAL DEFAULT 0,
+      description TEXT,
+      attachment TEXT,
+      journal_id INTEGER REFERENCES gl_journals(id),
+      created_by INTEGER REFERENCES users(id),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_gl_incomes_date ON gl_incomes(income_date);
+
+    -- Expenses (Pengeluaran): vendor + category + auto-journal.
+    CREATE TABLE IF NOT EXISTS gl_expenses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ref_no TEXT UNIQUE NOT NULL,
+      expense_date DATE NOT NULL,
+      vendor_id INTEGER REFERENCES gl_vendors(id),
+      expense_account_id INTEGER NOT NULL REFERENCES gl_accounts(id),
+      payment_account_id INTEGER NOT NULL REFERENCES gl_accounts(id),
+      amount REAL NOT NULL,
+      tax_amount REAL DEFAULT 0,
+      description TEXT,
+      attachment TEXT,
+      is_recurring INTEGER NOT NULL DEFAULT 0,
+      journal_id INTEGER REFERENCES gl_journals(id),
+      created_by INTEGER REFERENCES users(id),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_gl_expenses_date ON gl_expenses(expense_date);
+
+    -- Recurring bills (auto-create monthly draft expense).
+    CREATE TABLE IF NOT EXISTS gl_recurring_bills (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      vendor_id INTEGER REFERENCES gl_vendors(id),
+      expense_account_id INTEGER NOT NULL REFERENCES gl_accounts(id),
+      payment_account_id INTEGER REFERENCES gl_accounts(id),
+      amount REAL NOT NULL,
+      frequency TEXT NOT NULL DEFAULT 'monthly' CHECK(frequency IN ('monthly', 'quarterly', 'annually')),
+      due_day INTEGER NOT NULL DEFAULT 1,
+      last_run_at DATETIME,
+      next_run_at DATETIME,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Fixed assets register.
+    CREATE TABLE IF NOT EXISTS gl_fixed_assets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      category TEXT,
+      acquisition_date DATE NOT NULL,
+      cost REAL NOT NULL,
+      useful_life_years INTEGER NOT NULL DEFAULT 1,
+      salvage_value REAL NOT NULL DEFAULT 0,
+      depreciation_method TEXT NOT NULL DEFAULT 'STRAIGHT_LINE'
+        CHECK(depreciation_method IN ('STRAIGHT_LINE', 'DOUBLE_DECLINING')),
+      accumulated_depreciation REAL NOT NULL DEFAULT 0,
+      location TEXT,
+      vendor_id INTEGER REFERENCES gl_vendors(id),
+      photo_url TEXT,
+      asset_account_id INTEGER NOT NULL REFERENCES gl_accounts(id),
+      accum_dep_account_id INTEGER NOT NULL REFERENCES gl_accounts(id),
+      dep_expense_account_id INTEGER NOT NULL REFERENCES gl_accounts(id),
+      payment_account_id INTEGER REFERENCES gl_accounts(id),
+      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'disposed')),
+      acquisition_journal_id INTEGER REFERENCES gl_journals(id),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Per-period depreciation runs.
+    CREATE TABLE IF NOT EXISTS gl_fixed_asset_depreciations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      asset_id INTEGER NOT NULL REFERENCES gl_fixed_assets(id) ON DELETE CASCADE,
+      period_year INTEGER NOT NULL,
+      period_month INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      journal_id INTEGER REFERENCES gl_journals(id),
+      run_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(asset_id, period_year, period_month)
+    );
+
+    -- Disposal records.
+    CREATE TABLE IF NOT EXISTS gl_fixed_asset_disposals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      asset_id INTEGER NOT NULL UNIQUE REFERENCES gl_fixed_assets(id),
+      disposal_date DATE NOT NULL,
+      disposal_type TEXT NOT NULL CHECK(disposal_type IN ('SOLD', 'SCRAPPED', 'DONATED', 'LOST')),
+      proceeds REAL NOT NULL DEFAULT 0,
+      buyer TEXT,
+      gain_loss REAL NOT NULL DEFAULT 0,
+      proceeds_account_id INTEGER REFERENCES gl_accounts(id),
+      journal_id INTEGER REFERENCES gl_journals(id),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   // --- Idempotent migrations for existing databases (so users that ran old seeds
@@ -959,7 +1142,110 @@ function initDatabase() {
     console.log('Default admin user created (admin / admin123)');
   }
 
+  // P1-15: Seed default Chart of Accounts (Indonesian SAK ETAP) if empty.
+  seedDefaultChartOfAccounts(db);
+
   console.log('Database initialized successfully');
+}
+
+/**
+ * Seed default Chart of Accounts (Indonesian SAK ETAP-style).
+ * Idempotent — only runs when the CoA table is empty.
+ */
+function seedDefaultChartOfAccounts(db) {
+  const existing = db.prepare('SELECT COUNT(*) AS n FROM gl_accounts').get();
+  if (existing && existing.n > 0) return;
+
+  // Type → normal_balance (Aset/Beban = debit; Kewajiban/Modal/Pendapatan = credit).
+  const NB = {
+    ASET: 'debit',
+    KEWAJIBAN: 'credit',
+    MODAL: 'credit',
+    PENDAPATAN: 'credit',
+    BEBAN: 'debit',
+  };
+  const insert = db.prepare(
+    `INSERT INTO gl_accounts (code, name, type, subtype, normal_balance, is_active)
+     VALUES (@code, @name, @type, @subtype, @nb, 1)`
+  );
+  const seedRows = [
+    // ===== Aset =====
+    { code: '1000', name: 'Aset', type: 'ASET', subtype: 'header' },
+    { code: '1100', name: 'Aset Lancar', type: 'ASET', subtype: 'header' },
+    { code: '1101', name: 'Kas', type: 'ASET', subtype: 'Kas & Bank' },
+    { code: '1102', name: 'Bank BCA', type: 'ASET', subtype: 'Kas & Bank' },
+    { code: '1103', name: 'Bank Mandiri', type: 'ASET', subtype: 'Kas & Bank' },
+    { code: '1110', name: 'Kas Kasir', type: 'ASET', subtype: 'Kas & Bank' },
+    { code: '1201', name: 'Piutang Usaha', type: 'ASET', subtype: 'Aset Lancar Lain' },
+    { code: '1301', name: 'Persediaan Barang', type: 'ASET', subtype: 'Aset Lancar Lain' },
+    { code: '1500', name: 'Aset Tetap', type: 'ASET', subtype: 'header' },
+    { code: '1501', name: 'Tanah', type: 'ASET', subtype: 'Aset Tetap' },
+    { code: '1502', name: 'Bangunan', type: 'ASET', subtype: 'Aset Tetap' },
+    { code: '1503', name: 'Kendaraan', type: 'ASET', subtype: 'Aset Tetap' },
+    { code: '1504', name: 'Peralatan', type: 'ASET', subtype: 'Aset Tetap' },
+    {
+      code: '1591',
+      name: 'Akumulasi Penyusutan Bangunan',
+      type: 'ASET',
+      subtype: 'Akm. Penyusutan',
+    },
+    {
+      code: '1592',
+      name: 'Akumulasi Penyusutan Kendaraan',
+      type: 'ASET',
+      subtype: 'Akm. Penyusutan',
+    },
+    {
+      code: '1593',
+      name: 'Akumulasi Penyusutan Peralatan',
+      type: 'ASET',
+      subtype: 'Akm. Penyusutan',
+    },
+    // ===== Kewajiban =====
+    { code: '2000', name: 'Kewajiban', type: 'KEWAJIBAN', subtype: 'header' },
+    { code: '2101', name: 'Hutang Usaha', type: 'KEWAJIBAN', subtype: 'Kewajiban Lancar' },
+    { code: '2102', name: 'Hutang Pajak', type: 'KEWAJIBAN', subtype: 'Kewajiban Lancar' },
+    { code: '2103', name: 'Hutang Gaji', type: 'KEWAJIBAN', subtype: 'Kewajiban Lancar' },
+    { code: '2201', name: 'Hutang Bank', type: 'KEWAJIBAN', subtype: 'Kewajiban Jangka Panjang' },
+    // ===== Modal =====
+    { code: '3000', name: 'Modal', type: 'MODAL', subtype: 'header' },
+    { code: '3101', name: 'Modal Disetor', type: 'MODAL', subtype: 'Modal' },
+    { code: '3201', name: 'Laba Ditahan', type: 'MODAL', subtype: 'Modal' },
+    { code: '3301', name: 'Laba Tahun Berjalan', type: 'MODAL', subtype: 'Modal' },
+    // ===== Pendapatan =====
+    { code: '4000', name: 'Pendapatan', type: 'PENDAPATAN', subtype: 'header' },
+    { code: '4101', name: 'Penjualan', type: 'PENDAPATAN', subtype: 'Penjualan' },
+    { code: '4102', name: 'Pendapatan Jasa', type: 'PENDAPATAN', subtype: 'Penjualan' },
+    { code: '4103', name: 'Pendapatan Lain', type: 'PENDAPATAN', subtype: 'Pendapatan Lain' },
+    { code: '4910', name: 'Laba Pelepasan Aset', type: 'PENDAPATAN', subtype: 'Pendapatan Lain' },
+    // ===== Beban =====
+    { code: '5000', name: 'Beban', type: 'BEBAN', subtype: 'header' },
+    { code: '5101', name: 'HPP', type: 'BEBAN', subtype: 'HPP' },
+    { code: '5201', name: 'Beban Gaji', type: 'BEBAN', subtype: 'Beban Operasional' },
+    { code: '5202', name: 'Beban Sewa', type: 'BEBAN', subtype: 'Beban Operasional' },
+    { code: '5203', name: 'Beban Listrik & Air', type: 'BEBAN', subtype: 'Beban Operasional' },
+    { code: '5204', name: 'Beban Internet', type: 'BEBAN', subtype: 'Beban Operasional' },
+    { code: '5205', name: 'Beban Marketing', type: 'BEBAN', subtype: 'Beban Operasional' },
+    { code: '5206', name: 'Beban Perlengkapan', type: 'BEBAN', subtype: 'Beban Operasional' },
+    { code: '5207', name: 'Beban Transport', type: 'BEBAN', subtype: 'Beban Operasional' },
+    { code: '5208', name: 'Beban Komunikasi', type: 'BEBAN', subtype: 'Beban Operasional' },
+    { code: '5301', name: 'Beban Penyusutan', type: 'BEBAN', subtype: 'Beban Penyusutan' },
+    { code: '5910', name: 'Rugi Pelepasan Aset', type: 'BEBAN', subtype: 'Beban Lain' },
+    { code: '5911', name: 'Beban Bank', type: 'BEBAN', subtype: 'Beban Lain' },
+  ];
+  const txn = db.transaction((rows) => {
+    for (const row of rows) {
+      insert.run({
+        code: row.code,
+        name: row.name,
+        type: row.type,
+        subtype: row.subtype,
+        nb: NB[row.type],
+      });
+    }
+  });
+  txn(seedRows);
+  console.log(`Seeded ${seedRows.length} default Chart of Accounts entries`);
 }
 
 module.exports = { getDb, initDatabase, _resetDbForTests };

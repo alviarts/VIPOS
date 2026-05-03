@@ -86,6 +86,29 @@ function buildApp(opts = {}) {
   app.use('/api/schedule-swap', swapRouter);
   app.use('/api/approval-chain', require('./routes/approval-chain'));
 
+  // P1-15: Keuangan (CoA, Journal, Cash Transfer, Income, Expense, Vendor,
+  //                  Recurring Bill, Fixed Asset, Financial Report).
+  const {
+    accountRouter,
+    journalRouter,
+    cashTransferRouter,
+    incomeRouter,
+    expenseRouter,
+    recurringBillRouter,
+    vendorRouter,
+    fixedAssetRouter,
+    reportRouter,
+  } = require('./routes/keuangan');
+  app.use('/api/account', accountRouter);
+  app.use('/api/journal', journalRouter);
+  app.use('/api/cash-transfer', cashTransferRouter);
+  app.use('/api/income', incomeRouter);
+  app.use('/api/expense', expenseRouter);
+  app.use('/api/recurring-bill', recurringBillRouter);
+  app.use('/api/vendor', vendorRouter);
+  app.use('/api/fixed-asset', fixedAssetRouter);
+  app.use('/api/financial-report', reportRouter);
+
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
