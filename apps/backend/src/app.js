@@ -46,6 +46,12 @@ function buildApp(opts = {}) {
   app.use('/api/finance', require('./routes/finance'));
   app.use('/api/inventory', require('./routes/inventory'));
   app.use('/api/stock-opname', require('./routes/stock-opname'));
+  app.use('/api/quotation', require('./routes/quotation'));
+  app.use('/api/sales-order', require('./routes/sales-order'));
+  app.use('/api/delivery-order', require('./routes/delivery-order'));
+  app.use('/api/invoice', require('./routes/invoice'));
+  app.use('/api/receipt', require('./routes/receipt'));
+  app.use('/api/aging-report', require('./routes/aging-report'));
 
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
