@@ -198,7 +198,6 @@ router.post(
         const baseUrl = process.env.VIPOS_PUBLIC_URL || 'http://localhost:5173';
         const link = `${baseUrl}/reset-password?token=${encodeURIComponent(raw)}`;
         // Mock "email" — log to console. Future: SendGrid integration.
-        // eslint-disable-next-line no-console
         console.log(`[mock email] reset link for user ${user.username}: ${link}`);
         if (process.env.NODE_ENV !== 'production') {
           return res.status(202).json({ ok: true, dev_reset_link: link });
