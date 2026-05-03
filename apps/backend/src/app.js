@@ -63,6 +63,12 @@ function buildApp(opts = {}) {
   app.use('/api/invoice', require('./routes/invoice'));
   app.use('/api/receipt', require('./routes/receipt'));
   app.use('/api/aging-report', require('./routes/aging-report'));
+  // P1-13 Appointment: staff, resources, appointments, calendar.
+  app.use('/api/staff', require('./routes/staff'));
+  app.use('/api/appointment-resource', require('./routes/appointment-resource'));
+  app.use('/api/appointment', require('./routes/appointment'));
+  app.use('/api/calendar', require('./routes/calendar'));
+
   // P1-12 Order Online: queue, marketplace, storefront, consumer app.
   app.use('/api/online-order', require('./routes/order-online'));
   app.use('/api/marketplace', require('./routes/marketplace'));

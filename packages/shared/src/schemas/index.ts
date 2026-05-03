@@ -18,6 +18,7 @@ export * from "./commissions";
 export * from "./promos";
 export * from "./coupons";
 export * from "./loyalty";
+export * from "./appointment";
 export * from "./order-online";
 export * from "./karyawan";
 export * from "./keuangan";
