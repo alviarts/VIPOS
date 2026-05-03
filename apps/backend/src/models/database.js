@@ -100,6 +100,23 @@ function initDatabase() {
       FOREIGN KEY (category_id) REFERENCES categories(id)
     );
 
+    CREATE TABLE IF NOT EXISTS customer_groups (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      description TEXT,
+      discount_percent REAL DEFAULT 0,
+      points_multiplier REAL DEFAULT 1,
+      color TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS customer_tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      color TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS customers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       kode TEXT UNIQUE,
@@ -112,9 +129,25 @@ function initDatabase() {
       points INTEGER DEFAULT 0,
       deposit REAL DEFAULT 0,
       notes TEXT,
+      customer_group_id INTEGER,
+      npwp TEXT,
+      id_card_no TEXT,
+      province TEXT,
+      city TEXT,
+      district TEXT,
       is_active INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (customer_group_id) REFERENCES customer_groups(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS customer_tag_map (
+      customer_id INTEGER NOT NULL,
+      tag_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (customer_id, tag_id),
+      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+      FOREIGN KEY (tag_id) REFERENCES customer_tags(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS transactions (
@@ -243,6 +276,9 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id);
     CREATE INDEX IF NOT EXISTS idx_product_variants_product ON product_variants(product_id);
     CREATE INDEX IF NOT EXISTS idx_product_recipe_product ON product_recipe_items(product_id);
+    CREATE INDEX IF NOT EXISTS idx_customers_group ON customers(customer_group_id);
+    CREATE INDEX IF NOT EXISTS idx_customer_tag_map_customer ON customer_tag_map(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_customer_tag_map_tag ON customer_tag_map(tag_id);
   `);
 
   // --- Idempotent migrations for existing databases (so users that ran old seeds
@@ -269,6 +305,19 @@ function initDatabase() {
   addColumnIfMissing(db, 'products', 'has_recipe', 'INTEGER DEFAULT 0');
 
   addColumnIfMissing(db, 'transactions', 'customer_id', 'INTEGER REFERENCES customers(id)');
+
+  // P1-06: customer groups + tags + extended fields.
+  addColumnIfMissing(
+    db,
+    'customers',
+    'customer_group_id',
+    'INTEGER REFERENCES customer_groups(id)'
+  );
+  addColumnIfMissing(db, 'customers', 'npwp', 'TEXT');
+  addColumnIfMissing(db, 'customers', 'id_card_no', 'TEXT');
+  addColumnIfMissing(db, 'customers', 'province', 'TEXT');
+  addColumnIfMissing(db, 'customers', 'city', 'TEXT');
+  addColumnIfMissing(db, 'customers', 'district', 'TEXT');
 
   // P1-02: auth flow refinement.
   addColumnIfMissing(db, 'users', 'email', 'TEXT');
