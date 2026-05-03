@@ -142,7 +142,7 @@ Catatan:
 
 ### P0-03: Code style + linting + git hooks `[done]`
 
-> PR: [#8](https://github.com/alviarts/VIPOS/pull/8) (open, awaiting CI/review/merge), session: https://app.devin.ai/sessions/25c7eea136d1457c8c4dda8d16819659
+> PR: [#8](https://github.com/alviarts/VIPOS/pull/8) (merged 2026-05-03), session: https://app.devin.ai/sessions/25c7eea136d1457c8c4dda8d16819659
 
 **Goal**: ESLint + Prettier + Husky + lint-staged untuk web/backend; konsistensi style otomatis.
 
@@ -171,7 +171,7 @@ Catatan:
 
 ### P0-04: Type-safe API contract (OpenAPI + Zod)  `[done]`
 
-> PR: [#9](https://github.com/alviarts/VIPOS/pull/9), session: https://app.devin.ai/sessions/25c7eea136d1457c8c4dda8d16819659
+> PR: [#9](https://github.com/alviarts/VIPOS/pull/9) (merged 2026-05-03), session: https://app.devin.ai/sessions/25c7eea136d1457c8c4dda8d16819659
 
 **Goal**: Define schema API menggunakan Zod (runtime validation) + generate OpenAPI spec untuk dokumentasi. Web client + backend pakai schema yang sama.
 
@@ -199,7 +199,7 @@ Catatan:
 
 ### P0-05: Testing framework  `[done]`
 
-> PR: [#10](https://github.com/alviarts/VIPOS/pull/10), session: https://app.devin.ai/sessions/25c7eea136d1457c8c4dda8d16819659
+> PR: [#11](https://github.com/alviarts/VIPOS/pull/11) (merged 2026-05-03; replaces auto-closed #10), session: https://app.devin.ai/sessions/25c7eea136d1457c8c4dda8d16819659 + https://app.devin.ai/sessions/8546e9f2afa1429f8a23153a782e872a
 
 **Goal**: Vitest untuk web + backend + shared; basic test coverage untuk login, products CRUD, finance basics, inventory, schema validation.
 
