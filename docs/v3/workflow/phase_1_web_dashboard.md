@@ -571,7 +571,7 @@
 
 ---
 
-### P1-18: LAINNYA (Bantuan, LAYANAN, INSPIRASI, Capital, SUPPLIES) `[pending]`
+### P1-18: LAINNYA (Bantuan, LAYANAN, INSPIRASI, Capital, SUPPLIES) `[done]`
 
 **Goal**: Halaman ancillary group.
 
@@ -579,24 +579,30 @@
 
 **Outputs**:
 
+- `apps/web/src/pages/lainnya/LainnyaHub.jsx`
 - `apps/web/src/pages/lainnya/HelpPage.jsx`
 - `apps/web/src/pages/lainnya/ServicesPage.jsx`
-- `apps/web/src/pages/lainnya/InspirationPage.jsx`
+- `apps/web/src/pages/lainnya/InspirasiPage.jsx`
 - `apps/web/src/pages/lainnya/CapitalPage.jsx`
 - `apps/web/src/pages/lainnya/SuppliesPage.jsx`
+- `apps/backend/src/routes/lainnya.js` (5 router groups: help/services/inspirasi/capital/supplies)
+- `packages/shared/src/schemas/lainnya.ts` (Zod schemas)
+- `apps/backend/src/__tests__/lainnya.test.mjs` (19 tests)
 
 **Acceptance criteria**:
 
-- [ ] Help: panduan + feedback form
-- [ ] Services: Majoopay/QRIS, EDC, Satu Sehat, Aura placeholder
-- [ ] Inspiration: blog (mock), event, magazine
-- [ ] Capital: loan application form (placeholder, integrate later)
-- [ ] Supplies: B2B procurement marketplace (placeholder)
+- [x] Help: panduan (10 topik seeded) + feedback form
+- [x] Services: Majoopay/QRIS, EDC, Satu Sehat, Aura applications dengan status tracking
+- [x] Inspiration: blog (8 artikel, 8 kategori), event + RSVP, magazine PDF, changelog
+- [x] Capital: pre-qualification scoring + loan application form dengan validation tier
+- [x] Supplies: marketplace B2B (5 kategori + 12 produk), cart, checkout, drill-down order, receive
 
 **Reference**: `docs/v2/menus/lainnya/*.md`
 
 **Branch**: `devin/P1-18-lainnya`
 **Estimasi**: 4-5 hari
+**PR**: https://github.com/alviarts/VIPOS/pull/36
+**Session**: https://app.devin.ai/sessions/3a60ca374dc8447393a5d64877d14942
 
 ---
 
