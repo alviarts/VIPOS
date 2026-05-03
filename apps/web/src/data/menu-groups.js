@@ -214,16 +214,16 @@ export const MENU_GROUPS = [
     items: [
       {
         path: '/appointment',
-        label: 'Reservasi',
-        icon: CalendarRange,
+        label: 'Daftar Reservasi',
+        icon: ClipboardList,
         roles: [ROLES.MANAGER, ROLES.KASIR, ROLES.STAFF, ROLES.WAITERS],
         minTier: TIERS.ADVANCE,
       },
       {
-        path: '/appointment/settings',
-        label: 'Pengaturan Reservasi',
+        path: '/appointment-calendar',
+        label: 'Kalender',
         icon: CalendarRange,
-        roles: [ROLES.MANAGER],
+        roles: [ROLES.MANAGER, ROLES.KASIR, ROLES.STAFF, ROLES.WAITERS],
         minTier: TIERS.ADVANCE,
       },
     ],
