@@ -2,6 +2,41 @@
 
 > Panduan praktis: cara assign task ke Devin baru, branch convention, PR convention, dan tracking progress.
 
+## Secrets / kredensial yang sudah disiapkan
+
+Organization VIPOS sudah punya secret org-level berikut yang **auto-inject** ke setiap session Devin baru. Cukup reference dengan `${VAR_NAME}` di prompt — Devin substitusi otomatis saat runtime. **Jangan** tulis nilai literal token/password di prompt, file, atau commit.
+
+| Secret | Scope | Kegunaan |
+|---|---|---|
+| `${GITHUB_PAT}` | org | Fallback push ke GitHub kalau Devin git proxy gagal: `git push "https://x-access-token:${GITHUB_PAT}@github.com/alviarts/VIPOS.git" <branch>` |
+| `${VPS_PASSWORD}` | org | Password root VPS `103.74.5.44` untuk SSH deploy + maintenance (dipakai di P0-02 CI/CD setup, P2-01 Postgres install, dll) |
+
+**VPS info (literal, aman ditulis)**:
+- Host: `103.74.5.44`
+- User: `root`
+- Deploy path: `/var/www/vipos`
+- Backend pm2 service: `vipos-backend`
+- Web served via nginx di prefix `/vipos/`
+- Live URL: http://103.74.5.44/vipos/
+
+**Cara akses VPS dari Devin shell**:
+
+```bash
+# Install sshpass kalau belum ada
+which sshpass || (apt-get update && apt-get install -y sshpass)
+
+# Run command remote
+sshpass -p "${VPS_PASSWORD}" ssh -o StrictHostKeyChecking=no root@103.74.5.44 "ls /var/www/vipos"
+
+# Copy file ke VPS
+sshpass -p "${VPS_PASSWORD}" scp -o StrictHostKeyChecking=no localfile.txt root@103.74.5.44:/tmp/
+
+# Untuk task yang butuh akses extensive, rekomendasi setup SSH key sekali (di task P0-02):
+# 1) Generate key di Devin shell, append public ke /root/.ssh/authorized_keys di VPS via sshpass
+# 2) Save private key sebagai org secret VPS_SSH_KEY
+# 3) Future task pakai SSH key (lebih cepat, no password prompt overhead)
+```
+
 ## Quick start
 
 1. Buka `docs/v3/workflow/phase_X_*.md` (lihat `00_OVERVIEW.md` untuk daftar phases).
