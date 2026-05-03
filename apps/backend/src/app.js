@@ -133,6 +133,9 @@ function buildApp(opts = {}) {
   app.use('/api/account-profile', profileRouter);
   app.use('/api/import-export', importExportRouter);
 
+  // P1-17 Reports (Laporan) — /api/reports/*.
+  app.use('/api/reports', require('./routes/reports'));
+
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });

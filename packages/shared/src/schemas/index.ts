@@ -20,3 +20,4 @@ export * from "./coupons";
 export * from "./loyalty";
 export * from "./karyawan";
 export * from "./keuangan";
+export * from "./reports";

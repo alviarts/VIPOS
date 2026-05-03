@@ -18,7 +18,16 @@ import InventoryPage from './pages/InventoryPage';
 import StockOpnamePage from './pages/StockOpnamePage';
 import FinancePage from './pages/FinancePage';
 import TransactionsPage from './pages/TransactionsPage';
-import ReportsPage from './pages/ReportsPage';
+import LegacyReportsPage from './pages/ReportsPage';
+import ReportsHub from './pages/reports/ReportsHub';
+import SalesReportsPage from './pages/reports/SalesReportsPage';
+import CashShiftReportsPage from './pages/reports/CashShiftReportsPage';
+import AdjustmentReportsPage from './pages/reports/AdjustmentReportsPage';
+import TaxCustomerReportsPage from './pages/reports/TaxCustomerReportsPage';
+import InventoryReportsPage from './pages/reports/InventoryReportsPage';
+import EmployeeReportsPage from './pages/reports/EmployeeReportsPage';
+import MarketingReportsPage from './pages/reports/MarketingReportsPage';
+import ScheduledReportsPage from './pages/reports/ScheduledReportsPage';
 import SettingsPage from './pages/SettingsPage';
 import QuotationsPage from './pages/QuotationsPage';
 import SalesOrdersPage from './pages/SalesOrdersPage';
@@ -120,7 +129,16 @@ export default function App() {
         <Route path="attendance" element={<AttendancePage />} />
         <Route path="schedule" element={<SchedulePage />} />
         <Route path="approval-workflow" element={<ApprovalWorkflowPage />} />
-        <Route path="reports" element={<ReportsPage />} />
+        <Route path="reports" element={<ReportsHub />} />
+        <Route path="reports/legacy" element={<LegacyReportsPage />} />
+        <Route path="reports/sales" element={<SalesReportsPage />} />
+        <Route path="reports/cash-shift" element={<CashShiftReportsPage />} />
+        <Route path="reports/adjustments" element={<AdjustmentReportsPage />} />
+        <Route path="reports/tax-customer" element={<TaxCustomerReportsPage />} />
+        <Route path="reports/inventory" element={<InventoryReportsPage />} />
+        <Route path="reports/employee" element={<EmployeeReportsPage />} />
+        <Route path="reports/marketing" element={<MarketingReportsPage />} />
+        <Route path="reports/scheduled" element={<ScheduledReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="settings/change-password" element={<ChangePasswordPage />} />
         <Route path="settings/2fa" element={<Setup2FAPage />} />
