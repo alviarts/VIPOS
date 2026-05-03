@@ -174,7 +174,7 @@ Setiap card:
 
 ## 6. Halaman Laporan
 
-### Laporan Penjualan (expandable):
+### Laporan Penjualan (expandable) — 8 sub-laporan:
 - Ringkasan Penjualan
 - Detail Penjualan
 - Penjualan Per Periode
@@ -184,7 +184,7 @@ Setiap card:
 - Laporan Void
 - Laporan Refund
 
-### Laporan lainnya:
+### Laporan lainnya (11 kategori):
 - Laporan Dapur (expandable)
 - Laporan Produk (expandable)
 - Laporan Jasa (expandable)
@@ -197,46 +197,178 @@ Setiap card:
 - Laporan Persediaan (expandable)
 - Laporan Settlement (expandable)
 
+### Detail Halaman "Ringkasan Penjualan" (dari Analisis Langsung)
+- URL: `/laporan/penjualan/sales-summary`
+- Header: "Ringkasan Penjualan" + info icon (?) + star/favorite
+- Action button: **Ekspor Laporan** (green button with download icon, top right)
+- Date range picker: "01 Mei 2026 - 31 Mei 2026" (calendar icon)
+- Info: "Terakhir Diperbarui: dalam 7 jam"
+
+#### Summary Cards (5 cards horizontal):
+| Card | Keterangan |
+|------|------------|
+| Total Pendapatan | Rp XXX, info icon (?) |
+| Biaya Promosi | Rp XXX, info icon (?) |
+| Total Penjualan | Rp XXX, info icon (?) |
+| Penjualan Bersih | Rp XXX, info icon (?) |
+| Total Laba Kotor | Rp XXX, info icon (?) |
+
+#### Rincian Ringkasan Penjualan (2-column detail table):
+**Kolom Kiri — PENDAPATAN:**
+| Item | Nilai |
+|------|-------|
+| Penjualan Kotor | Rp XXX |
+| Ongkos Kirim | Rp XXX |
+| Biaya Pelayanan | Rp XXX |
+| Biaya Pelayanan MDR | Rp XXX |
+| Pembulatan | Rp XXX |
+| Pajak | Rp XXX |
+| Asuransi | Rp XXX |
+| Platform | Rp XXX |
+| Lainnya | Rp XXX |
+| **TOTAL PENDAPATAN** | **Rp XXX** |
+
+**Kolom Kanan — BIAYA PROMOSI:**
+| Item | Nilai |
+|------|-------|
+| Promo Pembelian | (Rp XXX) |
+| Promo Produk | (Rp XXX) |
+| Komplimen | (Rp XXX) |
+| **TOTAL BIAYA PROMOSI** | **(Rp XXX)** |
+
+**Section bawah — BIAYA ADMINISTRASI:**
+- Biaya Administrasi (info icon)
+- TOTAL BIAYA ADMINISTRASI
+
+**PENJUALAN BERSIH:**
+- Total Penjualan (info icon)
+- Pengembalian
+- TOTAL PENJUALAN BERSIH
+
+**LABA KOTOR:**
+- Penjualan Bersih (info icon)
+- Biaya MDR
+- HPP
+- Komisi
+- Biaya Ongkos Kirim (info icon)
+- Biaya Asuransi (info icon)
+- **TOTAL LABA KOTOR**
+
 ## 7. Halaman Keuangan
 
-### Sidebar menu:
+### Sidebar menu (tab "Keuangan" di top nav):
 - Dashboard Keuangan
-- Buku Kas: Daftar Buku Kas & Bank, Daftar Transfer
-- Penerimaan (expandable)
-- Pengeluaran (expandable)
-- Manajemen Aset (expandable)
-- Laporan Keuangan (expandable)
-- Daftar Akun (expandable)
+- **Buku Kas** (expandable):
+  - Daftar Buku Kas & Bank
+  - Daftar Transfer
+- **Penerimaan** (expandable)
+- **Pengeluaran** (expandable)
+- **Manajemen Aset** (expandable)
+- **Laporan Keuangan** (expandable)
+- **Daftar Akun** (expandable)
 
 ### Daftar Buku Kas & Bank
-- Tombol: "Tambah Transaksi ▼" (outline hijau) + "+ Tambah Buku Kas & Bank" (hijau solid)
+- URL: `/buku-kas/daftar-buku-kas`
+- Tombol: "Tambah Transaksi ▼" (outline hijau, dropdown) + "+ Tambah Buku Kas & Bank" (hijau solid)
 - Tabs: **Aktif** | Tidak Aktif
-- Search bar
+- Search bar: "Cari ..."
 - Tabel kolom: (checkbox) | KODE AKUN | TIPE | NAMA AKUN | KATEGORI AKUN | SALDO DI MAJOO
-- Default data: KAS (1-10000, Header), Kas Outlet, Rekening Bank, Kas Kasir Outlet, Giro, dll
+- Default data (pre-populated):
+
+| Kode Akun | Tipe | Nama Akun | Kategori | Saldo |
+|-----------|------|-----------|----------|-------|
+| 1-10000 | Header | KAS | Kas & Bank | - |
+| 1-10001 | Detail | Kas Outlet | Kas & Bank | Rp 0 |
+| 1-10002 | Detail | Rekening Bank | Kas & Bank | Rp 0 |
+| 1-10003 | Detail | Kas Kasir Outlet | Kas & Bank | Rp 0 |
+| 1-10004 | Detail | Giro | Kas & Bank | Rp 0 |
+| 1-19001 | Detail | Ayat Silang Kas & Bank | Kas & Bank | Rp 0 |
+| 1-19002 | Detail | Ayat Silang Buka / Tutup Kasir | Kas & Bank | Rp 0 |
+
+- Action per row: Edit icon (pencil) untuk Header, Eye icon (view) untuk Detail, ... menu untuk Giro
+
+## 7b. Halaman Pelanggan
+
+### Submenu (sidebar tab "Penjualan"):
+- **Daftar Pelanggan**
+- **Grup Pelanggan**
+- **Grup Harga Spesial**
+- **Kustom Data Pelanggan**
+- **Pengaturan Data Pelanggan**
+
+### Daftar Pelanggan
+- URL: `/pelanggan/daftar-pelanggan`
+- Header: "Daftar Pelanggan" + info icon (?) + star/favorite
+- Action buttons: Ekspor Data (dropdown ▼) | Impor Data | **+ Tambah Pelanggan** (green)
+- Search: "Cari ..."
+- Tabel kolom (sortable):
+
+| Column | Sortable |
+|--------|----------|
+| ☐ (Checkbox) | No |
+| NAMA | Yes |
+| KODE PELANGGAN | Yes |
+| ALAMAT | Yes |
+| TELEPON | Yes |
+| JENIS KELAMIN | Yes |
+| POIN | No |
+| SALDO DEPOSIT | No |
+
+- Empty state: SVG ilustrasi + "Data tidak tersedia" + "Belum ada data yang dapat ditampilkan di halaman ini"
+- Pagination: "Tampilkan: [10 ▼] Ditampilkan 1 - 0 dari 0 data"
+
+## 7c. Halaman Promosi
+
+### Submenu (sidebar tab "Penjualan"):
+- **Promo** (expandable — sub-types of promotions)
+- **Kupon** (expandable — coupon management)
+- **Poin Reward** (expandable — loyalty points)
+
+## 7d. Halaman Komisi
+
+### Submenu:
+- **Daftar Grup Komisi**
+
+## 7e. Halaman Invoice
+
+### Submenu (5 sub-halaman):
+- **Daftar Penawaran Penjualan** (Sales Quotations)
+- **Daftar Pesanan Penjualan** (Sales Orders)
+- **Daftar Pengiriman Penjualan** (Sales Deliveries)
+- **Daftar Invoice** (Invoices)
+- **Daftar Penerimaan Penjualan** (Sales Receipts)
+
+## 7f. Halaman Marketing
+
+### Submenu:
+- **Kirim Kampanye Marketing** (Send Marketing Campaigns)
+- **Beli Kampanye Marketing** (Buy Marketing Campaigns)
 
 ## 8. Halaman Pengaturan
 
-### Sidebar menu:
-- Pesan Masuk (inbox, badge count)
-- Notifikasi (expandable)
-- Akun Profile (expandable)
-- Langganan (expandable)
-- Outlet (expandable)
-- Produk dan Inventori
-- Reservasi
-- Pembayaran (expandable)
-- Cetak (expandable)
-- Kasir: Daftar Kasir, Kategori Kas Kasir
-- Terminal (expandable)
-- Akses Support (expandable)
-- Daftar Ekspor
+### Sidebar menu (tab "Pengaturan" di top nav):
+- **Pesan Masuk** (inbox, badge count "2") → Daftar Pesan
+- **Notifikasi** (expandable)
+- **Akun Profile** (expandable)
+- **Langganan** (expandable)
+- **Outlet** (expandable)
+- **Produk dan Inventori** (single page)
+- **Reservasi** (single page)
+- **Pembayaran** (expandable)
+- **Cetak** (expandable)
+- **Kasir** (expandable)
+- **Terminal** (expandable)
+- **Akses Support** (expandable)
+- **Daftar Ekspor** (single page)
 
 ### Daftar Pesan (Inbox)
-- Search + date range filter
-- Tabel: SUBJEK | PENGIRIM | TANGGAL | PRIORITAS
-- Prioritas badge: "Sedang" (kuning/orange)
-- Eye icon untuk view
+- URL: `/message/inbox`
+- Header: "Daftar Pesan" + info icon (?) + star/favorite
+- Search: "Cari ..." + date range: "01 Mei 2026 - 31 Mei 2026"
+- Tabel: (checkbox) | SUBJEK | PENGIRIM | TANGGAL | PRIORITAS
+- Prioritas badge: "Sedang" (kuning/orange dot)
+- Eye icon untuk view detail
+- Pagination: "Tampilkan: [10 ▼] Ditampilkan 1 - 2 dari 2 data" + Sebelumnya [1] Selanjutnya
 
 ## 9. UI Patterns yang Harus Ditiru di VIPOS
 
@@ -373,35 +505,56 @@ Form "Tambahkan Produk" di Majoo adalah **multi-tab wizard** dengan 5 tab:
 
 ## 13. Struktur Menu Sidebar Lengkap (Hasil Analisis Langsung)
 
-### Menu Utama Sidebar:
-1. **Menu Favorit** (expandable)
-2. **Dashboard** (single page)
-3. **Laporan** (expandable)
+### A. Sidebar Menu tab "Penjualan" (11 menu utama):
+1. **Menu Favorit** (expandable — user-pinned favorites)
+2. **Dashboard** (single page — Dashboard Penjualan)
+3. **Laporan** (expandable — 12 kategori laporan, 19+ sub-laporan total):
+   - Laporan Penjualan → 8 sub: Ringkasan, Detail, Per Periode, Outlet, Jenis Bayar, Jenis Order, Void, Refund
+   - Laporan Dapur, Produk, Jasa, Promo & Loyalti, Pajak, Kasir, Deposit, Pelanggan, Karyawan, Persediaan, Settlement
 4. **Analisa Laporan** (expandable)
 5. **Produk** (expandable) — 14 submenu:
-   - Daftar Departemen
-   - Daftar Kategori
-   - Daftar Produk
-   - Produk Layanan
-   - Produk Ekstra
-   - Produk Paket
-   - Deposit
-   - Penjadwalan Perubahan Resep
-   - Daftar Harga Ojek Online
-   - Penjadwalan Harga
-   - Harga Berdasarkan Waktu
-   - Cetak Barcode
-   - Daftar Kategori Catatan
-   - Master Resep
-6. **Inventori** (expandable)
-7. **Pelanggan** (expandable)
-8. **Promosi** (expandable)
-9. **Komisi** (expandable)
-10. **Invoice** (expandable)
-11. **Marketing** (expandable)
+   - Daftar Departemen, Daftar Kategori, Daftar Produk, Produk Layanan, Produk Ekstra
+   - Produk Paket, Deposit, Penjadwalan Perubahan Resep, Daftar Harga Ojek Online
+   - Penjadwalan Harga, Harga Berdasarkan Waktu, Cetak Barcode, Daftar Kategori Catatan, Master Resep
+6. **Inventori** (expandable) — 6 submenu:
+   - Daftar Bahan Baku, Pembelian Stok, Kelola Stok, Produksi Stok, Mutasi Antar Outlet, Daftar Pemasok
+7. **Pelanggan** (expandable) — 5 submenu:
+   - Daftar Pelanggan, Grup Pelanggan, Grup Harga Spesial, Kustom Data Pelanggan, Pengaturan Data Pelanggan
+8. **Promosi** (expandable) — 3 submenu:
+   - Promo, Kupon, Poin Reward
+9. **Komisi** (expandable) — 1 submenu:
+   - Daftar Grup Komisi
+10. **Invoice** (expandable) — 5 submenu:
+    - Daftar Penawaran Penjualan, Daftar Pesanan Penjualan, Daftar Pengiriman Penjualan, Daftar Invoice, Daftar Penerimaan Penjualan
+11. **Marketing** (expandable) — 2 submenu:
+    - Kirim Kampanye Marketing, Beli Kampanye Marketing
 
-### Top Nav Horizontal:
-Penjualan | Order Online | Appointment | Karyawan | Keuangan | Pengaturan | Lainnya (dropdown)
+### B. Sidebar Menu tab "Keuangan" (7 menu):
+1. Dashboard Keuangan
+2. Buku Kas → Daftar Buku Kas & Bank, Daftar Transfer
+3. Penerimaan (expandable)
+4. Pengeluaran (expandable)
+5. Manajemen Aset (expandable)
+6. Laporan Keuangan (expandable)
+7. Daftar Akun (expandable)
+
+### C. Sidebar Menu tab "Pengaturan" (13 menu):
+1. Pesan Masuk → Daftar Pesan
+2. Notifikasi (expandable)
+3. Akun Profile (expandable)
+4. Langganan (expandable)
+5. Outlet (expandable)
+6. Produk dan Inventori
+7. Reservasi
+8. Pembayaran (expandable)
+9. Cetak (expandable)
+10. Kasir (expandable)
+11. Terminal (expandable)
+12. Akses Support (expandable)
+13. Daftar Ekspor
+
+### Top Nav Horizontal (7 tabs):
+**Penjualan** | Order Online | Appointment | Karyawan | **Keuangan** | **Pengaturan** | **Lainnya** (dropdown)
 
 ### Dashboard Extra Cards (yang belum ada di VIPOS):
 - **Kontrol Fraud** — chart/data fraud detection
