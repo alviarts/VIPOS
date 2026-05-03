@@ -85,7 +85,9 @@
 
 ---
 
-### P1-03: Dashboard (POS Dashboard) page `[pending]`
+### P1-03: Dashboard (POS Dashboard) page `[done]`
+
+> PR: [#16](https://github.com/alviarts/VIPOS/pull/16) (merged 2026-05-03), session: https://app.devin.ai/sessions/8546e9f2afa1429f8a23153a782e872a
 
 **Goal**: Halaman Dashboard utama di Penjualan group — KPI cards, charts, quick actions.
 
