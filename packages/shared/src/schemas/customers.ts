@@ -25,6 +25,26 @@ export const CustomerSchema = z
     points: z.number().int().default(0),
     deposit: z.number().default(0),
     notes: z.string().nullable(),
+    customer_group_id: z.number().int().nullable().optional(),
+    customer_group_name: z.string().nullable().optional(),
+    customer_group_color: z.string().nullable().optional(),
+    npwp: z.string().nullable().optional(),
+    id_card_no: z.string().nullable().optional(),
+    province: z.string().nullable().optional(),
+    city: z.string().nullable().optional(),
+    district: z.string().nullable().optional(),
+    tags: z
+      .array(
+        z.object({
+          id: z.number().int().positive(),
+          name: z.string(),
+          color: z.string().nullable().optional(),
+        }),
+      )
+      .optional(),
+    last_visit: DateTimeStringSchema.nullable().optional(),
+    total_spent: z.number().nonnegative().optional(),
+    transaction_count: z.number().int().nonnegative().optional(),
     is_active: z.union([z.literal(0), z.literal(1)]),
     created_at: DateTimeStringSchema.optional(),
     updated_at: DateTimeStringSchema.optional(),
@@ -52,6 +72,21 @@ export const CustomerCreateSchema = z
     points: z.coerce.number().int().nonnegative().optional().default(0),
     deposit: z.coerce.number().nonnegative().optional().default(0),
     notes: z.string().max(2048).optional().nullable(),
+    customer_group_id: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .nullable(),
+    npwp: z.string().max(32).optional().nullable(),
+    id_card_no: z.string().max(32).optional().nullable(),
+    province: z.string().max(64).optional().nullable(),
+    city: z.string().max(64).optional().nullable(),
+    district: z.string().max(64).optional().nullable(),
+    tag_ids: z
+      .array(z.coerce.number().int().positive())
+      .max(32)
+      .optional(),
   })
   .openapi("CustomerCreateRequest");
 export type CustomerCreate = z.infer<typeof CustomerCreateSchema>;

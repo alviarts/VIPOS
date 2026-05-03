@@ -32,14 +32,15 @@ function buildApp(opts = {}) {
   // Serve uploaded files publicly (no auth — they're public URLs).
   app.use(
     '/uploads',
-    require('express').static(
-      require('node:path').join(__dirname, '..', 'uploads'),
-      { maxAge: '7d' },
-    ),
+    require('express').static(require('node:path').join(__dirname, '..', 'uploads'), {
+      maxAge: '7d',
+    })
   );
   app.use('/api/categories', require('./routes/categories'));
   app.use('/api/departments', require('./routes/departments'));
   app.use('/api/customers', require('./routes/customers'));
+  app.use('/api/customer-groups', require('./routes/customer-groups'));
+  app.use('/api/customer-tags', require('./routes/customer-tags'));
   app.use('/api/transactions', require('./routes/transactions'));
   app.use('/api/dashboard', require('./routes/dashboard'));
   app.use('/api/finance', require('./routes/finance'));

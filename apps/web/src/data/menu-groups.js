@@ -142,7 +142,18 @@ export const MENU_GROUPS = [
     icon: Users,
     items: [
       { path: '/employees', label: 'Daftar Karyawan', icon: Users, roles: [ROLES.MANAGER] },
-      { path: '/customers', label: 'Pelanggan', icon: HeartHandshake, roles: [ROLES.MANAGER, ROLES.KASIR, ROLES.STAFF] },
+      {
+        path: '/customers',
+        label: 'Pelanggan',
+        icon: HeartHandshake,
+        roles: [ROLES.MANAGER, ROLES.KASIR, ROLES.STAFF],
+      },
+      {
+        path: '/customer-groups',
+        label: 'Grup & Tag Pelanggan',
+        icon: Tag,
+        roles: [ROLES.MANAGER],
+      },
       {
         path: '/payroll',
         label: 'Payroll',
@@ -158,7 +169,12 @@ export const MENU_GROUPS = [
     icon: Wallet,
     items: [
       { path: '/finance', label: 'Kas & Bank', icon: Wallet, roles: [ROLES.MANAGER] },
-      { path: '/finance/reports', label: 'Laporan Keuangan', icon: BarChart3, roles: [ROLES.MANAGER] },
+      {
+        path: '/finance/reports',
+        label: 'Laporan Keuangan',
+        icon: BarChart3,
+        roles: [ROLES.MANAGER],
+      },
     ],
   },
   {
@@ -177,32 +193,32 @@ export const MENU_GROUPS = [
     label: 'Lainnya',
     icon: MoreHorizontal,
     items: [
-      { path: '/lainnya', label: 'Integrasi', icon: MoreHorizontal, roles: [ROLES.MANAGER], disabled: true },
+      {
+        path: '/lainnya',
+        label: 'Integrasi',
+        icon: MoreHorizontal,
+        roles: [ROLES.MANAGER],
+        disabled: true,
+      },
     ],
   },
   {
     id: 'bantuan',
     label: 'Bantuan',
     icon: LifeBuoy,
-    items: [
-      { path: '/help', label: 'Pusat Bantuan', icon: HelpCircle, roles: [] },
-    ],
+    items: [{ path: '/help', label: 'Pusat Bantuan', icon: HelpCircle, roles: [] }],
   },
   {
     id: 'layanan',
     label: 'LAYANAN',
     icon: HeartHandshake,
-    items: [
-      { path: '/layanan/onboarding', label: 'Onboarding', icon: HeartHandshake, roles: [] },
-    ],
+    items: [{ path: '/layanan/onboarding', label: 'Onboarding', icon: HeartHandshake, roles: [] }],
   },
   {
     id: 'inspirasi',
     label: 'INSPIRASI',
     icon: Compass,
-    items: [
-      { path: '/inspirasi', label: 'Tips & Trik', icon: Compass, roles: [] },
-    ],
+    items: [{ path: '/inspirasi', label: 'Tips & Trik', icon: Compass, roles: [] }],
   },
   {
     id: 'capital',
@@ -223,9 +239,7 @@ export const MENU_GROUPS = [
     id: 'supplies',
     label: 'SUPPLIES',
     icon: Truck,
-    items: [
-      { path: '/supplies', label: 'Marketplace Supplier', icon: Truck, roles: [] },
-    ],
+    items: [{ path: '/supplies', label: 'Marketplace Supplier', icon: Truck, roles: [] }],
   },
 ];
 
