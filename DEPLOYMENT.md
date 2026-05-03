@@ -14,28 +14,53 @@ Dokumentasi deployment VIPOS ke VPS publik dengan Node.js + nginx + PM2.
 
 ## 2. Arsitektur Production
 
+VIPOS di-deploy di **path prefix `/vipos`** supaya domain root tetap bebas untuk app lain.
+
 ```
-                  Public Internet
-                        │
-                        ▼
-                  ┌──────────┐
-                  │  nginx   │   :80 (HTTP)  default_server
-                  └─┬───────┬┘
-        SPA assets  │       │  /api/*
-        (static)    ▼       ▼
-       /var/www/vipos/   ┌──────────────┐
-       frontend/dist/    │ pm2: vipos-  │  :3001
-                         │  backend     │
-                         │ (Express)    │
-                         └──────┬───────┘
-                                ▼
-                     /var/www/vipos/backend/
-                     database.sqlite (SQLite)
+                       Public Internet (http://<vps>/)
+                              │
+                              ▼
+                         ┌──────────┐
+                         │  nginx    │  :80 (default_server)
+                         └─┬─────┬─┬─┘
+                /          │     │  │  /vipos/api/*
+          (welcome page)   │     │  │
+          /var/www/html    │     │  ▼
+                           │     │  ┌──────────────┐
+                           │     │  │ pm2: vipos-  │ :3001
+                           │     │  │  backend     │
+              /vipos/      │     │  │ (Express)    │
+         (SPA static)      ▼     │  └────┬────────┘
+         /var/www/vipos/         │       ▼
+         frontend/dist/          │  /var/www/vipos/backend/
+                                 │  database.sqlite (SQLite)
+                                 ▼
+                              (rewrites
+                              /vipos/api/x → /api/x
+                              before proxy_pass)
 ```
 
-- `nginx` sebagai reverse proxy + static server.
+- `nginx` (default_server, port 80) memiliki tiga route:
+  - `/` → welcome page di `/var/www/html`
+  - `/vipos/` → SPA static dari `/var/www/vipos/frontend/dist/` (try_files → SPA fallback)
+  - `/vipos/api/` → reverse proxy ke `http://127.0.0.1:3001/api/` (backend tidak tahu prefix /vipos)
+  - `/vipos` → 301 redirect ke `/vipos/`
 - `pm2` me-supervise proses backend (auto-restart, log rotation, startup on reboot).
 - `SQLite` file-based — tidak perlu DB server terpisah.
+
+### 2.1 Frontend path-prefix configuration
+
+Frontend di-build dengan `base: '/vipos/'` di `vite.config.js` supaya semua asset URL di-prefix `/vipos/`. Komponen yang menggunakan path:
+
+| Pakai | Mode dev (`/`) | Mode prod (`/vipos/`) |
+|---|---|---|
+| Vite asset paths | `/assets/*.js` | `/vipos/assets/*.js` |
+| `BrowserRouter basename` | `/` | `/vipos/` (auto via `import.meta.env.BASE_URL`) |
+| Axios baseURL | `/api` | `/vipos/api` |
+| Favicon | `/vite.svg` | `/vipos/vite.svg` (via `%BASE_URL%`) |
+
+Dev mode (`npm run dev`) tetap di `localhost:5173/` (tanpa prefix) supaya nyaman.
+
 
 ## 3. Quick Deploy (One-Shot Script)
 
@@ -64,24 +89,36 @@ cd backend && npm run seed && cd ..
 # 5. Build frontend
 cd frontend && npm run build && cd ..
 
-# 6. Configure nginx
+# 6. Configure nginx (VIPOS at /vipos, welcome page at /)
 cat > /etc/nginx/sites-available/vipos << 'NGINX'
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
     server_name _;
 
-    root /var/www/vipos/frontend/dist;
-    index index.html;
+    # Default site: welcome page
+    root /var/www/html;
+    index index.html index.htm index.nginx-debian.html;
 
-    location /assets/ {
+    client_max_body_size 16M;
+
+    # VIPOS SPA static
+    location /vipos/ {
+        alias /var/www/vipos/frontend/dist/;
+        try_files $uri $uri/ /vipos/index.html;
+    }
+
+    # VIPOS asset cache
+    location /vipos/assets/ {
+        alias /var/www/vipos/frontend/dist/assets/;
         expires 1y;
         add_header Cache-Control "public, immutable";
         try_files $uri =404;
     }
 
-    location /api/ {
-        proxy_pass http://127.0.0.1:3001;
+    # VIPOS API → backend (rewrites /vipos/api/x → /api/x)
+    location /vipos/api/ {
+        proxy_pass http://127.0.0.1:3001/api/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -93,11 +130,15 @@ server {
         proxy_read_timeout 60s;
     }
 
-    location / {
-        try_files $uri $uri/ /index.html;
+    # Bare /vipos → redirect to /vipos/
+    location = /vipos {
+        return 301 /vipos/;
     }
 
-    client_max_body_size 16M;
+    # Default catch-all (welcome page only — no SPA fallback)
+    location / {
+        try_files $uri $uri/ =404;
+    }
 }
 NGINX
 rm -f /etc/nginx/sites-enabled/default
@@ -253,11 +294,16 @@ JWT secret di `backend/.env` PERSISTENT — kalau hilang, semua token user exist
 ## 11. Deployment Status (3 Mei 2026)
 
 - **VPS:** 103.74.5.44 (Ubuntu 22.04)
-- **URL Public:** http://103.74.5.44/
+- **URL Public:** http://103.74.5.44/vipos/
+- **Welcome page:** http://103.74.5.44/ (default nginx + link ke VIPOS)
 - **Branch deployed:** `devin/1777793568-initial-vipos-app` (akan di-merge ke `main` setelah review)
 - **PM2 process:** `vipos-backend` (id=3, online)
-- **Verified working:**
-  - GET / → 200 (frontend HTML)
-  - POST /api/auth/login (admin/admin123) → 200, returns JWT
-  - GET /api/categories (with Bearer token) → 200, returns 5 categories
-  - GET /api/products (with Bearer token) → 200, returns 21 products
+- **Verified working (external):**
+  - GET / → 200 (welcome page)
+  - GET /vipos → 301 → /vipos/
+  - GET /vipos/ → 200 (SPA shell, asset paths /vipos/...)
+  - GET /vipos/dashboard → 200 (SPA fallback works on refresh)
+  - GET /vipos/assets/index-*.js → 200
+  - POST /vipos/api/auth/login (admin/admin123) → 200, returns JWT
+  - GET /vipos/api/categories (with Bearer token) → 200
+  - GET /vipos/api/products (with Bearer token) → 200
