@@ -19,7 +19,9 @@ apps/backend/database.sqlite
 apps/backend/database.db
 
 # editor / OS
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 .idea/
 Thumbs.db
 
