@@ -37,11 +37,16 @@ const SLUG_LABELS = {
 };
 
 function lookupLabel(segment, fullPath) {
+  // Prefer exact full-path match against menu items so multi-segment routes
+  // (e.g. `/finance/reports`) get a specific label instead of the generic
+  // single-segment slug.
+  for (const group of MENU_GROUPS) {
+    const item = group.items.find((it) => it.path === fullPath);
+    if (item) return item.label;
+  }
   if (SLUG_LABELS[segment]) return SLUG_LABELS[segment];
   for (const group of MENU_GROUPS) {
     if (group.id === segment) return group.label;
-    const item = group.items.find((it) => it.path === fullPath);
-    if (item) return item.label;
   }
   // Fallback: title-case the slug.
   return segment
