@@ -63,6 +63,10 @@ function buildApp(opts = {}) {
   app.use('/api/invoice', require('./routes/invoice'));
   app.use('/api/receipt', require('./routes/receipt'));
   app.use('/api/aging-report', require('./routes/aging-report'));
+  app.use('/api/online-order', require('./routes/order-online'));
+  app.use('/api/marketplace', require('./routes/marketplace'));
+  app.use('/api/storefront-settings', require('./routes/storefront-settings'));
+  app.use('/api/consumer-app-config', require('./routes/consumer-app-config'));
 
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
