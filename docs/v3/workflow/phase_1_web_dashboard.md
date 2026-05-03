@@ -48,7 +48,9 @@
 
 ---
 
-### P1-02: Auth flow refinement `[pending]`
+### P1-02: Auth flow refinement `[done]`
+
+> PR: [#14](https://github.com/alviarts/VIPOS/pull/14) (merged 2026-05-03), session: https://app.devin.ai/sessions/8546e9f2afa1429f8a23153a782e872a
 
 **Goal**: Login + logout + token refresh + remember me + reset password + change password + 2FA setup. Replace existing simple login dengan flow lengkap.
 
