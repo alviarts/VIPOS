@@ -241,20 +241,20 @@ Devin session: https://app.devin.ai/sessions/abc123
 
 ### Web (React)
 
-- Komponen: `PascalCase.jsx` di `frontend/src/components/`
-- Halaman: `PascalCasePage.jsx` di `frontend/src/pages/`
-- Hooks: `useFooBar.js` di `frontend/src/hooks/`
-- API client: `frontend/src/api/{resource}.js`
+- Komponen: `PascalCase.jsx` di `apps/web/src/components/`
+- Halaman: `PascalCasePage.jsx` di `apps/web/src/pages/`
+- Hooks: `useFooBar.js` di `apps/web/src/hooks/`
+- API client: `apps/web/src/api/{resource}.js`
 - State (kalau perlu): React Context atau Zustand (jangan Redux unless ada alasan kuat)
 - Styling: Tailwind utility classes; primary color `teal-500` (#04C99E)
 - Form: React Hook Form + zod schema (mulai di Phase 0)
 
 ### Backend (Express)
 
-- Routes: `backend/src/routes/{resource}.js`
-- Models/queries: `backend/src/models/`
-- Middleware: `backend/src/middleware/`
-- Utils: `backend/src/utils/`
+- Routes: `apps/backend/src/routes/{resource}.js`
+- Models/queries: `apps/backend/src/models/`
+- Middleware: `apps/backend/src/middleware/`
+- Utils: `apps/backend/src/utils/`
 - API contract: derived from `docs/v2/03_API_CONTRACT.md` patterns
 
 ### Android (Kotlin + Compose)
