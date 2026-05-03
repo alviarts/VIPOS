@@ -181,9 +181,9 @@ export const MarketplaceConnectionSchema = z
   .openapi("MarketplaceConnection");
 export type MarketplaceConnection = z.infer<typeof MarketplaceConnectionSchema>;
 
+// `provider` di-resolve dari path param di route — body tidak perlu kirim ulang.
 export const MarketplaceConnectSchema = z
   .object({
-    provider: MarketplaceProviderSchema,
     merchant_id: z.string().min(1, "Merchant ID wajib diisi"),
     outlet_id: z.string().optional().nullable(),
     auto_accept: z.coerce.number().int().min(0).max(1).default(0),
