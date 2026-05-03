@@ -14,6 +14,7 @@ import CustomersPage from './pages/CustomersPage';
 import CustomerDetailPage from './pages/CustomerDetailPage';
 import CustomerGroupsPage from './pages/CustomerGroupsPage';
 import InventoryPage from './pages/InventoryPage';
+import StockOpnamePage from './pages/StockOpnamePage';
 import FinancePage from './pages/FinancePage';
 import TransactionsPage from './pages/TransactionsPage';
 import ReportsPage from './pages/ReportsPage';
@@ -54,6 +55,8 @@ export default function App() {
         <Route path="customers/:id" element={<CustomerDetailPage />} />
         <Route path="customer-groups" element={<CustomerGroupsPage />} />
         <Route path="inventory" element={<InventoryPage />} />
+        <Route path="inventory/opname" element={<StockOpnamePage />} />
+        <Route path="inventory/opname/:id" element={<StockOpnamePage />} />
         <Route path="finance" element={<FinancePage />} />
         <Route path="transactions" element={<TransactionsPage />} />
         <Route path="reports" element={<ReportsPage />} />
