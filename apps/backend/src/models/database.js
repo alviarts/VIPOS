@@ -305,6 +305,48 @@ function initDatabase() {
       FOREIGN KEY (product_id) REFERENCES products(id)
     );
 
+    -- P1-09: Komisi (commission groups + per-transaction assignments)
+    CREATE TABLE IF NOT EXISTS commission_groups (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      type TEXT NOT NULL CHECK(type IN ('FIXED', 'TIERED')),
+      applies_to_scope TEXT NOT NULL DEFAULT 'all' CHECK(applies_to_scope IN ('all', 'roles', 'employees')),
+      applies_to_role_keys TEXT,
+      applies_to_employee_ids TEXT,
+      applies_to_products_scope TEXT NOT NULL DEFAULT 'all' CHECK(applies_to_products_scope IN ('all', 'categories', 'products')),
+      applies_to_category_ids TEXT,
+      applies_to_product_ids TEXT,
+      amount REAL,
+      amount_basis TEXT DEFAULT 'PER_TRANSACTION' CHECK(amount_basis IN ('PER_TRANSACTION', 'PER_ITEM')),
+      tiers TEXT,
+      calc_period TEXT NOT NULL DEFAULT 'MONTH' CHECK(calc_period IN ('DAY', 'WEEK', 'MONTH')),
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS commission_assignments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      transaction_id INTEGER NOT NULL,
+      employee_id INTEGER NOT NULL,
+      commission_group_id INTEGER NOT NULL,
+      basis_amount REAL NOT NULL DEFAULT 0,
+      basis_qty INTEGER NOT NULL DEFAULT 0,
+      computed_amount REAL NOT NULL DEFAULT 0,
+      tier_percentage REAL,
+      period_key TEXT,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
+      FOREIGN KEY (employee_id) REFERENCES users(id),
+      FOREIGN KEY (commission_group_id) REFERENCES commission_groups(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_commission_assign_employee ON commission_assignments(employee_id);
+    CREATE INDEX IF NOT EXISTS idx_commission_assign_period ON commission_assignments(period_key);
+    CREATE INDEX IF NOT EXISTS idx_commission_assign_transaction ON commission_assignments(transaction_id);
+
     CREATE INDEX IF NOT EXISTS idx_inventory_movements_product ON inventory_movements(product_id);
     CREATE INDEX IF NOT EXISTS idx_inventory_movements_tanggal ON inventory_movements(tanggal);
     CREATE INDEX IF NOT EXISTS idx_cash_transactions_account ON cash_transactions(account_id);
