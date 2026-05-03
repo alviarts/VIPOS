@@ -13,3 +13,6 @@ export * from "./customers";
 export * from "./customer-groups";
 export * from "./finance";
 export * from "./inventory";
+export * from "./promos";
+export * from "./coupons";
+export * from "./loyalty";
