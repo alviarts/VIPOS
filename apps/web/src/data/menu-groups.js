@@ -18,6 +18,8 @@
 // snapshot it in `Sidebar.test.jsx`.
 import {
   BarChart3,
+  BookOpen,
+  Building2,
   CalendarRange,
   ClipboardCheck,
   Compass,
@@ -41,9 +43,20 @@ import {
   TrendingUp,
   Truck,
   Users,
+  UserCheck,
   Wallet,
   Warehouse,
   Boxes,
+  Megaphone,
+  Bell,
+  Crown,
+  CreditCard,
+  Printer,
+  Calculator,
+  HardDrive,
+  Lock,
+  ArrowDownUp,
+  UserCog,
 } from 'lucide-react';
 import { ROLES, TIERS } from '../context/PermissionContext';
 
@@ -131,6 +144,12 @@ export const MENU_GROUPS = [
         path: '/loyalty',
         label: 'Loyalty Poin',
         icon: HeartHandshake,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
+      },
+      {
+        path: '/marketing',
+        label: 'Marketing',
+        icon: Megaphone,
         roles: [ROLES.MANAGER, ROLES.STAFF],
       },
     ],
@@ -258,8 +277,33 @@ export const MENU_GROUPS = [
         path: '/payroll',
         label: 'Payroll',
         icon: Wallet,
-        roles: [],
+        roles: [ROLES.MANAGER],
         minTier: TIERS.ADVANCE,
+      },
+      {
+        path: '/permissions',
+        label: 'Hak Akses',
+        icon: ClipboardCheck,
+        roles: [ROLES.MANAGER],
+      },
+      {
+        path: '/attendance',
+        label: 'Absensi',
+        icon: ClipboardList,
+        roles: [ROLES.MANAGER],
+      },
+      {
+        path: '/schedule',
+        label: 'Jadwal Kerja',
+        icon: CalendarRange,
+        roles: [ROLES.MANAGER],
+      },
+      {
+        path: '/approval-workflow',
+        label: 'Approval Workflow',
+        icon: ClipboardCheck,
+        roles: [ROLES.MANAGER],
+        minTier: TIERS.PRIME,
       },
     ],
   },
@@ -268,7 +312,43 @@ export const MENU_GROUPS = [
     label: 'Keuangan',
     icon: Wallet,
     items: [
+      {
+        path: '/finance/accounts',
+        label: 'Daftar Akun',
+        icon: BookOpen,
+        roles: [ROLES.MANAGER],
+      },
+      {
+        path: '/finance/journal',
+        label: 'Jurnal Umum',
+        icon: FileText,
+        roles: [ROLES.MANAGER],
+      },
       { path: '/finance', label: 'Kas & Bank', icon: Wallet, roles: [ROLES.MANAGER] },
+      {
+        path: '/finance/income',
+        label: 'Penerimaan',
+        icon: HandCoins,
+        roles: [ROLES.MANAGER],
+      },
+      {
+        path: '/finance/expense',
+        label: 'Pengeluaran',
+        icon: TrendingDown,
+        roles: [ROLES.MANAGER],
+      },
+      {
+        path: '/finance/vendors',
+        label: 'Mitra (Vendor)',
+        icon: UserCheck,
+        roles: [ROLES.MANAGER],
+      },
+      {
+        path: '/finance/fixed-assets',
+        label: 'Aset Tetap',
+        icon: Building2,
+        roles: [ROLES.MANAGER],
+      },
       {
         path: '/finance/reports',
         label: 'Laporan Keuangan',
@@ -282,8 +362,27 @@ export const MENU_GROUPS = [
     label: 'Pengaturan',
     icon: Sparkles,
     items: [
-      { path: '/settings', label: 'Umum', icon: Sparkles, roles: [ROLES.MANAGER] },
-      { path: '/settings/outlet', label: 'Outlet', icon: Store, roles: [] },
+      { path: '/settings/profile', label: 'Akun & Profil', icon: UserCog, roles: [] },
+      { path: '/settings/outlets', label: 'Outlet', icon: Store, roles: [ROLES.MANAGER] },
+      { path: '/settings/notifications', label: 'Notifikasi', icon: Bell, roles: [] },
+      { path: '/settings/subscription', label: 'Langganan', icon: Crown, roles: [ROLES.MANAGER] },
+      { path: '/settings/payments', label: 'Pembayaran', icon: CreditCard, roles: [ROLES.MANAGER] },
+      { path: '/settings/print', label: 'Cetak', icon: Printer, roles: [ROLES.MANAGER] },
+      { path: '/settings/cashier', label: 'Kasir', icon: Calculator, roles: [ROLES.MANAGER] },
+      { path: '/settings/terminals', label: 'Terminal', icon: HardDrive, roles: [ROLES.MANAGER] },
+      {
+        path: '/settings/support-access',
+        label: 'Akses Support',
+        icon: Lock,
+        roles: [ROLES.MANAGER],
+      },
+      {
+        path: '/settings/import-export',
+        label: 'Import / Export',
+        icon: ArrowDownUp,
+        roles: [ROLES.MANAGER],
+      },
+      { path: '/settings', label: 'Lainnya', icon: Sparkles, roles: [ROLES.MANAGER] },
       { path: '/settings/change-password', label: 'Ubah Password', icon: Sparkles, roles: [] },
       { path: '/settings/2fa', label: 'Two-Factor Auth', icon: Sparkles, roles: [] },
     ],
@@ -295,10 +394,9 @@ export const MENU_GROUPS = [
     items: [
       {
         path: '/lainnya',
-        label: 'Integrasi',
+        label: 'Hub Lainnya',
         icon: MoreHorizontal,
-        roles: [ROLES.MANAGER],
-        disabled: true,
+        roles: [],
       },
     ],
   },
@@ -306,19 +404,26 @@ export const MENU_GROUPS = [
     id: 'bantuan',
     label: 'Bantuan',
     icon: LifeBuoy,
-    items: [{ path: '/help', label: 'Pusat Bantuan', icon: HelpCircle, roles: [] }],
+    items: [{ path: '/help', label: 'Panduan & Masukan', icon: HelpCircle, roles: [] }],
   },
   {
     id: 'layanan',
     label: 'LAYANAN',
     icon: HeartHandshake,
-    items: [{ path: '/layanan/onboarding', label: 'Onboarding', icon: HeartHandshake, roles: [] }],
+    items: [
+      {
+        path: '/services',
+        label: 'Katalog Layanan',
+        icon: HeartHandshake,
+        roles: [],
+      },
+    ],
   },
   {
     id: 'inspirasi',
     label: 'INSPIRASI',
     icon: Compass,
-    items: [{ path: '/inspirasi', label: 'Tips & Trik', icon: Compass, roles: [] }],
+    items: [{ path: '/inspirasi', label: 'Blog & Event', icon: Compass, roles: [] }],
   },
   {
     id: 'capital',
@@ -328,7 +433,7 @@ export const MENU_GROUPS = [
     items: [
       {
         path: '/capital',
-        label: 'Pinjaman',
+        label: 'Pinjaman Modal',
         icon: HandCoins,
         roles: [ROLES.MANAGER],
         minTier: TIERS.ADVANCE,
@@ -339,7 +444,14 @@ export const MENU_GROUPS = [
     id: 'supplies',
     label: 'SUPPLIES',
     icon: Truck,
-    items: [{ path: '/supplies', label: 'Marketplace Supplier', icon: Truck, roles: [] }],
+    items: [
+      {
+        path: '/supplies',
+        label: 'Marketplace Supplier',
+        icon: Truck,
+        roles: [],
+      },
+    ],
   },
 ];
 
