@@ -499,7 +499,7 @@
 
 **Branch**: `devin/P1-15-keuangan`
 **Estimasi**: 8-10 hari
-**PR**: TBD (merged YYYY-MM-DD)
+**PR**: #33 (CI green 2026-05-03; pending merge)
 **Session**: https://app.devin.ai/sessions/5b4e510fac5044bb8f1b0f2d6c3f4d27
 
 ---
