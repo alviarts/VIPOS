@@ -23,7 +23,7 @@ Aplikasi Point of Sale (POS) / Kasir modern yang mobile-friendly, dirancang untu
 - **Database:** SQLite (via better-sqlite3)
 - **Auth:** JWT
 - **Mobile (planned, Phase 3+):** Kotlin + Jetpack Compose
-- **Shared schemas (planned, P0-04):** Zod + OpenAPI
+- **Shared schemas:** Zod + OpenAPI 3.1 (di `packages/shared`, dipakai backend untuk runtime validation; web dapat type lewat `@vipos/shared`)
 
 ## Repo structure (monorepo)
 
@@ -34,7 +34,7 @@ VIPOS/
 │   ├── backend/     # Express + better-sqlite3 API (was: backend/)
 │   └── android/     # Placeholder, di-bootstrap di P3-01
 ├── packages/
-│   └── shared/      # Shared types + Zod schemas (filled in P0-04)
+│   └── shared/      # Shared TypeScript types + Zod schemas + OpenAPI registry
 ├── tools/
 │   └── scripts/
 │       └── deploy.sh   # Production deploy ke VPS (nginx + pm2)
@@ -141,6 +141,17 @@ Frontend di-serve via nginx static dari `apps/web/dist/`. Lihat [DEPLOYMENT.md](
 | GET    | /api/dashboard/top-products | Top selling products    |
 
 Production: prefix `/vipos` di-strip oleh nginx (lihat [DEPLOYMENT.md](./DEPLOYMENT.md)). Endpoint internal tetap `/api/*`.
+
+### API Documentation (Swagger / OpenAPI)
+
+OpenAPI 3.1 spec di-generate otomatis dari Zod schemas di `packages/shared/src/schemas/*.ts`. Backend mount Swagger UI di:
+
+- Dev: http://localhost:3001/api/docs
+- Raw spec: http://localhost:3001/api/docs.json
+
+Mau test endpoint langsung di browser dengan auth? Login sekali via `POST /api/auth/login`, copy `token`, klik **Authorize** di Swagger UI, paste sebagai `Bearer <token>`. Spec berisi semua resource (`auth`, `products`, `categories`, `customers`, `finance`, `inventory`).
+
+Untuk disable Swagger UI di production, set env `DISABLE_API_DOCS=1`.
 
 ## Development workflow
 

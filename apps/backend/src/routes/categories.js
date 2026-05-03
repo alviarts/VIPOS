@@ -1,11 +1,13 @@
-const express = require('express');
-const { getDb } = require('../models/database');
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const express = require("express");
+const { getDb } = require("../models/database");
+const { authenticateToken, requireAdmin } = require("../middleware/auth");
+const { validate } = require("../middleware/validate");
+const { CategoryCreateSchema, CategoryUpdateSchema } = require("@vipos/shared");
 
 const router = express.Router();
 
 // Get all categories (with department + product count)
-router.get('/', authenticateToken, (req, res) => {
+router.get("/", authenticateToken, (req, res) => {
   try {
     const db = getDb();
     const { is_tampil_di_menu, search } = req.query;
@@ -13,17 +15,17 @@ router.get('/', authenticateToken, (req, res) => {
     const conditions = [];
     const params = [];
 
-    if (is_tampil_di_menu === '0' || is_tampil_di_menu === '1') {
-      conditions.push('c.is_tampil_di_menu = ?');
+    if (is_tampil_di_menu === "0" || is_tampil_di_menu === "1") {
+      conditions.push("c.is_tampil_di_menu = ?");
       params.push(parseInt(is_tampil_di_menu, 10));
     }
 
     if (search) {
-      conditions.push('c.name LIKE ?');
+      conditions.push("c.name LIKE ?");
       params.push(`%${search}%`);
     }
 
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const rows = db
       .prepare(
@@ -36,7 +38,7 @@ router.get('/', authenticateToken, (req, res) => {
       LEFT JOIN departments d ON d.id = c.department_id
       ${where}
       ORDER BY c.urutan ASC, c.name ASC
-    `
+    `,
       )
       .all(...params);
 
@@ -47,7 +49,7 @@ router.get('/', authenticateToken, (req, res) => {
 });
 
 // Get single category
-router.get('/:id', authenticateToken, (req, res) => {
+router.get("/:id", authenticateToken, (req, res) => {
   try {
     const db = getDb();
     const row = db
@@ -57,10 +59,11 @@ router.get('/:id', authenticateToken, (req, res) => {
       FROM categories c
       LEFT JOIN departments d ON d.id = c.department_id
       WHERE c.id = ?
-    `
+    `,
       )
       .get(req.params.id);
-    if (!row) return res.status(404).json({ error: 'Kategori tidak ditemukan' });
+    if (!row)
+      return res.status(404).json({ error: "Kategori tidak ditemukan" });
     res.json(row);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -68,61 +71,70 @@ router.get('/:id', authenticateToken, (req, res) => {
 });
 
 // Create category
-router.post('/', authenticateToken, requireAdmin, (req, res) => {
-  try {
-    const { name, description, urutan, department_id, is_tampil_di_menu } = req.body;
+router.post(
+  "/",
+  authenticateToken,
+  requireAdmin,
+  validate({ body: CategoryCreateSchema }),
+  (req, res) => {
+    try {
+      const { name, description, urutan, department_id, is_tampil_di_menu } =
+        req.body;
 
-    if (!name) {
-      return res.status(400).json({ error: 'Nama kategori wajib diisi' });
-    }
-
-    const db = getDb();
-    const result = db
-      .prepare(
-        `
+      const db = getDb();
+      const result = db
+        .prepare(
+          `
       INSERT INTO categories (name, description, urutan, department_id, is_tampil_di_menu)
       VALUES (?, ?, ?, ?, ?)
-    `
-      )
-      .run(
-        name.trim(),
-        description ? description.trim() : null,
-        Number.isFinite(parseInt(urutan, 10)) ? parseInt(urutan, 10) : 0,
-        department_id ? parseInt(department_id, 10) : null,
-        is_tampil_di_menu === false || is_tampil_di_menu === 0 ? 0 : 1
-      );
+    `,
+        )
+        .run(
+          name.trim(),
+          description ? description.trim() : null,
+          urutan ?? 0,
+          department_id ?? null,
+          is_tampil_di_menu ?? 1,
+        );
 
-    const row = db
-      .prepare(
-        `
+      const row = db
+        .prepare(
+          `
       SELECT c.*, d.name AS department_name
       FROM categories c
       LEFT JOIN departments d ON d.id = c.department_id
       WHERE c.id = ?
-    `
-      )
-      .get(result.lastInsertRowid);
-    res.status(201).json(row);
-  } catch (err) {
-    if (err.message.includes('UNIQUE')) {
-      return res.status(400).json({ error: 'Kategori sudah ada' });
+    `,
+        )
+        .get(result.lastInsertRowid);
+      res.status(201).json(row);
+    } catch (err) {
+      if (err.message.includes("UNIQUE")) {
+        return res.status(400).json({ error: "Kategori sudah ada" });
+      }
+      res.status(500).json({ error: err.message });
     }
-    res.status(500).json({ error: err.message });
-  }
-});
+  },
+);
 
 // Update category
-router.put('/:id', authenticateToken, requireAdmin, (req, res) => {
-  try {
-    const { name, description, urutan, department_id, is_tampil_di_menu } = req.body;
+router.put(
+  "/:id",
+  authenticateToken,
+  requireAdmin,
+  validate({ body: CategoryUpdateSchema }),
+  (req, res) => {
+    try {
+      const { name, description, urutan, department_id, is_tampil_di_menu } =
+        req.body;
 
-    if (!name) {
-      return res.status(400).json({ error: 'Nama kategori wajib diisi' });
-    }
+      if (!name) {
+        return res.status(400).json({ error: "Nama kategori wajib diisi" });
+      }
 
-    const db = getDb();
-    db.prepare(
-      `
+      const db = getDb();
+      db.prepare(
+        `
       UPDATE categories
          SET name = ?,
              description = ?,
@@ -130,49 +142,53 @@ router.put('/:id', authenticateToken, requireAdmin, (req, res) => {
              department_id = ?,
              is_tampil_di_menu = ?
        WHERE id = ?
-    `
-    ).run(
-      name.trim(),
-      description ? description.trim() : null,
-      Number.isFinite(parseInt(urutan, 10)) ? parseInt(urutan, 10) : 0,
-      department_id ? parseInt(department_id, 10) : null,
-      is_tampil_di_menu === false || is_tampil_di_menu === 0 ? 0 : 1,
-      req.params.id
-    );
+    `,
+      ).run(
+        name.trim(),
+        description ? description.trim() : null,
+        urutan ?? 0,
+        department_id ?? null,
+        is_tampil_di_menu ?? 1,
+        req.params.id,
+      );
 
-    const row = db
-      .prepare(
-        `
+      const row = db
+        .prepare(
+          `
       SELECT c.*, d.name AS department_name
       FROM categories c
       LEFT JOIN departments d ON d.id = c.department_id
       WHERE c.id = ?
-    `
-      )
-      .get(req.params.id);
-    res.json(row);
-  } catch (err) {
-    if (err.message.includes('UNIQUE')) {
-      return res.status(400).json({ error: 'Kategori sudah ada' });
+    `,
+        )
+        .get(req.params.id);
+      res.json(row);
+    } catch (err) {
+      if (err.message.includes("UNIQUE")) {
+        return res.status(400).json({ error: "Kategori sudah ada" });
+      }
+      res.status(500).json({ error: err.message });
     }
-    res.status(500).json({ error: err.message });
-  }
-});
+  },
+);
 
 // Delete category
-router.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
+router.delete("/:id", authenticateToken, requireAdmin, (req, res) => {
   try {
     const db = getDb();
     const products = db
-      .prepare('SELECT COUNT(*) as count FROM products WHERE category_id = ?')
+      .prepare("SELECT COUNT(*) as count FROM products WHERE category_id = ?")
       .get(req.params.id);
     if (products.count > 0) {
-      return res.status(400).json({
-        error: 'Kategori masih memiliki produk. Hapus atau pindahkan produk terlebih dahulu.',
-      });
+      return res
+        .status(400)
+        .json({
+          error:
+            "Kategori masih memiliki produk. Hapus atau pindahkan produk terlebih dahulu.",
+        });
     }
-    db.prepare('DELETE FROM categories WHERE id = ?').run(req.params.id);
-    res.json({ message: 'Kategori berhasil dihapus' });
+    db.prepare("DELETE FROM categories WHERE id = ?").run(req.params.id);
+    res.json({ message: "Kategori berhasil dihapus" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
