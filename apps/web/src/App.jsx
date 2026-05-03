@@ -30,6 +30,12 @@ import CommissionsPage from './pages/CommissionsPage';
 import PromosPage from './pages/penjualan/PromosPage';
 import CouponsPage from './pages/penjualan/CouponsPage';
 import LoyaltyPage from './pages/penjualan/LoyaltyPage';
+import EmployeesPage from './pages/karyawan/EmployeesPage';
+import PayrollPage from './pages/karyawan/PayrollPage';
+import PermissionsPage from './pages/karyawan/PermissionsPage';
+import AttendancePage from './pages/karyawan/AttendancePage';
+import SchedulePage from './pages/karyawan/SchedulePage';
+import ApprovalWorkflowPage from './pages/karyawan/ApprovalWorkflowPage';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -81,6 +87,12 @@ export default function App() {
         <Route path="receipts" element={<ReceiptsPage />} />
         <Route path="aging-report" element={<AgingReportPage />} />
         <Route path="commissions" element={<CommissionsPage />} />
+        <Route path="employees" element={<EmployeesPage />} />
+        <Route path="payroll" element={<PayrollPage />} />
+        <Route path="permissions" element={<PermissionsPage />} />
+        <Route path="attendance" element={<AttendancePage />} />
+        <Route path="schedule" element={<SchedulePage />} />
+        <Route path="approval-workflow" element={<ApprovalWorkflowPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="settings/change-password" element={<ChangePasswordPage />} />

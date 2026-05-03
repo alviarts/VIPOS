@@ -638,6 +638,249 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_b2b_receipts_invoice ON b2b_receipts(invoice_id);
   `);
 
+  // ============================================================
+  // P1-14: Karyawan + Payroll + Absensi + Schedule + Approval
+  // ============================================================
+  db.exec(`
+    -- Master karyawan. user_id (optional) link ke users table buat login.
+    CREATE TABLE IF NOT EXISTS employees (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER UNIQUE,
+      employee_no TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      photo_url TEXT,
+      nik_ktp TEXT,
+      npwp TEXT,
+      birth_date DATE,
+      birth_place TEXT,
+      gender TEXT CHECK(gender IN ('M', 'F') OR gender IS NULL),
+      marital_status TEXT,
+      religion TEXT,
+      blood_type TEXT,
+      nationality TEXT DEFAULT 'Indonesia',
+      phone TEXT,
+      email TEXT,
+      address TEXT,
+      address_ktp TEXT,
+      emergency_contact_name TEXT,
+      emergency_contact_relation TEXT,
+      emergency_contact_phone TEXT,
+      department_id INTEGER,
+      position TEXT,
+      employee_type TEXT DEFAULT 'permanent' CHECK(employee_type IN ('permanent', 'contract', 'intern', 'freelance')),
+      date_joined DATE,
+      date_resigned DATE,
+      role TEXT DEFAULT 'cashier' CHECK(role IN ('admin', 'manager', 'cashier', 'staff', 'waiters')),
+      payroll_structure_id INTEGER,
+      bank_name TEXT,
+      bank_account_no TEXT,
+      bank_account_name TEXT,
+      base_salary REAL DEFAULT 0,
+      pin_code TEXT,
+      attendance_methods TEXT,
+      allowed_outlet_ids TEXT,
+      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'resigned', 'on_leave')),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_employees_status ON employees(status);
+    CREATE INDEX IF NOT EXISTS idx_employees_dept ON employees(department_id);
+
+    -- Dokumen pendukung (KTP, KK, NPWP, ijazah, kontrak).
+    CREATE TABLE IF NOT EXISTS employee_documents (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id INTEGER NOT NULL,
+      doc_type TEXT NOT NULL,
+      file_url TEXT NOT NULL,
+      file_name TEXT,
+      uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+    );
+
+    -- Per-employee permission overrides (atas role default).
+    CREATE TABLE IF NOT EXISTS permission_overrides (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id INTEGER NOT NULL,
+      permission_key TEXT NOT NULL,
+      granted INTEGER NOT NULL DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(employee_id, permission_key),
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+    );
+
+    -- Pengaturan payroll global (single-row).
+    CREATE TABLE IF NOT EXISTS payroll_settings (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      period TEXT NOT NULL DEFAULT 'monthly' CHECK(period IN ('monthly', 'biweekly', 'weekly')),
+      cutoff_day INTEGER DEFAULT 25,
+      payment_day INTEGER DEFAULT 1,
+      working_hours_per_month REAL DEFAULT 173,
+      overtime_multiplier REAL DEFAULT 1.5,
+      tax_method TEXT DEFAULT 'gross' CHECK(tax_method IN ('gross', 'nett', 'progressive', 'gross-up')),
+      bpjs_kesehatan_employee REAL DEFAULT 1.0,
+      bpjs_jht_employee REAL DEFAULT 2.0,
+      bpjs_jp_employee REAL DEFAULT 1.0,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Struktur gaji (template) — komponen disimpan JSON utk fleksibilitas.
+    CREATE TABLE IF NOT EXISTS payroll_structures (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      description TEXT,
+      basic_salary REAL NOT NULL DEFAULT 0,
+      allowances TEXT,
+      deductions TEXT,
+      overtime_rate REAL DEFAULT 0,
+      include_bpjs INTEGER DEFAULT 1,
+      include_pph21 INTEGER DEFAULT 1,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Run payroll per periode (header).
+    CREATE TABLE IF NOT EXISTS payroll_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ref_no TEXT UNIQUE NOT NULL,
+      period_start DATE NOT NULL,
+      period_end DATE NOT NULL,
+      payment_date DATE,
+      status TEXT NOT NULL DEFAULT 'DRAFT' CHECK(status IN ('DRAFT', 'CALCULATED', 'APPROVED', 'PAID', 'VOIDED')),
+      total_gross REAL DEFAULT 0,
+      total_deductions REAL DEFAULT 0,
+      total_net REAL DEFAULT 0,
+      employee_count INTEGER DEFAULT 0,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Payslip per karyawan per run.
+    CREATE TABLE IF NOT EXISTS payslips (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      payroll_run_id INTEGER NOT NULL,
+      employee_id INTEGER NOT NULL,
+      employee_no TEXT,
+      employee_name TEXT,
+      structure_id INTEGER,
+      basic_salary REAL DEFAULT 0,
+      total_allowances REAL DEFAULT 0,
+      total_deductions REAL DEFAULT 0,
+      overtime_hours REAL DEFAULT 0,
+      overtime_amount REAL DEFAULT 0,
+      bpjs_kesehatan REAL DEFAULT 0,
+      bpjs_jht REAL DEFAULT 0,
+      bpjs_jp REAL DEFAULT 0,
+      pph21 REAL DEFAULT 0,
+      gross_salary REAL DEFAULT 0,
+      net_salary REAL DEFAULT 0,
+      breakdown TEXT,
+      bank_name TEXT,
+      bank_account_no TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (payroll_run_id) REFERENCES payroll_runs(id) ON DELETE CASCADE,
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE RESTRICT
+    );
+    CREATE INDEX IF NOT EXISTS idx_payslips_run ON payslips(payroll_run_id);
+    CREATE INDEX IF NOT EXISTS idx_payslips_employee ON payslips(employee_id);
+
+    -- Attendance log entries.
+    CREATE TABLE IF NOT EXISTS attendance_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id INTEGER NOT NULL,
+      log_type TEXT NOT NULL CHECK(log_type IN ('check_in', 'check_out', 'break_start', 'break_end')),
+      logged_at DATETIME NOT NULL,
+      method TEXT NOT NULL DEFAULT 'manual' CHECK(method IN ('gps', 'selfie', 'nfc', 'manual', 'qr')),
+      latitude REAL,
+      longitude REAL,
+      photo_url TEXT,
+      note TEXT,
+      is_off_site INTEGER DEFAULT 0,
+      approved_by INTEGER,
+      approved_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_attendance_employee ON attendance_logs(employee_id);
+    CREATE INDEX IF NOT EXISTS idx_attendance_logged ON attendance_logs(logged_at);
+
+    -- Geofence config per outlet (untuk MVP, single outlet — id default 1).
+    CREATE TABLE IF NOT EXISTS attendance_geofences (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      outlet_id INTEGER UNIQUE NOT NULL,
+      outlet_name TEXT,
+      latitude REAL,
+      longitude REAL,
+      radius_m INTEGER DEFAULT 100,
+      strict_mode INTEGER DEFAULT 0,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Shift template.
+    CREATE TABLE IF NOT EXISTS shifts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      start_time TEXT NOT NULL,
+      end_time TEXT NOT NULL,
+      break_minutes INTEGER DEFAULT 0,
+      color TEXT DEFAULT '#04C99E',
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Schedule assignment (employee × date × shift).
+    CREATE TABLE IF NOT EXISTS schedule_assignments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      employee_id INTEGER NOT NULL,
+      shift_id INTEGER,
+      schedule_date DATE NOT NULL,
+      is_off INTEGER DEFAULT 0,
+      note TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(employee_id, schedule_date),
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE,
+      FOREIGN KEY (shift_id) REFERENCES shifts(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_schedule_employee ON schedule_assignments(employee_id);
+    CREATE INDEX IF NOT EXISTS idx_schedule_date ON schedule_assignments(schedule_date);
+
+    -- Schedule swap requests.
+    CREATE TABLE IF NOT EXISTS schedule_swaps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      requester_id INTEGER NOT NULL,
+      requester_assignment_id INTEGER NOT NULL,
+      partner_id INTEGER NOT NULL,
+      partner_assignment_id INTEGER NOT NULL,
+      reason TEXT,
+      status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED')),
+      decided_by INTEGER,
+      decided_at DATETIME,
+      decision_note TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (requester_id) REFERENCES employees(id) ON DELETE CASCADE,
+      FOREIGN KEY (partner_id) REFERENCES employees(id) ON DELETE CASCADE,
+      FOREIGN KEY (requester_assignment_id) REFERENCES schedule_assignments(id) ON DELETE CASCADE,
+      FOREIGN KEY (partner_assignment_id) REFERENCES schedule_assignments(id) ON DELETE CASCADE
+    );
+
+    -- Approval chain config (purchase / finance / leave / etc).
+    CREATE TABLE IF NOT EXISTS approval_chains (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      domain TEXT NOT NULL CHECK(domain IN ('purchase', 'finance', 'leave', 'overtime', 'attendance_correction', 'other')),
+      name TEXT NOT NULL,
+      threshold_amount REAL DEFAULT 0,
+      steps TEXT NOT NULL,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
   // --- Idempotent migrations for existing databases (so users that ran old seeds
   //     still get the new columns).
   addColumnIfMissing(db, 'categories', 'urutan', 'INTEGER DEFAULT 0');
