@@ -4,8 +4,11 @@
 // File ini di-load via side-effect dari `src/index.ts`. Harus jadi import
 // pertama sebelum file schema apapun.
 
-import { extendZodWithOpenApi, OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
-import { z } from 'zod';
+import {
+  extendZodWithOpenApi,
+  OpenAPIRegistry,
+} from "@asteasolutions/zod-to-openapi";
+import { z } from "zod";
 
 extendZodWithOpenApi(z);
 

@@ -4,10 +4,10 @@
 // di-define di file itu, sehingga `OpenAPIRegistry` lengkap setelah modul ini
 // di-load.
 
-export * from './common';
-export * from './auth';
-export * from './categories';
-export * from './products';
-export * from './customers';
-export * from './finance';
-export * from './inventory';
+export * from "./common";
+export * from "./auth";
+export * from "./categories";
+export * from "./products";
+export * from "./customers";
+export * from "./finance";
+export * from "./inventory";
