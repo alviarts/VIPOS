@@ -118,7 +118,9 @@
 
 ---
 
-### P1-04: Produk Master + 5-tab wizard `[pending]`
+### P1-04: Produk Master + 5-tab wizard `[done]`
+
+> PR: [#18](https://github.com/alviarts/VIPOS/pull/18) (merged 2026-05-03), session: https://app.devin.ai/sessions/8546e9f2afa1429f8a23153a782e872a
 
 **Goal**: Halaman Produk + form Tambah/Edit Produk dengan 5 tab (Detail / Kategori / Stok / Varian / Resep). Saat ini sudah ada di PR #1 tapi tab Varian/Resep/Order locked — buka.
 
