@@ -348,7 +348,7 @@
 
 ---
 
-### P1-11: Marketing (WA Blast + SMS + Email + IG) `[pending]`
+### P1-11: Marketing (WA Blast + SMS + Email + IG) `[done]`
 
 **Goal**: Halaman Marketing: WA Blast, SMS Broadcast, Email Blast, IG Feed scheduler.
 
@@ -358,21 +358,23 @@
 
 - `apps/web/src/pages/penjualan/MarketingPage.jsx`
 - `apps/web/src/components/marketing/CampaignBuilder.jsx`
-- Backend: `/api/v1/campaign`, integrasi WhatsApp Business API, SMS gateway, SendGrid
+- Backend: `/api/marketing/*` (campaigns + templates + recipients + per-channel credit ledger). Provider eksternal (WhatsApp Business API, SMS gateway, SendGrid, Meta Graph) di-abstract via field `provider`; default `mock` mensimulasi delivery transitions. Wiring resmi ditunda.
 
 **Acceptance criteria**:
 
-- [ ] Pilih channel (WA/SMS/Email/IG)
-- [ ] Pilih audience (semua pelanggan, group, tag, custom segment)
-- [ ] Template message dengan variable substitution ({{nama}}, {{outlet}}, dll)
-- [ ] Schedule: kirim sekarang / nanti
-- [ ] Track delivered/opened/clicked
-- [ ] Cost tracking (per WA/SMS rate)
+- [x] Pilih channel (WA/SMS/Email/IG)
+- [x] Pilih audience (semua pelanggan, group, tag, custom segment)
+- [x] Template message dengan variable substitution ({{nama}}, {{outlet}}, {{points_balance}}, {{deposit_balance}}, {{trx_count}}, {{last_visit}}, dll)
+- [x] Schedule: kirim sekarang / nanti / recurring (recurrence_rule disimpan; eksekusi worker berulang ditunda ke P2-04)
+- [x] Track delivered/opened/clicked (per recipient + agregat campaign)
+- [x] Cost tracking (per-channel default rate, ledger top-up + spend + refund-on-failed)
 
 **Reference**: `docs/v2/menus/penjualan/marketing.md`
 
 **Branch**: `devin/P1-11-marketing`
 **Estimasi**: 4-5 hari
+
+**PR**: #28 (merged TBD), session: https://app.devin.ai/sessions/43ab2127d43747fbae02bf5c4a2352b8
 
 ---
 
