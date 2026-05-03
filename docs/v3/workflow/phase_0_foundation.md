@@ -11,7 +11,7 @@
 
 ### P0-01: Monorepo struktur + workspaces  `[done]`
 
-> PR: [#6](https://github.com/alviarts/VIPOS/pull/6) (open, awaiting review/merge), session: https://app.devin.ai/sessions/25c7eea136d1457c8c4dda8d16819659
+> PR: [#6](https://github.com/alviarts/VIPOS/pull/6) (merged 2026-05-03), session: https://app.devin.ai/sessions/25c7eea136d1457c8c4dda8d16819659
 
 **Goal**: Reorganize repo jadi monorepo dengan workspaces (web, backend, android, docs, scripts).
 
@@ -83,7 +83,9 @@ Catatan:
 
 ---
 
-### P0-02: CI/CD via GitHub Actions  `[pending]`
+### P0-02: CI/CD via GitHub Actions  `[done]`
+
+> PR: [#7](https://github.com/alviarts/VIPOS/pull/7) (merged 2026-05-03), session: https://app.devin.ai/sessions/25c7eea136d1457c8c4dda8d16819659
 
 **Goal**: Auto-run lint + typecheck + test + build di setiap PR.
 

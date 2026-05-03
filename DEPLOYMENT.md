@@ -159,7 +159,15 @@ pm2 startup systemd -u root --hp /root
 
 ## 4. Update / Redeploy
 
-Gunakan helper script (recommended):
+Dua cara: **otomatis via GitHub Actions** (default sejak P0-02) atau **manual** (jalankan helper script).
+
+### 4.1 Otomatis (CI/CD)
+
+Setiap push/merge ke `main` akan trigger workflow `.github/workflows/deploy-vps.yml` yang SSH ke VPS dan jalankan `tools/scripts/deploy.sh`. Tidak perlu intervensi manual.
+
+Monitor di https://github.com/alviarts/VIPOS/actions/workflows/deploy-vps.yml. Workflow juga bisa di-trigger manual via tombol "Run workflow" di GitHub UI (`workflow_dispatch`).
+
+### 4.2 Manual (gunakan helper script)
 
 ```bash
 # Di VPS (sebagai root)
@@ -170,12 +178,15 @@ Script akan:
 1. `git fetch + checkout main + reset --hard` ke `origin/main`
 2. `npm install` untuk semua workspaces
 3. `npm run build:web` (output di `apps/web/dist/`)
-4. Pastikan `apps/backend/.env` ada (auto-generate kalau belum ada)
-5. Migrasi legacy DB (`backend/database.db` → `apps/backend/data/vipos.db`) — idempotent
-6. `pm2 restart vipos-backend` (atau start kalau belum ada)
-7. Patch path `/frontend/dist` → `/apps/web/dist` di nginx config + `nginx -t && systemctl reload nginx`
+4a. Migrasi legacy `backend/.env` → `apps/backend/.env` kalau ada (preserve JWT_SECRET supaya session user tidak invalid)
+4b. Bootstrap `apps/backend/.env` baru kalau belum ada legacy + belum ada new (auto-generate JWT_SECRET)
+4c-d. Stop pm2 dulu, lalu migrasi legacy SQLite (`backend/data/vipos.db` + WAL/SHM) → `apps/backend/data/`
+5. Re-create pm2 process kalau cwd masih ke layout lama; kalau sudah benar tinggal `pm2 restart`
+6. Patch path `/frontend/dist` → `/apps/web/dist` di nginx config + `nginx -t && systemctl reload nginx`
 
-Manual (kalau tidak pakai script):
+Idempotent — aman re-run.
+
+### 4.3 Manual lite (tanpa script)
 
 ```bash
 cd /var/www/vipos
@@ -185,6 +196,40 @@ npm run build:web  # output: apps/web/dist/
 pm2 restart vipos-backend
 # nginx reload tidak perlu — frontend dist akan langsung dibaca
 ```
+
+### 4.4 GitHub Actions setup (one-time, sudah dilakukan di P0-02)
+
+Workflow deploy butuh empat repo secret yang sudah di-set lewat GitHub UI atau API:
+
+| Secret | Nilai | Kegunaan |
+|---|---|---|
+| `VPS_HOST` | `103.74.5.44` | Target SSH |
+| `VPS_USER` | `root` | User SSH |
+| `VPS_DEPLOY_PATH` | `/var/www/vipos` | Working dir di VPS |
+| `VPS_SSH_KEY` | Private key (ed25519) untuk akses root@103.74.5.44 | SSH auth tanpa password |
+
+Key-pair di-generate di session Devin P0-02 dengan `ssh-keygen -t ed25519 -f ~/.ssh/vipos_deploy -N ""`. Public key di-append ke `/root/.ssh/authorized_keys` di VPS via `sshpass`. Private key disimpan sebagai:
+- GitHub repo secret `VPS_SSH_KEY` (untuk Actions runner)
+- Devin org secret `VPS_SSH_KEY` (untuk Devin sessions ke depan supaya bisa SSH key-based ke VPS tanpa password prompt overhead)
+
+Kalau key-pair butuh di-rotate (e.g. ada Devin session yang leak), regenerate + update kedua tempat penyimpanan.
+
+### 4.5 Branch protection (manual setup, satu kali)
+
+Branch protection di main perlu di-setup lewat GitHub UI (PAT user belum tentu punya permission `administration: write`):
+
+1. Buka https://github.com/alviarts/VIPOS/settings/branches
+2. Klik **Add classic branch protection rule** (atau **Add ruleset** di repo yang lebih baru)
+3. Branch name pattern: `main`
+4. Enable:
+   - [x] **Require a pull request before merging** (Required approvals: 0 atau 1, sesuai preferensi)
+   - [x] **Require status checks to pass before merging**
+     - Required checks: `build (web + backend)`, `lint (--if-present)`, `test (--if-present)` (cari setelah CI workflow run pertama kali)
+   - [x] **Require branches to be up to date before merging** (opsional)
+   - [x] **Do not allow bypassing the above settings** (opsional, lock juga ke admin)
+5. Save
+
+Setelah aktif, semua perubahan ke `main` wajib lewat PR + CI hijau.
 
 ## 5. Logging & Monitoring
 
@@ -228,8 +273,9 @@ NODE_ENV=production
 - Path: `/var/www/vipos/apps/backend/data/vipos.db`
   (lihat `apps/backend/src/models/database.js` — path relatif ke `apps/backend/data/vipos.db`)
 - Backup: `cp /var/www/vipos/apps/backend/data/vipos.db /var/www/vipos/apps/backend/data/vipos.db.bak`
-- Legacy path (pre-monorepo): `/var/www/vipos/backend/database.db` — di-migrate otomatis oleh
-  `tools/scripts/deploy.sh` saat deploy pertama kali.
+- Legacy paths (pre-monorepo) yang di-migrate otomatis oleh `tools/scripts/deploy.sh` saat deploy pertama kali:
+  - `/var/www/vipos/backend/data/vipos.db` (+ `vipos.db-wal`, `vipos.db-shm`) — layout post-PR #1
+  - `/var/www/vipos/backend/database.db` — layout pre-PR #1
 
 Untuk reset ke seed default:
 ```bash
@@ -317,8 +363,9 @@ JWT secret di `apps/backend/.env` PERSISTENT — kalau hilang, semua token user 
 - **VPS:** 103.74.5.44 (Ubuntu 22.04)
 - **URL Public:** http://103.74.5.44/vipos/
 - **Welcome page:** http://103.74.5.44/ (default nginx + link ke VIPOS)
-- **Branch deployed:** `devin/1777793568-initial-vipos-app` (akan di-merge ke `main` setelah review)
-- **PM2 process:** `vipos-backend` (id=3, online)
+- **Branch deployed:** `main` (auto-deploy via GitHub Actions sejak P0-02)
+- **PM2 process:** `vipos-backend` (cwd: `/var/www/vipos/apps/backend`)
+- **Layout:** monorepo (apps/web + apps/backend) per P0-01
 - **Verified working (external):**
   - GET / → 200 (welcome page)
   - GET /vipos → 301 → /vipos/
