@@ -250,7 +250,7 @@
 
 ---
 
-### P1-08: Promo + Kupon + Loyalty `[pending]`
+### P1-08: Promo + Kupon + Loyalty `[done]`
 
 **Goal**: Halaman Promo dengan 8 jenis (diskon flat, persentase, BXGY, bundle, dst) + Kupon + Poin Loyalty.
 
@@ -262,21 +262,23 @@
 - `apps/web/src/pages/penjualan/CouponsPage.jsx`
 - `apps/web/src/pages/penjualan/LoyaltyPage.jsx`
 - `apps/web/src/components/promo/PromoBuilder.jsx`
-- Backend: `/api/v1/promo`, `/api/v1/coupon`, `/api/v1/loyalty-rule`
+- Backend: `/api/promo`, `/api/coupon`, `/api/loyalty-rule`, `/api/loyalty/transactions`, `/api/loyalty/adjust`
 
 **Acceptance criteria**:
 
-- [ ] Builder promo support 8 jenis (lihat reference)
-- [ ] Kondisi: time, day of week, customer group, min purchase, product/category
-- [ ] Bulk generate kupon (random/custom code)
-- [ ] Kupon validate at checkout
-- [ ] Loyalty: earn rate (Rp X = 1 point), redeem rate (1 point = Rp Y), expiry
-- [ ] Tier customer (Bronze/Silver/Gold) dengan benefit berbeda
+- [x] Builder promo support 8 jenis (lihat reference)
+- [x] Kondisi: time, day of week, customer group, min purchase, product/category
+- [x] Bulk generate kupon (random/custom code)
+- [x] Kupon validate at checkout
+- [x] Loyalty: earn rate (Rp X = 1 point), redeem rate (1 point = Rp Y), expiry
+- [x] Tier customer (Bronze/Silver/Gold) dengan benefit berbeda
 
 **Reference**: `docs/v2/menus/penjualan/promo_kupon.md`, `docs/v2/13_PROMO_AND_LOYALTY.md`
 
 **Branch**: `devin/P1-08-promo-coupon-loyalty`
 **Estimasi**: 5-7 hari
+
+**PR**: [#25](https://github.com/alviarts/VIPOS/pull/25), session: https://app.devin.ai/sessions/34d9c20054044336bdbcd099e7581d90
 
 ---
 

@@ -8,7 +8,13 @@ const tierRank = Object.fromEntries(ALL_TIERS.map((t, i) => [t, i]));
 
 function canAccessFor(role, tier) {
   return ({ roles, minTier } = {}) => {
-    if (role !== ROLES.OWNER && role !== ROLES.ADMIN && roles && roles.length && !roles.includes(role)) {
+    if (
+      role !== ROLES.OWNER &&
+      role !== ROLES.ADMIN &&
+      roles &&
+      roles.length &&
+      !roles.includes(role)
+    ) {
       return false;
     }
     if (minTier && tierRank[tier] < tierRank[minTier]) return false;
@@ -17,10 +23,11 @@ function canAccessFor(role, tier) {
 }
 
 describe('MENU_GROUPS', () => {
-  it('punya 12 menu group sesuai spec P1-01', () => {
-    // Penjualan, Order Online, Appointment, Karyawan, Keuangan, Pengaturan,
-    // Lainnya, Bantuan, LAYANAN, INSPIRASI, Capital, SUPPLIES.
-    expect(MENU_GROUPS).toHaveLength(12);
+  it('punya 13 menu group sesuai spec P1-01 + P1-08 (Promosi)', () => {
+    // Penjualan, Promosi (P1-08), Order Online, Appointment, Karyawan,
+    // Keuangan, Pengaturan, Lainnya, Bantuan, LAYANAN, INSPIRASI, Capital,
+    // SUPPLIES.
+    expect(MENU_GROUPS).toHaveLength(13);
   });
 
   it('group "penjualan" terlihat untuk semua role + tier', () => {
