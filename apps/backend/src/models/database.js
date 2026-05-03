@@ -1,22 +1,41 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, '../../data/vipos.db');
+// Allow override via env (handy for tests / CI). Default mirrors monorepo
+// layout: apps/backend/data/vipos.db.
+const DEFAULT_DB_PATH = path.join(__dirname, '../../data/vipos.db');
+function resolveDbPath() {
+  return process.env.VIPOS_DB_PATH || DEFAULT_DB_PATH;
+}
 
 let db;
 
 function getDb() {
   if (!db) {
     const fs = require('fs');
-    const dir = path.dirname(DB_PATH);
+    const targetPath = resolveDbPath();
+    const dir = path.dirname(targetPath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    db = new Database(DB_PATH);
+    db = new Database(targetPath);
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
   }
   return db;
+}
+
+// For tests: forcibly close + reset the singleton so subsequent calls open
+// against the (possibly new) DB path. Production code should never call this.
+function _resetDbForTests() {
+  if (db) {
+    try {
+      db.close();
+    } catch (_) {
+      /* ignore */
+    }
+    db = null;
+  }
 }
 
 // Idempotent column addition: skip if column already exists.
@@ -206,4 +225,4 @@ function initDatabase() {
   console.log('Database initialized successfully');
 }
 
-module.exports = { getDb, initDatabase };
+module.exports = { getDb, initDatabase, _resetDbForTests };
