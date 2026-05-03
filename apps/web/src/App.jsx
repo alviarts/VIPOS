@@ -10,6 +10,7 @@ import DashboardPage from './pages/DashboardPage';
 import CashierPage from './pages/CashierPage';
 import ProductsPage from './pages/ProductsPage';
 import CategoriesPage from './pages/CategoriesPage';
+import DepartmentsPage from './pages/DepartmentsPage';
 import CustomersPage from './pages/CustomersPage';
 import CustomerDetailPage from './pages/CustomerDetailPage';
 import CustomerGroupsPage from './pages/CustomerGroupsPage';
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="cashier" element={<CashierPage />} />
         <Route path="products" element={<ProductsPage />} />
         <Route path="categories" element={<CategoriesPage />} />
+        <Route path="departments" element={<DepartmentsPage />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="customers/:id" element={<CustomerDetailPage />} />
         <Route path="customer-groups" element={<CustomerGroupsPage />} />
