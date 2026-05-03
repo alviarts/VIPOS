@@ -278,7 +278,7 @@
 **Branch**: `devin/P1-08-promo-coupon-loyalty`
 **Estimasi**: 5-7 hari
 
-**PR**: [#25](https://github.com/alviarts/VIPOS/pull/25), session: https://app.devin.ai/sessions/34d9c20054044336bdbcd099e7581d90
+**PR**: [#25](https://github.com/alviarts/VIPOS/pull/25) (merged 2026-05-03), session: https://app.devin.ai/sessions/34d9c20054044336bdbcd099e7581d90
 
 ---
 
@@ -306,7 +306,7 @@
 **Branch**: `devin/P1-09-commissions`
 **Estimasi**: 2-3 hari
 
-**PR**: [#26](https://github.com/alviarts/VIPOS/pull/26), session: https://app.devin.ai/sessions/34d9c20054044336bdbcd099e7581d90
+**PR**: [#26](https://github.com/alviarts/VIPOS/pull/26) (merged 2026-05-03), session: https://app.devin.ai/sessions/34d9c20054044336bdbcd099e7581d90
 
 ---
 
@@ -344,7 +344,7 @@
 **Estimasi**: 5-6 hari
 **Implementation note**: Pages live di `apps/web/src/pages/` (top-level), bukan subfolder `penjualan/`, mengikuti konvensi P1-01..09. Receipt PDF + email/WA dijadikan stretch goal — backend siap (number generator + audit trail) tapi UI/integration belum ada.
 
-**PR**: #27 — session: https://app.devin.ai/sessions/34d9c20054044336bdbcd099e7581d90
+**PR**: [#27](https://github.com/alviarts/VIPOS/pull/27) (merged 2026-05-03), session: https://app.devin.ai/sessions/34d9c20054044336bdbcd099e7581d90
 
 ---
 
