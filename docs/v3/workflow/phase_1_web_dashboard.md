@@ -9,7 +9,9 @@
 
 ---
 
-### P1-01: Layout shell `[pending]`
+### P1-01: Layout shell `[done]`
+
+> PR: [#13](https://github.com/alviarts/VIPOS/pull/13) (merged 2026-05-03), session: https://app.devin.ai/sessions/8546e9f2afa1429f8a23153a782e872a
 
 **Goal**: Layout dasar — sidebar + header + breadcrumb + outlet switcher + role-based menu visibility.
 
