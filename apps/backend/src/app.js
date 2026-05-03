@@ -45,6 +45,7 @@ function buildApp(opts = {}) {
   app.use('/api/dashboard', require('./routes/dashboard'));
   app.use('/api/finance', require('./routes/finance'));
   app.use('/api/inventory', require('./routes/inventory'));
+  app.use('/api/stock-opname', require('./routes/stock-opname'));
 
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });

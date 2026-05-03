@@ -214,6 +214,10 @@ function initDatabase() {
       qty INTEGER NOT NULL,
       stok_sebelum INTEGER NOT NULL,
       stok_sesudah INTEGER NOT NULL,
+      unit_cost REAL,
+      reason TEXT,
+      ref_type TEXT,
+      ref_id INTEGER,
       keterangan TEXT,
       user_id INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -269,7 +273,39 @@ function initDatabase() {
       FOREIGN KEY (ingredient_id) REFERENCES products(id)
     );
 
+    CREATE TABLE IF NOT EXISTS stock_opname (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kode TEXT UNIQUE NOT NULL,
+      tanggal DATE NOT NULL DEFAULT CURRENT_DATE,
+      status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'final', 'cancelled')),
+      catatan TEXT,
+      created_by INTEGER,
+      finalized_by INTEGER,
+      finalized_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (created_by) REFERENCES users(id),
+      FOREIGN KEY (finalized_by) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS stock_opname_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      opname_id INTEGER NOT NULL,
+      product_id INTEGER NOT NULL,
+      qty_sistem INTEGER NOT NULL DEFAULT 0,
+      qty_fisik INTEGER,
+      catatan TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (opname_id, product_id),
+      FOREIGN KEY (opname_id) REFERENCES stock_opname(id) ON DELETE CASCADE,
+      FOREIGN KEY (product_id) REFERENCES products(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_inventory_movements_product ON inventory_movements(product_id);
+    CREATE INDEX IF NOT EXISTS idx_inventory_movements_tanggal ON inventory_movements(tanggal);
+    CREATE INDEX IF NOT EXISTS idx_inventory_movements_ref ON inventory_movements(ref_type, ref_id);
+    CREATE INDEX IF NOT EXISTS idx_stock_opname_status ON stock_opname(status);
+    CREATE INDEX IF NOT EXISTS idx_stock_opname_items_opname ON stock_opname_items(opname_id);
     CREATE INDEX IF NOT EXISTS idx_cash_transactions_account ON cash_transactions(account_id);
     CREATE INDEX IF NOT EXISTS idx_cash_transactions_tanggal ON cash_transactions(tanggal);
     CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
@@ -318,6 +354,13 @@ function initDatabase() {
   addColumnIfMissing(db, 'customers', 'province', 'TEXT');
   addColumnIfMissing(db, 'customers', 'city', 'TEXT');
   addColumnIfMissing(db, 'customers', 'district', 'TEXT');
+
+  // P1-07: inventory enrichment for COGS averaging + opname linkage + reason taxonomy.
+  addColumnIfMissing(db, 'inventory_movements', 'unit_cost', 'REAL');
+  addColumnIfMissing(db, 'inventory_movements', 'ref_type', 'TEXT');
+  addColumnIfMissing(db, 'inventory_movements', 'ref_id', 'INTEGER');
+  addColumnIfMissing(db, 'inventory_movements', 'reason', 'TEXT');
+
 
   // P1-02: auth flow refinement.
   addColumnIfMissing(db, 'users', 'email', 'TEXT');
