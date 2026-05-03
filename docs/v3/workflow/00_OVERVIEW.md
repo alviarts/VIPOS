@@ -187,7 +187,14 @@ Kalau task selesai dan Anda perlu update workflow doc itu sendiri:
 
 ## Cara assign task ke Devin
 
-Lihat `01_HOW_TO_USE.md` untuk template prompt dan workflow.
+**Recommended (1 prompt universal)**: Pakai `templates/devin_continuation_prompt.md`. Paste prompt yang sama ke setiap session Devin baru — Devin auto-detect task next berdasarkan markers `[pending]`/`[done]` di phase docs + merged PR.
+
+Workflow:
+1. User paste prompt → Devin 01 eksekusi task P0-01 → commit incremental → PR → merged.
+2. User paste prompt yang sama → Devin 02 auto-detect P0-01 done, eksekusi P0-02 → ...
+3. Repeat sampai Phase 6 selesai (~12-14 bulan dengan 1 Devin sequential, ~8-10 bulan paralel).
+
+Detail di `01_HOW_TO_USE.md`.
 
 ## Ringkasan Phase isi
 
