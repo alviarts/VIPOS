@@ -1,0 +1,67 @@
+name: Deploy to VPS
+
+# Auto-deploy ke VPS setiap kali main ter-update (biasanya hasil PR squash-merge).
+# Workflow ini hanya men-trigger script deploy yang sudah ada di server
+# (tools/scripts/deploy.sh) — semua langkah yang sebenarnya jalan di sana.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to deploy (default: main)"
+        required: false
+        default: "main"
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy via ssh
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: http://103.74.5.44/vipos/
+    steps:
+      - name: Setup SSH key
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519 -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Run deploy script on VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+          BRANCH: ${{ inputs.branch || 'main' }}
+        run: |
+          set -euo pipefail
+          ssh -o StrictHostKeyChecking=accept-new \
+              -o IdentitiesOnly=yes \
+              -i ~/.ssh/id_ed25519 \
+              "${VPS_USER}@${VPS_HOST}" \
+              "set -euo pipefail; \
+               export DEPLOY_PATH='${DEPLOY_PATH}'; \
+               export BRANCH='${BRANCH}'; \
+               cd \"\$DEPLOY_PATH\" && \
+               bash tools/scripts/deploy.sh"
+
+      - name: Smoke check live site
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          set -e
+          # Beri server beberapa detik untuk pm2 boot ulang.
+          sleep 5
+          # Frontend di-serve nginx di prefix /vipos/.
+          curl -fsS -o /dev/null -w "frontend HTTP %{http_code}\n" "http://${VPS_HOST}/vipos/"
+          # Backend health endpoint via nginx -> proxy.
+          curl -fsS -o /dev/null -w "health   HTTP %{http_code}\n" "http://${VPS_HOST}/vipos/api/health"
