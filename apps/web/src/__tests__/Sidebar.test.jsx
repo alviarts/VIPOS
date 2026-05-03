@@ -31,7 +31,7 @@ function renderSidebar({ role = ROLES.OWNER, tier = TIERS.PRIME, ...props } = {}
           <Sidebar collapsed={false} mobileOpen={false} {...props} />
         </PermissionProvider>
       </AuthShim>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
 }
 
@@ -54,11 +54,11 @@ describe('Sidebar', () => {
     window.localStorage.clear();
   });
 
-  it('renders 12 menu groups for OWNER on PRIME tier', () => {
+  it('renders 13 menu groups for OWNER on PRIME tier', () => {
     renderSidebar({ role: ROLES.OWNER, tier: TIERS.PRIME });
     // Each group renders a button with data-testid="group-{id}".
     const groupButtons = document.querySelectorAll('[data-testid^="group-"]');
-    expect(groupButtons.length).toBe(12);
+    expect(groupButtons.length).toBe(13);
   });
 
   it('hides finance group entirely for KASIR role', () => {

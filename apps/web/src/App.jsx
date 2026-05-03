@@ -20,6 +20,12 @@ import FinancePage from './pages/FinancePage';
 import TransactionsPage from './pages/TransactionsPage';
 import ReportsPage from './pages/ReportsPage';
 import SettingsPage from './pages/SettingsPage';
+import QuotationsPage from './pages/QuotationsPage';
+import SalesOrdersPage from './pages/SalesOrdersPage';
+import DeliveryOrdersPage from './pages/DeliveryOrdersPage';
+import InvoicesPage from './pages/InvoicesPage';
+import ReceiptsPage from './pages/ReceiptsPage';
+import AgingReportPage from './pages/AgingReportPage';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -61,6 +67,12 @@ export default function App() {
         <Route path="inventory/opname/:id" element={<StockOpnamePage />} />
         <Route path="finance" element={<FinancePage />} />
         <Route path="transactions" element={<TransactionsPage />} />
+        <Route path="quotations" element={<QuotationsPage />} />
+        <Route path="sales-orders" element={<SalesOrdersPage />} />
+        <Route path="delivery-orders" element={<DeliveryOrdersPage />} />
+        <Route path="invoices" element={<InvoicesPage />} />
+        <Route path="receipts" element={<ReceiptsPage />} />
+        <Route path="aging-report" element={<AgingReportPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="settings/change-password" element={<ChangePasswordPage />} />
