@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel any in-progress run on the same ref when a new one starts.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build (web + backend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies (root + workspaces)
+        run: npm ci
+
+      - name: Build all workspaces
+        run: npm run build
+
+      - name: Smoke check backend can start
+        env:
+          NODE_ENV: production
+          JWT_SECRET: ci-smoke-secret
+          PORT: 3001
+        run: |
+          # Boot the backend in the background, hit /api/health, then kill it.
+          # Proves the production entry point still resolves the new monorepo
+          # paths (e.g. ../../web/dist) without throwing.
+          mkdir -p apps/backend/data
+          (cd apps/backend && node src/index.js &) >/tmp/backend.log 2>&1
+          for i in $(seq 1 20); do
+            if curl -fsS http://localhost:3001/api/health >/dev/null 2>&1; then
+              echo "backend is healthy"
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://localhost:3001/api/health || { echo "health check failed"; cat /tmp/backend.log; exit 1; }
+          pkill -f "node src/index.js" || true
+
+  lint:
+    name: lint (--if-present)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        # No workspace defines a lint script yet (P0-03 will add ESLint/Prettier).
+        # `--if-present` makes this a no-op until then so CI stays green.
+        run: npm run lint --if-present
+
+  test:
+    name: test (--if-present)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        # No workspace defines a test script yet (P0-05 will add Vitest).
+        # `--if-present` makes this a no-op until then so CI stays green.
+        run: npm test --if-present

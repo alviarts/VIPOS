@@ -1,5 +1,8 @@
 # VIPOS - Aplikasi POS/Kasir Modern
 
+[![CI](https://github.com/alviarts/VIPOS/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/alviarts/VIPOS/actions/workflows/ci.yml)
+[![Deploy](https://github.com/alviarts/VIPOS/actions/workflows/deploy-vps.yml/badge.svg?branch=main)](https://github.com/alviarts/VIPOS/actions/workflows/deploy-vps.yml)
+
 Aplikasi Point of Sale (POS) / Kasir modern yang mobile-friendly, dirancang untuk kemudahan penggunaan di tablet dan smartphone.
 
 ## Fitur

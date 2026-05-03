@@ -8,8 +8,8 @@
 #   1. Pulls latest <branch> (default: main) into $DEPLOY_PATH
 #   2. Installs all workspace deps (`npm install` at root)
 #   3. Builds web (`apps/web/dist/`)
-#   4. Migrates legacy backend SQLite to apps/backend/data/ (one-shot)
-#   5. Restarts pm2 service vipos-backend (or starts if missing)
+#   4. Migrates legacy backend `.env` + SQLite to apps/backend/* (one-shot)
+#   5. Restarts pm2 service vipos-backend (re-creates if cwd changed)
 #   6. Reloads nginx config (after re-rendering nginx.conf if needed)
 #
 # Idempotent — safe to re-run.
@@ -50,41 +50,86 @@ npm install --no-audit --no-fund
 log "3/6 build web"
 npm run build:web
 
-log "4/6 ensure apps/backend/.env exists"
-if [ ! -f apps/backend/.env ]; then
+log "4a/6 migrate legacy backend/.env -> apps/backend/.env (one-shot)"
+LEGACY_ENV="$DEPLOY_PATH/backend/.env"
+NEW_ENV="$DEPLOY_PATH/apps/backend/.env"
+if [ -f "$LEGACY_ENV" ] && [ ! -f "$NEW_ENV" ]; then
+  log "  moving $LEGACY_ENV -> $NEW_ENV (preserves existing JWT_SECRET)"
+  mv "$LEGACY_ENV" "$NEW_ENV"
+fi
+
+log "4b/6 bootstrap apps/backend/.env if still missing"
+if [ ! -f "$NEW_ENV" ]; then
   if [ -f .env.example ]; then
-    cp .env.example apps/backend/.env
-    JWT_SECRET=$(openssl rand -hex 32)
-    sed -i "s|JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET}|" apps/backend/.env
-    sed -i "s|NODE_ENV=.*|NODE_ENV=production|" apps/backend/.env
-    log "  created apps/backend/.env with new JWT_SECRET"
+    cp .env.example "$NEW_ENV"
   else
-    echo "  WARN: no .env.example, skipping .env bootstrap" >&2
+    : > "$NEW_ENV"
   fi
+  GEN_JWT=$(openssl rand -hex 32)
+  if grep -q '^JWT_SECRET=' "$NEW_ENV"; then
+    sed -i "s|^JWT_SECRET=.*|JWT_SECRET=${GEN_JWT}|" "$NEW_ENV"
+  else
+    echo "JWT_SECRET=${GEN_JWT}" >> "$NEW_ENV"
+  fi
+  if grep -q '^NODE_ENV=' "$NEW_ENV"; then
+    sed -i 's|^NODE_ENV=.*|NODE_ENV=production|' "$NEW_ENV"
+  else
+    echo 'NODE_ENV=production' >> "$NEW_ENV"
+  fi
+  if grep -q '^PORT=' "$NEW_ENV"; then
+    sed -i "s|^PORT=.*|PORT=${BACKEND_PORT}|" "$NEW_ENV"
+  else
+    echo "PORT=${BACKEND_PORT}" >> "$NEW_ENV"
+  fi
+  log "  created $NEW_ENV with fresh JWT_SECRET"
 fi
 
-log "4b/6 migrate legacy DB if present"
-LEGACY_DB="$DEPLOY_PATH/backend/database.db"
-LEGACY_DIR="$DEPLOY_PATH/backend/data"
-NEW_DIR="$DEPLOY_PATH/apps/backend/data"
-mkdir -p "$NEW_DIR"
-if [ -f "$LEGACY_DB" ] && [ ! -f "$NEW_DIR/vipos.db" ]; then
-  log "  moving legacy $LEGACY_DB -> $NEW_DIR/vipos.db"
-  mv "$LEGACY_DB" "$NEW_DIR/vipos.db"
+log "4c/6 stop pm2 before SQLite migration (if WAL is in use)"
+LEGACY_DB_DIR="$DEPLOY_PATH/backend/data"
+NEW_DB_DIR="$DEPLOY_PATH/apps/backend/data"
+mkdir -p "$NEW_DB_DIR"
+NEEDS_DB_MIGRATE=0
+if [ -f "$LEGACY_DB_DIR/vipos.db" ] && [ ! -f "$NEW_DB_DIR/vipos.db" ]; then
+  NEEDS_DB_MIGRATE=1
 fi
-if [ -d "$LEGACY_DIR" ] && [ ! "$(ls -A "$NEW_DIR" 2>/dev/null)" ]; then
-  log "  moving legacy dir $LEGACY_DIR/* -> $NEW_DIR/"
-  mv "$LEGACY_DIR"/* "$NEW_DIR/" 2>/dev/null || true
+if [ "$NEEDS_DB_MIGRATE" = "1" ] && pm2 describe "$PM2_NAME" >/dev/null 2>&1; then
+  log "  legacy DB present at $LEGACY_DB_DIR — stopping pm2 to flush WAL"
+  pm2 stop "$PM2_NAME" || true
 fi
 
-log "5/6 restart pm2 service $PM2_NAME"
-if pm2 describe "$PM2_NAME" >/dev/null 2>&1; then
-  pm2 restart "$PM2_NAME" --update-env
-else
-  cd "$DEPLOY_PATH/apps/backend"
+log "4d/6 migrate legacy SQLite (vipos.db + WAL/SHM) -> apps/backend/data/"
+for f in vipos.db vipos.db-wal vipos.db-shm vipos.db-journal database.db; do
+  if [ -f "$LEGACY_DB_DIR/$f" ] && [ ! -f "$NEW_DB_DIR/$f" ]; then
+    log "  moving $LEGACY_DB_DIR/$f -> $NEW_DB_DIR/$f"
+    mv "$LEGACY_DB_DIR/$f" "$NEW_DB_DIR/$f"
+  fi
+done
+# Some older deploys put DB at backend/database.db (root of backend) — also handle that.
+if [ -f "$DEPLOY_PATH/backend/database.db" ] && [ ! -f "$NEW_DB_DIR/vipos.db" ]; then
+  log "  moving legacy $DEPLOY_PATH/backend/database.db -> $NEW_DB_DIR/vipos.db"
+  mv "$DEPLOY_PATH/backend/database.db" "$NEW_DB_DIR/vipos.db"
+fi
+
+log "5/6 (re)start pm2 service $PM2_NAME with cwd=apps/backend"
+EXPECTED_CWD="$DEPLOY_PATH/apps/backend"
+start_fresh() {
+  pm2 delete "$PM2_NAME" >/dev/null 2>&1 || true
+  cd "$EXPECTED_CWD"
   PORT="$BACKEND_PORT" pm2 start src/index.js --name "$PM2_NAME" --update-env
-  pm2 save
   cd "$DEPLOY_PATH"
+}
+if pm2 describe "$PM2_NAME" >/dev/null 2>&1; then
+  CURRENT_CWD=$(pm2 jlist 2>/dev/null \
+    | python3 -c "import json,sys; data=json.load(sys.stdin); m=[p for p in data if p.get('name')=='$PM2_NAME']; print(m[0].get('pm2_env',{}).get('pm_cwd','') if m else '')" \
+    2>/dev/null || true)
+  if [ "$CURRENT_CWD" != "$EXPECTED_CWD" ]; then
+    log "  cwd mismatch (was '$CURRENT_CWD', want '$EXPECTED_CWD') — re-creating pm2 process"
+    start_fresh
+  else
+    pm2 restart "$PM2_NAME" --update-env
+  fi
+else
+  start_fresh
 fi
 pm2 save
 
