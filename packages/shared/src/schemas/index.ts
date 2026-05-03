@@ -13,3 +13,4 @@ export * from "./customers";
 export * from "./customer-groups";
 export * from "./finance";
 export * from "./inventory";
+export * from "./commissions";
