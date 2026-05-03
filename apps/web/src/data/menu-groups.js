@@ -19,6 +19,7 @@
 import {
   BarChart3,
   CalendarRange,
+  ClipboardCheck,
   Compass,
   HandCoins,
   HeartHandshake,
@@ -70,6 +71,12 @@ export const MENU_GROUPS = [
         label: 'Inventori',
         icon: Warehouse,
         roles: [ROLES.MANAGER, ROLES.WAREHOUSE, ROLES.STAFF],
+      },
+      {
+        path: '/inventory/opname',
+        label: 'Stok Opname',
+        icon: ClipboardCheck,
+        roles: [ROLES.MANAGER, ROLES.WAREHOUSE],
       },
       {
         path: '/transactions',

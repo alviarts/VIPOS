@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Plus,
   Search,
@@ -9,6 +10,7 @@ import {
   ClipboardCheck,
   Box,
   AlertTriangle,
+  History,
 } from 'lucide-react';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -21,6 +23,7 @@ import {
   FilterTabs,
   PageHeader,
 } from '../components/ui';
+import ProductMovementHistoryDialog from '../components/inventory/ProductMovementHistoryDialog';
 
 const TIPE_LABEL = {
   stok_in: 'Stok Masuk',
@@ -52,6 +55,7 @@ export default function InventoryPage() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [confirmSave, setConfirmSave] = useState(false);
+  const [historyProduct, setHistoryProduct] = useState(null);
 
   useEffect(() => {
     loadAll();
@@ -123,13 +127,20 @@ export default function InventoryPage() {
   const handleConfirmSave = async () => {
     setSaving(true);
     try {
-      await api.post('/inventory/movements', {
+      const payload = {
         product_id: parseInt(form.product_id, 10),
         tipe: form.tipe,
         qty: parseInt(form.qty, 10),
         tanggal: form.tanggal,
         keterangan: form.keterangan.trim() || null,
-      });
+      };
+      if (form.tipe === 'stok_in' && form.unit_cost !== '' && form.unit_cost != null) {
+        payload.unit_cost = parseFloat(form.unit_cost);
+      }
+      if (form.tipe === 'stok_out' && form.reason) {
+        payload.reason = form.reason;
+      }
+      await api.post('/inventory/movements', payload);
       toast.success(`${TIPE_LABEL[form.tipe]} berhasil dicatat`);
       setConfirmSave(false);
       setShowForm(false);
@@ -158,12 +169,9 @@ export default function InventoryPage() {
             >
               <ArrowDownCircle className="w-4 h-4" /> Stok Keluar
             </button>
-            <button
-              onClick={() => openForm('opname')}
-              className="btn-primary flex items-center gap-2 text-sm"
-            >
-              <ClipboardCheck className="w-4 h-4" /> Opname Stok
-            </button>
+            <Link to="/inventory/opname" className="btn-primary flex items-center gap-2 text-sm">
+              <ClipboardCheck className="w-4 h-4" /> Stok Opname
+            </Link>
           </>
         )}
       </PageHeader>
@@ -228,6 +236,7 @@ export default function InventoryPage() {
                 <th className="table-header px-4 py-3 text-right">Stok Sesudah</th>
                 <th className="table-header px-4 py-3 text-left">Keterangan</th>
                 <th className="table-header px-4 py-3 text-left">User</th>
+                <th className="table-header px-4 py-3 text-center w-20">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -258,6 +267,21 @@ export default function InventoryPage() {
                     {m.keterangan || '-'}
                   </td>
                   <td className="px-4 py-3 text-gray-500">{m.user_name || '-'}</td>
+                  <td className="px-4 py-3 text-center">
+                    <button
+                      onClick={() =>
+                        setHistoryProduct({
+                          id: m.product_id,
+                          name: m.product_name,
+                          sku: m.product_sku,
+                        })
+                      }
+                      className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"
+                      title="Lihat riwayat per produk"
+                    >
+                      <History className="w-4 h-4" />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -309,6 +333,13 @@ export default function InventoryPage() {
         onCancel={() => setConfirmSave(false)}
         onConfirm={handleConfirmSave}
       />
+
+      {historyProduct && (
+        <ProductMovementHistoryDialog
+          product={historyProduct}
+          onClose={() => setHistoryProduct(null)}
+        />
+      )}
     </div>
   );
 }
@@ -348,8 +379,18 @@ function initForm() {
     qty: '',
     tanggal: new Date().toISOString().slice(0, 10),
     keterangan: '',
+    unit_cost: '',
+    reason: '',
   };
 }
+
+const REASON_OPTIONS = [
+  { value: 'damaged', label: 'Rusak' },
+  { value: 'expired', label: 'Kedaluwarsa' },
+  { value: 'shrinkage', label: 'Selisih (Shrinkage)' },
+  { value: 'production', label: 'Pemakaian Produksi' },
+  { value: 'other', label: 'Lainnya' },
+];
 
 function buildConfirmMessage(form, products) {
   const product = products.find((p) => String(p.id) === String(form.product_id));
@@ -444,6 +485,49 @@ function MovementFormPage({ form, setForm, products, errors, onCancel, onSave })
                 />
               </div>
             </div>
+
+            {form.tipe === 'stok_in' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Harga Beli per Unit
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
+                    Rp
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.unit_cost}
+                    onChange={(e) => set({ unit_cost: e.target.value })}
+                    className="input-field pl-9"
+                    placeholder="0"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Opsional. Akan otomatis update <strong>harga modal</strong> via weighted average.
+                </p>
+              </div>
+            )}
+
+            {form.tipe === 'stok_out' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Alasan</label>
+                <select
+                  value={form.reason}
+                  onChange={(e) => set({ reason: e.target.value })}
+                  className="input-field"
+                >
+                  <option value="">- Pilih alasan -</option>
+                  {REASON_OPTIONS.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Keterangan</label>
