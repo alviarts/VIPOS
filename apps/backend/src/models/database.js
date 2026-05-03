@@ -598,6 +598,97 @@ function initDatabase() {
       FOREIGN KEY (rule_id) REFERENCES loyalty_rules(id)
     );
 
+    -- P1-11: Marketing campaigns (WA Blast / SMS / Email / IG Feed).
+    CREATE TABLE IF NOT EXISTS marketing_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      channel TEXT NOT NULL CHECK(channel IN ('whatsapp', 'sms', 'email', 'instagram')),
+      header TEXT,
+      body TEXT NOT NULL,
+      footer TEXT,
+      buttons TEXT,
+      subject TEXT,
+      caption TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS marketing_campaigns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      channel TEXT NOT NULL CHECK(channel IN ('whatsapp', 'sms', 'email', 'instagram')),
+      provider TEXT NOT NULL DEFAULT 'mock',
+      audience_type TEXT NOT NULL CHECK(audience_type IN ('all', 'group', 'tag', 'custom')),
+      audience_group_ids TEXT,
+      audience_tag_ids TEXT,
+      audience_custom_recipients TEXT,
+      template_id INTEGER,
+      template_snapshot TEXT NOT NULL,
+      schedule_type TEXT NOT NULL DEFAULT 'now' CHECK(schedule_type IN ('now', 'scheduled', 'recurring')),
+      scheduled_at DATETIME,
+      recurrence_rule TEXT,
+      cost_per_message REAL NOT NULL DEFAULT 0,
+      total_cost REAL NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN (
+        'draft', 'scheduled', 'sending', 'sent', 'failed', 'canceled'
+      )),
+      sent_count INTEGER NOT NULL DEFAULT 0,
+      delivered_count INTEGER NOT NULL DEFAULT 0,
+      opened_count INTEGER NOT NULL DEFAULT 0,
+      clicked_count INTEGER NOT NULL DEFAULT 0,
+      failed_count INTEGER NOT NULL DEFAULT 0,
+      sent_at DATETIME,
+      completed_at DATETIME,
+      notes TEXT,
+      created_by INTEGER REFERENCES users(id),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (template_id) REFERENCES marketing_templates(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS marketing_campaign_recipients (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_id INTEGER NOT NULL,
+      customer_id INTEGER,
+      contact TEXT NOT NULL,
+      contact_label TEXT,
+      rendered_message TEXT,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN (
+        'pending', 'sent', 'delivered', 'opened', 'clicked', 'failed'
+      )),
+      cost REAL NOT NULL DEFAULT 0,
+      provider_ref TEXT,
+      error_message TEXT,
+      sent_at DATETIME,
+      delivered_at DATETIME,
+      opened_at DATETIME,
+      clicked_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (campaign_id) REFERENCES marketing_campaigns(id) ON DELETE CASCADE,
+      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS marketing_credit_ledger (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      channel TEXT NOT NULL CHECK(channel IN ('whatsapp', 'sms', 'email', 'instagram')),
+      delta REAL NOT NULL,
+      balance_after REAL NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('topup', 'spend', 'refund', 'adjust')),
+      campaign_id INTEGER,
+      notes TEXT,
+      created_by INTEGER REFERENCES users(id),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (campaign_id) REFERENCES marketing_campaigns(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_marketing_campaigns_status ON marketing_campaigns(status);
+    CREATE INDEX IF NOT EXISTS idx_marketing_campaigns_channel ON marketing_campaigns(channel);
+    CREATE INDEX IF NOT EXISTS idx_marketing_campaigns_scheduled ON marketing_campaigns(scheduled_at);
+    CREATE INDEX IF NOT EXISTS idx_marketing_recipients_campaign ON marketing_campaign_recipients(campaign_id);
+    CREATE INDEX IF NOT EXISTS idx_marketing_recipients_status ON marketing_campaign_recipients(status);
+    CREATE INDEX IF NOT EXISTS idx_marketing_credit_channel ON marketing_credit_ledger(channel);
+    CREATE INDEX IF NOT EXISTS idx_marketing_templates_channel ON marketing_templates(channel);
+
     CREATE INDEX IF NOT EXISTS idx_promos_active ON promos(is_active);
     CREATE INDEX IF NOT EXISTS idx_promos_type ON promos(promo_type);
     CREATE INDEX IF NOT EXISTS idx_coupons_promo ON coupons(promo_id);
