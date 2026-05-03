@@ -265,15 +265,22 @@ swapRouter.post(
         .get(swap.partner_assignment_id);
       if (!reqA || !partnerA) return res.status(404).json({ error: 'Assignments missing' });
 
-      // Atomic swap: tukar employee_id antara dua assignment supaya unique
-      // constraint (employee_id, schedule_date) tetap konsisten.
+      // Atomic swap: tukar isi (shift_id, schedule_date, is_off, note) antar
+      // dua assignment, employee_id tetap. Begitu unique(employee_id,
+      // schedule_date) tidak bentrok, dan setiap karyawan tetap memegang
+      // riwayat assignment-nya sendiri. Tetap perlu sentinel tanggal supaya
+      // dua assignment tidak bentrok ketika date berubah.
       const tx = db.transaction(() => {
+        const sentinel = '0001-01-01';
         db.prepare(
-          `UPDATE schedule_assignments SET employee_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-        ).run(partnerA.employee_id, reqA.id);
+          `UPDATE schedule_assignments SET schedule_date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+        ).run(sentinel, reqA.id);
         db.prepare(
-          `UPDATE schedule_assignments SET employee_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-        ).run(reqA.employee_id, partnerA.id);
+          `UPDATE schedule_assignments SET shift_id = ?, schedule_date = ?, is_off = ?, note = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+        ).run(reqA.shift_id, reqA.schedule_date, reqA.is_off, reqA.note, partnerA.id);
+        db.prepare(
+          `UPDATE schedule_assignments SET shift_id = ?, schedule_date = ?, is_off = ?, note = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+        ).run(partnerA.shift_id, partnerA.schedule_date, partnerA.is_off, partnerA.note, reqA.id);
         db.prepare(
           `UPDATE schedule_swaps SET status = 'APPROVED', decided_by = ?, decided_at = CURRENT_TIMESTAMP, decision_note = ? WHERE id = ?`
         ).run(req.user?.id || null, req.body.decision_note || null, id);
