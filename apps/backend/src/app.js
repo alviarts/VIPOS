@@ -57,6 +57,12 @@ function buildApp(opts = {}) {
   app.use('/api/commission-group', require('./routes/commission-group'));
   app.use('/api/commission-assignment', require('./routes/commission-assignment'));
   app.use('/api/commission-report', require('./routes/commission-report'));
+  app.use('/api/quotation', require('./routes/quotation'));
+  app.use('/api/sales-order', require('./routes/sales-order'));
+  app.use('/api/delivery-order', require('./routes/delivery-order'));
+  app.use('/api/invoice', require('./routes/invoice'));
+  app.use('/api/receipt', require('./routes/receipt'));
+  app.use('/api/aging-report', require('./routes/aging-report'));
 
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });

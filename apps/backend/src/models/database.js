@@ -305,6 +305,154 @@ function initDatabase() {
       FOREIGN KEY (product_id) REFERENCES products(id)
     );
 
+    -- P1-10: B2B Invoice 5-stage flow (Quotation → SO → DO → Invoice → Receipt)
+    CREATE TABLE IF NOT EXISTS b2b_quotations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      number TEXT UNIQUE NOT NULL,
+      customer_id INTEGER REFERENCES customers(id),
+      customer_name TEXT NOT NULL,
+      quote_date TEXT NOT NULL,
+      valid_until TEXT,
+      status TEXT NOT NULL DEFAULT 'DRAFT', -- DRAFT/SENT/ACCEPTED/REJECTED/EXPIRED
+      subtotal REAL NOT NULL DEFAULT 0,
+      tax_percent REAL NOT NULL DEFAULT 0,
+      tax_amount REAL NOT NULL DEFAULT 0,
+      discount_amount REAL NOT NULL DEFAULT 0,
+      total REAL NOT NULL DEFAULT 0,
+      notes TEXT,
+      terms TEXT,
+      converted_so_id INTEGER,
+      created_by INTEGER REFERENCES users(id),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS b2b_quotation_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      quotation_id INTEGER NOT NULL,
+      product_id INTEGER REFERENCES products(id),
+      product_name TEXT NOT NULL,
+      qty REAL NOT NULL,
+      unit_price REAL NOT NULL,
+      discount_percent REAL DEFAULT 0,
+      subtotal REAL NOT NULL,
+      FOREIGN KEY (quotation_id) REFERENCES b2b_quotations(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS b2b_sales_orders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      number TEXT UNIQUE NOT NULL,
+      quotation_id INTEGER REFERENCES b2b_quotations(id),
+      customer_id INTEGER REFERENCES customers(id),
+      customer_name TEXT NOT NULL,
+      order_date TEXT NOT NULL,
+      expected_delivery TEXT,
+      status TEXT NOT NULL DEFAULT 'NEW', -- NEW/PARTIAL/FULFILLED/CANCELLED
+      subtotal REAL NOT NULL DEFAULT 0,
+      tax_percent REAL NOT NULL DEFAULT 0,
+      tax_amount REAL NOT NULL DEFAULT 0,
+      discount_amount REAL NOT NULL DEFAULT 0,
+      total REAL NOT NULL DEFAULT 0,
+      notes TEXT,
+      created_by INTEGER REFERENCES users(id),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS b2b_sales_order_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sales_order_id INTEGER NOT NULL,
+      product_id INTEGER REFERENCES products(id),
+      product_name TEXT NOT NULL,
+      qty REAL NOT NULL,
+      qty_delivered REAL NOT NULL DEFAULT 0,
+      qty_invoiced REAL NOT NULL DEFAULT 0,
+      unit_price REAL NOT NULL,
+      discount_percent REAL DEFAULT 0,
+      subtotal REAL NOT NULL,
+      FOREIGN KEY (sales_order_id) REFERENCES b2b_sales_orders(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS b2b_delivery_orders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      number TEXT UNIQUE NOT NULL,
+      sales_order_id INTEGER REFERENCES b2b_sales_orders(id),
+      customer_id INTEGER REFERENCES customers(id),
+      customer_name TEXT NOT NULL,
+      delivery_date TEXT NOT NULL,
+      expected_arrival TEXT,
+      carrier TEXT,
+      driver TEXT,
+      status TEXT NOT NULL DEFAULT 'PREPARING', -- PREPARING/IN_TRANSIT/DELIVERED/RETURNED
+      notes TEXT,
+      signature_url TEXT,
+      stock_posted INTEGER NOT NULL DEFAULT 0,
+      created_by INTEGER REFERENCES users(id),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS b2b_delivery_order_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      delivery_order_id INTEGER NOT NULL,
+      sales_order_item_id INTEGER REFERENCES b2b_sales_order_items(id),
+      product_id INTEGER REFERENCES products(id),
+      product_name TEXT NOT NULL,
+      qty REAL NOT NULL,
+      FOREIGN KEY (delivery_order_id) REFERENCES b2b_delivery_orders(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS b2b_invoices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      number TEXT UNIQUE NOT NULL,
+      sales_order_id INTEGER REFERENCES b2b_sales_orders(id),
+      customer_id INTEGER REFERENCES customers(id),
+      customer_name TEXT NOT NULL,
+      invoice_date TEXT NOT NULL,
+      due_date TEXT,
+      status TEXT NOT NULL DEFAULT 'ISSUED', -- ISSUED/PARTIAL/PAID/OVERDUE/VOID
+      subtotal REAL NOT NULL DEFAULT 0,
+      tax_percent REAL NOT NULL DEFAULT 0,
+      tax_amount REAL NOT NULL DEFAULT 0,
+      discount_amount REAL NOT NULL DEFAULT 0,
+      total REAL NOT NULL DEFAULT 0,
+      down_payment REAL NOT NULL DEFAULT 0,
+      paid_amount REAL NOT NULL DEFAULT 0,
+      outstanding REAL NOT NULL DEFAULT 0,
+      notes TEXT,
+      created_by INTEGER REFERENCES users(id),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS b2b_invoice_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      invoice_id INTEGER NOT NULL,
+      sales_order_item_id INTEGER REFERENCES b2b_sales_order_items(id),
+      product_id INTEGER REFERENCES products(id),
+      product_name TEXT NOT NULL,
+      qty REAL NOT NULL,
+      unit_price REAL NOT NULL,
+      discount_percent REAL DEFAULT 0,
+      subtotal REAL NOT NULL,
+      FOREIGN KEY (invoice_id) REFERENCES b2b_invoices(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS b2b_receipts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      number TEXT UNIQUE NOT NULL,
+      invoice_id INTEGER NOT NULL REFERENCES b2b_invoices(id),
+      customer_id INTEGER REFERENCES customers(id),
+      payment_date TEXT NOT NULL,
+      method TEXT NOT NULL DEFAULT 'cash', -- cash/transfer/cheque
+      amount REAL NOT NULL,
+      bank_account_id INTEGER REFERENCES cash_accounts(id),
+      ref_number TEXT,
+      notes TEXT,
+      created_by INTEGER REFERENCES users(id),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     -- P1-09: Komisi (commission groups + per-transaction assignments)
     CREATE TABLE IF NOT EXISTS commission_groups (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -474,6 +622,20 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_customer_tag_map_tag ON customer_tag_map(tag_id);
     CREATE INDEX IF NOT EXISTS idx_stock_opname_status ON stock_opname(status);
     CREATE INDEX IF NOT EXISTS idx_stock_opname_items_opname ON stock_opname_items(opname_id);
+
+    CREATE INDEX IF NOT EXISTS idx_b2b_quotations_customer ON b2b_quotations(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_b2b_quotations_status ON b2b_quotations(status);
+    CREATE INDEX IF NOT EXISTS idx_b2b_quotation_items_qid ON b2b_quotation_items(quotation_id);
+    CREATE INDEX IF NOT EXISTS idx_b2b_sales_orders_customer ON b2b_sales_orders(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_b2b_sales_orders_status ON b2b_sales_orders(status);
+    CREATE INDEX IF NOT EXISTS idx_b2b_sales_order_items_so ON b2b_sales_order_items(sales_order_id);
+    CREATE INDEX IF NOT EXISTS idx_b2b_delivery_orders_so ON b2b_delivery_orders(sales_order_id);
+    CREATE INDEX IF NOT EXISTS idx_b2b_delivery_order_items_do ON b2b_delivery_order_items(delivery_order_id);
+    CREATE INDEX IF NOT EXISTS idx_b2b_invoices_customer ON b2b_invoices(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_b2b_invoices_status ON b2b_invoices(status);
+    CREATE INDEX IF NOT EXISTS idx_b2b_invoices_due ON b2b_invoices(due_date);
+    CREATE INDEX IF NOT EXISTS idx_b2b_invoice_items_inv ON b2b_invoice_items(invoice_id);
+    CREATE INDEX IF NOT EXISTS idx_b2b_receipts_invoice ON b2b_receipts(invoice_id);
   `);
 
   // --- Idempotent migrations for existing databases (so users that ran old seeds

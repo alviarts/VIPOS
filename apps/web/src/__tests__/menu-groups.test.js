@@ -23,11 +23,11 @@ function canAccessFor(role, tier) {
 }
 
 describe('MENU_GROUPS', () => {
-  it('punya 13 menu group sesuai spec P1-01 + P1-08 (Promosi)', () => {
-    // Penjualan, Promosi (P1-08), Order Online, Appointment, Karyawan,
-    // Keuangan, Pengaturan, Lainnya, Bantuan, LAYANAN, INSPIRASI, Capital,
-    // SUPPLIES.
-    expect(MENU_GROUPS).toHaveLength(13);
+  it('punya 14 menu group sesuai spec P1-01 + P1-08 + P1-10', () => {
+    // Penjualan, Promosi (P1-08), Invoice B2B (P1-10), Order Online,
+    // Appointment, Karyawan, Keuangan, Pengaturan, Lainnya, Bantuan,
+    // LAYANAN, INSPIRASI, Capital, SUPPLIES.
+    expect(MENU_GROUPS).toHaveLength(14);
   });
 
   it('group "penjualan" terlihat untuk semua role + tier', () => {
