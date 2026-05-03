@@ -284,32 +284,176 @@ Setiap card:
 - ✅ Tailwind config (sudah diupdate ke teal color scheme)
 - ✅ CSS utilities (sudah diupdate)
 
-## 11. TODO untuk Devin Berikutnya
+## 11. Detail Form "Tambahkan Produk" (dari Analisis Langsung Majoo)
+
+Form "Tambahkan Produk" di Majoo adalah **multi-tab wizard** dengan 5 tab:
+
+### Tab 1: Informasi Produk
+| Field | Tipe | Keterangan |
+|-------|------|------------|
+| Daftar Outlet* | Multi-select dropdown | Pilih outlet mana yang menjual produk ini |
+| Nama Produk* | Textarea (max 255 char) | Placeholder: "Contoh: nasi padang" |
+| Deskripsi Produk | Textarea | Placeholder: "Contoh: yang best seller" |
+| Foto Produk | File upload (drag & drop) | Rasio 1:1, 10KB-1MB, format .jpg/.jpeg/.png, min 100x100px, max 1000x1000px, max 5 foto |
+| Kategori Produk* | Dropdown | + "Buat Kategori Baru" link |
+| Opsi Lanjutan | Checkboxes | ☐ Produk Favorit, ☑ Tampil di Menu |
+| Monitor Persediaan | Toggle | OFF default, enables "Stok Minimum Produk" input |
+| Serial Number | Toggle (Prime only) | Kasir wajib pilih manual serial number saat penjualan |
+| Batch Number | Toggle (Prime only) | |
+| Grup | Dropdown | + ☐ Tetapkan sebagai Induk |
+| Izinkan Ubah Produk | Toggle | Izinkan kasir mengubah produk menjadi tidak tersedia |
+
+**Harga dan Satuan** (dalam tab yang sama, section bawah):
+| Field | Tipe | Keterangan |
+|-------|------|------------|
+| Satuan | Dropdown | Pilih satuan (pcs, kg, dll) |
+| SKU | Text input | Placeholder: "Contoh: S001" |
+| Konversi | Number (disabled) | Default: 1 |
+| Min. Pembelian | Number | Default: 1 |
+| Harga Jual | Currency (Rp) | Input manual |
+| Harga Beli | Currency (Rp, disabled) | |
+| Dimensi Produk | 3x Number + weight | Panjang x Lebar x Tinggi (cm) + Berat (gram) |
+| Ubah Harga Jual | Toggle | Izinkan kasir ubah harga, + Maks % input |
+| Harga Grosir | (Prime only) | Max 5 harga grosir |
+| + Tambah Satuan | Button | Tambah satuan tambahan |
+
+### Tab 2: Varian (Prime only)
+- Fitur untuk menambahkan variasi produk (ukuran, warna, rasa, dll)
+- Memerlukan upgrade ke paket Prime
+
+### Tab 3: Ekstra
+- Toggle "Produk Memiliki Ekstra" (OFF default)
+- Untuk item tambahan seperti garpu, gula, saus, dll
+- Contoh workflow: Produk Salad → Varian: Size Large, Warna Putih → Ekstra: + Saus Sambal
+
+### Tab 4: Resep
+- Toggle "Resep Produk" — aktifkan untuk menambahkan resep pada produk
+- Link "Pengaturan Resep" ke /item/recipe
+- Master resep tersedia untuk paket Advance, Prime, Prime+
+- Resep untuk produk yang diracik, tidak bisa aktif bersamaan dengan monitor persediaan
+
+### Tab 5: majoo Order
+- Integrasi dengan marketplace
+- Perlu mengajukan integrasi outlet terlebih dahulu
+
+### UI Pattern Form:
+- **Footer buttons**: Batal (kiri, teal text) | Kembali (kanan, gray) | Selanjutnya (kanan, teal text) | Simpan (kanan, teal button)
+- **Cancel confirmation dialog**: "Membatalkan Tambah Produk akan menghapus seluruh data yang telah diinput dan tidak dapat dibatalkan. Lanjutkan?" → Kembali | Ya, Lanjutkan (red button)
+- **Tab progress**: Green checkmark (✓) pada tab yang sudah diisi
+- **Onboarding tooltips**: Setiap tab punya tooltip guide (1/8, 2/8, dll) dengan Lewati/Lanjut buttons
+
+## 12. Detail Halaman Daftar Produk
+
+### Header:
+- Judul: "Daftar Produk" + Star/Favorite icon
+- Info: "[outlet name] - [n] Produk barang"
+- Action buttons: Refresh | Impor Data | Ekspor Data | + Tambah Produk (green button)
+
+### Filters:
+- Search input: Placeholder "Cari ..."
+- Dropdown: "Semua Kategori" (filter by category)
+- Tab filters: Semua | Tampil di Menu | Tidak Tampil di Menu
+
+### Table columns:
+| Column | Sortable |
+|--------|----------|
+| ☐ (Checkbox select all) | No |
+| NAMA PRODUK | Yes |
+| SKU | Yes |
+| KATEGORI | Yes |
+| HARGA MODAL | Yes |
+| HARGA BELI | Yes |
+| HARGA JUAL | Yes |
+| STATUS | No |
+
+### Empty state:
+- Ilustrasi SVG (clipboard with magnifying glass, teal colors)
+- "Data tidak tersedia"
+- "Belum ada data yang dapat ditampilkan di halaman ini"
+
+## 13. Struktur Menu Sidebar Lengkap (Hasil Analisis Langsung)
+
+### Menu Utama Sidebar:
+1. **Menu Favorit** (expandable)
+2. **Dashboard** (single page)
+3. **Laporan** (expandable)
+4. **Analisa Laporan** (expandable)
+5. **Produk** (expandable) — 14 submenu:
+   - Daftar Departemen
+   - Daftar Kategori
+   - Daftar Produk
+   - Produk Layanan
+   - Produk Ekstra
+   - Produk Paket
+   - Deposit
+   - Penjadwalan Perubahan Resep
+   - Daftar Harga Ojek Online
+   - Penjadwalan Harga
+   - Harga Berdasarkan Waktu
+   - Cetak Barcode
+   - Daftar Kategori Catatan
+   - Master Resep
+6. **Inventori** (expandable)
+7. **Pelanggan** (expandable)
+8. **Promosi** (expandable)
+9. **Komisi** (expandable)
+10. **Invoice** (expandable)
+11. **Marketing** (expandable)
+
+### Top Nav Horizontal:
+Penjualan | Order Online | Appointment | Karyawan | Keuangan | Pengaturan | Lainnya (dropdown)
+
+### Dashboard Extra Cards (yang belum ada di VIPOS):
+- **Kontrol Fraud** — chart/data fraud detection
+- **Jenis Order** — breakdown by order type
+- **Komisi per Kasir** — cashier commission data
+- **Penjualan per Kasir** — sales per cashier
+- **Akumulasi dari Awal Bulan** — MTD accumulation
+- **Proyeksi Bulan Ini** — monthly projection
+- **Penjualan Belum Dibayar** — unpaid sales
+
+### Onboarding Wizard:
+"Langkah Mudah Buka Outlet" (0/3):
+1. Siapkan Produk
+2. Informasi Karyawan
+3. Lengkapi Data Outlet
+
+## 14. TODO untuk Devin Berikutnya
 
 ### Prioritas Tinggi:
-1. **Test locally** — `npm run install:all` → `npm run seed` → `npm run dev`
-2. **Update form tambah produk** — sesuaikan field dengan Majoo (harga modal, harga beli, harga jual, SKU, barcode, status tampil di menu)
-3. **Update form tambah kategori** — tambah field urutan, toggle tampil di menu
-4. **Tambah confirmation dialog** sebelum save (pattern Majoo)
+1. **Test locally** — `cd backend && npm install && npm run seed` → `cd frontend && npm install` → start both
+2. **Update form tambah produk** — implementasi multi-tab wizard sesuai Majoo (5 tabs: Info, Varian, Ekstra, Resep, Order)
+3. **Update form tambah kategori** — tambah field urutan, departemen, toggle tampil di menu
+4. **Tambah confirmation dialog** sebelum cancel/delete (pattern Majoo: "Ya, Lanjutkan" button merah)
 5. **Deploy ke VPS 103.74.5.44** — setup Node.js, nginx, pm2
+6. **Tambah Harga dan Satuan section** di form produk (SKU, Harga Jual, Harga Beli, Satuan, Konversi, Dimensi)
 
 ### Prioritas Sedang:
-6. Tambah empty state ilustrasi (gambar SVG)
-7. Tambah pagination component yang mirip Majoo
-8. Tambah search + filter dropdown + tab filter di halaman list
-9. Tambah star/favorite button di judul halaman
-10. Tambah toast notification style Majoo (background gelap)
+7. Tambah empty state ilustrasi SVG (clipboard + magnifying glass, teal themed)
+8. Tambah pagination component yang mirip Majoo
+9. Tambah search + filter dropdown + tab filter di halaman list (Semua / Tampil di Menu / Tidak Tampil di Menu)
+10. Tambah star/favorite button di judul halaman
+11. Tambah toast notification style Majoo (background gelap)
+12. Tambah Impor Data / Ekspor Data buttons di halaman list
+13. Tambah foto produk upload (drag & drop, max 5 foto)
+14. Tambah "Monitor Persediaan" toggle + Stok Minimum
 
 ### Prioritas Rendah:
-11. Tambah halaman Inventori (stok masuk, stok keluar, opname)
-12. Tambah halaman Pelanggan
-13. Tambah fitur multi-outlet
-14. Tambah fitur Promosi/Diskon
-15. Tambah halaman Keuangan (buku kas, penerimaan, pengeluaran)
+15. Tambah halaman Inventori (stok masuk, stok keluar, opname)
+16. Tambah halaman Pelanggan
+17. Tambah fitur multi-outlet (outlet selector)
+18. Tambah fitur Promosi/Diskon
+19. Tambah halaman Keuangan (buku kas, penerimaan, pengeluaran)
+20. Tambah "Kontrol Fraud", "Jenis Order", "Komisi per Kasir", "Penjualan per Kasir" cards di dashboard
+21. Tambah Onboarding Wizard ("Langkah Mudah Buka Outlet")
+22. Tambah Departemen management (Daftar Departemen)
 
-## 12. Akses & Kredensial
+## 15. Akses & Kredensial
 
 - **GitHub Repo**: https://github.com/alviarts/VIPOS
 - **Default login VIPOS**: admin / admin123
 - **VPS**: 103.74.5.44 (root, password tersimpan di Devin secrets)
 - **Tech stack**: Node.js + Express + SQLite (backend), React + Vite + Tailwind (frontend)
+- **Majoo Auth Data**: `docs/majoo_auth/` — localStorage JSON + login script (token expires ~24h)
+- **Majoo Login Script**: `python3 docs/majoo_auth/login_majoo.py` (requires Chrome + CDP at localhost:29229)
+- **Majoo HTML Snapshots**: `docs/majoo_html/` — 7 HTML files for offline reference
