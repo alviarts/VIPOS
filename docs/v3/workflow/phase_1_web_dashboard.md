@@ -434,7 +434,9 @@
 
 ---
 
-### P1-14: Karyawan + Payroll + Absensi `[pending]`
+### P1-14: Karyawan + Payroll + Absensi `[done]`
+
+**PR**: [#32](https://github.com/alviarts/VIPOS/pull/32) (opened 2026-05-03), session: https://app.devin.ai/sessions/5b4e510fac5044bb8f1b0f2d6c3f4d27
 
 **Goal**: Halaman Karyawan: master data, payroll, hak akses, absensi, jadwal.
 
