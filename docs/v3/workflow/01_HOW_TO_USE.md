@@ -37,15 +37,64 @@ sshpass -p "${VPS_PASSWORD}" scp -o StrictHostKeyChecking=no localfile.txt root@
 # 3) Future task pakai SSH key (lebih cepat, no password prompt overhead)
 ```
 
-## Quick start
+## Quick start (RECOMMENDED — pakai 1 prompt universal)
+
+Lihat `templates/devin_continuation_prompt.md`. **Satu prompt yang sama** dipaste ke setiap session Devin baru — Devin auto-detect task berikutnya:
+
+1. Buka https://app.devin.ai → New Session.
+2. Paste prompt universal dari `templates/devin_continuation_prompt.md`.
+3. Devin auto-pick task next dari `docs/v3/workflow/phase_*.md`, eksekusi, commit incremental, buka PR.
+4. Anda review + merge PR.
+5. Repeat untuk Devin 02, 03, ... (paste prompt yang sama).
+
+## Continuation pattern (handoff antar Devin)
+
+Tidak butuh intervensi user untuk handoff. Devin 02 baca state aktual repo:
+
+```
+Devin 01 paste prompt → eksekusi P0-01 → commit incremental → PR → MERGED
+                                                                      │
+                                                                      ▼
+User paste prompt yang sama → Devin 02 auto-detect (P0-01 [done],
+                                                    P0-02 dependency [done])
+                                              → eksekusi P0-02 → MERGED
+                                                                      │
+                                                                      ▼
+                              ... dan seterusnya sampai Phase 6 selesai.
+```
+
+Devin 02 tidak butuh tahu apa yang Devin 01 kerjakan — cukup baca `docs/v3/workflow/phase_*.md` markers + git log + merged PR list.
+
+## Incremental commit policy
+
+Setiap Devin **WAJIB commit + push setiap milestone**, bukan tunggu sampai akhir task. Tujuan: user bisa monitor progress real-time + recovery mudah kalau session crash.
+
+Milestone yang pantas commit:
+1. Setelah setup awal (file/folder structure created)
+2. Setelah backend/API selesai
+3. Setelah frontend/UI selesai
+4. Setelah test pass
+5. Setelah lint pass
+6. Setelah dokumentasi update
+7. Final commit (squash-able saat merge)
+
+Format commit message untuk WIP: `wip(P{X}-{nn}): {milestone}`. Format final: `{type}(P{X}-{nn}): {title}` (Conventional Commits).
+
+Push setiap commit ke remote (`git push origin <branch>`). User pantau di:
+- `https://github.com/alviarts/VIPOS/commits/devin/{{task-ID}}-{{slug}}` (per branch)
+- `https://github.com/alviarts/VIPOS/pulls` (PR aktif)
+
+## Quick start (alternatif — pakai task-specific prompt)
+
+Kalau mau eksekusi task spesifik (bukan auto-pick):
 
 1. Buka `docs/v3/workflow/phase_X_*.md` (lihat `00_OVERVIEW.md` untuk daftar phases).
 2. Pilih task yang status `[pending]` dan dependency-nya sudah `[done]`.
-3. Copy block "**Devin prompt**" dari task itu.
+3. Copy block "**Devin prompt**" dari task itu (atau pakai template di `templates/devin_task_prompt.md`).
 4. Buat session Devin baru di https://app.devin.ai (atau via Devin MCP `create_session`).
 5. Paste prompt, kirim. Devin akan kerjakan task end-to-end + buka PR.
 6. Review PR, merge.
-7. Mark task `[done]` di phase doc.
+7. Mark task `[done]` di phase doc (kalau Devin tidak otomatis update).
 
 ## Template prompt (untuk task baru)
 
