@@ -63,6 +63,7 @@ function buildApp(opts = {}) {
   app.use('/api/invoice', require('./routes/invoice'));
   app.use('/api/receipt', require('./routes/receipt'));
   app.use('/api/aging-report', require('./routes/aging-report'));
+  app.use('/api/marketing', require('./routes/marketing'));
 
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
