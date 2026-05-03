@@ -18,7 +18,16 @@ import InventoryPage from './pages/InventoryPage';
 import StockOpnamePage from './pages/StockOpnamePage';
 import FinancePage from './pages/FinancePage';
 import TransactionsPage from './pages/TransactionsPage';
-import ReportsPage from './pages/ReportsPage';
+import LegacyReportsPage from './pages/ReportsPage';
+import ReportsHub from './pages/reports/ReportsHub';
+import SalesReportsPage from './pages/reports/SalesReportsPage';
+import CashShiftReportsPage from './pages/reports/CashShiftReportsPage';
+import AdjustmentReportsPage from './pages/reports/AdjustmentReportsPage';
+import TaxCustomerReportsPage from './pages/reports/TaxCustomerReportsPage';
+import InventoryReportsPage from './pages/reports/InventoryReportsPage';
+import EmployeeReportsPage from './pages/reports/EmployeeReportsPage';
+import MarketingReportsPage from './pages/reports/MarketingReportsPage';
+import ScheduledReportsPage from './pages/reports/ScheduledReportsPage';
 import SettingsPage from './pages/SettingsPage';
 import QuotationsPage from './pages/QuotationsPage';
 import SalesOrdersPage from './pages/SalesOrdersPage';
@@ -31,6 +40,37 @@ import PromosPage from './pages/penjualan/PromosPage';
 import CouponsPage from './pages/penjualan/CouponsPage';
 import LoyaltyPage from './pages/penjualan/LoyaltyPage';
 import MarketingPage from './pages/penjualan/MarketingPage';
+import EmployeesPage from './pages/karyawan/EmployeesPage';
+import PayrollPage from './pages/karyawan/PayrollPage';
+import PermissionsPage from './pages/karyawan/PermissionsPage';
+import AttendancePage from './pages/karyawan/AttendancePage';
+import SchedulePage from './pages/karyawan/SchedulePage';
+import ApprovalWorkflowPage from './pages/karyawan/ApprovalWorkflowPage';
+import ChartOfAccountsPage from './pages/keuangan/ChartOfAccountsPage';
+import JournalPage from './pages/keuangan/JournalPage';
+import CashBookPage from './pages/keuangan/CashBookPage';
+import IncomePage from './pages/keuangan/IncomePage';
+import ExpensesPage from './pages/keuangan/ExpensesPage';
+import VendorsPage from './pages/keuangan/VendorsPage';
+import FixedAssetsPage from './pages/keuangan/FixedAssetsPage';
+import FinancialReportsPage from './pages/keuangan/FinancialReportsPage';
+import AccountProfilePage from './pages/pengaturan/AccountProfilePage';
+import OutletsPage from './pages/pengaturan/OutletsPage';
+import FloorPlanPage from './pages/pengaturan/FloorPlanPage';
+import NotificationsPage from './pages/pengaturan/NotificationsPage';
+import SubscriptionPage from './pages/pengaturan/SubscriptionPage';
+import PaymentSettingsPage from './pages/pengaturan/PaymentSettingsPage';
+import PrintSettingsPage from './pages/pengaturan/PrintSettingsPage';
+import CashierSettingsPage from './pages/pengaturan/CashierSettingsPage';
+import TerminalsPage from './pages/pengaturan/TerminalsPage';
+import SupportAccessPage from './pages/pengaturan/SupportAccessPage';
+import ImportExportPage from './pages/pengaturan/ImportExportPage';
+import LainnyaHub from './pages/lainnya/LainnyaHub';
+import HelpPage from './pages/lainnya/HelpPage';
+import ServicesPage from './pages/lainnya/ServicesPage';
+import InspirasiPage from './pages/lainnya/InspirasiPage';
+import CapitalPage from './pages/lainnya/CapitalPage';
+import SuppliesPage from './pages/lainnya/SuppliesPage';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -74,7 +114,15 @@ export default function App() {
         <Route path="coupons" element={<CouponsPage />} />
         <Route path="loyalty" element={<LoyaltyPage />} />
         <Route path="marketing" element={<MarketingPage />} />
-        <Route path="finance" element={<FinancePage />} />
+        <Route path="finance" element={<CashBookPage />} />
+        <Route path="finance/legacy" element={<FinancePage />} />
+        <Route path="finance/accounts" element={<ChartOfAccountsPage />} />
+        <Route path="finance/journal" element={<JournalPage />} />
+        <Route path="finance/income" element={<IncomePage />} />
+        <Route path="finance/expense" element={<ExpensesPage />} />
+        <Route path="finance/vendors" element={<VendorsPage />} />
+        <Route path="finance/fixed-assets" element={<FixedAssetsPage />} />
+        <Route path="finance/reports" element={<FinancialReportsPage />} />
         <Route path="transactions" element={<TransactionsPage />} />
         <Route path="quotations" element={<QuotationsPage />} />
         <Route path="sales-orders" element={<SalesOrdersPage />} />
@@ -83,10 +131,45 @@ export default function App() {
         <Route path="receipts" element={<ReceiptsPage />} />
         <Route path="aging-report" element={<AgingReportPage />} />
         <Route path="commissions" element={<CommissionsPage />} />
-        <Route path="reports" element={<ReportsPage />} />
+        <Route path="employees" element={<EmployeesPage />} />
+        <Route path="payroll" element={<PayrollPage />} />
+        <Route path="permissions" element={<PermissionsPage />} />
+        <Route path="attendance" element={<AttendancePage />} />
+        <Route path="schedule" element={<SchedulePage />} />
+        <Route path="approval-workflow" element={<ApprovalWorkflowPage />} />
+        <Route path="reports" element={<ReportsHub />} />
+        <Route path="reports/legacy" element={<LegacyReportsPage />} />
+        <Route path="reports/sales" element={<SalesReportsPage />} />
+        <Route path="reports/cash-shift" element={<CashShiftReportsPage />} />
+        <Route path="reports/adjustments" element={<AdjustmentReportsPage />} />
+        <Route path="reports/tax-customer" element={<TaxCustomerReportsPage />} />
+        <Route path="reports/inventory" element={<InventoryReportsPage />} />
+        <Route path="reports/employee" element={<EmployeeReportsPage />} />
+        <Route path="reports/marketing" element={<MarketingReportsPage />} />
+        <Route path="reports/scheduled" element={<ScheduledReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="settings/change-password" element={<ChangePasswordPage />} />
         <Route path="settings/2fa" element={<Setup2FAPage />} />
+        <Route path="setup-2fa" element={<Setup2FAPage />} />
+        {/* P1-16 Pengaturan / Settings. */}
+        <Route path="settings/profile" element={<AccountProfilePage />} />
+        <Route path="settings/outlets" element={<OutletsPage />} />
+        <Route path="settings/outlets/:id/floor-plan" element={<FloorPlanPage />} />
+        <Route path="settings/notifications" element={<NotificationsPage />} />
+        <Route path="settings/subscription" element={<SubscriptionPage />} />
+        <Route path="settings/payments" element={<PaymentSettingsPage />} />
+        <Route path="settings/print" element={<PrintSettingsPage />} />
+        <Route path="settings/cashier" element={<CashierSettingsPage />} />
+        <Route path="settings/terminals" element={<TerminalsPage />} />
+        <Route path="settings/support-access" element={<SupportAccessPage />} />
+        <Route path="settings/import-export" element={<ImportExportPage />} />
+        {/* P1-18 LAINNYA group: Bantuan, LAYANAN, INSPIRASI, Capital, SUPPLIES. */}
+        <Route path="lainnya" element={<LainnyaHub />} />
+        <Route path="help" element={<HelpPage />} />
+        <Route path="services" element={<ServicesPage />} />
+        <Route path="inspirasi" element={<InspirasiPage />} />
+        <Route path="capital" element={<CapitalPage />} />
+        <Route path="supplies" element={<SuppliesPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>

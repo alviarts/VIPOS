@@ -65,6 +65,92 @@ function buildApp(opts = {}) {
   app.use('/api/aging-report', require('./routes/aging-report'));
   app.use('/api/marketing', require('./routes/marketing'));
 
+  // P1-14: Karyawan + Payroll + Absensi + Schedule + Approval.
+  app.use('/api/employee', require('./routes/employee'));
+  const {
+    settingsRouter: payrollSettingsRouter,
+    structureRouter: payrollStructureRouter,
+    runRouter: payrollRunRouter,
+  } = require('./routes/payroll');
+  app.use('/api/payroll-settings', payrollSettingsRouter);
+  app.use('/api/payroll-structure', payrollStructureRouter);
+  app.use('/api/payroll-run', payrollRunRouter);
+  const {
+    logRouter: attendanceLogRouter,
+    fenceRouter: attendanceFenceRouter,
+  } = require('./routes/attendance');
+  app.use('/api/attendance', attendanceLogRouter);
+  app.use('/api/attendance-geofence', attendanceFenceRouter);
+  const { shiftRouter, scheduleRouter, swapRouter } = require('./routes/schedule');
+  app.use('/api/shift', shiftRouter);
+  app.use('/api/schedule', scheduleRouter);
+  app.use('/api/schedule-swap', swapRouter);
+  app.use('/api/approval-chain', require('./routes/approval-chain'));
+
+  // P1-15: Keuangan (CoA, Journal, Cash Transfer, Income, Expense, Vendor,
+  //                  Recurring Bill, Fixed Asset, Financial Report).
+  const {
+    accountRouter,
+    journalRouter,
+    cashTransferRouter,
+    incomeRouter,
+    expenseRouter,
+    recurringBillRouter,
+    vendorRouter,
+    fixedAssetRouter,
+    reportRouter,
+  } = require('./routes/keuangan');
+  app.use('/api/account', accountRouter);
+  app.use('/api/journal', journalRouter);
+  app.use('/api/cash-transfer', cashTransferRouter);
+  app.use('/api/income', incomeRouter);
+  app.use('/api/expense', expenseRouter);
+  app.use('/api/recurring-bill', recurringBillRouter);
+  app.use('/api/vendor', vendorRouter);
+  app.use('/api/fixed-asset', fixedAssetRouter);
+  app.use('/api/financial-report', reportRouter);
+
+  // P1-16 Pengaturan / Settings.
+  const {
+    outletRouter,
+    terminalRouter,
+    settingRouter,
+    notifRouter,
+    supportAccessRouter,
+    paymentMethodRouter,
+    taxRateRouter,
+    uomRouter,
+    profileRouter,
+    importExportRouter,
+  } = require('./routes/pengaturan');
+  app.use('/api/outlet', outletRouter);
+  app.use('/api/terminal', terminalRouter);
+  app.use('/api/setting', settingRouter);
+  app.use('/api/notification-pref', notifRouter);
+  app.use('/api/support-access', supportAccessRouter);
+  app.use('/api/payment-method', paymentMethodRouter);
+  app.use('/api/tax-rate', taxRateRouter);
+  app.use('/api/uom', uomRouter);
+  app.use('/api/account-profile', profileRouter);
+  app.use('/api/import-export', importExportRouter);
+
+  // P1-17 Reports (Laporan) — /api/reports/*.
+  app.use('/api/reports', require('./routes/reports'));
+
+  // P1-18 LAINNYA: Bantuan + LAYANAN + INSPIRASI + Capital + SUPPLIES.
+  const {
+    helpRouter,
+    servicesRouter,
+    inspirasiRouter,
+    capitalRouter,
+    suppliesRouter,
+  } = require('./routes/lainnya');
+  app.use('/api/help', helpRouter);
+  app.use('/api/services', servicesRouter);
+  app.use('/api/inspirasi', inspirasiRouter);
+  app.use('/api/capital', capitalRouter);
+  app.use('/api/supplies', suppliesRouter);
+
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
