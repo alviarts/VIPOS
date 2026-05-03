@@ -499,12 +499,14 @@
 
 **Branch**: `devin/P1-15-keuangan`
 **Estimasi**: 8-10 hari
-**PR**: #33 (CI green 2026-05-03; pending merge)
+**PR**: #33 (merged 2026-05-03)
 **Session**: https://app.devin.ai/sessions/5b4e510fac5044bb8f1b0f2d6c3f4d27
 
 ---
 
-### P1-16: Pengaturan (Settings) `[pending]`
+### P1-16: Pengaturan (Settings) `[done]`
+
+**PR**: #34 (merged 2026-05-03), session: https://app.devin.ai/sessions/5b4e510fac5044bb8f1b0f2d6c3f4d27
 
 **Goal**: Halaman Pengaturan lengkap.
 

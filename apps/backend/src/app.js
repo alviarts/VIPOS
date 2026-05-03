@@ -109,6 +109,30 @@ function buildApp(opts = {}) {
   app.use('/api/fixed-asset', fixedAssetRouter);
   app.use('/api/financial-report', reportRouter);
 
+  // P1-16 Pengaturan / Settings.
+  const {
+    outletRouter,
+    terminalRouter,
+    settingRouter,
+    notifRouter,
+    supportAccessRouter,
+    paymentMethodRouter,
+    taxRateRouter,
+    uomRouter,
+    profileRouter,
+    importExportRouter,
+  } = require('./routes/pengaturan');
+  app.use('/api/outlet', outletRouter);
+  app.use('/api/terminal', terminalRouter);
+  app.use('/api/setting', settingRouter);
+  app.use('/api/notification-pref', notifRouter);
+  app.use('/api/support-access', supportAccessRouter);
+  app.use('/api/payment-method', paymentMethodRouter);
+  app.use('/api/tax-rate', taxRateRouter);
+  app.use('/api/uom', uomRouter);
+  app.use('/api/account-profile', profileRouter);
+  app.use('/api/import-export', importExportRouter);
+
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
