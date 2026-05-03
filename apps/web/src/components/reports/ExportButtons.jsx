@@ -1,0 +1,99 @@
+// P1-17 — Export buttons (CSV / xlsx / PDF / JSON).
+//
+// Pakai sebagai child di ReportTemplate. Memanggil util di
+// `apps/web/src/utils/exportTable.js`. Bisa di-disable kalau rows kosong.
+import { useState } from 'react';
+import { Download, FileSpreadsheet, FileText, Code2, ChevronDown } from 'lucide-react';
+import { exportCsv, exportXlsx, exportPdf, exportJson } from '../../utils/exportTable';
+
+export default function ExportButtons({
+  filename,
+  title,
+  subtitle,
+  columns,
+  rows,
+  disabled = false,
+  formats = ['csv', 'xlsx', 'pdf', 'json'],
+}) {
+  const [open, setOpen] = useState(false);
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const isDisabled = disabled || safeRows.length === 0;
+
+  const handleExport = (fmt) => {
+    setOpen(false);
+    const opts = { filename, title, subtitle, columns, rows: safeRows };
+    if (fmt === 'csv') exportCsv(opts);
+    else if (fmt === 'xlsx') exportXlsx(opts);
+    else if (fmt === 'pdf') exportPdf(opts);
+    else if (fmt === 'json') exportJson(opts);
+  };
+
+  return (
+    <div className="relative inline-block text-left">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        disabled={isDisabled}
+        className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
+        data-testid="report-export-trigger"
+      >
+        <Download className="h-4 w-4" />
+        Export
+        <ChevronDown className="h-4 w-4" />
+      </button>
+      {open && !isDisabled && (
+        <div
+          className="absolute right-0 z-20 mt-2 w-44 rounded-md border border-gray-200 bg-white shadow-lg ring-1 ring-black/5"
+          role="menu"
+        >
+          <ul className="py-1 text-sm">
+            {formats.includes('csv') && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => handleExport('csv')}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-gray-50"
+                >
+                  <FileText className="h-4 w-4 text-gray-500" /> Export CSV
+                </button>
+              </li>
+            )}
+            {formats.includes('xlsx') && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => handleExport('xlsx')}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-gray-50"
+                >
+                  <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> Export Excel
+                </button>
+              </li>
+            )}
+            {formats.includes('pdf') && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => handleExport('pdf')}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-gray-50"
+                >
+                  <FileText className="h-4 w-4 text-red-600" /> Export PDF
+                </button>
+              </li>
+            )}
+            {formats.includes('json') && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => handleExport('json')}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-gray-50"
+                >
+                  <Code2 className="h-4 w-4 text-gray-500" /> Export JSON
+                </button>
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
