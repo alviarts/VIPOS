@@ -133,6 +133,20 @@ function buildApp(opts = {}) {
   app.use('/api/account-profile', profileRouter);
   app.use('/api/import-export', importExportRouter);
 
+  // P1-18 LAINNYA: Bantuan + LAYANAN + INSPIRASI + Capital + SUPPLIES.
+  const {
+    helpRouter,
+    servicesRouter,
+    inspirasiRouter,
+    capitalRouter,
+    suppliesRouter,
+  } = require('./routes/lainnya');
+  app.use('/api/help', helpRouter);
+  app.use('/api/services', servicesRouter);
+  app.use('/api/inspirasi', inspirasiRouter);
+  app.use('/api/capital', capitalRouter);
+  app.use('/api/supplies', suppliesRouter);
+
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
