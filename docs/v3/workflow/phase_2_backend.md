@@ -5,6 +5,8 @@
 
 **Estimasi total**: 6 minggu (8 tasks, mostly sequential)
 
+> **Konteks strategis:** lihat [`launch_readiness_roadmap.md`](./launch_readiness_roadmap.md) untuk panduan tambahan di luar 8 task ini (PWA offline mode, RLS multi-tenant, E2E test pyramid, pilot strategy, onboarding wizard, dsb.) — penting agar VIPOS siap untuk pra-beta v0.0.1 setelah Phase 2 selesai.
+
 ## Tasks
 
 ---
