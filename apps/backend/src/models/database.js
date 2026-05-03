@@ -307,18 +307,16 @@ function initDatabase() {
 
     CREATE INDEX IF NOT EXISTS idx_inventory_movements_product ON inventory_movements(product_id);
     CREATE INDEX IF NOT EXISTS idx_inventory_movements_tanggal ON inventory_movements(tanggal);
-    CREATE INDEX IF NOT EXISTS idx_inventory_movements_ref ON inventory_movements(ref_type, ref_id);
-    CREATE INDEX IF NOT EXISTS idx_stock_opname_status ON stock_opname(status);
-    CREATE INDEX IF NOT EXISTS idx_stock_opname_items_opname ON stock_opname_items(opname_id);
     CREATE INDEX IF NOT EXISTS idx_cash_transactions_account ON cash_transactions(account_id);
     CREATE INDEX IF NOT EXISTS idx_cash_transactions_tanggal ON cash_transactions(tanggal);
     CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
     CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id);
     CREATE INDEX IF NOT EXISTS idx_product_variants_product ON product_variants(product_id);
     CREATE INDEX IF NOT EXISTS idx_product_recipe_product ON product_recipe_items(product_id);
-    CREATE INDEX IF NOT EXISTS idx_customers_group ON customers(customer_group_id);
     CREATE INDEX IF NOT EXISTS idx_customer_tag_map_customer ON customer_tag_map(customer_id);
     CREATE INDEX IF NOT EXISTS idx_customer_tag_map_tag ON customer_tag_map(tag_id);
+    CREATE INDEX IF NOT EXISTS idx_stock_opname_status ON stock_opname(status);
+    CREATE INDEX IF NOT EXISTS idx_stock_opname_items_opname ON stock_opname_items(opname_id);
   `);
 
   // --- Idempotent migrations for existing databases (so users that ran old seeds
@@ -371,12 +369,19 @@ function initDatabase() {
   addColumnIfMissing(db, 'inventory_movements', 'ref_id', 'INTEGER');
   addColumnIfMissing(db, 'inventory_movements', 'reason', 'TEXT');
 
-
   // P1-02: auth flow refinement.
   addColumnIfMissing(db, 'users', 'email', 'TEXT');
   addColumnIfMissing(db, 'users', 'totp_secret', 'TEXT');
   addColumnIfMissing(db, 'users', 'totp_enabled', 'INTEGER DEFAULT 0');
   addColumnIfMissing(db, 'users', 'last_login_at', 'DATETIME');
+
+  // Indexes that reference columns added via addColumnIfMissing must run AFTER
+  // those migrations so existing databases without the new columns can still
+  // boot.
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_inventory_movements_ref ON inventory_movements(ref_type, ref_id);
+    CREATE INDEX IF NOT EXISTS idx_customers_group ON customers(customer_group_id);
+  `);
 
   // Seed default admin if not exists
   const bcrypt = require('bcryptjs');
