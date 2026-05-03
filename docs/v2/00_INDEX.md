@@ -63,16 +63,30 @@ When designing an Android screen, the recommended flow is:
 
 ## Per-menu deep-dives (Layer 2)
 
+All 7 menu groups now have per-menu deep-dives:
+
 ```
 docs/v2/menus/
-  penjualan/         (PENJUALAN top-tab — POS core, ~125 menus)
-  order_online/      (ORDER ONLINE top-tab — marketplace + e-menu)
-  appointment/       (APPOINTMENT top-tab — reservation + booking)
-  karyawan/          (KARYAWAN top-tab — employee, attendance, payroll, commission)
-  keuangan/          (KEUANGAN top-tab — akuntansi, kas-bank, biaya, asset, laporan keuangan)
-  pengaturan/        (PENGATURAN top-tab — settings; HEAVILY relevant for Android)
-  lainnya/           (Bantuan, LAYANAN, INSPIRASI, Capital, SUPPLIES)
+  penjualan/         13 files — POS core, ~133 menus (pos_kasir, pos_dashboard,
+                                produk_master, inventori_flows, pelanggan,
+                                promo_kupon, komisi, invoice_b2b, marketing,
+                                kitchen_reports, tutup_toko, settlement, _README)
+  order_online/      5 files  — pesanan, majoo_order, marketplace, consumer_app, _README
+  appointment/       3 files  — daftar, kalender, _README
+  karyawan/          9 files  — karyawan_master, payroll, hak_akses, absensi,
+                                majoo_teams, jadwal_kerja, master_data,
+                                approval_workflow, _README
+  keuangan/          8 files  — dashboard, buku_kas, penerimaan, pengeluaran,
+                                aset_tetap, laporan_keuangan, chart_of_accounts, _README
+  pengaturan/        14 files — akun_profile, outlet, notifikasi, pesan_masuk,
+                                langganan, pembayaran_settings, cetak,
+                                kasir_settings, terminal, akses_support,
+                                produk_inventori_settings, reservasi_settings,
+                                ekspor_import, _README
+  lainnya/           6 files  — bantuan, layanan, inspirasi, capital, supplies, _README
 ```
+
+Total: **58 per-menu files** covering all 11 nominal menu groups (293 menu items).
 
 Each `<menu>.md` follows this template:
 
@@ -149,4 +163,5 @@ When you (Devin or the human dev) re-run analysis with live access, promote each
 | Version | Date | Notes |
 |---|---|---|
 | v1.0 | 2026-05-03 (am) | UI/UX overview + bundle reverse-engineering. |
-| v2.0 | 2026-05-03 (pm) | Re-analysis with Android-readiness lens. Added tier matrix, hardware spec, offline/sync/push specs, expanded API path corpus, per-menu deep-dive structure. |
+| v2.0 | 2026-05-03 (pm) | Re-analysis with Android-readiness lens. Added tier matrix, hardware spec, offline/sync/push specs, expanded API path corpus. |
+| v2.1 | 2026-05-03 (pm) | Completed all 7 menu groups (58 per-menu files) covering all 293 menu items. |
