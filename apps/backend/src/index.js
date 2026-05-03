@@ -32,6 +32,17 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// API docs (Swagger UI) di-mount setelah route resource supaya prefix tidak
+// bentrok. Disable di production via env DISABLE_API_DOCS=1 kalau perlu.
+if (process.env.DISABLE_API_DOCS !== '1') {
+  try {
+    const { mountApiDocs } = require('./api-docs');
+    mountApiDocs(app);
+  } catch (err) {
+    console.warn('[api-docs] Failed to mount Swagger UI:', err.message);
+  }
+}
+
 // Serve frontend in production (fallback when nginx is not in front).
 // In monorepo layout, web build output lives at apps/web/dist (relative to
 // apps/backend/src/index.js -> ../../web/dist).
