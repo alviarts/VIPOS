@@ -105,17 +105,20 @@ Frontend di-serve via nginx static dari `apps/web/dist/`. Lihat [DEPLOYMENT.md](
 
 ## Workspace scripts
 
-| Script                | Apa yang dilakukan                                    |
-| --------------------- | ----------------------------------------------------- |
-| `npm run dev`         | Concurrently jalankan backend + web (dev mode)        |
-| `npm run dev:web`     | Vite dev server di apps/web (port 5173)               |
-| `npm run dev:backend` | Nodemon backend di apps/backend (port 3001)           |
-| `npm run build`       | Build semua workspaces (`--if-present`)               |
-| `npm run build:web`   | Build apps/web saja                                   |
-| `npm start`           | Start production backend                              |
-| `npm run seed`        | Seed data sample ke SQLite                            |
-| `npm test`            | Jalankan tests semua workspaces (placeholder, P0-05)  |
-| `npm run lint`        | Jalankan linter semua workspaces (placeholder, P0-03) |
+| Script                 | Apa yang dilakukan                                             |
+| ---------------------- | -------------------------------------------------------------- |
+| `npm run dev`          | Concurrently jalankan backend + web (dev mode)                 |
+| `npm run dev:web`      | Vite dev server di apps/web (port 5173)                        |
+| `npm run dev:backend`  | Nodemon backend di apps/backend (port 3001)                    |
+| `npm run build`        | Build semua workspaces (`--if-present`)                        |
+| `npm run build:web`    | Build apps/web saja                                            |
+| `npm start`            | Start production backend                                       |
+| `npm run seed`         | Seed data sample ke SQLite                                     |
+| `npm test`             | Jalankan tests semua workspaces (placeholder, P0-05)           |
+| `npm run lint`         | ESLint flat config — seluruh repo (errors=fail, warnings=info) |
+| `npm run lint:fix`     | ESLint dengan auto-fix                                         |
+| `npm run format`       | Prettier --write . (format semua file)                         |
+| `npm run format:check` | Prettier --check . (verify formatted)                          |
 
 ## API Endpoints
 
@@ -142,6 +145,21 @@ Production: prefix `/vipos` di-strip oleh nginx (lihat [DEPLOYMENT.md](./DEPLOYM
 ## Development workflow
 
 VIPOS dikerjakan via task-based workflow di `docs/v3/workflow/` (86 tasks across 7 phases). Setiap task punya branch + PR sendiri. Lihat [docs/v3/workflow/00_OVERVIEW.md](./docs/v3/workflow/00_OVERVIEW.md) untuk peta phases dan [docs/v3/workflow/01_HOW_TO_USE.md](./docs/v3/workflow/01_HOW_TO_USE.md) untuk konvensi branch/commit/PR.
+
+### Code quality (ESLint + Prettier + Husky)
+
+Setelah `npm install` (atau `npm run prepare` sekali), Husky meng-install git hook otomatis:
+
+- `pre-commit` → jalankan lint-staged: `eslint --fix` + `prettier --write` hanya pada file yang ter-stage. File-file di luar staging tidak ke-touched.
+- `commit-msg` → commitlint enforce format **Conventional Commits dengan task-ID scope**:
+  - Valid: `feat(P1-04): tambah Products page`
+  - Valid: `wip(P0-02): scaffold workflow CI`
+  - Invalid: `update stuff` → ditolak
+  - Type yang diterima: `feat | fix | docs | chore | style | refactor | perf | test | build | ci | revert | wip | release`
+
+VS Code: install ekstensi ESLint + Prettier + EditorConfig (rekomendasi sudah di `.vscode/extensions.json`). Setting auto-format on save sudah di `.vscode/settings.json`.
+
+Lint checks juga dipanggil di CI (lihat `.github/workflows/ci.yml`).
 
 ## License
 

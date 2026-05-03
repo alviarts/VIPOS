@@ -140,7 +140,9 @@ Catatan:
 
 ---
 
-### P0-03: Code style + linting + git hooks `[pending]`
+### P0-03: Code style + linting + git hooks `[done]`
+
+> PR: [#8](https://github.com/alviarts/VIPOS/pull/8) (open, awaiting CI/review/merge), session: https://app.devin.ai/sessions/25c7eea136d1457c8c4dda8d16819659
 
 **Goal**: ESLint + Prettier + Husky + lint-staged untuk web/backend; konsistensi style otomatis.
 
