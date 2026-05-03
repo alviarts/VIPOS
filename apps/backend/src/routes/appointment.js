@@ -414,7 +414,8 @@ router.post('/:id/confirm', authenticateToken, (req, res) => {
   const id = parseInt(req.params.id, 10);
   const result = transitionStatus(db, id, 'CONFIRMED');
   if (result.error === 'not_found') return res.status(404).json({ error: 'Appointment not found' });
-  if (result.error) return res.status(400).json({ error: 'Invalid transition', ...result });
+  if (result.error)
+    return res.status(400).json({ ...result, error: 'Invalid transition', code: result.error });
   res.json(loadAppointment(db, id));
 });
 
@@ -423,7 +424,8 @@ router.post('/:id/checkin', authenticateToken, (req, res) => {
   const id = parseInt(req.params.id, 10);
   const result = transitionStatus(db, id, 'IN_PROGRESS');
   if (result.error === 'not_found') return res.status(404).json({ error: 'Appointment not found' });
-  if (result.error) return res.status(400).json({ error: 'Invalid transition', ...result });
+  if (result.error)
+    return res.status(400).json({ ...result, error: 'Invalid transition', code: result.error });
   res.json(loadAppointment(db, id));
 });
 
@@ -432,7 +434,8 @@ router.post('/:id/complete', authenticateToken, (req, res) => {
   const id = parseInt(req.params.id, 10);
   const result = transitionStatus(db, id, 'COMPLETED');
   if (result.error === 'not_found') return res.status(404).json({ error: 'Appointment not found' });
-  if (result.error) return res.status(400).json({ error: 'Invalid transition', ...result });
+  if (result.error)
+    return res.status(400).json({ ...result, error: 'Invalid transition', code: result.error });
   res.json(loadAppointment(db, id));
 });
 
@@ -448,7 +451,8 @@ router.post(
     });
     if (result.error === 'not_found')
       return res.status(404).json({ error: 'Appointment not found' });
-    if (result.error) return res.status(400).json({ error: 'Invalid transition', ...result });
+    if (result.error)
+      return res.status(400).json({ ...result, error: 'Invalid transition', code: result.error });
     res.json(loadAppointment(db, id));
   }
 );
@@ -458,7 +462,8 @@ router.post('/:id/no-show', authenticateToken, (req, res) => {
   const id = parseInt(req.params.id, 10);
   const result = transitionStatus(db, id, 'NO_SHOW');
   if (result.error === 'not_found') return res.status(404).json({ error: 'Appointment not found' });
-  if (result.error) return res.status(400).json({ error: 'Invalid transition', ...result });
+  if (result.error)
+    return res.status(400).json({ ...result, error: 'Invalid transition', code: result.error });
   res.json(loadAppointment(db, id));
 });
 
