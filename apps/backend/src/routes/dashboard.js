@@ -153,4 +153,125 @@ router.get("/payment-methods", authenticateToken, (req, res) => {
   }
 });
 
+// P1-03 — KPI summary with date range support.
+// Query params:
+//   start (YYYY-MM-DD)  → inclusive lower bound
+//   end   (YYYY-MM-DD)  → inclusive upper bound (defaults to today)
+// Without `start`, returns today + month-to-date pairs (legacy /stats shape
+// stays available for backward compat).
+router.get("/summary", authenticateToken, (req, res) => {
+  try {
+    const db = getDb();
+    const today = new Date().toISOString().split("T")[0];
+    const end = req.query.end || today;
+    const start =
+      req.query.start ||
+      (() => {
+        const d = new Date(end);
+        d.setDate(1);
+        return d.toISOString().split("T")[0];
+      })();
+
+    const range = db
+      .prepare(
+        `
+      SELECT COALESCE(SUM(total_amount), 0) AS total,
+             COUNT(*) AS transactions,
+             COALESCE(SUM((SELECT SUM(quantity) FROM transaction_items WHERE transaction_id = t.id)), 0) AS items
+      FROM transactions t
+      WHERE DATE(created_at) BETWEEN ? AND ? AND status = 'completed'
+    `,
+      )
+      .get(start, end);
+
+    const todayRow = db
+      .prepare(
+        `
+      SELECT COALESCE(SUM(total_amount), 0) AS total, COUNT(*) AS transactions
+      FROM transactions
+      WHERE DATE(created_at) = ? AND status = 'completed'
+    `,
+      )
+      .get(today);
+
+    const lowStock = db
+      .prepare(
+        "SELECT COUNT(*) AS count FROM products WHERE stock <= 5 AND is_active = 1",
+      )
+      .get();
+
+    const products = db
+      .prepare("SELECT COUNT(*) AS count FROM products WHERE is_active = 1")
+      .get();
+
+    res.json({
+      range: { start, end },
+      revenue: range.total,
+      transactions: range.transactions,
+      avg_ticket: range.transactions
+        ? Math.round(range.total / range.transactions)
+        : 0,
+      items_sold: range.items,
+      today: {
+        revenue: todayRow.total,
+        transactions: todayRow.transactions,
+      },
+      low_stock: lowStock.count,
+      products: products.count,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// P1-03 — daily revenue series for charts.
+router.get("/sales-trend", authenticateToken, (req, res) => {
+  try {
+    const db = getDb();
+    const today = new Date().toISOString().split("T")[0];
+    const end = req.query.end || today;
+    const start =
+      req.query.start ||
+      (() => {
+        const d = new Date(end);
+        d.setDate(d.getDate() - 29);
+        return d.toISOString().split("T")[0];
+      })();
+
+    const rows = db
+      .prepare(
+        `
+      SELECT DATE(created_at) AS date,
+             COALESCE(SUM(total_amount), 0) AS total,
+             COUNT(*) AS transactions
+      FROM transactions
+      WHERE DATE(created_at) BETWEEN ? AND ? AND status = 'completed'
+      GROUP BY DATE(created_at)
+      ORDER BY date
+    `,
+      )
+      .all(start, end);
+
+    // Fill gaps so charts don't render with missing dates.
+    const out = [];
+    for (
+      let d = new Date(start);
+      d <= new Date(end);
+      d.setDate(d.getDate() + 1)
+    ) {
+      const key = d.toISOString().split("T")[0];
+      const found = rows.find((r) => r.date === key);
+      out.push({
+        date: key,
+        total: found?.total ?? 0,
+        transactions: found?.transactions ?? 0,
+      });
+    }
+
+    res.json(out);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
