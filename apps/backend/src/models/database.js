@@ -210,11 +210,39 @@ function initDatabase() {
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
 
+    CREATE TABLE IF NOT EXISTS product_variants (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL,
+      group_name TEXT NOT NULL,
+      option_label TEXT NOT NULL,
+      price_modifier REAL DEFAULT 0,
+      sku_suffix TEXT,
+      stock INTEGER DEFAULT 0,
+      is_default INTEGER DEFAULT 0,
+      sort_order INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS product_recipe_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL,
+      ingredient_id INTEGER NOT NULL,
+      qty REAL NOT NULL,
+      unit TEXT,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+      FOREIGN KEY (ingredient_id) REFERENCES products(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_inventory_movements_product ON inventory_movements(product_id);
     CREATE INDEX IF NOT EXISTS idx_cash_transactions_account ON cash_transactions(account_id);
     CREATE INDEX IF NOT EXISTS idx_cash_transactions_tanggal ON cash_transactions(tanggal);
     CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
     CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id);
+    CREATE INDEX IF NOT EXISTS idx_product_variants_product ON product_variants(product_id);
+    CREATE INDEX IF NOT EXISTS idx_product_recipe_product ON product_recipe_items(product_id);
   `);
 
   // --- Idempotent migrations for existing databases (so users that ran old seeds
@@ -232,6 +260,13 @@ function initDatabase() {
   addColumnIfMissing(db, 'products', 'is_favorit', 'INTEGER DEFAULT 0');
   addColumnIfMissing(db, 'products', 'monitor_stok', 'INTEGER DEFAULT 0');
   addColumnIfMissing(db, 'products', 'stok_minimum', 'INTEGER DEFAULT 0');
+
+  // P1-04: products master + 5-tab wizard.
+  addColumnIfMissing(db, 'products', 'price_online', 'REAL');
+  addColumnIfMissing(db, 'products', 'is_online_active', 'INTEGER DEFAULT 0');
+  addColumnIfMissing(db, 'products', 'image_urls', 'TEXT'); // JSON array of up to 4 image URLs.
+  addColumnIfMissing(db, 'products', 'has_variants', 'INTEGER DEFAULT 0');
+  addColumnIfMissing(db, 'products', 'has_recipe', 'INTEGER DEFAULT 0');
 
   addColumnIfMissing(db, 'transactions', 'customer_id', 'INTEGER REFERENCES customers(id)');
 

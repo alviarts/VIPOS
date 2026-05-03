@@ -108,8 +108,18 @@ export default function ProductsPage() {
     setPage(1);
   }, [search, filter, categoryFilter]);
 
-  const openForm = (product = null) => {
-    setEditProduct(product);
+  const openForm = async (product = null) => {
+    if (product) {
+      // Re-fetch the product to load variants + recipe_items + image_urls.
+      try {
+        const res = await api.get(`/products/${product.id}`);
+        setEditProduct(res.data);
+      } catch {
+        setEditProduct(product);
+      }
+    } else {
+      setEditProduct(null);
+    }
     setShowForm(true);
   };
 
@@ -121,20 +131,27 @@ export default function ProductsPage() {
 
   const handleSubmit = async (payload) => {
     try {
+      let saved;
       if (editProduct) {
-        await api.put(`/products/${editProduct.id}`, {
+        const res = await api.put(`/products/${editProduct.id}`, {
           ...payload,
           is_active: editProduct.is_active,
         });
+        saved = res.data;
         toast.success('Produk berhasil diupdate');
       } else {
-        await api.post('/products', payload);
+        const res = await api.post('/products', payload);
+        saved = res.data;
         toast.success('Produk berhasil ditambahkan');
       }
+      // Return the saved product so the wizard can sync variants + recipe.
+      // We refresh the list AFTER the wizard completes its sync to avoid races.
+      Promise.resolve().then(() => loadData());
       closeForm();
-      loadData();
+      return saved;
     } catch (err) {
       toast.error(err.response?.data?.error || 'Gagal menyimpan produk');
+      throw err;
     }
   };
 
@@ -361,6 +378,7 @@ export default function ProductsPage() {
         }}
         initialData={editProduct}
         categories={categories}
+        catalog={products}
         onSubmit={handleSubmit}
       />
 
