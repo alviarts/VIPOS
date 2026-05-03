@@ -97,6 +97,12 @@ export const MENU_GROUPS = [
         icon: TrendingUp,
         roles: [ROLES.MANAGER, ROLES.STAFF],
       },
+      {
+        path: '/commissions',
+        label: 'Komisi',
+        icon: HandCoins,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
+      },
     ],
   },
   {
