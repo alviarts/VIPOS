@@ -64,6 +64,28 @@ function buildApp(opts = {}) {
   app.use('/api/receipt', require('./routes/receipt'));
   app.use('/api/aging-report', require('./routes/aging-report'));
 
+  // P1-14: Karyawan + Payroll + Absensi + Schedule + Approval.
+  app.use('/api/employee', require('./routes/employee'));
+  const {
+    settingsRouter: payrollSettingsRouter,
+    structureRouter: payrollStructureRouter,
+    runRouter: payrollRunRouter,
+  } = require('./routes/payroll');
+  app.use('/api/payroll-settings', payrollSettingsRouter);
+  app.use('/api/payroll-structure', payrollStructureRouter);
+  app.use('/api/payroll-run', payrollRunRouter);
+  const {
+    logRouter: attendanceLogRouter,
+    fenceRouter: attendanceFenceRouter,
+  } = require('./routes/attendance');
+  app.use('/api/attendance', attendanceLogRouter);
+  app.use('/api/attendance-geofence', attendanceFenceRouter);
+  const { shiftRouter, scheduleRouter, swapRouter } = require('./routes/schedule');
+  app.use('/api/shift', shiftRouter);
+  app.use('/api/schedule', scheduleRouter);
+  app.use('/api/schedule-swap', swapRouter);
+  app.use('/api/approval-chain', require('./routes/approval-chain'));
+
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
