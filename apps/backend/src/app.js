@@ -54,6 +54,9 @@ function buildApp(opts = {}) {
   } = require('./routes/loyalty');
   app.use('/api/loyalty-rule', loyaltyRuleRouter);
   app.use('/api/loyalty', loyaltyLedgerRouter);
+  app.use('/api/commission-group', require('./routes/commission-group'));
+  app.use('/api/commission-assignment', require('./routes/commission-assignment'));
+  app.use('/api/commission-report', require('./routes/commission-report'));
 
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });

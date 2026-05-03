@@ -282,7 +282,7 @@
 
 ---
 
-### P1-09: Komisi `[pending]`
+### P1-09: Komisi `[done]`
 
 **Goal**: Halaman Komisi: setup grup komisi (fixed % atau tiered) + tag per transaksi.
 
@@ -290,20 +290,23 @@
 
 **Outputs**:
 
-- `apps/web/src/pages/penjualan/CommissionsPage.jsx`
-- Backend: `/api/v1/commission-group`, `/api/v1/commission-rule`
+- `apps/web/src/pages/CommissionsPage.jsx`
+- `apps/web/src/components/commissions/CommissionGroupForm.jsx`
+- Backend: `/api/commission-group`, `/api/commission-assignment`, `/api/commission-report`
 
 **Acceptance criteria**:
 
-- [ ] Grup komisi: fixed % atau tiered (per range qty/nominal)
-- [ ] Assign produk → grup komisi
-- [ ] Per transaksi tag karyawan yang dapat komisi
-- [ ] Report komisi per karyawan per period
+- [x] Grup komisi: fixed % atau tiered (per range qty/nominal)
+- [x] Assign produk → grup komisi
+- [x] Per transaksi tag karyawan yang dapat komisi
+- [x] Report komisi per karyawan per period
 
 **Reference**: `docs/v2/menus/penjualan/komisi.md`
 
 **Branch**: `devin/P1-09-commissions`
 **Estimasi**: 2-3 hari
+
+**PR**: [#26](https://github.com/alviarts/VIPOS/pull/26), session: https://app.devin.ai/sessions/34d9c20054044336bdbcd099e7581d90
 
 ---
 
