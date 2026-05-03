@@ -1187,6 +1187,23 @@ function initDatabase() {
       conversion_factor REAL DEFAULT 1,
       is_active INTEGER DEFAULT 1
     );
+
+    -- P1-17 Report Schedules (Prime+ tier feature).
+    -- params_json: JSON-encoded filter (from/to/outlet/etc) yang akan dipakai
+    -- saat run scheduled. recipients: comma-separated email list.
+    CREATE TABLE IF NOT EXISTS report_schedules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      report_key TEXT NOT NULL,
+      name TEXT NOT NULL,
+      params_json TEXT,
+      frequency TEXT NOT NULL CHECK(frequency IN ('daily', 'weekly', 'monthly')),
+      recipients TEXT,
+      format TEXT DEFAULT 'pdf' CHECK(format IN ('csv', 'xlsx', 'pdf')),
+      is_active INTEGER DEFAULT 1,
+      last_run_at DATETIME,
+      created_by INTEGER REFERENCES users(id),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   // --- Idempotent migrations for existing databases (so users that ran old seeds

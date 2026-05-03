@@ -133,6 +133,9 @@ function buildApp(opts = {}) {
   app.use('/api/account-profile', profileRouter);
   app.use('/api/import-export', importExportRouter);
 
+  // P1-17 Reports (Laporan) — /api/reports/*.
+  app.use('/api/reports', require('./routes/reports'));
+
   // P1-18 LAINNYA: Bantuan + LAYANAN + INSPIRASI + Capital + SUPPLIES.
   const {
     helpRouter,
