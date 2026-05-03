@@ -188,9 +188,33 @@ function initDatabase() {
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
 
+    CREATE TABLE IF NOT EXISTS refresh_tokens (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      token_hash TEXT UNIQUE NOT NULL,
+      expires_at DATETIME NOT NULL,
+      revoked INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      replaced_by INTEGER,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (replaced_by) REFERENCES refresh_tokens(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      token_hash TEXT UNIQUE NOT NULL,
+      expires_at DATETIME NOT NULL,
+      used INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_inventory_movements_product ON inventory_movements(product_id);
     CREATE INDEX IF NOT EXISTS idx_cash_transactions_account ON cash_transactions(account_id);
     CREATE INDEX IF NOT EXISTS idx_cash_transactions_tanggal ON cash_transactions(tanggal);
+    CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
+    CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id);
   `);
 
   // --- Idempotent migrations for existing databases (so users that ran old seeds
@@ -210,6 +234,12 @@ function initDatabase() {
   addColumnIfMissing(db, 'products', 'stok_minimum', 'INTEGER DEFAULT 0');
 
   addColumnIfMissing(db, 'transactions', 'customer_id', 'INTEGER REFERENCES customers(id)');
+
+  // P1-02: auth flow refinement.
+  addColumnIfMissing(db, 'users', 'email', 'TEXT');
+  addColumnIfMissing(db, 'users', 'totp_secret', 'TEXT');
+  addColumnIfMissing(db, 'users', 'totp_enabled', 'INTEGER DEFAULT 0');
+  addColumnIfMissing(db, 'users', 'last_login_at', 'DATETIME');
 
   // Seed default admin if not exists
   const bcrypt = require('bcryptjs');
