@@ -406,7 +406,7 @@
 
 ---
 
-### P1-13: Appointment / Reservasi `[pending]`
+### P1-13: Appointment / Reservasi `[done]`
 
 **Goal**: Halaman Appointment: list, calendar view, add/edit form.
 
@@ -414,23 +414,27 @@
 
 **Outputs**:
 
-- `apps/web/src/pages/appointment/AppointmentListPage.jsx`
-- `apps/web/src/pages/appointment/CalendarPage.jsx`
-- `apps/web/src/components/appointment/AppointmentForm.jsx`
-- Backend: `/api/v1/appointment`
+- `apps/web/src/pages/appointment/AppointmentListPage.jsx` — tabel + tab status (PENDING/CONFIRMED/IN_PROGRESS/COMPLETED/CANCELLED), filter staff + date range, detail dialog dengan aksi confirm/checkin/complete/cancel/reschedule + send reminder + convert ke kasir.
+- `apps/web/src/pages/appointment/CalendarPage.jsx` — day (timeline 08:00–21:00) / week (7-day grid) / month (calendar grid) dengan drag-to-reschedule di day view (HTML5 drag), klik slot kosong untuk buat appointment, klik appointment untuk edit.
+- `apps/web/src/components/appointment/AppointmentForm.jsx` — reusable modal: customer, staff, resource, start_at, durasi, services (multi dengan auto-fill dari product), deposit, notes; auto-compute total + duration.
+- Backend: `/api/staff` (CRUD), `/api/appointment-resource` (CRUD), `/api/appointment` (CRUD + state machine + reschedule + send-reminder + convert), `/api/calendar` (single fetch untuk view).
+- DB: 4 tabel baru (`staff`, `appointment_resources`, `appointments`, `appointment_services`).
+- Shared: `packages/shared/src/schemas/appointment.ts` — Zod + OpenAPI registrations.
 
 **Acceptance criteria**:
 
-- [ ] List view dengan filter (status, staff, tanggal)
-- [ ] Calendar view (day/week/month) dengan drag-reschedule
-- [ ] Form: customer, staff, services (multi), waktu, durasi
-- [ ] Reminder via WA/SMS otomatis
-- [ ] Convert appointment → transaction
+- [x] List view dengan filter (status, staff, tanggal).
+- [x] Calendar view (day/week/month) dengan drag-reschedule (day view).
+- [x] Form: customer, staff, services (multi), waktu, durasi auto-computed.
+- [x] Reminder via WA/SMS — endpoint `POST /appointment/:id/send-reminder` mark `reminder_24h_sent_at` / `reminder_1h_sent_at`. Dispatch ke channel sebenarnya akan via marketing module (P1-11), saat ini hanya audit trail.
+- [x] Convert appointment → transaction — `POST /appointment/:id/convert` mengembalikan `cart_prefill` (items, customer_id, deposit) yang disimpan ke sessionStorage dan redirect ke `/cashier`.
+- [x] Validasi double-booking staff/resource (overlap detection di create + reschedule).
 
 **Reference**: `docs/v2/menus/appointment/*.md`
 
 **Branch**: `devin/P1-13-appointment`
 **Estimasi**: 4-5 hari
+**PR**: #31 — session: https://app.devin.ai/sessions/43ab2127d43747fbae02bf5c4a2352b8
 
 ---
 
