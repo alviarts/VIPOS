@@ -43,6 +43,7 @@ import {
   Wallet,
   Warehouse,
   Boxes,
+  Megaphone,
 } from 'lucide-react';
 import { ROLES, TIERS } from '../context/PermissionContext';
 
@@ -130,6 +131,12 @@ export const MENU_GROUPS = [
         path: '/loyalty',
         label: 'Loyalty Poin',
         icon: HeartHandshake,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
+      },
+      {
+        path: '/marketing',
+        label: 'Marketing',
+        icon: Megaphone,
         roles: [ROLES.MANAGER, ROLES.STAFF],
       },
     ],

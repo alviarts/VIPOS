@@ -30,6 +30,7 @@ import CommissionsPage from './pages/CommissionsPage';
 import PromosPage from './pages/penjualan/PromosPage';
 import CouponsPage from './pages/penjualan/CouponsPage';
 import LoyaltyPage from './pages/penjualan/LoyaltyPage';
+import MarketingPage from './pages/penjualan/MarketingPage';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -72,6 +73,7 @@ export default function App() {
         <Route path="promos" element={<PromosPage />} />
         <Route path="coupons" element={<CouponsPage />} />
         <Route path="loyalty" element={<LoyaltyPage />} />
+        <Route path="marketing" element={<MarketingPage />} />
         <Route path="finance" element={<FinancePage />} />
         <Route path="transactions" element={<TransactionsPage />} />
         <Route path="quotations" element={<QuotationsPage />} />
