@@ -1230,11 +1230,12 @@ router.get(
     }
     const rows = db
       .prepare(
-        `SELECT id, name, channel, audience_count, sent_count, delivered_count,
-                opened_count, status, scheduled_at
-         FROM marketing_campaigns
-         WHERE DATE(scheduled_at) BETWEEN ? AND ?
-         ORDER BY scheduled_at DESC`
+        `SELECT c.id, c.name, c.channel,
+                (SELECT COUNT(*) FROM marketing_campaign_recipients r WHERE r.campaign_id = c.id) AS audience_count,
+                c.sent_count, c.delivered_count, c.opened_count, c.status, c.scheduled_at
+         FROM marketing_campaigns c
+         WHERE DATE(COALESCE(c.scheduled_at, c.created_at)) BETWEEN ? AND ?
+         ORDER BY COALESCE(c.scheduled_at, c.created_at) DESC`
       )
       .all(from, to);
     res.json({ period: { from, to }, rows });

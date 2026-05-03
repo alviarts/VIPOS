@@ -63,6 +63,7 @@ function buildApp(opts = {}) {
   app.use('/api/invoice', require('./routes/invoice'));
   app.use('/api/receipt', require('./routes/receipt'));
   app.use('/api/aging-report', require('./routes/aging-report'));
+  app.use('/api/marketing', require('./routes/marketing'));
 
   // P1-14: Karyawan + Payroll + Absensi + Schedule + Approval.
   app.use('/api/employee', require('./routes/employee'));

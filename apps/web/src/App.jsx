@@ -39,6 +39,7 @@ import CommissionsPage from './pages/CommissionsPage';
 import PromosPage from './pages/penjualan/PromosPage';
 import CouponsPage from './pages/penjualan/CouponsPage';
 import LoyaltyPage from './pages/penjualan/LoyaltyPage';
+import MarketingPage from './pages/penjualan/MarketingPage';
 import EmployeesPage from './pages/karyawan/EmployeesPage';
 import PayrollPage from './pages/karyawan/PayrollPage';
 import PermissionsPage from './pages/karyawan/PermissionsPage';
@@ -112,6 +113,7 @@ export default function App() {
         <Route path="promos" element={<PromosPage />} />
         <Route path="coupons" element={<CouponsPage />} />
         <Route path="loyalty" element={<LoyaltyPage />} />
+        <Route path="marketing" element={<MarketingPage />} />
         <Route path="finance" element={<CashBookPage />} />
         <Route path="finance/legacy" element={<FinancePage />} />
         <Route path="finance/accounts" element={<ChartOfAccountsPage />} />

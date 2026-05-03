@@ -22,3 +22,4 @@ export * from "./karyawan";
 export * from "./keuangan";
 export * from "./reports";
 export * from "./lainnya";
+export * from "./marketing";
