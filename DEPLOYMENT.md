@@ -32,8 +32,8 @@ VIPOS di-deploy di **path prefix `/vipos`** supaya domain root tetap bebas untuk
               /vipos/      │     │  │ (Express)    │
          (SPA static)      ▼     │  └────┬────────┘
          /var/www/vipos/         │       ▼
-         frontend/dist/          │  /var/www/vipos/backend/
-                                 │  database.sqlite (SQLite)
+         apps/web/dist/          │  /var/www/vipos/apps/backend/
+                                 │  data/vipos.db (SQLite)
                                  ▼
                               (rewrites
                               /vipos/api/x → /api/x
@@ -42,7 +42,7 @@ VIPOS di-deploy di **path prefix `/vipos`** supaya domain root tetap bebas untuk
 
 - `nginx` (default_server, port 80) memiliki tiga route:
   - `/` → welcome page di `/var/www/html`
-  - `/vipos/` → SPA static dari `/var/www/vipos/frontend/dist/` (try_files → SPA fallback)
+  - `/vipos/` → SPA static dari `/var/www/vipos/apps/web/dist/` (try_files → SPA fallback)
   - `/vipos/api/` → reverse proxy ke `http://127.0.0.1:3001/api/` (backend tidak tahu prefix /vipos)
   - `/vipos` → 301 redirect ke `/vipos/`
 - `pm2` me-supervise proses backend (auto-restart, log rotation, startup on reboot).
@@ -50,7 +50,7 @@ VIPOS di-deploy di **path prefix `/vipos`** supaya domain root tetap bebas untuk
 
 ### 2.1 Frontend path-prefix configuration
 
-Frontend di-build dengan `base: '/vipos/'` di `vite.config.js` supaya semua asset URL di-prefix `/vipos/`. Komponen yang menggunakan path:
+Frontend di-build dengan `base: '/vipos/'` di `apps/web/vite.config.js` supaya semua asset URL di-prefix `/vipos/`. Komponen yang menggunakan path:
 
 | Pakai | Mode dev (`/`) | Mode prod (`/vipos/`) |
 |---|---|---|
@@ -73,21 +73,21 @@ cd /var/www
 git clone -b main https://github.com/alviarts/VIPOS.git vipos
 # (atau ganti -b ke branch yang ingin di-deploy)
 
-# 2. Install deps
+# 2. Install deps (npm workspaces — install root sekaligus install semua apps)
 cd /var/www/vipos
-npm run install:all
+npm install
 
 # 3. Setup env
-cp .env.example backend/.env
+cp .env.example apps/backend/.env
 JWT_SECRET=$(openssl rand -hex 32)
-sed -i "s|JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET}|" backend/.env
-sed -i "s|NODE_ENV=.*|NODE_ENV=production|" backend/.env
+sed -i "s|JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET}|" apps/backend/.env
+sed -i "s|NODE_ENV=.*|NODE_ENV=production|" apps/backend/.env
 
 # 4. Seed database (admin user + sample produk/kategori)
-cd backend && npm run seed && cd ..
+npm run seed
 
 # 5. Build frontend
-cd frontend && npm run build && cd ..
+npm run build:web
 
 # 6. Configure nginx (VIPOS at /vipos, welcome page at /)
 cat > /etc/nginx/sites-available/vipos << 'NGINX'
@@ -104,13 +104,13 @@ server {
 
     # VIPOS SPA static
     location /vipos/ {
-        alias /var/www/vipos/frontend/dist/;
+        alias /var/www/vipos/apps/web/dist/;
         try_files $uri $uri/ /vipos/index.html;
     }
 
     # VIPOS asset cache
     location /vipos/assets/ {
-        alias /var/www/vipos/frontend/dist/assets/;
+        alias /var/www/vipos/apps/web/dist/assets/;
         expires 1y;
         add_header Cache-Control "public, immutable";
         try_files $uri =404;
@@ -146,9 +146,9 @@ ln -sf /etc/nginx/sites-available/vipos /etc/nginx/sites-enabled/vipos
 nginx -t && systemctl reload nginx
 
 # 7. Start backend with pm2
-pm2 start /var/www/vipos/backend/src/index.js \
+pm2 start /var/www/vipos/apps/backend/src/index.js \
     --name vipos-backend \
-    --cwd /var/www/vipos/backend \
+    --cwd /var/www/vipos/apps/backend \
     --time
 pm2 save
 
@@ -159,11 +159,29 @@ pm2 startup systemd -u root --hp /root
 
 ## 4. Update / Redeploy
 
+Gunakan helper script (recommended):
+
+```bash
+# Di VPS (sebagai root)
+cd /var/www/vipos && bash tools/scripts/deploy.sh
+```
+
+Script akan:
+1. `git fetch + checkout main + reset --hard` ke `origin/main`
+2. `npm install` untuk semua workspaces
+3. `npm run build:web` (output di `apps/web/dist/`)
+4. Pastikan `apps/backend/.env` ada (auto-generate kalau belum ada)
+5. Migrasi legacy DB (`backend/database.db` → `apps/backend/data/vipos.db`) — idempotent
+6. `pm2 restart vipos-backend` (atau start kalau belum ada)
+7. Patch path `/frontend/dist` → `/apps/web/dist` di nginx config + `nginx -t && systemctl reload nginx`
+
+Manual (kalau tidak pakai script):
+
 ```bash
 cd /var/www/vipos
 git pull
-npm run install:all  # install deps baru kalau ada
-cd frontend && npm run build && cd ..
+npm install        # install deps baru kalau ada (workspaces aware)
+npm run build:web  # output: apps/web/dist/
 pm2 restart vipos-backend
 # nginx reload tidak perlu — frontend dist akan langsung dibaca
 ```
@@ -195,7 +213,7 @@ tail -f /var/log/nginx/error.log
 
 ## 6. Konfigurasi Penting
 
-### 6.1 Environment Variables (`backend/.env`)
+### 6.1 Environment Variables (`apps/backend/.env`)
 
 ```ini
 PORT=3001                             # Backend port (jangan ubah, sudah hardcoded di nginx)
@@ -207,13 +225,16 @@ NODE_ENV=production
 
 ### 6.2 Database
 
-- Path: `/var/www/vipos/backend/database.db` (default better-sqlite3 location)
-- Backup: `cp /var/www/vipos/backend/database.db /var/www/vipos/backend/database.db.bak`
+- Path: `/var/www/vipos/apps/backend/data/vipos.db`
+  (lihat `apps/backend/src/models/database.js` — path relatif ke `apps/backend/data/vipos.db`)
+- Backup: `cp /var/www/vipos/apps/backend/data/vipos.db /var/www/vipos/apps/backend/data/vipos.db.bak`
+- Legacy path (pre-monorepo): `/var/www/vipos/backend/database.db` — di-migrate otomatis oleh
+  `tools/scripts/deploy.sh` saat deploy pertama kali.
 
 Untuk reset ke seed default:
 ```bash
-rm /var/www/vipos/backend/database.db
-cd /var/www/vipos/backend && npm run seed
+rm /var/www/vipos/apps/backend/data/vipos.db
+cd /var/www/vipos && npm run seed
 pm2 restart vipos-backend
 ```
 
@@ -279,17 +300,17 @@ ss -tnlp | grep 3001
 Pastikan `try_files $uri $uri/ /index.html;` ada di nginx config (sudah ada di config di atas).
 
 ### CORS errors di browser
-Backend punya `app.use(cors())` (allow all origin). Kalau perlu restrict, edit `backend/src/index.js`.
+Backend punya `app.use(cors())` (allow all origin). Kalau perlu restrict, edit `apps/backend/src/index.js`.
 
 ### Database locked / corrupt
 ```bash
 pm2 stop vipos-backend
-sqlite3 /var/www/vipos/backend/database.db "PRAGMA integrity_check;"
+sqlite3 /var/www/vipos/apps/backend/data/vipos.db "PRAGMA integrity_check;"
 pm2 start vipos-backend
 ```
 
 ### Lupa JWT secret (existing tokens jadi invalid setelah re-deploy)
-JWT secret di `backend/.env` PERSISTENT — kalau hilang, semua token user existing harus login ulang. Backup file `.env` (dengan aman) sebelum redeploy.
+JWT secret di `apps/backend/.env` PERSISTENT — kalau hilang, semua token user existing harus login ulang. Backup file `.env` (dengan aman) sebelum redeploy.
 
 ## 11. Deployment Status (3 Mei 2026)
 

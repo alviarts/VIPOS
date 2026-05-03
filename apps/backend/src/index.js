@@ -32,11 +32,13 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Serve frontend in production
+// Serve frontend in production (fallback when nginx is not in front).
+// In monorepo layout, web build output lives at apps/web/dist (relative to
+// apps/backend/src/index.js -> ../../web/dist).
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../../frontend/dist')));
+  app.use(express.static(path.join(__dirname, '../../web/dist')));
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
+    res.sendFile(path.join(__dirname, '../../web/dist/index.html'));
   });
 }
 
