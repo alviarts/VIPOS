@@ -36,6 +36,14 @@ import PermissionsPage from './pages/karyawan/PermissionsPage';
 import AttendancePage from './pages/karyawan/AttendancePage';
 import SchedulePage from './pages/karyawan/SchedulePage';
 import ApprovalWorkflowPage from './pages/karyawan/ApprovalWorkflowPage';
+import ChartOfAccountsPage from './pages/keuangan/ChartOfAccountsPage';
+import JournalPage from './pages/keuangan/JournalPage';
+import CashBookPage from './pages/keuangan/CashBookPage';
+import IncomePage from './pages/keuangan/IncomePage';
+import ExpensesPage from './pages/keuangan/ExpensesPage';
+import VendorsPage from './pages/keuangan/VendorsPage';
+import FixedAssetsPage from './pages/keuangan/FixedAssetsPage';
+import FinancialReportsPage from './pages/keuangan/FinancialReportsPage';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -78,7 +86,15 @@ export default function App() {
         <Route path="promos" element={<PromosPage />} />
         <Route path="coupons" element={<CouponsPage />} />
         <Route path="loyalty" element={<LoyaltyPage />} />
-        <Route path="finance" element={<FinancePage />} />
+        <Route path="finance" element={<CashBookPage />} />
+        <Route path="finance/legacy" element={<FinancePage />} />
+        <Route path="finance/accounts" element={<ChartOfAccountsPage />} />
+        <Route path="finance/journal" element={<JournalPage />} />
+        <Route path="finance/income" element={<IncomePage />} />
+        <Route path="finance/expense" element={<ExpensesPage />} />
+        <Route path="finance/vendors" element={<VendorsPage />} />
+        <Route path="finance/fixed-assets" element={<FixedAssetsPage />} />
+        <Route path="finance/reports" element={<FinancialReportsPage />} />
         <Route path="transactions" element={<TransactionsPage />} />
         <Route path="quotations" element={<QuotationsPage />} />
         <Route path="sales-orders" element={<SalesOrdersPage />} />

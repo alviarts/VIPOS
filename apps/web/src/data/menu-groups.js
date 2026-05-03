@@ -18,6 +18,8 @@
 // snapshot it in `Sidebar.test.jsx`.
 import {
   BarChart3,
+  BookOpen,
+  Building2,
   CalendarRange,
   ClipboardCheck,
   Compass,
@@ -40,6 +42,7 @@ import {
   TrendingUp,
   Truck,
   Users,
+  UserCheck,
   Wallet,
   Warehouse,
   Boxes,
@@ -285,7 +288,43 @@ export const MENU_GROUPS = [
     label: 'Keuangan',
     icon: Wallet,
     items: [
+      {
+        path: '/finance/accounts',
+        label: 'Daftar Akun',
+        icon: BookOpen,
+        roles: [ROLES.MANAGER],
+      },
+      {
+        path: '/finance/journal',
+        label: 'Jurnal Umum',
+        icon: FileText,
+        roles: [ROLES.MANAGER],
+      },
       { path: '/finance', label: 'Kas & Bank', icon: Wallet, roles: [ROLES.MANAGER] },
+      {
+        path: '/finance/income',
+        label: 'Penerimaan',
+        icon: HandCoins,
+        roles: [ROLES.MANAGER],
+      },
+      {
+        path: '/finance/expense',
+        label: 'Pengeluaran',
+        icon: TrendingDown,
+        roles: [ROLES.MANAGER],
+      },
+      {
+        path: '/finance/vendors',
+        label: 'Mitra (Vendor)',
+        icon: UserCheck,
+        roles: [ROLES.MANAGER],
+      },
+      {
+        path: '/finance/fixed-assets',
+        label: 'Aset Tetap',
+        icon: Building2,
+        roles: [ROLES.MANAGER],
+      },
       {
         path: '/finance/reports',
         label: 'Laporan Keuangan',
