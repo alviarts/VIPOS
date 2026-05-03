@@ -7,6 +7,11 @@ import {
   IdStringSchema,
 } from "./common";
 
+// Hex color (#RGB / #RRGGBB). Untuk button background di POS catalogue.
+const HexColorSchema = z
+  .string()
+  .regex(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/, "Warna harus hex (#RRGGBB)");
+
 export const CategorySchema = z
   .object({
     id: z.number().int().positive(),
@@ -14,6 +19,8 @@ export const CategorySchema = z
     description: z.string().nullable(),
     urutan: z.number().int().default(0),
     department_id: z.number().int().nullable(),
+    color: z.string().nullable(),
+    icon_url: z.string().nullable(),
     is_tampil_di_menu: z.union([z.literal(0), z.literal(1)]),
     created_at: DateTimeStringSchema.optional(),
   })
@@ -26,6 +33,8 @@ export const CategoryCreateSchema = z
     description: z.string().max(512).optional().nullable(),
     urutan: z.coerce.number().int().nonnegative().optional().default(0),
     department_id: z.coerce.number().int().positive().optional().nullable(),
+    color: HexColorSchema.optional().nullable(),
+    icon_url: z.string().max(512).optional().nullable(),
     is_tampil_di_menu: z.coerce
       .number()
       .int()
