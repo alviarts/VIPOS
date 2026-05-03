@@ -374,7 +374,7 @@
 **Branch**: `devin/P1-11-marketing`
 **Estimasi**: 4-5 hari
 
-**PR**: #28 (merged TBD), session: https://app.devin.ai/sessions/43ab2127d43747fbae02bf5c4a2352b8
+**PR**: [#29](https://github.com/alviarts/VIPOS/pull/29) (merged 2026-05-03), session: https://app.devin.ai/sessions/43ab2127d43747fbae02bf5c4a2352b8
 
 ---
 
@@ -407,7 +407,7 @@
 
 **Branch**: `devin/P1-12-order-online`
 **Estimasi**: 6-8 hari
-**PR**: #30 — session: https://app.devin.ai/sessions/43ab2127d43747fbae02bf5c4a2352b8
+**PR**: [#30](https://github.com/alviarts/VIPOS/pull/30) (merged 2026-05-03), session: https://app.devin.ai/sessions/43ab2127d43747fbae02bf5c4a2352b8
 
 ---
 
@@ -439,7 +439,7 @@
 
 **Branch**: `devin/P1-13-appointment`
 **Estimasi**: 4-5 hari
-**PR**: #31 — session: https://app.devin.ai/sessions/43ab2127d43747fbae02bf5c4a2352b8
+**PR**: [#31](https://github.com/alviarts/VIPOS/pull/31) (merged 2026-05-03), session: https://app.devin.ai/sessions/43ab2127d43747fbae02bf5c4a2352b8
 
 ---
 
