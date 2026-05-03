@@ -100,6 +100,31 @@ export const MENU_GROUPS = [
     ],
   },
   {
+    id: 'promosi',
+    label: 'Promosi',
+    icon: Sparkles,
+    items: [
+      {
+        path: '/promos',
+        label: 'Promo',
+        icon: Sparkles,
+        roles: [ROLES.MANAGER, ROLES.KASIR, ROLES.STAFF],
+      },
+      {
+        path: '/coupons',
+        label: 'Kupon',
+        icon: Tag,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
+      },
+      {
+        path: '/loyalty',
+        label: 'Loyalty Poin',
+        icon: HeartHandshake,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
+      },
+    ],
+  },
+  {
     id: 'order_online',
     label: 'Order Online',
     icon: ShoppingBag,

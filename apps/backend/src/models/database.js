@@ -305,6 +305,121 @@ function initDatabase() {
       FOREIGN KEY (product_id) REFERENCES products(id)
     );
 
+    CREATE TABLE IF NOT EXISTS promos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      promo_type TEXT NOT NULL CHECK(promo_type IN (
+        'PERCENT', 'NOMINAL', 'FREE_PRODUCT', 'BUY_X_GET_Y',
+        'BUNDLE_PRICE', 'MIN_PURCHASE', 'STEP_DISCOUNT', 'MEMBER_PRICE'
+      )),
+      discount_value REAL NOT NULL DEFAULT 0,
+      max_discount REAL,
+      bundle_price REAL,
+      qty_required INTEGER DEFAULT 0,
+      give_qty INTEGER DEFAULT 0,
+      discount_target TEXT DEFAULT 'WHOLE_CART' CHECK(discount_target IN (
+        'WHOLE_CART', 'TARGET_PRODUCTS', 'CHEAPEST_OF_TARGET', 'MOST_EXPENSIVE_OF_TARGET'
+      )),
+      target_product_ids TEXT,
+      target_category_ids TEXT,
+      customer_group_ids TEXT,
+      valid_from DATETIME,
+      valid_until DATETIME,
+      day_of_week_mask INTEGER DEFAULT 127,
+      time_of_day_start TEXT,
+      time_of_day_end TEXT,
+      min_purchase REAL DEFAULT 0,
+      max_use_per_customer INTEGER DEFAULT 0,
+      max_total_use INTEGER DEFAULT 0,
+      current_use_count INTEGER DEFAULT 0,
+      step_tiers TEXT,
+      is_stackable INTEGER DEFAULT 0,
+      requires_coupon INTEGER DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS coupons (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      promo_id INTEGER NOT NULL,
+      code TEXT UNIQUE NOT NULL,
+      batch_id TEXT,
+      max_uses INTEGER DEFAULT 1,
+      used_count INTEGER DEFAULT 0,
+      assigned_customer_id INTEGER,
+      valid_from DATETIME,
+      valid_until DATETIME,
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (promo_id) REFERENCES promos(id) ON DELETE CASCADE,
+      FOREIGN KEY (assigned_customer_id) REFERENCES customers(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS coupon_redemptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      coupon_id INTEGER NOT NULL,
+      transaction_id INTEGER,
+      customer_id INTEGER,
+      amount REAL DEFAULT 0,
+      redeemed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (coupon_id) REFERENCES coupons(id) ON DELETE CASCADE,
+      FOREIGN KEY (transaction_id) REFERENCES transactions(id),
+      FOREIGN KEY (customer_id) REFERENCES customers(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS loyalty_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      rule_type TEXT NOT NULL CHECK(rule_type IN ('earn_per_total', 'earn_per_product', 'redemption')),
+      earn_rate REAL,
+      bonus_points INTEGER,
+      target_product_ids TEXT,
+      multiplier_per_group TEXT,
+      excluded_payment_methods TEXT,
+      excluded_categories TEXT,
+      redemption_rate REAL,
+      min_redeem_per_transaction INTEGER,
+      max_redeem_per_transaction INTEGER,
+      max_redeem_per_day_per_customer INTEGER,
+      redemption_block INTEGER,
+      points_expire_after_months INTEGER,
+      valid_from DATETIME,
+      valid_until DATETIME,
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS loyalty_transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('earn', 'redeem', 'expire', 'adjust')),
+      points INTEGER NOT NULL,
+      balance_after INTEGER NOT NULL,
+      transaction_id INTEGER,
+      rule_id INTEGER,
+      notes TEXT,
+      expires_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+      FOREIGN KEY (transaction_id) REFERENCES transactions(id),
+      FOREIGN KEY (rule_id) REFERENCES loyalty_rules(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_promos_active ON promos(is_active);
+    CREATE INDEX IF NOT EXISTS idx_promos_type ON promos(promo_type);
+    CREATE INDEX IF NOT EXISTS idx_coupons_promo ON coupons(promo_id);
+    CREATE INDEX IF NOT EXISTS idx_coupons_batch ON coupons(batch_id);
+    CREATE INDEX IF NOT EXISTS idx_coupons_active ON coupons(is_active);
+    CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_coupon ON coupon_redemptions(coupon_id);
+    CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_customer ON coupon_redemptions(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_loyalty_rules_type ON loyalty_rules(rule_type);
+    CREATE INDEX IF NOT EXISTS idx_loyalty_rules_active ON loyalty_rules(is_active);
+    CREATE INDEX IF NOT EXISTS idx_loyalty_tx_customer ON loyalty_transactions(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_loyalty_tx_type ON loyalty_transactions(type);
+
     CREATE INDEX IF NOT EXISTS idx_inventory_movements_product ON inventory_movements(product_id);
     CREATE INDEX IF NOT EXISTS idx_inventory_movements_tanggal ON inventory_movements(tanggal);
     CREATE INDEX IF NOT EXISTS idx_cash_transactions_account ON cash_transactions(account_id);
