@@ -168,6 +168,8 @@ export const MENU_GROUPS = [
     items: [
       { path: '/settings', label: 'Umum', icon: Sparkles, roles: [ROLES.MANAGER] },
       { path: '/settings/outlet', label: 'Outlet', icon: Store, roles: [] },
+      { path: '/settings/change-password', label: 'Ubah Password', icon: Sparkles, roles: [] },
+      { path: '/settings/2fa', label: 'Two-Factor Auth', icon: Sparkles, roles: [] },
     ],
   },
   {

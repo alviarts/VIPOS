@@ -2,6 +2,10 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import AppShell from './components/layout/AppShell';
 import LoginPage from './pages/LoginPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
+import Setup2FAPage from './pages/Setup2FAPage';
 import DashboardPage from './pages/DashboardPage';
 import CashierPage from './pages/CashierPage';
 import ProductsPage from './pages/ProductsPage';
@@ -29,6 +33,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route
         path="/"
         element={
@@ -48,6 +54,8 @@ export default function App() {
         <Route path="transactions" element={<TransactionsPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="settings/change-password" element={<ChangePasswordPage />} />
+        <Route path="settings/2fa" element={<Setup2FAPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
