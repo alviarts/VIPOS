@@ -212,7 +212,9 @@
 
 ---
 
-### P1-07: Inventory (Daftar Stok + opname + mutasi) `[pending]`
+### P1-07: Inventory (Daftar Stok + opname + mutasi) `[done]`
+
+> PR: [#22](https://github.com/alviarts/VIPOS/pull/22), session: https://app.devin.ai/sessions/87cd360ce1084f07897d809585523a61
 
 **Goal**: Halaman Inventory: daftar stok per outlet + stok opname + mutasi antar outlet.
 
@@ -228,12 +230,14 @@
 
 **Acceptance criteria**:
 
-- [ ] Daftar stok per outlet (qty, reorder point, last in/out)
-- [ ] Stock opname: input fisik vs sistem, hitung selisih, posting jurnal
-- [ ] Stock mutation: kirim dari outlet A ke outlet B (status: requested → in transit → received)
-- [ ] Filter rendah stok (qty < reorder point)
-- [ ] Pencarian by SKU/name/barcode
-- [ ] Stock movement history per produk
+- [x] Daftar stok per outlet (qty, reorder point, last in/out)
+- [x] Stock opname: input fisik vs sistem, hitung selisih, posting jurnal
+- [-] ~~Stock mutation: kirim dari outlet A ke outlet B~~ — **deferred** ke phase outlet management (multi-outlet model belum ada di MVP single-outlet)
+- [x] Filter rendah stok (qty < reorder point)
+- [x] Pencarian by SKU/name/barcode
+- [x] Stock movement history per produk
+- [x] Bonus: COGS weighted-average pada stok_in dengan unit_cost
+- [x] Bonus: reason taxonomy pada stok_out (damaged/expired/shrinkage/...)
 
 **Reference**: `docs/v2/menus/penjualan/inventori_flows.md`, `docs/v2/15_INVENTORY_FLOWS.md`
 
