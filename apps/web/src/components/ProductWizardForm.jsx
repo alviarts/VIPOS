@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, Lock, X, ChevronDown } from 'lucide-react';
 import { Toggle } from './ui';
+import ImageUploader from './products/ImageUploader';
+import TabVariant from './products/tabs/TabVariant';
+import TabRecipe from './products/tabs/TabRecipe';
+import TabMajooOrder from './products/tabs/TabMajooOrder';
+import api from '../utils/api';
+import toast from 'react-hot-toast';
 
 /**
  * Multi-tab wizard form for product CRUD, modeled on Majoo's "Tambahkan Produk".
@@ -12,12 +18,13 @@ import { Toggle } from './ui';
  * Props:
  *   open, onClose, onSubmit(payload), initialData (for edit), categories
  */
+// P1-04: all tabs are unlocked. Tier-locking moves to a paywall surface later.
 const TABS = [
   { id: 'info', label: 'Informasi Produk' },
-  { id: 'varian', label: 'Varian', locked: true, lockReason: 'Fitur paket Prime' },
+  { id: 'varian', label: 'Varian' },
   { id: 'ekstra', label: 'Ekstra' },
-  { id: 'resep', label: 'Resep', locked: true, lockReason: 'Fitur paket Advance / Prime' },
-  { id: 'order', label: 'majoo Order', locked: true, lockReason: 'Memerlukan integrasi outlet' },
+  { id: 'resep', label: 'Resep' },
+  { id: 'order', label: 'majoo Order' },
 ];
 
 const DEFAULT_FORM = {
@@ -36,6 +43,9 @@ const DEFAULT_FORM = {
   is_favorit: false,
   monitor_stok: false,
   has_ekstra: false,
+  image_urls: [],
+  price_online: '',
+  is_online_active: false,
 };
 
 export default function ProductWizardForm({
@@ -44,12 +54,15 @@ export default function ProductWizardForm({
   onSubmit,
   initialData = null,
   categories = [],
+  catalog = [],
 }) {
   const isEdit = Boolean(initialData);
   const [tab, setTab] = useState('info');
   const [form, setForm] = useState(DEFAULT_FORM);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [variants, setVariants] = useState([]);
+  const [recipeItems, setRecipeItems] = useState([]);
 
   useEffect(() => {
     if (!open) return;
@@ -71,9 +84,16 @@ export default function ProductWizardForm({
         is_favorit: !!initialData.is_favorit,
         monitor_stok: !!initialData.monitor_stok,
         has_ekstra: false,
+        image_urls: Array.isArray(initialData.image_urls) ? initialData.image_urls : [],
+        price_online: initialData.price_online != null ? String(initialData.price_online) : '',
+        is_online_active: !!initialData.is_online_active,
       });
+      setVariants(initialData.variants || []);
+      setRecipeItems(initialData.recipe_items || []);
     } else {
       setForm(DEFAULT_FORM);
+      setVariants([]);
+      setRecipeItems([]);
     }
     setErrors({});
   }, [open, initialData]);
@@ -151,8 +171,22 @@ export default function ProductWizardForm({
         is_tampil_di_menu: form.is_tampil_di_menu ? 1 : 0,
         is_favorit: form.is_favorit ? 1 : 0,
         monitor_stok: form.monitor_stok ? 1 : 0,
+        image_urls: form.image_urls,
+        price_online: form.price_online !== '' ? parseFloat(form.price_online) : null,
+        is_online_active: form.is_online_active ? 1 : 0,
       };
-      await onSubmit?.(payload);
+      const product = await onSubmit?.(payload);
+      // Sync variants + recipe items when we have a product id (only after
+      // the parent's onSubmit has resolved with a saved product).
+      const id = product?.id || initialData?.id;
+      if (id) {
+        try {
+          await api.put(`/products/${id}/variants`, { variants });
+          await api.put(`/products/${id}/recipe`, { items: recipeItems });
+        } catch (e) {
+          toast.error(e.response?.data?.error || 'Gagal simpan varian/resep');
+        }
+      }
     } finally {
       setSaving(false);
     }
@@ -222,16 +256,22 @@ export default function ProductWizardForm({
             <InfoTab form={form} set={set} errors={errors} categories={categories} />
           )}
           {tab === 'varian' && (
-            <LockedTab title="Varian" reason="Fitur ini tersedia di paket Prime." />
+            <TabVariant variants={variants} onChange={setVariants} />
           )}
           {tab === 'ekstra' && <EkstraTab form={form} set={set} />}
           {tab === 'resep' && (
-            <LockedTab title="Resep" reason="Fitur ini tersedia di paket Advance / Prime." />
+            <TabRecipe
+              items={recipeItems}
+              onChange={setRecipeItems}
+              products={catalog}
+              productId={initialData?.id}
+            />
           )}
           {tab === 'order' && (
-            <LockedTab
-              title="majoo Order"
-              reason="Perlu mengajukan integrasi outlet terlebih dahulu."
+            <TabMajooOrder
+              form={form}
+              onChange={set}
+              basePrice={form.price}
             />
           )}
         </div>
@@ -299,6 +339,13 @@ function Section({ title, description, children }) {
 function InfoTab({ form, set, errors, categories }) {
   return (
     <>
+      <Section title="Foto Produk" description="Maksimum 4 foto, foto pertama jadi utama">
+        <ImageUploader
+          value={form.image_urls || []}
+          onChange={(urls) => set({ image_urls: urls })}
+        />
+      </Section>
+
       <Section title="Informasi Produk" description="Data umum produk yang akan tampil di kasir">
         <Field label="Nama Produk" required error={errors.name}>
           <textarea
