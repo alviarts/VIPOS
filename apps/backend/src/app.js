@@ -136,6 +136,20 @@ function buildApp(opts = {}) {
   // P1-17 Reports (Laporan) — /api/reports/*.
   app.use('/api/reports', require('./routes/reports'));
 
+  // P1-18 LAINNYA: Bantuan + LAYANAN + INSPIRASI + Capital + SUPPLIES.
+  const {
+    helpRouter,
+    servicesRouter,
+    inspirasiRouter,
+    capitalRouter,
+    suppliesRouter,
+  } = require('./routes/lainnya');
+  app.use('/api/help', helpRouter);
+  app.use('/api/services', servicesRouter);
+  app.use('/api/inspirasi', inspirasiRouter);
+  app.use('/api/capital', capitalRouter);
+  app.use('/api/supplies', suppliesRouter);
+
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });

@@ -1266,6 +1266,187 @@ function initDatabase() {
   addColumnIfMissing(db, 'users', 'photo_url', 'TEXT');
   addColumnIfMissing(db, 'users', 'phone', 'TEXT');
 
+  // P1-18: LAINNYA — Bantuan, LAYANAN, INSPIRASI, Capital, SUPPLIES.
+  // Help center: topics + feedback inbox.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS help_topics (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slug TEXT UNIQUE NOT NULL,
+      title TEXT NOT NULL,
+      category TEXT,
+      excerpt TEXT,
+      content TEXT,
+      sort_order INTEGER DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS help_feedback (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL CHECK(type IN ('bug','feature','general')),
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      screenshot_url TEXT,
+      app_version TEXT,
+      device_info TEXT,
+      status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','in_review','resolved','closed')),
+      submitted_by INTEGER REFERENCES users(id),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- LAYANAN: applications for value-added services (Majoopay, EDC, Satu Sehat, Aura).
+    CREATE TABLE IF NOT EXISTS service_applications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      service_key TEXT NOT NULL CHECK(service_key IN ('majoopay','edc','satu_sehat','aura')),
+      status TEXT NOT NULL DEFAULT 'submitted' CHECK(status IN ('submitted','review','approved','rejected')),
+      payload_json TEXT,
+      notes TEXT,
+      submitted_by INTEGER REFERENCES users(id),
+      submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      reviewed_at DATETIME
+    );
+
+    -- INSPIRASI: changelog + blog (mock CMS).
+    CREATE TABLE IF NOT EXISTS inspirasi_articles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slug TEXT UNIQUE NOT NULL,
+      category TEXT NOT NULL,
+      title TEXT NOT NULL,
+      excerpt TEXT,
+      content TEXT,
+      cover_url TEXT,
+      author TEXT,
+      reading_minutes INTEGER DEFAULT 3,
+      published_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      is_active INTEGER DEFAULT 1
+    );
+
+    CREATE TABLE IF NOT EXISTS inspirasi_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slug TEXT UNIQUE NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      location TEXT,
+      event_date DATETIME NOT NULL,
+      cover_url TEXT,
+      capacity INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS inspirasi_event_rsvps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id INTEGER NOT NULL REFERENCES inspirasi_events(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      status TEXT NOT NULL DEFAULT 'going' CHECK(status IN ('going','interested','cancelled')),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(event_id, user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS inspirasi_magazines (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      year INTEGER NOT NULL,
+      month INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      cover_url TEXT,
+      pdf_url TEXT,
+      published_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(year, month)
+    );
+
+    CREATE TABLE IF NOT EXISTS informasi_updates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      version TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT,
+      published_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Capital: loan applications.
+    CREATE TABLE IF NOT EXISTS capital_applications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      amount REAL NOT NULL,
+      tenure_months INTEGER NOT NULL,
+      purpose TEXT NOT NULL,
+      collateral TEXT,
+      monthly_revenue REAL,
+      status TEXT NOT NULL DEFAULT 'submitted' CHECK(status IN ('submitted','review','approved','rejected','disbursed')),
+      pre_qualification_score INTEGER,
+      payload_json TEXT,
+      submitted_by INTEGER REFERENCES users(id),
+      submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      reviewed_at DATETIME
+    );
+
+    -- SUPPLIES: B2B procurement marketplace.
+    CREATE TABLE IF NOT EXISTS supplies_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slug TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      sort_order INTEGER DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS supplies_products (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sku TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      image_url TEXT,
+      price REAL NOT NULL,
+      moq INTEGER DEFAULT 1,
+      stock_status TEXT NOT NULL DEFAULT 'in_stock' CHECK(stock_status IN ('in_stock','low','out_of_stock')),
+      supplier_name TEXT,
+      category_id INTEGER REFERENCES supplies_categories(id),
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS supplies_carts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL UNIQUE REFERENCES users(id),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS supplies_cart_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cart_id INTEGER NOT NULL REFERENCES supplies_carts(id) ON DELETE CASCADE,
+      product_id INTEGER NOT NULL REFERENCES supplies_products(id),
+      qty INTEGER NOT NULL DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(cart_id, product_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS supplies_orders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_no TEXT UNIQUE NOT NULL,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      total_amount REAL NOT NULL,
+      payment_method TEXT,
+      delivery_address TEXT,
+      delivery_date DATE,
+      status TEXT NOT NULL DEFAULT 'ordered' CHECK(status IN ('ordered','confirmed','shipped','delivered','completed','cancelled')),
+      ordered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      delivered_at DATETIME
+    );
+
+    CREATE TABLE IF NOT EXISTS supplies_order_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER NOT NULL REFERENCES supplies_orders(id) ON DELETE CASCADE,
+      product_id INTEGER NOT NULL REFERENCES supplies_products(id),
+      qty INTEGER NOT NULL,
+      price REAL NOT NULL,
+      subtotal REAL NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_help_topics_category ON help_topics(category);
+    CREATE INDEX IF NOT EXISTS idx_inspirasi_articles_category ON inspirasi_articles(category);
+    CREATE INDEX IF NOT EXISTS idx_inspirasi_events_date ON inspirasi_events(event_date);
+    CREATE INDEX IF NOT EXISTS idx_supplies_products_category ON supplies_products(category_id);
+    CREATE INDEX IF NOT EXISTS idx_supplies_orders_user ON supplies_orders(user_id);
+  `);
+
   // Indexes that reference columns added via addColumnIfMissing must run AFTER
   // those migrations so existing databases without the new columns can still
   // boot.
@@ -1294,7 +1475,433 @@ function initDatabase() {
   // P1-16: Seed default settings data (outlet, tax rates, payment methods, UoM) if empty.
   seedDefaultSettings(db);
 
+  // P1-18: Seed default Lainnya content (help topics, articles, magazines, supplies).
+  seedDefaultLainnya(db);
+
   console.log('Database initialized successfully');
+}
+
+function seedDefaultLainnya(db) {
+  const helpCount = db.prepare('SELECT COUNT(*) AS n FROM help_topics').get();
+  if (!helpCount || helpCount.n === 0) {
+    const insert = db.prepare(
+      `INSERT INTO help_topics (slug, title, category, excerpt, content, sort_order) VALUES (?, ?, ?, ?, ?, ?)`
+    );
+    const topics = [
+      [
+        'memulai-vipos',
+        'Memulai VIPOS',
+        'Onboarding',
+        'Panduan setup awal VIPOS untuk outlet baru.',
+        '# Memulai\n\nLogin → buka pengaturan outlet → tambah produk → mulai transaksi.',
+        1,
+      ],
+      [
+        'transaksi-kasir',
+        'Transaksi di Kasir',
+        'POS',
+        'Cara melakukan transaksi penjualan di menu Kasir.',
+        '# Kasir\n\nBuka menu Kasir, pilih produk, klik Bayar, pilih metode, cetak struk.',
+        2,
+      ],
+      [
+        'kelola-produk',
+        'Mengelola Produk',
+        'Master Data',
+        'Tambah, edit, dan kelola katalog produk.',
+        '# Produk\n\nMenu Produk → tambah → isi nama, harga, stok awal.',
+        3,
+      ],
+      [
+        'inventory-stok',
+        'Cek Stok & Stock Opname',
+        'Inventory',
+        'Pantau stok dan lakukan stock opname berkala.',
+        '# Stock Opname\n\nMenu Inventory → Opname → buat sesi → input fisik → submit.',
+        4,
+      ],
+      [
+        'laporan-harian',
+        'Membaca Laporan Harian',
+        'Reports',
+        'Memahami laporan ringkasan harian, top produk, payment method.',
+        '# Laporan\n\nMenu Laporan → pilih kategori → atur tanggal → export.',
+        5,
+      ],
+      [
+        'integrasi-payment',
+        'Integrasi Payment Gateway',
+        'Pembayaran',
+        'Aktifkan QRIS, debit, kredit di outlet Anda.',
+        '# Payment Gateway\n\nMenu Pengaturan → Payment → aktifkan QRIS / EDC → ikuti onboarding Majoopay.',
+        6,
+      ],
+      [
+        'kelola-karyawan',
+        'Mengelola Karyawan & Absensi',
+        'Karyawan',
+        'Tambah karyawan, atur shift, dan tracking absensi.',
+        '# Karyawan\n\nMenu Karyawan → tambah karyawan → set role → atur shift mingguan.',
+        7,
+      ],
+      [
+        'promo-loyalty',
+        'Promo, Voucher & Loyalty',
+        'Marketing',
+        'Buat promo, voucher, dan program loyalty.',
+        '# Marketing\n\nMenu Penjualan → Promo / Voucher / Loyalty → buat baru.',
+        8,
+      ],
+      [
+        'backup-data',
+        'Backup & Restore Data',
+        'Maintenance',
+        'Cara backup database VIPOS dan restore.',
+        '# Backup\n\nMenu Pengaturan → Import/Export → Export Database.',
+        9,
+      ],
+      [
+        'hubungi-support',
+        'Hubungi Customer Support',
+        'Bantuan',
+        'Channel resmi support VIPOS (24/7).',
+        '# Support\n\nWA: 0811-XXXX, Email: support@vipos.id, atau form Masukan Perbaikan.',
+        10,
+      ],
+    ];
+    for (const t of topics) insert.run(...t);
+  }
+
+  const articleCount = db.prepare('SELECT COUNT(*) AS n FROM inspirasi_articles').get();
+  if (!articleCount || articleCount.n === 0) {
+    const insert = db.prepare(
+      `INSERT INTO inspirasi_articles (slug, category, title, excerpt, content, author, reading_minutes) VALUES (?, ?, ?, ?, ?, ?, ?)`
+    );
+    const articles = [
+      [
+        'tren-fnb-2025',
+        'tren-bisnis',
+        '5 Tren F&B 2025 yang Wajib Diketahui Pemilik Resto',
+        'Premium ingredients, plant-based, fast-casual experience, dan AI-driven menu.',
+        '# Tren F&B 2025\n\n1. Premium ingredients\n2. Plant-based menu\n3. Fast-casual experience\n4. AI menu personalization\n5. Sustainability',
+        'Tim majoo',
+        5,
+      ],
+      [
+        'kisah-warung-soto',
+        'kisah-sukses',
+        'Dari Warung Kaki Lima ke 5 Cabang: Cerita Soto Pak Karim',
+        'Pak Karim membagikan kunci sukses ekspansi dari satu warung jadi 5 outlet.',
+        '# Soto Pak Karim\n\nMulai dari modal 5 juta, sekarang punya 5 outlet di Jabodetabek...',
+        'Tim majoo',
+        8,
+      ],
+      [
+        'tips-kelola-cashflow',
+        'tips',
+        '7 Tips Kelola Cashflow Resto biar Tidak Boncos',
+        'Strategi mengelola arus kas resto: separate akun, pencatatan harian, kontrol HPP.',
+        '# Cashflow\n\nPisahkan rekening bisnis dan pribadi. Catat setiap transaksi. Review mingguan.',
+        'Tim majoo',
+        6,
+      ],
+      [
+        'inspirasi-branding-coffee',
+        'inspirasi',
+        'Branding Coffee Shop yang Menggugah: Belajar dari 3 Brand Lokal',
+        'Studi kasus branding 3 coffee shop lokal yang berhasil menarik gen Z.',
+        '# Branding Kopi\n\nKopi Kenangan, Tuku, Janji Jiwa: 3 brand kopi lokal yang berhasil...',
+        'Tim majoo',
+        7,
+      ],
+      [
+        'edukasi-pajak-resto',
+        'edukasi',
+        'PB1, PPN, PPh: Pajak Resto yang Wajib Dipahami',
+        'Penjelasan lengkap tentang pajak yang harus dibayar pemilik resto di Indonesia.',
+        '# Pajak Resto\n\nPB1 (10%), Service Charge, PPN, PPh21 karyawan...',
+        'Tim majoo',
+        10,
+      ],
+      [
+        'trivia-makanan-indonesia',
+        'trivia',
+        'Tahukah Kamu? 10 Fakta Unik Kuliner Indonesia',
+        'Fakta menarik kuliner nusantara yang jarang diketahui.',
+        '# Trivia\n\nIndonesia punya 5000+ jenis kerupuk. Rendang berasal dari Padang...',
+        'Tim majoo',
+        4,
+      ],
+      [
+        'berbagi-program-csr',
+        'berbagi',
+        'Program CSR Sederhana untuk UMKM F&B',
+        'Ide CSR yang reasonable untuk UMKM F&B: dari makan gratis sampai cooking class.',
+        '# CSR UMKM\n\nFree meal Jumat berkah, cooking class anak yatim, donate makanan sisa...',
+        'Tim majoo',
+        5,
+      ],
+      [
+        'informasi-update-v3',
+        'home',
+        'majoo Update v3.0: Apa yang Baru?',
+        'Versi 3.0 hadir dengan dashboard baru, AI insights, dan lebih banyak laporan.',
+        '# v3.0\n\nDashboard baru, AI insights, 30+ laporan, schedule report Prime+.',
+        'Tim majoo',
+        3,
+      ],
+    ];
+    for (const a of articles) insert.run(...a);
+  }
+
+  const eventCount = db.prepare('SELECT COUNT(*) AS n FROM inspirasi_events').get();
+  if (!eventCount || eventCount.n === 0) {
+    const insert = db.prepare(
+      `INSERT INTO inspirasi_events (slug, title, description, location, event_date, capacity) VALUES (?, ?, ?, ?, ?, ?)`
+    );
+    const today = new Date();
+    const future = (days) =>
+      new Date(today.getTime() + days * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 19)
+        .replace('T', ' ');
+    insert.run(
+      'workshop-pos-jakarta',
+      'Workshop: Optimasi POS untuk F&B',
+      'Belajar best practice setup POS, menu engineering, dan analytics dasar dari mentor majoo.',
+      'majoo HQ, Jakarta Selatan',
+      future(14),
+      40
+    );
+    insert.run(
+      'webinar-marketing-digital',
+      'Webinar: Marketing Digital untuk UMKM',
+      'Strategi marketing digital low-budget tinggi impact untuk pemilik UMKM.',
+      'Online (Zoom)',
+      future(7),
+      200
+    );
+    insert.run(
+      'meetup-preneur-bandung',
+      'Meetup majoo Preneur Bandung',
+      'Networking bareng pemilik bisnis F&B dan retail di Bandung.',
+      'Cafe Lokal, Bandung',
+      future(21),
+      60
+    );
+  }
+
+  const magazineCount = db.prepare('SELECT COUNT(*) AS n FROM inspirasi_magazines').get();
+  if (!magazineCount || magazineCount.n === 0) {
+    const insert = db.prepare(
+      `INSERT INTO inspirasi_magazines (year, month, title, pdf_url, cover_url) VALUES (?, ?, ?, ?, ?)`
+    );
+    insert.run(
+      2025,
+      1,
+      'majoo Preneur — Edisi Januari 2025',
+      '/static/magazines/2025-01.pdf',
+      '/static/magazines/2025-01-cover.jpg'
+    );
+    insert.run(
+      2025,
+      2,
+      'majoo Preneur — Edisi Februari 2025',
+      '/static/magazines/2025-02.pdf',
+      '/static/magazines/2025-02-cover.jpg'
+    );
+    insert.run(
+      2025,
+      3,
+      'majoo Preneur — Edisi Maret 2025',
+      '/static/magazines/2025-03.pdf',
+      '/static/magazines/2025-03-cover.jpg'
+    );
+  }
+
+  const updateCount = db.prepare('SELECT COUNT(*) AS n FROM informasi_updates').get();
+  if (!updateCount || updateCount.n === 0) {
+    const insert = db.prepare(
+      `INSERT INTO informasi_updates (version, title, body, published_at) VALUES (?, ?, ?, ?)`
+    );
+    insert.run(
+      '3.0.0',
+      'VIPOS v3.0 — Reports & Schedule',
+      'Tambahan 30+ laporan baru, scheduled reports (Prime+), dan integrasi penuh marketplace supplies.',
+      '2025-04-01'
+    );
+    insert.run(
+      '2.5.0',
+      'VIPOS v2.5 — Multi-Outlet',
+      'Dukungan multi-outlet penuh, transfer stock antar outlet, dan konsolidasi laporan.',
+      '2025-02-15'
+    );
+    insert.run(
+      '2.0.0',
+      'VIPOS v2.0 — Akuntansi Lengkap',
+      'Chart of Accounts, jurnal manual, laporan keuangan SAK ETAP.',
+      '2025-01-01'
+    );
+  }
+
+  const supCatCount = db.prepare('SELECT COUNT(*) AS n FROM supplies_categories').get();
+  if (!supCatCount || supCatCount.n === 0) {
+    const insert = db.prepare(
+      `INSERT INTO supplies_categories (slug, name, sort_order) VALUES (?, ?, ?)`
+    );
+    const cats = [
+      ['bahan-baku-fnb', 'Bahan Baku F&B', 1],
+      ['kemasan', 'Kemasan & Packaging', 2],
+      ['cleaning', 'Cleaning Supplies', 3],
+      ['office-supplies', 'Office Supplies', 4],
+      ['equipment', 'Equipment', 5],
+    ];
+    for (const c of cats) insert.run(...c);
+  }
+
+  const supProdCount = db.prepare('SELECT COUNT(*) AS n FROM supplies_products').get();
+  if (!supProdCount || supProdCount.n === 0) {
+    const cats = db.prepare('SELECT id, slug FROM supplies_categories').all();
+    const catBySlug = Object.fromEntries(cats.map((c) => [c.slug, c.id]));
+    const insert = db.prepare(
+      `INSERT INTO supplies_products (sku, name, description, image_url, price, moq, stock_status, supplier_name, category_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    const products = [
+      [
+        'BAHAN-001',
+        'Beras Premium 25kg',
+        'Beras kualitas premium pilihan untuk warteg/resto.',
+        null,
+        350000,
+        1,
+        'in_stock',
+        'PT Beras Sejahtera',
+        catBySlug['bahan-baku-fnb'],
+      ],
+      [
+        'BAHAN-002',
+        'Minyak Goreng 18L',
+        'Minyak goreng kemasan jerigen 18L.',
+        null,
+        270000,
+        1,
+        'in_stock',
+        'CV Minyak Nusantara',
+        catBySlug['bahan-baku-fnb'],
+      ],
+      [
+        'BAHAN-003',
+        'Gula Pasir 50kg',
+        'Gula pasir premium 50kg.',
+        null,
+        700000,
+        1,
+        'low',
+        'PT Gula Murni',
+        catBySlug['bahan-baku-fnb'],
+      ],
+      [
+        'KEMAS-001',
+        'Box Makanan Kraft 750ml (50pcs)',
+        'Box kemasan ramah lingkungan untuk takeaway.',
+        null,
+        75000,
+        5,
+        'in_stock',
+        'Eco Pack',
+        catBySlug['kemasan'],
+      ],
+      [
+        'KEMAS-002',
+        'Plastik Wrap 30cm x 300m',
+        'Plastik wrap untuk packaging makanan.',
+        null,
+        90000,
+        1,
+        'in_stock',
+        'Eco Pack',
+        catBySlug['kemasan'],
+      ],
+      [
+        'CLEAN-001',
+        'Sabun Cuci Piring 5L',
+        'Sabun cuci piring food-grade.',
+        null,
+        65000,
+        2,
+        'in_stock',
+        'Bersih Jaya',
+        catBySlug['cleaning'],
+      ],
+      [
+        'CLEAN-002',
+        'Tisu Toilet 12 roll',
+        'Tisu toilet berkualitas ekonomis.',
+        null,
+        45000,
+        5,
+        'in_stock',
+        'Bersih Jaya',
+        catBySlug['cleaning'],
+      ],
+      [
+        'OFFICE-001',
+        'Roll Thermal Printer 80mm (50pcs)',
+        'Kertas struk thermal 80mm.',
+        null,
+        250000,
+        1,
+        'in_stock',
+        'Office Supply Co',
+        catBySlug['office-supplies'],
+      ],
+      [
+        'OFFICE-002',
+        'Tinta Printer Hitam 100ml',
+        'Tinta refill hitam.',
+        null,
+        35000,
+        1,
+        'in_stock',
+        'Office Supply Co',
+        catBySlug['office-supplies'],
+      ],
+      [
+        'EQUIP-001',
+        'Blender Industrial 3L',
+        'Blender heavy-duty untuk dapur resto.',
+        null,
+        1850000,
+        1,
+        'in_stock',
+        'Kitchen Pro',
+        catBySlug['equipment'],
+      ],
+      [
+        'EQUIP-002',
+        'Rice Cooker 10L',
+        'Rice cooker komersial 10L.',
+        null,
+        1200000,
+        1,
+        'low',
+        'Kitchen Pro',
+        catBySlug['equipment'],
+      ],
+      [
+        'EQUIP-003',
+        'Wajan Anti Lengket 32cm',
+        'Wajan keramik anti lengket profesional.',
+        null,
+        220000,
+        1,
+        'in_stock',
+        'Kitchen Pro',
+        catBySlug['equipment'],
+      ],
+    ];
+    for (const p of products) insert.run(...p);
+  }
 }
 
 function seedDefaultSettings(db) {

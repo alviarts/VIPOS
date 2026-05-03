@@ -64,6 +64,12 @@ import CashierSettingsPage from './pages/pengaturan/CashierSettingsPage';
 import TerminalsPage from './pages/pengaturan/TerminalsPage';
 import SupportAccessPage from './pages/pengaturan/SupportAccessPage';
 import ImportExportPage from './pages/pengaturan/ImportExportPage';
+import LainnyaHub from './pages/lainnya/LainnyaHub';
+import HelpPage from './pages/lainnya/HelpPage';
+import ServicesPage from './pages/lainnya/ServicesPage';
+import InspirasiPage from './pages/lainnya/InspirasiPage';
+import CapitalPage from './pages/lainnya/CapitalPage';
+import SuppliesPage from './pages/lainnya/SuppliesPage';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -155,6 +161,13 @@ export default function App() {
         <Route path="settings/terminals" element={<TerminalsPage />} />
         <Route path="settings/support-access" element={<SupportAccessPage />} />
         <Route path="settings/import-export" element={<ImportExportPage />} />
+        {/* P1-18 LAINNYA group: Bantuan, LAYANAN, INSPIRASI, Capital, SUPPLIES. */}
+        <Route path="lainnya" element={<LainnyaHub />} />
+        <Route path="help" element={<HelpPage />} />
+        <Route path="services" element={<ServicesPage />} />
+        <Route path="inspirasi" element={<InspirasiPage />} />
+        <Route path="capital" element={<CapitalPage />} />
+        <Route path="supplies" element={<SuppliesPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
