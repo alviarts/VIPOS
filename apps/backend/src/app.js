@@ -26,6 +26,17 @@ function buildApp(opts = {}) {
 
   app.use('/api/auth', require('./routes/auth'));
   app.use('/api/products', require('./routes/products'));
+  app.use('/api', require('./routes/product-variants'));
+  app.use('/api', require('./routes/product-recipe'));
+  app.use('/api/uploads', require('./routes/uploads').router);
+  // Serve uploaded files publicly (no auth — they're public URLs).
+  app.use(
+    '/uploads',
+    require('express').static(
+      require('node:path').join(__dirname, '..', 'uploads'),
+      { maxAge: '7d' },
+    ),
+  );
   app.use('/api/categories', require('./routes/categories'));
   app.use('/api/departments', require('./routes/departments'));
   app.use('/api/customers', require('./routes/customers'));

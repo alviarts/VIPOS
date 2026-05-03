@@ -31,11 +31,13 @@ function toBoolInt(v, defaultValue = 0) {
   return defaultValue;
 }
 
-// Get all products
+// Get all products. Supports filter + pagination via `page`, `per_page`.
+// Without page param: returns array (legacy behaviour).
+// With page param: returns { data, total, page, per_page, total_pages }.
 router.get("/", authenticateToken, (req, res) => {
   try {
     const db = getDb();
-    const { category_id, search, active_only, is_tampil_di_menu } = req.query;
+    const { category_id, search, active_only, is_tampil_di_menu, page, per_page } = req.query;
 
     const conditions = [];
     const params = [];
@@ -59,18 +61,38 @@ router.get("/", authenticateToken, (req, res) => {
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
-    let query = PRODUCT_SELECT;
-    if (conditions.length > 0) query += " WHERE " + conditions.join(" AND ");
-    query += " ORDER BY p.name";
+    let baseQuery = PRODUCT_SELECT;
+    let whereClause = "";
+    if (conditions.length > 0) whereClause = " WHERE " + conditions.join(" AND ");
+    const orderBy = " ORDER BY p.name";
 
-    const products = db.prepare(query).all(...params);
+    if (page) {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const perPage = Math.min(100, Math.max(1, parseInt(per_page, 10) || 25));
+      const offset = (pageNum - 1) * perPage;
+      const total = db
+        .prepare(`SELECT COUNT(*) AS count FROM products p${whereClause}`)
+        .get(...params).count;
+      const data = db
+        .prepare(`${baseQuery}${whereClause}${orderBy} LIMIT ? OFFSET ?`)
+        .all(...params, perPage, offset);
+      return res.json({
+        data,
+        total,
+        page: pageNum,
+        per_page: perPage,
+        total_pages: Math.max(1, Math.ceil(total / perPage)),
+      });
+    }
+
+    const products = db.prepare(`${baseQuery}${whereClause}${orderBy}`).all(...params);
     res.json(products);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Get single product
+// Get single product (with variants + recipe items inline).
 router.get("/:id", authenticateToken, (req, res) => {
   try {
     const db = getDb();
@@ -79,6 +101,33 @@ router.get("/:id", authenticateToken, (req, res) => {
       .get(req.params.id);
     if (!product)
       return res.status(404).json({ error: "Produk tidak ditemukan" });
+
+    product.variants = db
+      .prepare(
+        "SELECT * FROM product_variants WHERE product_id = ? ORDER BY group_name, sort_order, id",
+      )
+      .all(req.params.id);
+
+    product.recipe_items = db
+      .prepare(
+        `SELECT r.*, p.name AS ingredient_name, p.satuan AS ingredient_unit
+         FROM product_recipe_items r
+         JOIN products p ON r.ingredient_id = p.id
+         WHERE r.product_id = ?
+         ORDER BY r.id`,
+      )
+      .all(req.params.id);
+
+    if (product.image_urls) {
+      try {
+        product.image_urls = JSON.parse(product.image_urls);
+      } catch {
+        product.image_urls = [];
+      }
+    } else {
+      product.image_urls = [];
+    }
+
     res.json(product);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -105,6 +154,9 @@ router.post(
         stock,
         category_id,
         image_url,
+        image_urls,
+        price_online,
+        is_online_active,
         is_tampil_di_menu,
         is_favorit,
         monitor_stok,
@@ -128,6 +180,10 @@ router.post(
         return res.status(400).json({ error: "Harga Jual tidak valid" });
       }
 
+      const imagesJson = Array.isArray(image_urls) && image_urls.length
+        ? JSON.stringify(image_urls.slice(0, 4))
+        : null;
+
       const db = getDb();
       const result = db
         .prepare(
@@ -135,9 +191,10 @@ router.post(
       INSERT INTO products (
         name, sku, barcode, description, satuan,
         price, harga_modal, harga_beli, stock,
-        category_id, image_url,
-        is_tampil_di_menu, is_favorit, monitor_stok, stok_minimum
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        category_id, image_url, image_urls,
+        is_tampil_di_menu, is_favorit, monitor_stok, stok_minimum,
+        price_online, is_online_active
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
         )
         .run(
@@ -152,10 +209,13 @@ router.post(
           toIntOrNull(stock) ?? 0,
           toIntOrNull(category_id),
           image_url || null,
+          imagesJson,
           toBoolInt(is_tampil_di_menu, 1),
           toBoolInt(is_favorit, 0),
           toBoolInt(monitor_stok, 0),
           toIntOrNull(stok_minimum) ?? 0,
+          toFloatOrNull(price_online),
+          toBoolInt(is_online_active, 0),
         );
 
       const product = db
@@ -191,12 +251,19 @@ router.put(
         stock,
         category_id,
         image_url,
+        image_urls,
+        price_online,
+        is_online_active,
         is_active,
         is_tampil_di_menu,
         is_favorit,
         monitor_stok,
         stok_minimum,
       } = req.body;
+
+      const imagesJson = Array.isArray(image_urls) && image_urls.length
+        ? JSON.stringify(image_urls.slice(0, 4))
+        : null;
 
       const db = getDb();
       db.prepare(
@@ -213,6 +280,9 @@ router.put(
              stock = ?,
              category_id = ?,
              image_url = ?,
+             image_urls = ?,
+             price_online = ?,
+             is_online_active = ?,
              is_active = ?,
              is_tampil_di_menu = ?,
              is_favorit = ?,
@@ -233,6 +303,9 @@ router.put(
         toIntOrNull(stock) ?? 0,
         toIntOrNull(category_id),
         image_url || null,
+        imagesJson,
+        toFloatOrNull(price_online),
+        toBoolInt(is_online_active, 0),
         toBoolInt(is_active, 1),
         toBoolInt(is_tampil_di_menu, 1),
         toBoolInt(is_favorit, 0),

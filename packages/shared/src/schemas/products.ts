@@ -92,10 +92,13 @@ export const ProductCreateSchema = z
       .optional()
       .nullable()
       .or(z.literal("").transform(() => null)),
+    image_urls: z.array(z.string().max(2048)).max(4).optional(),
     is_tampil_di_menu: boolIntFromForm.optional(),
     is_favorit: boolIntFromForm.optional(),
     monitor_stok: boolIntFromForm.optional(),
     stok_minimum: intFromForm.optional().nullable(),
+    price_online: numFromForm.optional().nullable(),
+    is_online_active: boolIntFromForm.optional(),
   })
   .openapi("ProductCreateRequest");
 export type ProductCreate = z.infer<typeof ProductCreateSchema>;
