@@ -179,7 +179,9 @@
 
 ---
 
-### P1-06: Pelanggan (Customer) + grouping + tag `[pending]`
+### P1-06: Pelanggan (Customer) + grouping + tag `[done]`
+
+> PR: [#21](https://github.com/alviarts/VIPOS/pull/21), session: https://app.devin.ai/sessions/87cd360ce1084f07897d809585523a61
 
 **Goal**: Halaman Pelanggan dengan list + form + grouping + tag + import.
 
