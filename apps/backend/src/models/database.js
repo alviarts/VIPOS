@@ -1064,6 +1064,131 @@ function initDatabase() {
     );
   `);
 
+  // P1-16: Pengaturan / Settings tables.
+  db.exec(`
+    -- Outlet/cabang master.
+    CREATE TABLE IF NOT EXISTS outlets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT UNIQUE,
+      name TEXT NOT NULL,
+      type TEXT,
+      address TEXT,
+      city TEXT,
+      province TEXT,
+      phone TEXT,
+      email TEXT,
+      logo_url TEXT,
+      tax_npwp TEXT,
+      timezone TEXT DEFAULT 'Asia/Jakarta',
+      currency TEXT DEFAULT 'IDR',
+      is_main INTEGER DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS outlet_floor_plans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      outlet_id INTEGER NOT NULL REFERENCES outlets(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      width INTEGER DEFAULT 1000,
+      height INTEGER DEFAULT 700,
+      tables_json TEXT NOT NULL DEFAULT '[]',
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Hardware terminals (PC kasir, printer, soundbox, EDC).
+    CREATE TABLE IF NOT EXISTS terminals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT UNIQUE,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('cashier','printer','soundbox','edc','kitchen_display','tablet','other')),
+      outlet_id INTEGER REFERENCES outlets(id),
+      model TEXT,
+      serial_no TEXT,
+      ip_address TEXT,
+      mac_address TEXT,
+      paired_user_id INTEGER REFERENCES users(id),
+      config_json TEXT,
+      last_seen_at DATETIME,
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Generic key-value app settings (per-outlet or global). Scope NULL = global.
+    CREATE TABLE IF NOT EXISTS app_settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      outlet_id INTEGER REFERENCES outlets(id),
+      category TEXT NOT NULL,
+      key TEXT NOT NULL,
+      value_json TEXT NOT NULL,
+      updated_by INTEGER REFERENCES users(id),
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(outlet_id, category, key)
+    );
+
+    -- Notification channel preferences per user.
+    CREATE TABLE IF NOT EXISTS notification_prefs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      event_key TEXT NOT NULL,
+      via_push INTEGER DEFAULT 1,
+      via_wa INTEGER DEFAULT 0,
+      via_sms INTEGER DEFAULT 0,
+      via_email INTEGER DEFAULT 1,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, event_key)
+    );
+
+    -- Time-bounded support access grants.
+    CREATE TABLE IF NOT EXISTS support_access_grants (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      grantee_email TEXT NOT NULL,
+      reason TEXT,
+      granted_by INTEGER REFERENCES users(id),
+      expires_at DATETIME NOT NULL,
+      revoked_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Pajak rate (multi-tax). Sales tax / service charge configurable.
+    CREATE TABLE IF NOT EXISTS tax_rates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT UNIQUE,
+      name TEXT NOT NULL,
+      rate REAL NOT NULL DEFAULT 0,
+      is_inclusive INTEGER DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Non-cash payment method master.
+    CREATE TABLE IF NOT EXISTS payment_methods (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT UNIQUE,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('cash','debit','credit','qris','ewallet','transfer','voucher','other')),
+      provider TEXT,
+      fee_percent REAL DEFAULT 0,
+      fee_flat REAL DEFAULT 0,
+      account_id INTEGER REFERENCES gl_accounts(id),
+      is_active INTEGER DEFAULT 1,
+      sort_order INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- UoM master (satuan).
+    CREATE TABLE IF NOT EXISTS uoms (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT UNIQUE,
+      name TEXT NOT NULL,
+      symbol TEXT,
+      base_uom_id INTEGER REFERENCES uoms(id),
+      conversion_factor REAL DEFAULT 1,
+      is_active INTEGER DEFAULT 1
+    );
+  `);
+
   // --- Idempotent migrations for existing databases (so users that ran old seeds
   //     still get the new columns).
   addColumnIfMissing(db, 'categories', 'urutan', 'INTEGER DEFAULT 0');
@@ -1120,6 +1245,10 @@ function initDatabase() {
   addColumnIfMissing(db, 'users', 'totp_enabled', 'INTEGER DEFAULT 0');
   addColumnIfMissing(db, 'users', 'last_login_at', 'DATETIME');
 
+  // P1-16: profile photo + phone untuk Account Profile page.
+  addColumnIfMissing(db, 'users', 'photo_url', 'TEXT');
+  addColumnIfMissing(db, 'users', 'phone', 'TEXT');
+
   // Indexes that reference columns added via addColumnIfMissing must run AFTER
   // those migrations so existing databases without the new columns can still
   // boot.
@@ -1145,7 +1274,61 @@ function initDatabase() {
   // P1-15: Seed default Chart of Accounts (Indonesian SAK ETAP) if empty.
   seedDefaultChartOfAccounts(db);
 
+  // P1-16: Seed default settings data (outlet, tax rates, payment methods, UoM) if empty.
+  seedDefaultSettings(db);
+
   console.log('Database initialized successfully');
+}
+
+function seedDefaultSettings(db) {
+  // Default main outlet kalau tabel masih kosong.
+  const outletCount = db.prepare('SELECT COUNT(*) AS n FROM outlets').get();
+  if (!outletCount || outletCount.n === 0) {
+    db.prepare(
+      `INSERT INTO outlets (code, name, type, address, city, timezone, currency, is_main, is_active)
+       VALUES ('OUT-001', 'Outlet Pusat', 'restaurant', '-', 'Jakarta', 'Asia/Jakarta', 'IDR', 1, 1)`
+    ).run();
+  }
+
+  const taxCount = db.prepare('SELECT COUNT(*) AS n FROM tax_rates').get();
+  if (!taxCount || taxCount.n === 0) {
+    const insert = db.prepare(
+      `INSERT INTO tax_rates (code, name, rate, is_inclusive, is_active) VALUES (?, ?, ?, ?, 1)`
+    );
+    insert.run('PPN', 'PPN 11%', 11, 0);
+    insert.run('SVC', 'Service Charge 5%', 5, 0);
+    insert.run('PB1', 'Pajak Restoran (PB1) 10%', 10, 0);
+  }
+
+  const pmCount = db.prepare('SELECT COUNT(*) AS n FROM payment_methods').get();
+  if (!pmCount || pmCount.n === 0) {
+    const insert = db.prepare(
+      `INSERT INTO payment_methods (code, name, type, fee_percent, is_active, sort_order)
+       VALUES (?, ?, ?, ?, 1, ?)`
+    );
+    insert.run('CASH', 'Tunai', 'cash', 0, 1);
+    insert.run('QRIS', 'QRIS', 'qris', 0.7, 2);
+    insert.run('DEBIT', 'Kartu Debit', 'debit', 0, 3);
+    insert.run('CREDIT', 'Kartu Kredit', 'credit', 2.5, 4);
+    insert.run('GOPAY', 'GoPay', 'ewallet', 1.5, 5);
+    insert.run('OVO', 'OVO', 'ewallet', 1.5, 6);
+    insert.run('TF-BCA', 'Transfer BCA', 'transfer', 0, 7);
+  }
+
+  const uomCount = db.prepare('SELECT COUNT(*) AS n FROM uoms').get();
+  if (!uomCount || uomCount.n === 0) {
+    const insert = db.prepare(
+      `INSERT INTO uoms (code, name, symbol, conversion_factor, is_active) VALUES (?, ?, ?, 1, 1)`
+    );
+    insert.run('PCS', 'Pieces', 'pcs');
+    insert.run('KG', 'Kilogram', 'kg');
+    insert.run('GR', 'Gram', 'g');
+    insert.run('LT', 'Liter', 'L');
+    insert.run('ML', 'Mililiter', 'ml');
+    insert.run('PACK', 'Pack', 'pak');
+    insert.run('BOX', 'Box', 'box');
+    insert.run('PORSI', 'Porsi', 'porsi');
+  }
 }
 
 /**
