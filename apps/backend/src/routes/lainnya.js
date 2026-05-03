@@ -11,7 +11,6 @@
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
-const db = require('../models/database').getDb();
 const {
   HelpFeedbackCreateSchema,
   ServiceApplicationCreateSchema,
@@ -25,7 +24,6 @@ const {
 function getDb() {
   return require('../models/database').getDb();
 }
-void db;
 
 // -----------------------------------------------------------------------------
 // HELP
@@ -291,7 +289,7 @@ inspirasiRouter.get('/changelog', (req, res) => {
 const capitalRouter = express.Router();
 capitalRouter.use(authenticateToken);
 
-function calculatePreQualification(database, userId) {
+function calculatePreQualification(database, _userId) {
   // Approximate: average of last 90 days transactions revenue + months active.
   const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const txSummary = database

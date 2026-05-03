@@ -379,10 +379,9 @@ export const MENU_GROUPS = [
     items: [
       {
         path: '/lainnya',
-        label: 'Integrasi',
+        label: 'Hub Lainnya',
         icon: MoreHorizontal,
-        roles: [ROLES.MANAGER],
-        disabled: true,
+        roles: [],
       },
     ],
   },
@@ -390,19 +389,26 @@ export const MENU_GROUPS = [
     id: 'bantuan',
     label: 'Bantuan',
     icon: LifeBuoy,
-    items: [{ path: '/help', label: 'Pusat Bantuan', icon: HelpCircle, roles: [] }],
+    items: [{ path: '/help', label: 'Panduan & Masukan', icon: HelpCircle, roles: [] }],
   },
   {
     id: 'layanan',
     label: 'LAYANAN',
     icon: HeartHandshake,
-    items: [{ path: '/layanan/onboarding', label: 'Onboarding', icon: HeartHandshake, roles: [] }],
+    items: [
+      {
+        path: '/services',
+        label: 'Katalog Layanan',
+        icon: HeartHandshake,
+        roles: [],
+      },
+    ],
   },
   {
     id: 'inspirasi',
     label: 'INSPIRASI',
     icon: Compass,
-    items: [{ path: '/inspirasi', label: 'Tips & Trik', icon: Compass, roles: [] }],
+    items: [{ path: '/inspirasi', label: 'Blog & Event', icon: Compass, roles: [] }],
   },
   {
     id: 'capital',
@@ -412,7 +418,7 @@ export const MENU_GROUPS = [
     items: [
       {
         path: '/capital',
-        label: 'Pinjaman',
+        label: 'Pinjaman Modal',
         icon: HandCoins,
         roles: [ROLES.MANAGER],
         minTier: TIERS.ADVANCE,
@@ -423,7 +429,14 @@ export const MENU_GROUPS = [
     id: 'supplies',
     label: 'SUPPLIES',
     icon: Truck,
-    items: [{ path: '/supplies', label: 'Marketplace Supplier', icon: Truck, roles: [] }],
+    items: [
+      {
+        path: '/supplies',
+        label: 'Marketplace Supplier',
+        icon: Truck,
+        roles: [],
+      },
+    ],
   },
 ];
 
