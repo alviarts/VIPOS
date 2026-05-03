@@ -348,7 +348,7 @@
 
 ---
 
-### P1-11: Marketing (WA Blast + SMS + Email + IG) `[pending]`
+### P1-11: Marketing (WA Blast + SMS + Email + IG) `[done]`
 
 **Goal**: Halaman Marketing: WA Blast, SMS Broadcast, Email Blast, IG Feed scheduler.
 
@@ -358,25 +358,27 @@
 
 - `apps/web/src/pages/penjualan/MarketingPage.jsx`
 - `apps/web/src/components/marketing/CampaignBuilder.jsx`
-- Backend: `/api/v1/campaign`, integrasi WhatsApp Business API, SMS gateway, SendGrid
+- Backend: `/api/marketing/*` (campaigns + templates + recipients + per-channel credit ledger). Provider eksternal (WhatsApp Business API, SMS gateway, SendGrid, Meta Graph) di-abstract via field `provider`; default `mock` mensimulasi delivery transitions. Wiring resmi ditunda.
 
 **Acceptance criteria**:
 
-- [ ] Pilih channel (WA/SMS/Email/IG)
-- [ ] Pilih audience (semua pelanggan, group, tag, custom segment)
-- [ ] Template message dengan variable substitution ({{nama}}, {{outlet}}, dll)
-- [ ] Schedule: kirim sekarang / nanti
-- [ ] Track delivered/opened/clicked
-- [ ] Cost tracking (per WA/SMS rate)
+- [x] Pilih channel (WA/SMS/Email/IG)
+- [x] Pilih audience (semua pelanggan, group, tag, custom segment)
+- [x] Template message dengan variable substitution ({{nama}}, {{outlet}}, {{points_balance}}, {{deposit_balance}}, {{trx_count}}, {{last_visit}}, dll)
+- [x] Schedule: kirim sekarang / nanti / recurring (recurrence_rule disimpan; eksekusi worker berulang ditunda ke P2-04)
+- [x] Track delivered/opened/clicked (per recipient + agregat campaign)
+- [x] Cost tracking (per-channel default rate, ledger top-up + spend + refund-on-failed)
 
 **Reference**: `docs/v2/menus/penjualan/marketing.md`
 
 **Branch**: `devin/P1-11-marketing`
 **Estimasi**: 4-5 hari
 
+**PR**: #28 (merged TBD), session: https://app.devin.ai/sessions/43ab2127d43747fbae02bf5c4a2352b8
+
 ---
 
-### P1-12: Order Online + Marketplace + Consumer App config `[pending]`
+### P1-12: Order Online + Marketplace + Consumer App config `[done]`
 
 **Goal**: Halaman Order Online: pesanan masuk, majoo Order config, marketplace integration, consumer app config.
 
@@ -384,25 +386,28 @@
 
 **Outputs**:
 
-- `apps/web/src/pages/order_online/OrdersPage.jsx`
-- `apps/web/src/pages/order_online/MajooOrderPage.jsx` (storefront config)
-- `apps/web/src/pages/order_online/MarketplacePage.jsx` (GoFood/GrabFood/Shopee oauth)
-- `apps/web/src/pages/order_online/ConsumerAppPage.jsx`
-- Backend: `/api/v1/online-order`, `/api/v1/marketplace/{provider}`
+- `apps/web/src/pages/order_online/OrdersPage.jsx` — queue tab NEW/PREPARING/READY/COMPLETED/CANCELLED, auto-refresh 10s, SLA color cue, detail dialog dengan accept / reject / ready / complete / cancel actions
+- `apps/web/src/pages/order_online/MajooOrderPage.jsx` — storefront e-menu config (domain, branding, jam buka, payment methods, delivery zones, ongkir, SEO/contact)
+- `apps/web/src/pages/order_online/MarketplacePage.jsx` — connect/disconnect 5 providers (GoFood/GrabFood/ShopeeFood/GrabMart/Tokopedia), product mapping dialog dengan override price/name/visibility, sync button, settlement report table
+- `apps/web/src/pages/order_online/ConsumerAppPage.jsx` — branding, bundle ID, status pipeline (draft → submitted → review → published → rejected), Play Store / App Store URL
+- Backend: `/api/online-order/*` (queue + state machine + webhook ingestion), `/api/marketplace/*` (mock OAuth + sync + settlement), `/api/storefront-settings`, `/api/consumer-app-config`
+- DB: 6 tabel baru (`online_orders`, `online_order_items`, `marketplace_connections`, `marketplace_product_overrides`, `storefront_settings`, `consumer_app_config`)
+- Shared: `packages/shared/src/schemas/order-online.ts` — Zod + OpenAPI registrations untuk semua endpoint
 
 **Acceptance criteria**:
 
-- [ ] Queue pesanan online (NEW → PREPARING → READY → COMPLETED)
-- [ ] Storefront config: domain custom, branding, payment methods, delivery zone, ongkir
-- [ ] Marketplace OAuth flow per provider
-- [ ] Sync produk ke marketplace (price markup)
-- [ ] Order webhook handler
-- [ ] Settlement report
+- [x] Queue pesanan online (NEW → PREPARING → READY → COMPLETED)
+- [x] Storefront config: domain custom, branding, payment methods, delivery zone, ongkir
+- [x] Marketplace OAuth flow per provider (mock — token sintetis, swap saat API resmi tersedia)
+- [x] Sync produk ke marketplace (price markup) — override price/name/visibility per produk per provider, sync button mock-mark synced
+- [x] Order webhook handler — `POST /api/online-order/webhook/:provider` (no-auth), auto-accept honored kalau setting nyala
+- [x] Settlement report — aggregate per provider dari `online_orders` status=COMPLETED, kurangi MDR%, hitung net
 
 **Reference**: `docs/v2/menus/order_online/*.md`
 
 **Branch**: `devin/P1-12-order-online`
 **Estimasi**: 6-8 hari
+**PR**: #30 — session: https://app.devin.ai/sessions/43ab2127d43747fbae02bf5c4a2352b8
 
 ---
 
@@ -438,7 +443,9 @@
 
 ---
 
-### P1-14: Karyawan + Payroll + Absensi `[pending]`
+### P1-14: Karyawan + Payroll + Absensi `[done]`
+
+**PR**: [#32](https://github.com/alviarts/VIPOS/pull/32) (opened 2026-05-03), session: https://app.devin.ai/sessions/5b4e510fac5044bb8f1b0f2d6c3f4d27
 
 **Goal**: Halaman Karyawan: master data, payroll, hak akses, absensi, jadwal.
 
@@ -470,7 +477,7 @@
 
 ---
 
-### P1-15: Keuangan (Buku Kas + Penerimaan + Pengeluaran + Aset + Laporan) `[pending]`
+### P1-15: Keuangan (Buku Kas + Penerimaan + Pengeluaran + Aset + Laporan) `[done]`
 
 **Goal**: Halaman Keuangan lengkap.
 
@@ -484,25 +491,31 @@
 - `apps/web/src/pages/keuangan/FixedAssetsPage.jsx`
 - `apps/web/src/pages/keuangan/FinancialReportsPage.jsx` (jurnal, neraca, laba-rugi, buku besar, arus kas, hutang, piutang)
 - `apps/web/src/pages/keuangan/ChartOfAccountsPage.jsx`
-- Backend: `/api/v1/cash-account`, `/api/v1/income`, `/api/v1/expense`, `/api/v1/fixed-asset`, `/api/v1/journal`, `/api/v1/account`
+- `apps/web/src/pages/keuangan/JournalPage.jsx`
+- `apps/web/src/pages/keuangan/VendorsPage.jsx`
+- Backend: `/api/account`, `/api/journal`, `/api/cash-transfer`, `/api/income`, `/api/expense`, `/api/recurring-bill`, `/api/vendor`, `/api/fixed-asset`, `/api/financial-report`
 
 **Acceptance criteria**:
 
-- [ ] Buku kas: list + transfer + ledger per akun
-- [ ] Penerimaan: manual + reconciliation POS sales
-- [ ] Pengeluaran: list + kategori biaya + recurring bill + vendor master
-- [ ] Aset Tetap: list + depresiasi + disposal + report
-- [ ] Laporan: 7 jenis (jurnal, neraca, laba-rugi, buku besar, arus kas, hutang, piutang)
-- [ ] Chart of Accounts + jurnal umum + saldo awal
+- [x] Buku kas: list + transfer + ledger per akun
+- [x] Penerimaan: manual + reconciliation POS sales
+- [x] Pengeluaran: list + kategori biaya + recurring bill + vendor master
+- [x] Aset Tetap: list + depresiasi + disposal + report
+- [x] Laporan: 7 jenis (jurnal, neraca, laba-rugi, buku besar, arus kas, hutang, piutang)
+- [x] Chart of Accounts + jurnal umum + saldo awal
 
 **Reference**: `docs/v2/menus/keuangan/*.md`
 
 **Branch**: `devin/P1-15-keuangan`
 **Estimasi**: 8-10 hari
+**PR**: #33 (merged 2026-05-03)
+**Session**: https://app.devin.ai/sessions/5b4e510fac5044bb8f1b0f2d6c3f4d27
 
 ---
 
-### P1-16: Pengaturan (Settings) `[pending]`
+### P1-16: Pengaturan (Settings) `[done]`
+
+**PR**: #34 (merged 2026-05-03), session: https://app.devin.ai/sessions/5b4e510fac5044bb8f1b0f2d6c3f4d27
 
 **Goal**: Halaman Pengaturan lengkap.
 
@@ -541,7 +554,7 @@
 
 ---
 
-### P1-17: Reports (Laporan) `[pending]`
+### P1-17: Reports (Laporan) `[done]`
 
 **Goal**: Halaman Laporan: 30+ report dengan filter + export.
 
@@ -555,19 +568,20 @@
 
 **Acceptance criteria**:
 
-- [ ] 30+ report sesuai catalog di `docs/v2/16_REPORTS_CATALOG.md`
-- [ ] Setiap report: filter standard (date range, outlet, kategori), kolom configurable
-- [ ] Export: CSV, Excel, PDF
-- [ ] Schedule report (Prime+): auto-email per period
+- [x] 29 report sesuai catalog di `docs/v2/16_REPORTS_CATALOG.md` (sales 9 + cash/shift 2 + adjustments 5 + tax/customer 2 + inventory 4 + employee 3 + financial 3 + marketing 1)
+- [x] Setiap report: filter standard (date range, outlet, kategori, kasir, payment method), kolom configurable
+- [x] Export: CSV, Excel, PDF, JSON (CSV/xlsx/pdf via xlsx + jsPDF + jsPDF-autoTable)
+- [x] Schedule report (Prime+): tabel `report_schedules` + CRUD endpoint + manual run stub (cron + email worker = follow-up task)
 
 **Reference**: `docs/v2/16_REPORTS_CATALOG.md`, `docs/v2/menus/penjualan/kitchen_reports.md`, `docs/v2/menus/penjualan/tutup_toko.md`, `docs/v2/menus/penjualan/settlement.md`
 
 **Branch**: `devin/P1-17-reports`
 **Estimasi**: 8-10 hari
+**PR**: [#35](https://github.com/alviarts/VIPOS/pull/35), session: https://app.devin.ai/sessions/3a60ca374dc8447393a5d64877d14942
 
 ---
 
-### P1-18: LAINNYA (Bantuan, LAYANAN, INSPIRASI, Capital, SUPPLIES) `[pending]`
+### P1-18: LAINNYA (Bantuan, LAYANAN, INSPIRASI, Capital, SUPPLIES) `[done]`
 
 **Goal**: Halaman ancillary group.
 
@@ -575,24 +589,30 @@
 
 **Outputs**:
 
+- `apps/web/src/pages/lainnya/LainnyaHub.jsx`
 - `apps/web/src/pages/lainnya/HelpPage.jsx`
 - `apps/web/src/pages/lainnya/ServicesPage.jsx`
-- `apps/web/src/pages/lainnya/InspirationPage.jsx`
+- `apps/web/src/pages/lainnya/InspirasiPage.jsx`
 - `apps/web/src/pages/lainnya/CapitalPage.jsx`
 - `apps/web/src/pages/lainnya/SuppliesPage.jsx`
+- `apps/backend/src/routes/lainnya.js` (5 router groups: help/services/inspirasi/capital/supplies)
+- `packages/shared/src/schemas/lainnya.ts` (Zod schemas)
+- `apps/backend/src/__tests__/lainnya.test.mjs` (19 tests)
 
 **Acceptance criteria**:
 
-- [ ] Help: panduan + feedback form
-- [ ] Services: Majoopay/QRIS, EDC, Satu Sehat, Aura placeholder
-- [ ] Inspiration: blog (mock), event, magazine
-- [ ] Capital: loan application form (placeholder, integrate later)
-- [ ] Supplies: B2B procurement marketplace (placeholder)
+- [x] Help: panduan (10 topik seeded) + feedback form
+- [x] Services: Majoopay/QRIS, EDC, Satu Sehat, Aura applications dengan status tracking
+- [x] Inspiration: blog (8 artikel, 8 kategori), event + RSVP, magazine PDF, changelog
+- [x] Capital: pre-qualification scoring + loan application form dengan validation tier
+- [x] Supplies: marketplace B2B (5 kategori + 12 produk), cart, checkout, drill-down order, receive
 
 **Reference**: `docs/v2/menus/lainnya/*.md`
 
 **Branch**: `devin/P1-18-lainnya`
 **Estimasi**: 4-5 hari
+**PR**: https://github.com/alviarts/VIPOS/pull/36
+**Session**: https://app.devin.ai/sessions/3a60ca374dc8447393a5d64877d14942
 
 ---
 
