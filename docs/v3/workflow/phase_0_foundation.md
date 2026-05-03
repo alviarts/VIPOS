@@ -9,7 +9,9 @@
 
 ---
 
-### P0-01: Monorepo struktur + workspaces  `[pending]`
+### P0-01: Monorepo struktur + workspaces  `[done]`
+
+> PR: [#6](https://github.com/alviarts/VIPOS/pull/6) (open, awaiting review/merge), session: https://app.devin.ai/sessions/25c7eea136d1457c8c4dda8d16819659
 
 **Goal**: Reorganize repo jadi monorepo dengan workspaces (web, backend, android, docs, scripts).
 
