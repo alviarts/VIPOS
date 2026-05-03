@@ -636,6 +636,80 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_b2b_invoices_due ON b2b_invoices(due_date);
     CREATE INDEX IF NOT EXISTS idx_b2b_invoice_items_inv ON b2b_invoice_items(invoice_id);
     CREATE INDEX IF NOT EXISTS idx_b2b_receipts_invoice ON b2b_receipts(invoice_id);
+
+    -- P1-13: Appointment / reservasi.
+    CREATE TABLE IF NOT EXISTS staff (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      phone TEXT,
+      email TEXT,
+      role TEXT,
+      color TEXT DEFAULT '#04C99E',
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS appointment_resources (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      resource_type TEXT NOT NULL DEFAULT 'room' CHECK(resource_type IN ('room', 'table', 'chair', 'equipment', 'other')),
+      capacity INTEGER DEFAULT 1,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS appointments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ref_no TEXT UNIQUE NOT NULL,
+      customer_id INTEGER,
+      customer_name TEXT,
+      customer_phone TEXT,
+      staff_id INTEGER,
+      resource_id INTEGER,
+      start_at DATETIME NOT NULL,
+      end_at DATETIME NOT NULL,
+      duration_minutes INTEGER NOT NULL DEFAULT 30,
+      status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW')),
+      notes TEXT,
+      deposit_amount REAL DEFAULT 0,
+      total REAL NOT NULL DEFAULT 0,
+      transaction_id INTEGER,
+      checked_in_at DATETIME,
+      completed_at DATETIME,
+      cancelled_at DATETIME,
+      cancel_reason TEXT,
+      reminders_config TEXT,
+      reminder_24h_sent_at DATETIME,
+      reminder_1h_sent_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+      FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE SET NULL,
+      FOREIGN KEY (resource_id) REFERENCES appointment_resources(id) ON DELETE SET NULL,
+      FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS appointment_services (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      appointment_id INTEGER NOT NULL,
+      product_id INTEGER,
+      service_name TEXT NOT NULL,
+      qty INTEGER NOT NULL DEFAULT 1,
+      price REAL NOT NULL DEFAULT 0,
+      duration_minutes INTEGER DEFAULT 0,
+      subtotal REAL NOT NULL DEFAULT 0,
+      FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE,
+      FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_appointments_status ON appointments(status);
+    CREATE INDEX IF NOT EXISTS idx_appointments_staff ON appointments(staff_id);
+    CREATE INDEX IF NOT EXISTS idx_appointments_start ON appointments(start_at);
+    CREATE INDEX IF NOT EXISTS idx_appointments_customer ON appointments(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_appointment_services_appt ON appointment_services(appointment_id);
+    CREATE INDEX IF NOT EXISTS idx_staff_active ON staff(is_active);
   `);
 
   // --- Idempotent migrations for existing databases (so users that ran old seeds

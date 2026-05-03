@@ -63,6 +63,10 @@ function buildApp(opts = {}) {
   app.use('/api/invoice', require('./routes/invoice'));
   app.use('/api/receipt', require('./routes/receipt'));
   app.use('/api/aging-report', require('./routes/aging-report'));
+  app.use('/api/staff', require('./routes/staff'));
+  app.use('/api/appointment-resource', require('./routes/appointment-resource'));
+  app.use('/api/appointment', require('./routes/appointment'));
+  app.use('/api/calendar', require('./routes/calendar'));
 
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
