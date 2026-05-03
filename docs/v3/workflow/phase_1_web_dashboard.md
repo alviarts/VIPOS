@@ -168,11 +168,11 @@
 
 **Acceptance criteria**:
 
-- [ ] List kategori per departemen
-- [ ] CRUD kategori (already sebagian di PR #1, lengkapi)
-- [ ] CRUD departemen
-- [ ] Drag-reorder kategori dalam departemen
-- [ ] Image/icon per kategori (optional)
+- [x] List kategori per departemen
+- [x] CRUD kategori (already sebagian di PR #1, lengkapi)
+- [x] CRUD departemen
+- [x] Drag-reorder kategori dalam departemen + cross-dept move
+- [x] Image/icon + warna per kategori
 
 **Reference**: `docs/v2/menus/penjualan/produk_master.md` (section kategori)
 
@@ -183,7 +183,7 @@
 
 ### P1-06: Pelanggan (Customer) + grouping + tag `[done]`
 
-> PR: [#21](https://github.com/alviarts/VIPOS/pull/21), session: https://app.devin.ai/sessions/87cd360ce1084f07897d809585523a61
+> PR: [#21](https://github.com/alviarts/VIPOS/pull/21) (merged 2026-05-03), session: https://app.devin.ai/sessions/87cd360ce1084f07897d809585523a61
 
 **Goal**: Halaman Pelanggan dengan list + form + grouping + tag + import.
 
@@ -199,13 +199,13 @@
 
 **Acceptance criteria**:
 
-- [ ] List pelanggan dengan filter (group, tag, status), search by nama/phone/email
-- [ ] CRUD pelanggan (already sebagian, lengkapi)
-- [ ] Group pelanggan (Member, VIP, Reseller)
-- [ ] Tag pelanggan (multi-tag)
-- [ ] Detail page: history transaksi, total spent, point loyalty, deposit balance
-- [ ] Import CSV (mapping kolom)
-- [ ] Export CSV
+- [x] List pelanggan dengan filter (group, tag, status), search by nama/phone/email
+- [x] CRUD pelanggan (already sebagian, lengkapi)
+- [x] Group pelanggan (Member, VIP, Reseller)
+- [x] Tag pelanggan (multi-tag)
+- [x] Detail page: history transaksi, total spent, point loyalty, deposit balance
+- [x] Import CSV (mapping kolom)
+- [x] Export CSV
 
 **Reference**: `docs/v2/menus/penjualan/pelanggan.md`
 
@@ -216,7 +216,9 @@
 
 ### P1-07: Inventory (Daftar Stok + opname + mutasi) `[done]`
 
-> PR: [#22](https://github.com/alviarts/VIPOS/pull/22), session: https://app.devin.ai/sessions/87cd360ce1084f07897d809585523a61
+> PR: [#22](https://github.com/alviarts/VIPOS/pull/22) (merged 2026-05-03), session: https://app.devin.ai/sessions/87cd360ce1084f07897d809585523a61
+>
+> Hotfix DB migration order: PR [#23](https://github.com/alviarts/VIPOS/pull/23) (merged 2026-05-03)
 
 **Goal**: Halaman Inventory: daftar stok per outlet + stok opname + mutasi antar outlet.
 
