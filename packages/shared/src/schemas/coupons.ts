@@ -35,7 +35,8 @@ export const CouponCreateSchema = z
       .string()
       .min(3, "Kode kupon minimal 3 karakter")
       .max(64)
-      .regex(/^[A-Z0-9_-]+$/, "Kode kupon hanya huruf besar, angka, _, -"),
+      .regex(/^[A-Za-z0-9_-]+$/, "Kode kupon hanya huruf, angka, _, -")
+      .transform((v) => v.toUpperCase()),
     max_uses: z.coerce.number().int().min(1).max(100000).default(1),
     assigned_customer_id: z.coerce.number().int().positive().optional().nullable(),
     valid_from: z.string().datetime().optional().nullable(),
