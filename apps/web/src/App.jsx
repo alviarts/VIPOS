@@ -44,6 +44,17 @@ import ExpensesPage from './pages/keuangan/ExpensesPage';
 import VendorsPage from './pages/keuangan/VendorsPage';
 import FixedAssetsPage from './pages/keuangan/FixedAssetsPage';
 import FinancialReportsPage from './pages/keuangan/FinancialReportsPage';
+import AccountProfilePage from './pages/pengaturan/AccountProfilePage';
+import OutletsPage from './pages/pengaturan/OutletsPage';
+import FloorPlanPage from './pages/pengaturan/FloorPlanPage';
+import NotificationsPage from './pages/pengaturan/NotificationsPage';
+import SubscriptionPage from './pages/pengaturan/SubscriptionPage';
+import PaymentSettingsPage from './pages/pengaturan/PaymentSettingsPage';
+import PrintSettingsPage from './pages/pengaturan/PrintSettingsPage';
+import CashierSettingsPage from './pages/pengaturan/CashierSettingsPage';
+import TerminalsPage from './pages/pengaturan/TerminalsPage';
+import SupportAccessPage from './pages/pengaturan/SupportAccessPage';
+import ImportExportPage from './pages/pengaturan/ImportExportPage';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -113,6 +124,19 @@ export default function App() {
         <Route path="settings" element={<SettingsPage />} />
         <Route path="settings/change-password" element={<ChangePasswordPage />} />
         <Route path="settings/2fa" element={<Setup2FAPage />} />
+        <Route path="setup-2fa" element={<Setup2FAPage />} />
+        {/* P1-16 Pengaturan / Settings. */}
+        <Route path="settings/profile" element={<AccountProfilePage />} />
+        <Route path="settings/outlets" element={<OutletsPage />} />
+        <Route path="settings/outlets/:id/floor-plan" element={<FloorPlanPage />} />
+        <Route path="settings/notifications" element={<NotificationsPage />} />
+        <Route path="settings/subscription" element={<SubscriptionPage />} />
+        <Route path="settings/payments" element={<PaymentSettingsPage />} />
+        <Route path="settings/print" element={<PrintSettingsPage />} />
+        <Route path="settings/cashier" element={<CashierSettingsPage />} />
+        <Route path="settings/terminals" element={<TerminalsPage />} />
+        <Route path="settings/support-access" element={<SupportAccessPage />} />
+        <Route path="settings/import-export" element={<ImportExportPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
