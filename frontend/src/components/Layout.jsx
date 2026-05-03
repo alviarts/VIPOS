@@ -4,18 +4,20 @@ import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, ShoppingCart, Package, Receipt, BarChart3,
   Settings, LogOut, Menu, X, Store, ChevronDown, Bell, Users,
-  Warehouse
+  Warehouse, Tag, Wallet,
 } from 'lucide-react';
 
 const navigation = [
-  { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-  { name: 'Kasir', path: '/cashier', icon: ShoppingCart },
-  { name: 'Produk', path: '/products', icon: Package },
-  { name: 'Inventori', path: '/products', icon: Warehouse, disabled: true },
-  { name: 'Transaksi', path: '/transactions', icon: Receipt },
-  { name: 'Laporan', path: '/reports', icon: BarChart3 },
-  { name: 'Pelanggan', path: '/settings', icon: Users, disabled: true },
-  { name: 'Pengaturan', path: '/settings', icon: Settings },
+  { name: 'Dashboard',  path: '/dashboard',    icon: LayoutDashboard },
+  { name: 'Kasir',      path: '/cashier',      icon: ShoppingCart },
+  { name: 'Produk',     path: '/products',     icon: Package },
+  { name: 'Kategori',   path: '/categories',   icon: Tag },
+  { name: 'Inventori',  path: '/inventory',    icon: Warehouse },
+  { name: 'Pelanggan',  path: '/customers',    icon: Users },
+  { name: 'Keuangan',   path: '/finance',      icon: Wallet },
+  { name: 'Transaksi',  path: '/transactions', icon: Receipt },
+  { name: 'Laporan',    path: '/reports',      icon: BarChart3 },
+  { name: 'Pengaturan', path: '/settings',     icon: Settings },
 ];
 
 export default function Layout() {
