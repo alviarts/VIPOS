@@ -11,6 +11,8 @@ import CashierPage from './pages/CashierPage';
 import ProductsPage from './pages/ProductsPage';
 import CategoriesPage from './pages/CategoriesPage';
 import CustomersPage from './pages/CustomersPage';
+import CustomerDetailPage from './pages/CustomerDetailPage';
+import CustomerGroupsPage from './pages/CustomerGroupsPage';
 import InventoryPage from './pages/InventoryPage';
 import FinancePage from './pages/FinancePage';
 import TransactionsPage from './pages/TransactionsPage';
@@ -49,6 +51,8 @@ export default function App() {
         <Route path="products" element={<ProductsPage />} />
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="customers" element={<CustomersPage />} />
+        <Route path="customers/:id" element={<CustomerDetailPage />} />
+        <Route path="customer-groups" element={<CustomerGroupsPage />} />
         <Route path="inventory" element={<InventoryPage />} />
         <Route path="finance" element={<FinancePage />} />
         <Route path="transactions" element={<TransactionsPage />} />
