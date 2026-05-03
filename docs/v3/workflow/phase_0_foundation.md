@@ -169,28 +169,28 @@ Catatan:
 
 ---
 
-### P0-04: Type-safe API contract (OpenAPI + Zod) `[pending]`
+### P0-04: Type-safe API contract (OpenAPI + Zod)  `[done]`
+
+> PR: [#9](https://github.com/alviarts/VIPOS/pull/9), session: https://app.devin.ai/sessions/25c7eea136d1457c8c4dda8d16819659
 
 **Goal**: Define schema API menggunakan Zod (runtime validation) + generate OpenAPI spec untuk dokumentasi. Web client + backend pakai schema yang sama.
 
 **Dependencies**: P0-01
 
 **Outputs**:
-
-- `packages/shared/src/schemas/{resource}.ts` — Zod schemas per resource (auth, products, customers, dst)
-- `packages/shared/src/types/index.ts` — TypeScript types derived
-- Backend route handlers: validate request/response pakai schemas
-- Web API client: generate dari schemas (atau pakai `tRPC` style)
-- `docs/api/openapi.json` — generated OpenAPI spec
-- Swagger UI accessible di `/api/docs` (dev mode)
+- `packages/shared/src/schemas/{resource}.ts` — Zod schemas per resource (auth, products, categories, customers, finance, inventory)
+- `packages/shared/src/index.ts` — barrel export, TypeScript types derived via `z.infer`
+- Backend `apps/backend/src/middleware/validate.js` — Zod validation middleware (safeParse → 400 dengan field-level details)
+- Backend route handlers (auth, products, categories, customers, finance, inventory) pakai `validate({ body: SchemaName })`
+- Backend `apps/backend/src/api-docs.js` — Swagger UI mount + raw OpenAPI 3.1 spec
+- `GET /api/docs` (Swagger UI) + `GET /api/docs.json` (OpenAPI spec, di-generate runtime dari Zod registry)
 
 **Acceptance criteria**:
-
-- [ ] 5 existing resources (auth, products, categories, customers, finance, inventory) punya Zod schema
-- [ ] Backend reject invalid request body dengan 400 + error detail
-- [ ] Web client type-safe call ke backend (TypeScript autocomplete)
-- [ ] OpenAPI spec generated otomatis dari Zod schemas
-- [ ] Swagger UI berfungsi di dev
+- [x] 6 existing resources (auth, products, categories, customers, finance, inventory) punya Zod schema
+- [x] Backend reject invalid request body dengan 400 + error detail (field path + message + code)
+- [x] Web client dapat type-safe call ke backend via `import type { ProductCreate, LoginRequest } from '@vipos/shared'`
+- [x] OpenAPI spec generated otomatis dari Zod schemas (registry pattern, 13 paths, 23 components)
+- [x] Swagger UI berfungsi di dev (mounted di `/api/docs`)
 
 **Branch**: `devin/P0-04-api-contract`
 **Estimasi**: 2-3 hari
