@@ -1,235 +1,490 @@
-<!DOCTYPE html><html class="_fixed" lang="en"><head><script>(function(w,i,g){w[g]=w[g]||[];if(typeof w[g].push=='function')w[g].push(i)})
-(window,'GTM-WZRTMN4','google_tags_first_party');</script><script>(function(w,d,s,l){w[l]=w[l]||[];(function(){w[l].push(arguments);})('set', 'developer_id.dYzg1YT', true);
-		w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-		j=d.createElement(s);j.async=true;j.src='/o4mg/';
-		f.parentNode.insertBefore(j,f);
-		})(window,document,'script','dataLayer');</script><meta charset="UTF-8"><title>Log In Pengguna | majoo</title><meta name="keywords" content="Majoo Manager"><meta name="description" content="Monitor semua cabang darimanapun dan mudah mengatur penjualan, absensi, stok, keuangan, pelanggan loyalti, promosi."><meta name="author" content="Majoo"><meta name="theme-color" content="#04C99E"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><link rel="shortcut icon" href="/assets/images/favicon.png"><link rel="stylesheet" href="/assets/vendor/bootstrap/css/bootstrap.min.css"><link rel="stylesheet" href="/assets/stylesheets/theme.min.css"><link rel="stylesheet" href="/assets/stylesheets/init.css"><link rel="stylesheet" href="/assets/stylesheets/init-sm.css" media="screen and (min-width: 450px)"><link rel="stylesheet" href="/assets/stylesheets/init-redesign.css"><link rel="canonical" href="https://dashboard.majoo.id"><style>.pac-container {
-            z-index: 9999 !important;
-        }
+<!doctype html>
+<html class="_fixed" lang="en">
+  <head>
+    <script>
+      (function (w, i, g) {
+        w[g] = w[g] || [];
+        if (typeof w[g].push == 'function') w[g].push(i);
+      })(window, 'GTM-WZRTMN4', 'google_tags_first_party');
+    </script>
+    <script>
+      (function (w, d, s, l) {
+        w[l] = w[l] || [];
+        (function () {
+          w[l].push(arguments);
+        })('set', 'developer_id.dYzg1YT', true);
+        w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+        var f = d.getElementsByTagName(s)[0],
+          j = d.createElement(s);
+        j.async = true;
+        j.src = '/o4mg/';
+        f.parentNode.insertBefore(j, f);
+      })(window, document, 'script', 'dataLayer');
+    </script>
+    <meta charset="UTF-8" />
+    <title>Log In Pengguna | majoo</title>
+    <meta name="keywords" content="Majoo Manager" />
+    <meta
+      name="description"
+      content="Monitor semua cabang darimanapun dan mudah mengatur penjualan, absensi, stok, keuangan, pelanggan loyalti, promosi."
+    />
+    <meta name="author" content="Majoo" />
+    <meta name="theme-color" content="#04C99E" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <link rel="shortcut icon" href="/assets/images/favicon.png" />
+    <link rel="stylesheet" href="/assets/vendor/bootstrap/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="/assets/stylesheets/theme.min.css" />
+    <link rel="stylesheet" href="/assets/stylesheets/init.css" />
+    <link
+      rel="stylesheet"
+      href="/assets/stylesheets/init-sm.css"
+      media="screen and (min-width: 450px)"
+    />
+    <link rel="stylesheet" href="/assets/stylesheets/init-redesign.css" />
+    <link rel="canonical" href="https://dashboard.majoo.id" />
+    <style>
+      .pac-container {
+        z-index: 9999 !important;
+      }
 
-        .page-loading {
-            position: absolute;
-            top: 50%;
-            left: 0;
-            width: 100%;
-            -webkit-transform: translatey(-50%);
-            -moz-transform: translatey(-50%);
-            -ms-transform: translatey(-50%);
-            -o-transform: translatey(-50%);
-            transform: translatey(-50%);
-        }
+      .page-loading {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        width: 100%;
+        -webkit-transform: translatey(-50%);
+        -moz-transform: translatey(-50%);
+        -ms-transform: translatey(-50%);
+        -o-transform: translatey(-50%);
+        transform: translatey(-50%);
+      }
 
-        .page-loading .logo {
-            position: absolute;
-            left: 50%;
-            top: -80px;
-            -webkit-transform: translateX(-50%);
-            -moz-transform: translateX(-50%);
-            -ms-transform: translateX(-50%);
-            -o-transform: translateX(-50%);
-            transform: translateX(-50%);
-        }
+      .page-loading .logo {
+        position: absolute;
+        left: 50%;
+        top: -80px;
+        -webkit-transform: translateX(-50%);
+        -moz-transform: translateX(-50%);
+        -ms-transform: translateX(-50%);
+        -o-transform: translateX(-50%);
+        transform: translateX(-50%);
+      }
 
-        .page-loading .loader {
-            height: 2px;
-            width: 100%;
-            position: relative;
-            overflow: hidden;
-            background-color: #ddd;
-        }
+      .page-loading .loader {
+        height: 2px;
+        width: 100%;
+        position: relative;
+        overflow: hidden;
+        background-color: #ddd;
+      }
 
-        .page-loading .loader:before {
-            display: block;
-            position: absolute;
-            content: "";
-            left: -200px;
-            width: 200px;
-            height: 4px;
-            background-color: #04C99E;
-            animation: loading 2s linear infinite;
-        }
+      .page-loading .loader:before {
+        display: block;
+        position: absolute;
+        content: '';
+        left: -200px;
+        width: 200px;
+        height: 4px;
+        background-color: #04c99e;
+        animation: loading 2s linear infinite;
+      }
 
-        @keyframes loading {
-            from {
-                left: -200px;
-                width: 30%;
-            }
-            50% {
-                width: 30%;
-            }
-            70% {
-                width: 70%;
-            }
-            80% {
-                left: 50%;
-            }
-            95% {
-                left: 120%;
-            }
-            to {
-                left: 100%;
-            }
-        }</style><script defer="defer" src="/assets/runtime~main.4ace08f0b0f01aeca9f9.js"></script><script defer="defer" src="/assets/npm.vendors.09a42023e65ae1b2ef08.js"></script><script defer="defer" src="/assets/npm.firebase.bbd26a184db01f16f637.js"></script><script defer="defer" src="/assets/npm.majoo-ui.f8ce202d5c377011a583.js"></script><script defer="defer" src="/assets/npm.react-core.5104a433082f5254c308.js"></script><script defer="defer" src="/assets/npm.moment.3c2a2fa953f996630f78.js"></script><script defer="defer" src="/assets/main.01b5d4598e6e6a4b5815.js"></script><link href="/assets/npm.unknown.dd6675585b4e6d4a9f7f.css" rel="stylesheet"><link href="/assets/main.7709322a0e9c33efabfb.css" rel="stylesheet"><style></style><style type="text/css">/**
+      @keyframes loading {
+        from {
+          left: -200px;
+          width: 30%;
+        }
+        50% {
+          width: 30%;
+        }
+        70% {
+          width: 70%;
+        }
+        80% {
+          left: 50%;
+        }
+        95% {
+          left: 120%;
+        }
+        to {
+          left: 100%;
+        }
+      }
+    </style>
+    <script defer="defer" src="/assets/runtime~main.4ace08f0b0f01aeca9f9.js"></script>
+    <script defer="defer" src="/assets/npm.vendors.09a42023e65ae1b2ef08.js"></script>
+    <script defer="defer" src="/assets/npm.firebase.bbd26a184db01f16f637.js"></script>
+    <script defer="defer" src="/assets/npm.majoo-ui.f8ce202d5c377011a583.js"></script>
+    <script defer="defer" src="/assets/npm.react-core.5104a433082f5254c308.js"></script>
+    <script defer="defer" src="/assets/npm.moment.3c2a2fa953f996630f78.js"></script>
+    <script defer="defer" src="/assets/main.01b5d4598e6e6a4b5815.js"></script>
+    <link href="/assets/npm.unknown.dd6675585b4e6d4a9f7f.css" rel="stylesheet" />
+    <link href="/assets/main.7709322a0e9c33efabfb.css" rel="stylesheet" />
+    <style></style>
+    <style type="text/css">
+      /**
  * Snippets from animate.css
  * Credit goes to https://github.com/daneden
  * github.com/daneden/animate.css
 */
-.rsw_1z {
-  -webkit-animation-duration: .8192s;
-  animation-duration: .8192s;
-  -webkit-animation-fill-mode: backwards;
-  animation-fill-mode: backwards;
-}
+      .rsw_1z {
+        -webkit-animation-duration: 0.8192s;
+        animation-duration: 0.8192s;
+        -webkit-animation-fill-mode: backwards;
+        animation-fill-mode: backwards;
+      }
 
-/** fadeInRight */
-@-webkit-keyframes rsw_1M {
-  from {
-    opacity: 0;
-    -webkit-transform: translate3d(100%, 0, 0);
-    transform: translate3d(100%, 0, 0);
-  }
+      /** fadeInRight */
+      @-webkit-keyframes rsw_1M {
+        from {
+          opacity: 0;
+          -webkit-transform: translate3d(100%, 0, 0);
+          transform: translate3d(100%, 0, 0);
+        }
 
-  to {
-    opacity: 1;
-    -webkit-transform: none;
-    transform: none;
-  }
-}
+        to {
+          opacity: 1;
+          -webkit-transform: none;
+          transform: none;
+        }
+      }
 
-@keyframes rsw_1M {
-  from {
-    opacity: 0;
-    -webkit-transform: translate3d(100%, 0, 0);
-    transform: translate3d(100%, 0, 0);
-  }
+      @keyframes rsw_1M {
+        from {
+          opacity: 0;
+          -webkit-transform: translate3d(100%, 0, 0);
+          transform: translate3d(100%, 0, 0);
+        }
 
-  to {
-    opacity: 1;
-    -webkit-transform: none;
-    transform: none;
-  }
-}
+        to {
+          opacity: 1;
+          -webkit-transform: none;
+          transform: none;
+        }
+      }
 
-.rsw_1M {
-  -webkit-animation-name: rsw_1M;
-  animation-name: rsw_1M;
-}
+      .rsw_1M {
+        -webkit-animation-name: rsw_1M;
+        animation-name: rsw_1M;
+      }
 
-/** fadeInLeft */
-@-webkit-keyframes rsw_19 {
-  from {
-    opacity: 0;
-    -webkit-transform: translate3d(-100%, 0, 0);
-    transform: translate3d(-100%, 0, 0);
-  }
+      /** fadeInLeft */
+      @-webkit-keyframes rsw_19 {
+        from {
+          opacity: 0;
+          -webkit-transform: translate3d(-100%, 0, 0);
+          transform: translate3d(-100%, 0, 0);
+        }
 
-  to {
-    opacity: 1;
-    -webkit-transform: none;
-    transform: none;
-  }
-}
+        to {
+          opacity: 1;
+          -webkit-transform: none;
+          transform: none;
+        }
+      }
 
-@keyframes rsw_19 {
-  from {
-    opacity: 0;
-    -webkit-transform: translate3d(-100%, 0, 0);
-    transform: translate3d(-100%, 0, 0);
-  }
+      @keyframes rsw_19 {
+        from {
+          opacity: 0;
+          -webkit-transform: translate3d(-100%, 0, 0);
+          transform: translate3d(-100%, 0, 0);
+        }
 
-  to {
-    opacity: 1;
-    -webkit-transform: none;
-    transform: none;
-  }
-}
+        to {
+          opacity: 1;
+          -webkit-transform: none;
+          transform: none;
+        }
+      }
 
-.rsw_19 {
-  -webkit-animation-name: rsw_19;
-  animation-name: rsw_19;
-}
+      .rsw_19 {
+        -webkit-animation-name: rsw_19;
+        animation-name: rsw_19;
+      }
 
-/** fadeOutRight */
-@-webkit-keyframes rsw_3C {
-  from {
-    opacity: 1;
-  }
+      /** fadeOutRight */
+      @-webkit-keyframes rsw_3C {
+        from {
+          opacity: 1;
+        }
 
-  to {
-    opacity: 0;
-    -webkit-transform: translate3d(100%, 0, 0);
-    transform: translate3d(100%, 0, 0);
-  }
-}
+        to {
+          opacity: 0;
+          -webkit-transform: translate3d(100%, 0, 0);
+          transform: translate3d(100%, 0, 0);
+        }
+      }
 
-@keyframes rsw_3C {
-  from {
-    opacity: 1;
-  }
+      @keyframes rsw_3C {
+        from {
+          opacity: 1;
+        }
 
-  to {
-    opacity: 0;
-    -webkit-transform: translate3d(100%, 0, 0);
-    transform: translate3d(100%, 0, 0);
-  }
-}
+        to {
+          opacity: 0;
+          -webkit-transform: translate3d(100%, 0, 0);
+          transform: translate3d(100%, 0, 0);
+        }
+      }
 
-.rsw_3C {
-  -webkit-animation-name: rsw_3C;
-  animation-name: rsw_3C;
-}
+      .rsw_3C {
+        -webkit-animation-name: rsw_3C;
+        animation-name: rsw_3C;
+      }
 
-/** fadeOutLeft */
-@-webkit-keyframes rsw_1u {
-  from {
-    opacity: 1;
-  }
+      /** fadeOutLeft */
+      @-webkit-keyframes rsw_1u {
+        from {
+          opacity: 1;
+        }
 
-  to {
-    opacity: 0;
-    -webkit-transform: translate3d(-100%, 0, 0);
-    transform: translate3d(-100%, 0, 0);
-  }
-}
+        to {
+          opacity: 0;
+          -webkit-transform: translate3d(-100%, 0, 0);
+          transform: translate3d(-100%, 0, 0);
+        }
+      }
 
-@keyframes rsw_1u {
-  from {
-    opacity: 1;
-  }
+      @keyframes rsw_1u {
+        from {
+          opacity: 1;
+        }
 
-  to {
-    opacity: 0;
-    -webkit-transform: translate3d(-100%, 0, 0);
-    transform: translate3d(-100%, 0, 0);
-  }
-}
+        to {
+          opacity: 0;
+          -webkit-transform: translate3d(-100%, 0, 0);
+          transform: translate3d(-100%, 0, 0);
+        }
+      }
 
-.rsw_1u {
-  -webkit-animation-name: rsw_1u;
-  animation-name: rsw_1u;
-}
-</style><style type="text/css">/** Step Wizard */
-.rsw_2Y {
-    position: relative;
-}
+      .rsw_1u {
+        -webkit-animation-name: rsw_1u;
+        animation-name: rsw_1u;
+      }
+    </style>
+    <style type="text/css">
+      /** Step Wizard */
+      .rsw_2Y {
+        position: relative;
+      }
 
-.rsw_2f {
-    opacity: 0;
-    pointer-events: none;
-    position: absolute;
-    top: 0;
-    width: 100%;
-    z-index: 0;
-}
+      .rsw_2f {
+        opacity: 0;
+        pointer-events: none;
+        position: absolute;
+        top: 0;
+        width: 100%;
+        z-index: 0;
+      }
 
-.rsw_3G {
-    opacity: 1;
-    pointer-events: inherit;
-    position: relative;
-    z-index: 1;
-}
-</style><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&amp;display=swap"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&amp;display=swap"><script src="https://www.googletagmanager.com/gtag/js?l=dataLayer&amp;id=G-YZEJCQ4JEW" async=""></script></head><body><div class="page-loading"><img src="/assets/images/logo-light.png" alt="majoo" class="logo"><div class="loader"></div></div><div class="sekeleton-container sekeleton-container-redesign hide"><div class="sekeleton-grid"><div class="md-hide"><div class="logo-sekeleton"></div><div class="sekeleton-bar dark-bar space-md"></div><div class="sekeleton-bar space-sm"></div><div class="sekeleton-bar w-md space-xl"></div><div class="sekeleton-bar rect-bar"></div></div><div><div class="mobile-only"><div class="logo-sekeleton w-lg"></div><div class="sekeleton-bar space-sm w-lg"></div><div class="sekeleton-bar w-md"></div></div><div class="sekeleton-card"><div class="sekeleton-bar dark-bar space-md"></div><div class="sekeleton-bar space-sm"></div><div class="sekeleton-bar w-md space-2xl"></div><div class="sekeleton-bar space-sm"></div><div class="sekeleton-bar w-md space-xl"></div><div class="sekeleton-bar space-sm"></div><div class="sekeleton-bar w-md space-3xl"></div><div class="sekeleton-bar button-bar"></div></div></div></div></div><div class="main-skeleton-container hide"><header class="header" style="z-index: 1;"><div class="logo-container"><div class="logo"><div class="sk-base sk-grey sk-normal sk-xs"></div></div></div><div class="header-right"><div id="userbox" class="userbox"><div class="sk-base sk-grey sk-normal sk-xs"></div></div></div></header><div class="inner-wrapper"><aside id="sidebar-left" class="sidebar-left" style="z-index: 1;"><div class="sidebar-header"><div class="sidebar-title">&nbsp;</div></div><div class="nano text-center"><div class="sk-base sk-grey sk-normal sk-sm"></div><div class="sk-base sk-grey sk-normal sk-sm"></div><div class="sk-base sk-grey sk-normal sk-sm"></div></div></aside><section role="main" class="content-body"><div class="page-header" style="z-index: 0;"><nav class="top-menu"><div class="sk-base sk-grey sk-normal sk-sm" style="vertical-align: bottom; margin: 0 0 10px 25px;"></div></nav><div class="top-dropdown"><div class="dropdown"><button class="btn btn-default dropdown-toggle"><div class="sk-base sk-grey sk-normal sk-xs" style="vertical-align: middle;"></div></button></div></div></div><div class="content-header"><div class="row"><div class="col-md-6"><div class="sk-base sk-grey sk-normal sk-sm" style="vertical-align: middle;"></div></div><div class="col-md-6 text-right"><div class="sk-base sk-grey sk-normal sk-sm" style="vertical-align: middle;"></div></div></div></div><div class="content-wrapper"><div class="row"><div class="col-md-12"><section class="panel"><div class="panel-heading"><div class="row"><div class="col-md-6"><div class="sk-base sk-grey sk-normal sk-sm" style="vertical-align: middle;"></div></div><div class="col-md-6 text-right"><div class="sk-base sk-grey sk-normal sk-sm" style="vertical-align: middle;"></div></div></div></div><div class="panel-body"><div class="row mt-lg"><div class="col-md-12"><div class="sk-base sk-grey sk-normal"></div></div></div><div class="row mt-lg"><div class="col-md-12"><div class="sk-base sk-grey sk-normal"></div></div></div><div class="row mt-lg mb-xl"><div class="col-md-12"><div class="sk-base sk-grey sk-normal"></div></div></div></div></section></div></div></div></section></div></div><div id="app"><div id="default" class="t-JEcAp"><main class="viewport"><div class="c-PJLV c-PJLV-ieUelaf-css"><div class="c-dhzjXW c-dhzjXW-iTKOFX-direction-column c-dhzjXW-jroWjL-align-center c-dhzjXW-bICGYT-justify-center c-dhzjXW-kVNAnR-wrap-noWrap c-dhzjXW-iiHNSRE-css"><img class="c-gRSzfU c-gRSzfU-idLLjKR-css" src="/assets/404-decor-center.f2cbf28b046e1c2fa825.png" alt="Page Not Found"><div class="c-PJLV c-PJLV-ibJYOuh-css"><h1 class="c-gPjxah c-PJLV c-gPjxah-gWaLqH-color-primary c-gPjxah-cmVlgk-align-left c-PJLV-cTcnBL-heading-h1 c-gPjxah-iedMIba-css">Halaman tidak ditemukan</h1></div><div class="c-PJLV c-PJLV-iewwrgk-css"><h2 class="c-gPjxah c-PJLV c-gPjxah-gWaLqH-color-primary c-gPjxah-cmVlgk-align-left c-PJLV-cTcnBL-heading-h1 c-gPjxah-idZvvES-css">Silakan mencoba beberapa saat lagi</h2></div><button class="c-cbAPXR c-cbAPXR-eMhKFi-buttonType-primary c-cbAPXR-jaXzam-size-lg c-cbAPXR-ibTElHP-css">Kembali</button></div></div></main></div></div><script>// Disable React DevTools in non-development environments
-        if (typeof window.__REACT_DEVTOOLS_GLOBAL_HOOK__ === 'object') {
-            __REACT_DEVTOOLS_GLOBAL_HOOK__.inject = function() {};
-        }</script><script defer="" src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon="{&quot;version&quot;:&quot;2024.11.0&quot;,&quot;token&quot;:&quot;11700dafa26d4338a3aa2937afdbb15c&quot;,&quot;server_timing&quot;:{&quot;name&quot;:{&quot;cfCacheStatus&quot;:true,&quot;cfEdge&quot;:true,&quot;cfExtPri&quot;:true,&quot;cfL4&quot;:true,&quot;cfOrigin&quot;:true,&quot;cfSpeedBrain&quot;:true},&quot;location_startswith&quot;:null}}" crossorigin="anonymous"></script>
-<div style="top: 0px; left: 0px; position: absolute; z-index: 2147483647;"><div class="t-JEcAp"><div class="c-dhzjXW c-dguCHI c-dguCHI-hwSIpe-position-top-right"></div></div></div><div style="top: 0px; left: 0px; position: absolute; z-index: 2147483647;"><div class="t-JEcAp"><div class="c-dhzjXW c-dguCHI c-dguCHI-kHyLmW-position-top-left"></div></div></div><div style="top: 0px; left: 0px; position: absolute; z-index: 2147483647;"><div class="t-JEcAp"><div class="c-dhzjXW c-dguCHI c-dguCHI-eSQrUv-position-bottom-right"></div></div></div><div style="top: 0px; left: 0px; position: absolute; z-index: 2147483647;"><div class="t-JEcAp"><div class="c-dhzjXW c-dguCHI c-dguCHI-eWATkL-position-bottom_left"></div></div></div></body></html>
+      .rsw_3G {
+        opacity: 1;
+        pointer-events: inherit;
+        position: relative;
+        z-index: 1;
+      }
+    </style>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&amp;display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&amp;display=swap"
+    />
+    <script
+      src="https://www.googletagmanager.com/gtag/js?l=dataLayer&amp;id=G-YZEJCQ4JEW"
+      async=""
+    ></script>
+  </head>
+  <body>
+    <div class="page-loading">
+      <img src="/assets/images/logo-light.png" alt="majoo" class="logo" />
+      <div class="loader"></div>
+    </div>
+    <div class="sekeleton-container sekeleton-container-redesign hide">
+      <div class="sekeleton-grid">
+        <div class="md-hide">
+          <div class="logo-sekeleton"></div>
+          <div class="sekeleton-bar dark-bar space-md"></div>
+          <div class="sekeleton-bar space-sm"></div>
+          <div class="sekeleton-bar w-md space-xl"></div>
+          <div class="sekeleton-bar rect-bar"></div>
+        </div>
+        <div>
+          <div class="mobile-only">
+            <div class="logo-sekeleton w-lg"></div>
+            <div class="sekeleton-bar space-sm w-lg"></div>
+            <div class="sekeleton-bar w-md"></div>
+          </div>
+          <div class="sekeleton-card">
+            <div class="sekeleton-bar dark-bar space-md"></div>
+            <div class="sekeleton-bar space-sm"></div>
+            <div class="sekeleton-bar w-md space-2xl"></div>
+            <div class="sekeleton-bar space-sm"></div>
+            <div class="sekeleton-bar w-md space-xl"></div>
+            <div class="sekeleton-bar space-sm"></div>
+            <div class="sekeleton-bar w-md space-3xl"></div>
+            <div class="sekeleton-bar button-bar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="main-skeleton-container hide">
+      <header class="header" style="z-index: 1">
+        <div class="logo-container">
+          <div class="logo"><div class="sk-base sk-grey sk-normal sk-xs"></div></div>
+        </div>
+        <div class="header-right">
+          <div id="userbox" class="userbox">
+            <div class="sk-base sk-grey sk-normal sk-xs"></div>
+          </div>
+        </div>
+      </header>
+      <div class="inner-wrapper">
+        <aside id="sidebar-left" class="sidebar-left" style="z-index: 1">
+          <div class="sidebar-header"><div class="sidebar-title">&nbsp;</div></div>
+          <div class="nano text-center">
+            <div class="sk-base sk-grey sk-normal sk-sm"></div>
+            <div class="sk-base sk-grey sk-normal sk-sm"></div>
+            <div class="sk-base sk-grey sk-normal sk-sm"></div>
+          </div>
+        </aside>
+        <section role="main" class="content-body">
+          <div class="page-header" style="z-index: 0">
+            <nav class="top-menu">
+              <div
+                class="sk-base sk-grey sk-normal sk-sm"
+                style="vertical-align: bottom; margin: 0 0 10px 25px"
+              ></div>
+            </nav>
+            <div class="top-dropdown">
+              <div class="dropdown">
+                <button class="btn btn-default dropdown-toggle">
+                  <div class="sk-base sk-grey sk-normal sk-xs" style="vertical-align: middle"></div>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="content-header">
+            <div class="row">
+              <div class="col-md-6">
+                <div class="sk-base sk-grey sk-normal sk-sm" style="vertical-align: middle"></div>
+              </div>
+              <div class="col-md-6 text-right">
+                <div class="sk-base sk-grey sk-normal sk-sm" style="vertical-align: middle"></div>
+              </div>
+            </div>
+          </div>
+          <div class="content-wrapper">
+            <div class="row">
+              <div class="col-md-12">
+                <section class="panel">
+                  <div class="panel-heading">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <div
+                          class="sk-base sk-grey sk-normal sk-sm"
+                          style="vertical-align: middle"
+                        ></div>
+                      </div>
+                      <div class="col-md-6 text-right">
+                        <div
+                          class="sk-base sk-grey sk-normal sk-sm"
+                          style="vertical-align: middle"
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="panel-body">
+                    <div class="row mt-lg">
+                      <div class="col-md-12"><div class="sk-base sk-grey sk-normal"></div></div>
+                    </div>
+                    <div class="row mt-lg">
+                      <div class="col-md-12"><div class="sk-base sk-grey sk-normal"></div></div>
+                    </div>
+                    <div class="row mt-lg mb-xl">
+                      <div class="col-md-12"><div class="sk-base sk-grey sk-normal"></div></div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div id="app">
+      <div id="default" class="t-JEcAp">
+        <main class="viewport">
+          <div class="c-PJLV c-PJLV-ieUelaf-css">
+            <div
+              class="c-dhzjXW c-dhzjXW-iTKOFX-direction-column c-dhzjXW-jroWjL-align-center c-dhzjXW-bICGYT-justify-center c-dhzjXW-kVNAnR-wrap-noWrap c-dhzjXW-iiHNSRE-css"
+            >
+              <img
+                class="c-gRSzfU c-gRSzfU-idLLjKR-css"
+                src="/assets/404-decor-center.f2cbf28b046e1c2fa825.png"
+                alt="Page Not Found"
+              />
+              <div class="c-PJLV c-PJLV-ibJYOuh-css">
+                <h1
+                  class="c-gPjxah c-PJLV c-gPjxah-gWaLqH-color-primary c-gPjxah-cmVlgk-align-left c-PJLV-cTcnBL-heading-h1 c-gPjxah-iedMIba-css"
+                >
+                  Halaman tidak ditemukan
+                </h1>
+              </div>
+              <div class="c-PJLV c-PJLV-iewwrgk-css">
+                <h2
+                  class="c-gPjxah c-PJLV c-gPjxah-gWaLqH-color-primary c-gPjxah-cmVlgk-align-left c-PJLV-cTcnBL-heading-h1 c-gPjxah-idZvvES-css"
+                >
+                  Silakan mencoba beberapa saat lagi
+                </h2>
+              </div>
+              <button
+                class="c-cbAPXR c-cbAPXR-eMhKFi-buttonType-primary c-cbAPXR-jaXzam-size-lg c-cbAPXR-ibTElHP-css"
+              >
+                Kembali
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <script>
+      // Disable React DevTools in non-development environments
+      if (typeof window.__REACT_DEVTOOLS_GLOBAL_HOOK__ === 'object') {
+        __REACT_DEVTOOLS_GLOBAL_HOOK__.inject = function () {};
+      }
+    </script>
+    <script
+      defer=""
+      src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516"
+      integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg=="
+      data-cf-beacon='{"version":"2024.11.0","token":"11700dafa26d4338a3aa2937afdbb15c","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}'
+      crossorigin="anonymous"
+    ></script>
+    <div style="top: 0px; left: 0px; position: absolute; z-index: 2147483647">
+      <div class="t-JEcAp">
+        <div class="c-dhzjXW c-dguCHI c-dguCHI-hwSIpe-position-top-right"></div>
+      </div>
+    </div>
+    <div style="top: 0px; left: 0px; position: absolute; z-index: 2147483647">
+      <div class="t-JEcAp">
+        <div class="c-dhzjXW c-dguCHI c-dguCHI-kHyLmW-position-top-left"></div>
+      </div>
+    </div>
+    <div style="top: 0px; left: 0px; position: absolute; z-index: 2147483647">
+      <div class="t-JEcAp">
+        <div class="c-dhzjXW c-dguCHI c-dguCHI-eSQrUv-position-bottom-right"></div>
+      </div>
+    </div>
+    <div style="top: 0px; left: 0px; position: absolute; z-index: 2147483647">
+      <div class="t-JEcAp">
+        <div class="c-dhzjXW c-dguCHI c-dguCHI-eWATkL-position-bottom_left"></div>
+      </div>
+    </div>
+  </body>
+</html>

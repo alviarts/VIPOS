@@ -35,7 +35,7 @@ router.post('/login', (req, res) => {
 
     res.json({
       token,
-      user: { id: user.id, username: user.username, name: user.name, role: user.role }
+      user: { id: user.id, username: user.username, name: user.name, role: user.role },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -63,13 +63,13 @@ router.post('/register', authenticateToken, requireAdmin, (req, res) => {
     }
 
     const hashedPassword = bcrypt.hashSync(password, 10);
-    const result = db.prepare(
-      'INSERT INTO users (username, password, name, role) VALUES (?, ?, ?, ?)'
-    ).run(username, hashedPassword, name, role || 'cashier');
+    const result = db
+      .prepare('INSERT INTO users (username, password, name, role) VALUES (?, ?, ?, ?)')
+      .run(username, hashedPassword, name, role || 'cashier');
 
     res.status(201).json({
       message: 'User berhasil dibuat',
-      user: { id: result.lastInsertRowid, username, name, role: role || 'cashier' }
+      user: { id: result.lastInsertRowid, username, name, role: role || 'cashier' },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

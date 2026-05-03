@@ -4,9 +4,7 @@ import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatDate } from '../utils/format';
-import {
-  ConfirmationDialog, EmptyState, Pagination, PageHeader,
-} from '../components/ui';
+import { ConfirmationDialog, EmptyState, Pagination, PageHeader } from '../components/ui';
 
 export default function CustomersPage() {
   const { user } = useAuth();
@@ -27,7 +25,9 @@ export default function CustomersPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const loadData = async () => {
     try {
@@ -50,7 +50,9 @@ export default function CustomersPage() {
 
   const total = filtered.length;
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
-  useEffect(() => { setPage(1); }, [search]);
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   const openForm = (cust = null) => {
     setEditCust(cust);
@@ -188,7 +190,10 @@ export default function CustomersPage() {
             </thead>
             <tbody>
               {paged.map((c) => (
-                <tr key={c.id} className={`border-b border-gray-100 last:border-0 hover:bg-gray-50 ${!c.is_active ? 'opacity-60' : ''}`}>
+                <tr
+                  key={c.id}
+                  className={`border-b border-gray-100 last:border-0 hover:bg-gray-50 ${!c.is_active ? 'opacity-60' : ''}`}
+                >
                   <td className="px-4 py-3 font-medium text-gray-900">
                     {c.name}
                     {c.email && <p className="text-xs text-gray-400">{c.email}</p>}
@@ -202,7 +207,9 @@ export default function CustomersPage() {
                     {c.gender === 'L' ? 'Pria' : c.gender === 'P' ? 'Wanita' : '-'}
                   </td>
                   <td className="px-4 py-3 text-right text-gray-700">{c.points || 0}</td>
-                  <td className="px-4 py-3 text-right text-gray-700">{formatCurrency(c.deposit || 0)}</td>
+                  <td className="px-4 py-3 text-right text-gray-700">
+                    {formatCurrency(c.deposit || 0)}
+                  </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex justify-center gap-1">
                       <button
@@ -231,7 +238,10 @@ export default function CustomersPage() {
           <EmptyState
             description="Belum ada pelanggan yang terdaftar."
             action={
-              <button onClick={() => openForm()} className="btn-primary text-sm flex items-center gap-2">
+              <button
+                onClick={() => openForm()}
+                className="btn-primary text-sm flex items-center gap-2"
+              >
                 <Plus className="w-4 h-4" /> Tambah Pelanggan
               </button>
             }
@@ -330,7 +340,9 @@ function CustomerFormPage({ editCust, form, setForm, errors, onCancel, onSave })
                 {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Kode Pelanggan</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Kode Pelanggan
+                </label>
                 <input
                   type="text"
                   value={form.kode}
@@ -361,7 +373,9 @@ function CustomerFormPage({ editCust, form, setForm, errors, onCancel, onSave })
                 {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Jenis Kelamin</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Jenis Kelamin
+                </label>
                 <select
                   value={form.gender}
                   onChange={(e) => set({ gender: e.target.value })}
@@ -373,7 +387,9 @@ function CustomerFormPage({ editCust, form, setForm, errors, onCancel, onSave })
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Tanggal Lahir</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Tanggal Lahir
+                </label>
                 <input
                   type="date"
                   value={form.birth_date}
@@ -408,9 +424,13 @@ function CustomerFormPage({ editCust, form, setForm, errors, onCancel, onSave })
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Saldo Deposit</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Saldo Deposit
+                </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">Rp</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
+                    Rp
+                  </span>
                   <input
                     type="number"
                     min="0"

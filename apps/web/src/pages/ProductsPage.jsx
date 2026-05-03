@@ -1,7 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Plus, Search, Edit2, Trash2, Package, RefreshCw, Download, Upload, Star,
-  ChevronDown, MoreVertical,
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  Package,
+  RefreshCw,
+  Download,
+  Upload,
+  Star,
+  ChevronDown,
+  MoreVertical,
 } from 'lucide-react';
 import api from '../utils/api';
 import { formatCurrency } from '../utils/format';
@@ -9,12 +18,16 @@ import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import ProductWizardForm from '../components/ProductWizardForm';
 import {
-  ConfirmationDialog, EmptyState, Pagination, FilterTabs, PageHeader,
+  ConfirmationDialog,
+  EmptyState,
+  Pagination,
+  FilterTabs,
+  PageHeader,
 } from '../components/ui';
 
 const FILTERS = [
-  { id: 'all',    label: 'Semua' },
-  { id: 'shown',  label: 'Tampil di Menu' },
+  { id: 'all', label: 'Semua' },
+  { id: 'shown', label: 'Tampil di Menu' },
   { id: 'hidden', label: 'Tidak Tampil di Menu' },
 ];
 
@@ -66,25 +79,34 @@ export default function ProductsPage() {
       if (filter === 'hidden' && p.is_tampil_di_menu) return false;
       if (categoryFilter && String(p.category_id) !== categoryFilter) return false;
       const q = search.toLowerCase();
-      if (q && !(
-        (p.name || '').toLowerCase().includes(q) ||
-        (p.sku || '').toLowerCase().includes(q) ||
-        (p.barcode || '').toLowerCase().includes(q)
-      )) return false;
+      if (
+        q &&
+        !(
+          (p.name || '').toLowerCase().includes(q) ||
+          (p.sku || '').toLowerCase().includes(q) ||
+          (p.barcode || '').toLowerCase().includes(q)
+        )
+      )
+        return false;
       return true;
     });
   }, [products, search, filter, categoryFilter]);
 
-  const counts = useMemo(() => ({
-    all: products.length,
-    shown: products.filter((p) => p.is_tampil_di_menu).length,
-    hidden: products.filter((p) => !p.is_tampil_di_menu).length,
-  }), [products]);
+  const counts = useMemo(
+    () => ({
+      all: products.length,
+      shown: products.filter((p) => p.is_tampil_di_menu).length,
+      hidden: products.filter((p) => !p.is_tampil_di_menu).length,
+    }),
+    [products]
+  );
 
   const total = filtered.length;
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
 
-  useEffect(() => { setPage(1); }, [search, filter, categoryFilter]);
+  useEffect(() => {
+    setPage(1);
+  }, [search, filter, categoryFilter]);
 
   const openForm = (product = null) => {
     setEditProduct(product);
@@ -100,7 +122,10 @@ export default function ProductsPage() {
   const handleSubmit = async (payload) => {
     try {
       if (editProduct) {
-        await api.put(`/products/${editProduct.id}`, { ...payload, is_active: editProduct.is_active });
+        await api.put(`/products/${editProduct.id}`, {
+          ...payload,
+          is_active: editProduct.is_active,
+        });
         toast.success('Produk berhasil diupdate');
       } else {
         await api.post('/products', payload);
@@ -155,7 +180,10 @@ export default function ProductsPage() {
           <Download className="w-4 h-4" /> Ekspor
         </button>
         {isAdmin && (
-          <button onClick={() => openForm()} className="btn-primary flex items-center gap-2 text-sm">
+          <button
+            onClick={() => openForm()}
+            className="btn-primary flex items-center gap-2 text-sm"
+          >
             <Plus className="w-4 h-4" /> Tambah Produk
           </button>
         )}
@@ -181,7 +209,9 @@ export default function ProductsPage() {
           >
             <option value="">Semua Kategori</option>
             {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
             ))}
           </select>
           <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
@@ -191,9 +221,9 @@ export default function ProductsPage() {
       {/* Filter tabs */}
       <FilterTabs
         tabs={[
-          { id: 'all',    label: 'Semua',                count: counts.all },
-          { id: 'shown',  label: 'Tampil di Menu',        count: counts.shown },
-          { id: 'hidden', label: 'Tidak Tampil di Menu',  count: counts.hidden },
+          { id: 'all', label: 'Semua', count: counts.all },
+          { id: 'shown', label: 'Tampil di Menu', count: counts.shown },
+          { id: 'hidden', label: 'Tidak Tampil di Menu', count: counts.hidden },
         ]}
         activeId={filter}
         onChange={setFilter}
@@ -243,15 +273,23 @@ export default function ProductsPage() {
                   </td>
                   <td className="px-4 py-3 text-gray-600 font-mono text-xs">{product.sku}</td>
                   <td className="px-4 py-3 text-gray-600">{product.category_name || '-'}</td>
-                  <td className="px-4 py-3 text-right text-gray-700">{formatCurrency(product.harga_modal || 0)}</td>
-                  <td className="px-4 py-3 text-right text-gray-700">{formatCurrency(product.harga_beli || 0)}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-primary-700">{formatCurrency(product.price || 0)}</td>
+                  <td className="px-4 py-3 text-right text-gray-700">
+                    {formatCurrency(product.harga_modal || 0)}
+                  </td>
+                  <td className="px-4 py-3 text-right text-gray-700">
+                    {formatCurrency(product.harga_beli || 0)}
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold text-primary-700">
+                    {formatCurrency(product.price || 0)}
+                  </td>
                   <td className="px-4 py-3 text-right">
-                    <span className={
-                      product.monitor_stok && product.stock <= product.stok_minimum
-                        ? 'text-amber-600 font-medium'
-                        : 'text-gray-700'
-                    }>
+                    <span
+                      className={
+                        product.monitor_stok && product.stock <= product.stok_minimum
+                          ? 'text-amber-600 font-medium'
+                          : 'text-gray-700'
+                      }
+                    >
                       {product.stock}
                     </span>
                   </td>
@@ -292,11 +330,16 @@ export default function ProductsPage() {
           <EmptyState
             title="Data tidak tersedia"
             description="Belum ada produk yang sesuai dengan filter pencarian Anda."
-            action={isAdmin && (
-              <button onClick={() => openForm()} className="btn-primary text-sm flex items-center gap-2">
-                <Plus className="w-4 h-4" /> Tambah Produk
-              </button>
-            )}
+            action={
+              isAdmin && (
+                <button
+                  onClick={() => openForm()}
+                  className="btn-primary text-sm flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" /> Tambah Produk
+                </button>
+              )
+            }
           />
         )}
 
@@ -337,7 +380,11 @@ export default function ProductsPage() {
       <ConfirmationDialog
         open={!!confirmDelete}
         title="Hapus Produk"
-        message={confirmDelete ? `Produk "${confirmDelete.name}" akan dihapus dari daftar produk. Lanjutkan?` : ''}
+        message={
+          confirmDelete
+            ? `Produk "${confirmDelete.name}" akan dihapus dari daftar produk. Lanjutkan?`
+            : ''
+        }
         confirmLabel="Ya, Hapus"
         variant="danger"
         loading={deleting}

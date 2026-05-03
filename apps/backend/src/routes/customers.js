@@ -5,9 +5,9 @@ const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const router = express.Router();
 
 function generateKode(db) {
-  const last = db.prepare(
-    `SELECT kode FROM customers WHERE kode LIKE 'PLG%' ORDER BY id DESC LIMIT 1`
-  ).get();
+  const last = db
+    .prepare(`SELECT kode FROM customers WHERE kode LIKE 'PLG%' ORDER BY id DESC LIMIT 1`)
+    .get();
   if (!last) return 'PLG0001';
   const num = parseInt((last.kode || '').replace(/\D/g, ''), 10) || 0;
   return 'PLG' + String(num + 1).padStart(4, '0');
@@ -29,7 +29,9 @@ router.get('/', authenticateToken, (req, res) => {
       params.push(q, q, q, q);
     }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    const rows = db.prepare(`SELECT * FROM customers ${where} ORDER BY created_at DESC`).all(...params);
+    const rows = db
+      .prepare(`SELECT * FROM customers ${where} ORDER BY created_at DESC`)
+      .all(...params);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -49,26 +51,31 @@ router.get('/:id', authenticateToken, (req, res) => {
 
 router.post('/', authenticateToken, (req, res) => {
   try {
-    const { kode, name, phone, email, address, gender, birth_date, points, deposit, notes } = req.body;
+    const { kode, name, phone, email, address, gender, birth_date, points, deposit, notes } =
+      req.body;
     if (!name) return res.status(400).json({ error: 'Nama wajib diisi' });
 
     const db = getDb();
     const kodeFinal = (kode && kode.trim()) || generateKode(db);
-    const result = db.prepare(`
+    const result = db
+      .prepare(
+        `
       INSERT INTO customers (kode, name, phone, email, address, gender, birth_date, points, deposit, notes)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      kodeFinal,
-      name.trim(),
-      phone ? phone.trim() : null,
-      email ? email.trim() : null,
-      address ? address.trim() : null,
-      gender || null,
-      birth_date || null,
-      Number.isFinite(parseInt(points, 10)) ? parseInt(points, 10) : 0,
-      Number.isFinite(parseFloat(deposit)) ? parseFloat(deposit) : 0,
-      notes ? notes.trim() : null
-    );
+    `
+      )
+      .run(
+        kodeFinal,
+        name.trim(),
+        phone ? phone.trim() : null,
+        email ? email.trim() : null,
+        address ? address.trim() : null,
+        gender || null,
+        birth_date || null,
+        Number.isFinite(parseInt(points, 10)) ? parseInt(points, 10) : 0,
+        Number.isFinite(parseFloat(deposit)) ? parseFloat(deposit) : 0,
+        notes ? notes.trim() : null
+      );
 
     const row = db.prepare('SELECT * FROM customers WHERE id = ?').get(result.lastInsertRowid);
     res.status(201).json(row);
@@ -82,14 +89,27 @@ router.post('/', authenticateToken, (req, res) => {
 
 router.put('/:id', authenticateToken, (req, res) => {
   try {
-    const { kode, name, phone, email, address, gender, birth_date, points, deposit, notes, is_active } = req.body;
+    const {
+      kode,
+      name,
+      phone,
+      email,
+      address,
+      gender,
+      birth_date,
+      points,
+      deposit,
+      notes,
+      is_active,
+    } = req.body;
     if (!name) return res.status(400).json({ error: 'Nama wajib diisi' });
     const db = getDb();
 
     const existing = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Pelanggan tidak ditemukan' });
 
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE customers
          SET kode = ?,
              name = ?,
@@ -104,7 +124,8 @@ router.put('/:id', authenticateToken, (req, res) => {
              is_active = ?,
              updated_at = CURRENT_TIMESTAMP
        WHERE id = ?
-    `).run(
+    `
+    ).run(
       kode ? kode.trim() : existing.kode,
       name.trim(),
       phone ? phone.trim() : null,
@@ -132,10 +153,14 @@ router.put('/:id', authenticateToken, (req, res) => {
 router.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
   try {
     const db = getDb();
-    const used = db.prepare('SELECT COUNT(*) as count FROM transactions WHERE customer_id = ?').get(req.params.id);
+    const used = db
+      .prepare('SELECT COUNT(*) as count FROM transactions WHERE customer_id = ?')
+      .get(req.params.id);
     if (used.count > 0) {
       db.prepare('UPDATE customers SET is_active = 0 WHERE id = ?').run(req.params.id);
-      return res.json({ message: 'Pelanggan dinonaktifkan karena sudah memiliki riwayat transaksi' });
+      return res.json({
+        message: 'Pelanggan dinonaktifkan karena sudah memiliki riwayat transaksi',
+      });
     }
     db.prepare('DELETE FROM customers WHERE id = ?').run(req.params.id);
     res.json({ message: 'Pelanggan berhasil dihapus' });

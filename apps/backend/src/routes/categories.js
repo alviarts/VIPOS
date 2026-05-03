@@ -25,7 +25,9 @@ router.get('/', authenticateToken, (req, res) => {
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT
         c.*,
         d.name AS department_name,
@@ -34,7 +36,9 @@ router.get('/', authenticateToken, (req, res) => {
       LEFT JOIN departments d ON d.id = c.department_id
       ${where}
       ORDER BY c.urutan ASC, c.name ASC
-    `).all(...params);
+    `
+      )
+      .all(...params);
 
     res.json(rows);
   } catch (err) {
@@ -46,12 +50,16 @@ router.get('/', authenticateToken, (req, res) => {
 router.get('/:id', authenticateToken, (req, res) => {
   try {
     const db = getDb();
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT c.*, d.name AS department_name
       FROM categories c
       LEFT JOIN departments d ON d.id = c.department_id
       WHERE c.id = ?
-    `).get(req.params.id);
+    `
+      )
+      .get(req.params.id);
     if (!row) return res.status(404).json({ error: 'Kategori tidak ditemukan' });
     res.json(row);
   } catch (err) {
@@ -62,36 +70,38 @@ router.get('/:id', authenticateToken, (req, res) => {
 // Create category
 router.post('/', authenticateToken, requireAdmin, (req, res) => {
   try {
-    const {
-      name,
-      description,
-      urutan,
-      department_id,
-      is_tampil_di_menu,
-    } = req.body;
+    const { name, description, urutan, department_id, is_tampil_di_menu } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: 'Nama kategori wajib diisi' });
     }
 
     const db = getDb();
-    const result = db.prepare(`
+    const result = db
+      .prepare(
+        `
       INSERT INTO categories (name, description, urutan, department_id, is_tampil_di_menu)
       VALUES (?, ?, ?, ?, ?)
-    `).run(
-      name.trim(),
-      description ? description.trim() : null,
-      Number.isFinite(parseInt(urutan, 10)) ? parseInt(urutan, 10) : 0,
-      department_id ? parseInt(department_id, 10) : null,
-      is_tampil_di_menu === false || is_tampil_di_menu === 0 ? 0 : 1
-    );
+    `
+      )
+      .run(
+        name.trim(),
+        description ? description.trim() : null,
+        Number.isFinite(parseInt(urutan, 10)) ? parseInt(urutan, 10) : 0,
+        department_id ? parseInt(department_id, 10) : null,
+        is_tampil_di_menu === false || is_tampil_di_menu === 0 ? 0 : 1
+      );
 
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT c.*, d.name AS department_name
       FROM categories c
       LEFT JOIN departments d ON d.id = c.department_id
       WHERE c.id = ?
-    `).get(result.lastInsertRowid);
+    `
+      )
+      .get(result.lastInsertRowid);
     res.status(201).json(row);
   } catch (err) {
     if (err.message.includes('UNIQUE')) {
@@ -104,20 +114,15 @@ router.post('/', authenticateToken, requireAdmin, (req, res) => {
 // Update category
 router.put('/:id', authenticateToken, requireAdmin, (req, res) => {
   try {
-    const {
-      name,
-      description,
-      urutan,
-      department_id,
-      is_tampil_di_menu,
-    } = req.body;
+    const { name, description, urutan, department_id, is_tampil_di_menu } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: 'Nama kategori wajib diisi' });
     }
 
     const db = getDb();
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE categories
          SET name = ?,
              description = ?,
@@ -125,7 +130,8 @@ router.put('/:id', authenticateToken, requireAdmin, (req, res) => {
              department_id = ?,
              is_tampil_di_menu = ?
        WHERE id = ?
-    `).run(
+    `
+    ).run(
       name.trim(),
       description ? description.trim() : null,
       Number.isFinite(parseInt(urutan, 10)) ? parseInt(urutan, 10) : 0,
@@ -134,12 +140,16 @@ router.put('/:id', authenticateToken, requireAdmin, (req, res) => {
       req.params.id
     );
 
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT c.*, d.name AS department_name
       FROM categories c
       LEFT JOIN departments d ON d.id = c.department_id
       WHERE c.id = ?
-    `).get(req.params.id);
+    `
+      )
+      .get(req.params.id);
     res.json(row);
   } catch (err) {
     if (err.message.includes('UNIQUE')) {
@@ -153,9 +163,13 @@ router.put('/:id', authenticateToken, requireAdmin, (req, res) => {
 router.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
   try {
     const db = getDb();
-    const products = db.prepare('SELECT COUNT(*) as count FROM products WHERE category_id = ?').get(req.params.id);
+    const products = db
+      .prepare('SELECT COUNT(*) as count FROM products WHERE category_id = ?')
+      .get(req.params.id);
     if (products.count > 0) {
-      return res.status(400).json({ error: 'Kategori masih memiliki produk. Hapus atau pindahkan produk terlebih dahulu.' });
+      return res.status(400).json({
+        error: 'Kategori masih memiliki produk. Hapus atau pindahkan produk terlebih dahulu.',
+      });
     }
     db.prepare('DELETE FROM categories WHERE id = ?').run(req.params.id);
     res.json({ message: 'Kategori berhasil dihapus' });

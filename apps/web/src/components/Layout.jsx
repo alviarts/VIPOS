@@ -2,22 +2,35 @@ import { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, ShoppingCart, Package, Receipt, BarChart3,
-  Settings, LogOut, Menu, X, Store, ChevronDown, Bell, Users,
-  Warehouse, Tag, Wallet,
+  LayoutDashboard,
+  ShoppingCart,
+  Package,
+  Receipt,
+  BarChart3,
+  Settings,
+  LogOut,
+  Menu,
+  X,
+  Store,
+  ChevronDown,
+  Bell,
+  Users,
+  Warehouse,
+  Tag,
+  Wallet,
 } from 'lucide-react';
 
 const navigation = [
-  { name: 'Dashboard',  path: '/dashboard',    icon: LayoutDashboard },
-  { name: 'Kasir',      path: '/cashier',      icon: ShoppingCart },
-  { name: 'Produk',     path: '/products',     icon: Package },
-  { name: 'Kategori',   path: '/categories',   icon: Tag },
-  { name: 'Inventori',  path: '/inventory',    icon: Warehouse },
-  { name: 'Pelanggan',  path: '/customers',    icon: Users },
-  { name: 'Keuangan',   path: '/finance',      icon: Wallet },
-  { name: 'Transaksi',  path: '/transactions', icon: Receipt },
-  { name: 'Laporan',    path: '/reports',      icon: BarChart3 },
-  { name: 'Pengaturan', path: '/settings',     icon: Settings },
+  { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+  { name: 'Kasir', path: '/cashier', icon: ShoppingCart },
+  { name: 'Produk', path: '/products', icon: Package },
+  { name: 'Kategori', path: '/categories', icon: Tag },
+  { name: 'Inventori', path: '/inventory', icon: Warehouse },
+  { name: 'Pelanggan', path: '/customers', icon: Users },
+  { name: 'Keuangan', path: '/finance', icon: Wallet },
+  { name: 'Transaksi', path: '/transactions', icon: Receipt },
+  { name: 'Laporan', path: '/reports', icon: BarChart3 },
+  { name: 'Pengaturan', path: '/settings', icon: Settings },
 ];
 
 export default function Layout() {
@@ -41,12 +54,14 @@ export default function Layout() {
       )}
 
       {/* Sidebar - Majoo style teal */}
-      <aside className={`
+      <aside
+        className={`
         fixed lg:static inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-[#04C99E] to-[#03A882]
         transform transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         flex flex-col shadow-xl
-      `}>
+      `}
+      >
         {/* Logo & Outlet */}
         <div className="px-4 py-4 border-b border-white/20">
           <div className="flex items-center justify-between">
@@ -73,23 +88,26 @@ export default function Layout() {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-          {navigation.filter(item => !item.disabled).map((item) => (
-            <NavLink
-              key={item.path + item.name}
-              to={item.path}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all
-                ${isActive 
-                  ? 'bg-white/25 text-white font-semibold shadow-sm' 
-                  : 'text-white/85 hover:bg-white/15 hover:text-white'
+          {navigation
+            .filter((item) => !item.disabled)
+            .map((item) => (
+              <NavLink
+                key={item.path + item.name}
+                to={item.path}
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all
+                ${
+                  isActive
+                    ? 'bg-white/25 text-white font-semibold shadow-sm'
+                    : 'text-white/85 hover:bg-white/15 hover:text-white'
                 }`
-              }
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              <span className="flex-1">{item.name}</span>
-            </NavLink>
-          ))}
+                }
+              >
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                <span className="flex-1">{item.name}</span>
+              </NavLink>
+            ))}
         </nav>
 
         {/* User section */}
@@ -125,29 +143,49 @@ export default function Layout() {
           >
             <Menu className="w-5 h-5 text-gray-600" />
           </button>
-          
+
           {/* Top tabs - Majoo style */}
           <div className="hidden md:flex items-center gap-1">
-            <NavLink to="/dashboard" className={({ isActive }) =>
-              `px-4 py-2 rounded-lg text-sm font-medium transition-colors
+            <NavLink
+              to="/dashboard"
+              className={({ isActive }) =>
+                `px-4 py-2 rounded-lg text-sm font-medium transition-colors
               ${isActive ? 'bg-primary-500 text-white' : 'text-gray-600 hover:bg-gray-100'}`
-            }>Penjualan</NavLink>
-            <NavLink to="/cashier" className={({ isActive }) =>
-              `px-4 py-2 rounded-lg text-sm font-medium transition-colors
+              }
+            >
+              Penjualan
+            </NavLink>
+            <NavLink
+              to="/cashier"
+              className={({ isActive }) =>
+                `px-4 py-2 rounded-lg text-sm font-medium transition-colors
               ${isActive ? 'bg-primary-500 text-white' : 'text-gray-600 hover:bg-gray-100'}`
-            }>Kasir</NavLink>
-            <NavLink to="/products" className={({ isActive }) =>
-              `px-4 py-2 rounded-lg text-sm font-medium transition-colors
+              }
+            >
+              Kasir
+            </NavLink>
+            <NavLink
+              to="/products"
+              className={({ isActive }) =>
+                `px-4 py-2 rounded-lg text-sm font-medium transition-colors
               ${isActive ? 'bg-primary-500 text-white' : 'text-gray-600 hover:bg-gray-100'}`
-            }>Produk</NavLink>
-            <NavLink to="/settings" className={({ isActive }) =>
-              `px-4 py-2 rounded-lg text-sm font-medium transition-colors
+              }
+            >
+              Produk
+            </NavLink>
+            <NavLink
+              to="/settings"
+              className={({ isActive }) =>
+                `px-4 py-2 rounded-lg text-sm font-medium transition-colors
               ${isActive ? 'bg-primary-500 text-white' : 'text-gray-600 hover:bg-gray-100'}`
-            }>Pengaturan</NavLink>
+              }
+            >
+              Pengaturan
+            </NavLink>
           </div>
 
           <div className="flex-1" />
-          
+
           {/* Notifications & user */}
           <div className="flex items-center gap-3">
             <button className="p-2 hover:bg-gray-100 rounded-lg relative">

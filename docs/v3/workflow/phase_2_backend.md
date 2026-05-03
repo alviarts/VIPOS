@@ -9,13 +9,14 @@
 
 ---
 
-### P2-01: Migrate SQLite → Postgres  `[pending]`
+### P2-01: Migrate SQLite → Postgres `[pending]`
 
 **Goal**: Migrate dari `better-sqlite3` ke Postgres (pakai `pg` atau Prisma). Schema migration tools.
 
 **Dependencies**: P0-01
 
 **Outputs**:
+
 - Postgres deployment di VPS (Docker compose) atau managed (Supabase/Neon di production)
 - ORM/query layer: Prisma atau Knex (tim pilih) — recommendation Prisma
 - Migration tool: Prisma Migrate
@@ -24,6 +25,7 @@
 - ENV var: `DATABASE_URL`
 
 **Acceptance criteria**:
+
 - [ ] Postgres running di VPS (Docker)
 - [ ] Schema sama dengan SQLite version (zero data loss)
 - [ ] Migration tool berfungsi (`prisma migrate dev`)
@@ -37,13 +39,14 @@
 
 ---
 
-### P2-02: Multi-tenant architecture  `[pending]`
+### P2-02: Multi-tenant architecture `[pending]`
 
 **Goal**: Setiap merchant = tenant terpisah, data isolated. Pakai schema-per-tenant atau row-level (recommend row-level dengan `tenant_id`).
 
 **Dependencies**: P2-01
 
 **Outputs**:
+
 - Tabel `tenants`, `tenant_users`
 - Migration: tambah `tenant_id` column ke semua tabel relevant
 - Middleware: extract `tenant_id` dari JWT, inject ke setiap query
@@ -52,6 +55,7 @@
 - Subscription tier per tenant (Lite/Starter/Advance/Prime/Prime+)
 
 **Acceptance criteria**:
+
 - [ ] User di tenant A tidak bisa lihat data tenant B (write tests)
 - [ ] Tenant signup endpoint `/api/v1/tenant/register`
 - [ ] Subscription tier stored di tenant record
@@ -65,19 +69,21 @@
 
 ---
 
-### P2-03: Audit logging  `[pending]`
+### P2-03: Audit logging `[pending]`
 
 **Goal**: Setiap CUD action ke entity penting tercatat (siapa, kapan, apa, before/after).
 
 **Dependencies**: P2-02
 
 **Outputs**:
+
 - Tabel `audit_logs` (tenant_id, user_id, entity, entity_id, action, before_json, after_json, ip, user_agent, timestamp)
 - Middleware/decorator untuk auto-log mutation endpoint
 - API: `/api/v1/audit-log` dengan filter
 - UI: di P1-16 Pengaturan / Audit (Settings group)
 
 **Acceptance criteria**:
+
 - [ ] Mutation di Products, Customers, Inventory, Finance, Employee, Settings ter-log
 - [ ] before/after JSON tersimpan dengan diff visible
 - [ ] Filter: user, entity, date, action
@@ -91,13 +97,14 @@
 
 ---
 
-### P2-04: Background jobs (BullMQ + Redis)  `[pending]`
+### P2-04: Background jobs (BullMQ + Redis) `[pending]`
 
 **Goal**: Job queue untuk async work (notification, email, settlement reconcile, report generation, marketplace webhook processing).
 
 **Dependencies**: P2-01
 
 **Outputs**:
+
 - Redis di VPS (Docker)
 - BullMQ workers
 - Queues: `notification`, `email`, `report`, `settlement`, `marketplace-webhook`, `import-export`
@@ -105,6 +112,7 @@
 - Admin dashboard (Bull Board) di `/admin/queues`
 
 **Acceptance criteria**:
+
 - [ ] Send notification async via queue
 - [ ] Generate report async, notify user lewat email saat done
 - [ ] Marketplace webhook processed via queue (idempotent)
@@ -117,13 +125,14 @@
 
 ---
 
-### P2-05: Observability (logging + monitoring + tracing)  `[pending]`
+### P2-05: Observability (logging + monitoring + tracing) `[pending]`
 
 **Goal**: Structured logging (Winston/Pino), error tracking (Sentry), metrics (Prometheus), tracing (OpenTelemetry).
 
 **Dependencies**: P2-01
 
 **Outputs**:
+
 - Pino logger dengan JSON format, log level configurable per env
 - Sentry SDK integration (free tier OK awal)
 - Prometheus exporter di `/metrics`
@@ -131,6 +140,7 @@
 - Tracing: OpenTelemetry → console di dev, Jaeger optional di production
 
 **Acceptance criteria**:
+
 - [ ] All API request logged dengan request_id, tenant_id, user_id
 - [ ] Error throw → captured di Sentry
 - [ ] `/metrics` expose RED metrics (request rate, error rate, duration)
@@ -142,13 +152,14 @@
 
 ---
 
-### P2-06: Rate limiting + security hardening  `[pending]`
+### P2-06: Rate limiting + security hardening `[pending]`
 
 **Goal**: Rate limit per IP + per user; helmet headers; input sanitization; CSRF; CORS strict.
 
 **Dependencies**: P2-01
 
 **Outputs**:
+
 - `express-rate-limit` dengan Redis store
 - Per-endpoint rate limit config (login: 5/min, API: 100/min)
 - Helmet middleware
@@ -158,6 +169,7 @@
 - HTTPS enforcement (deploy via Let's Encrypt)
 
 **Acceptance criteria**:
+
 - [ ] Login endpoint terbatas 5 attempt/min/IP
 - [ ] API endpoint default 100 req/min/user
 - [ ] OWASP Top 10 checked (XSS, SQL injection (Prisma protect), CSRF, broken auth, dst)
@@ -169,19 +181,21 @@
 
 ---
 
-### P2-07: API versioning + docs  `[pending]`
+### P2-07: API versioning + docs `[pending]`
 
 **Goal**: API versioning strategy (v1/v2) + auto-generated docs (Swagger UI).
 
 **Dependencies**: P0-04, P2-01
 
 **Outputs**:
+
 - Versioning: prefix `/api/v1/` (current) → siap migrate ke `/api/v2/` masa depan
 - Deprecation header (`Deprecation: <date>`, `Sunset: <date>`)
 - Swagger UI di `/api/docs` (auto-generated dari Zod schemas)
 - Public API doc website (Stoplight atau hand-written)
 
 **Acceptance criteria**:
+
 - [ ] Semua endpoint pakai prefix `/api/v1/`
 - [ ] Swagger UI mature, client (web + Android nanti) bisa pakai sebagai reference
 - [ ] CHANGELOG.md di repo per version
@@ -191,13 +205,14 @@
 
 ---
 
-### P2-08: Backup + disaster recovery  `[pending]`
+### P2-08: Backup + disaster recovery `[pending]`
 
 **Goal**: Daily DB backup ke S3 (Backblaze B2 cheaper alternative), uploads backup, runbook recovery.
 
 **Dependencies**: P2-01, P2-04
 
 **Outputs**:
+
 - Daily Postgres dump → upload ke S3 / B2
 - Daily upload (uploaded files) → sync ke S3 / B2
 - Retention: daily 30 hari, weekly 12 minggu, monthly 12 bulan
@@ -205,6 +220,7 @@
 - Runbook: `docs/runbook/disaster_recovery.md`
 
 **Acceptance criteria**:
+
 - [ ] Cron jalan harian, backup berhasil tersimpan
 - [ ] Restore script tested berhasil di staging
 - [ ] Runbook lengkap (langkah-langkah recovery)

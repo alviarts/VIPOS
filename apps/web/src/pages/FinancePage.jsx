@@ -1,14 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Plus, Wallet, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, X, Search,
-  TrendingUp, TrendingDown, Coins,
+  Plus,
+  Wallet,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  ArrowLeftRight,
+  X,
+  Search,
+  TrendingUp,
+  TrendingDown,
+  Coins,
 } from 'lucide-react';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatDate } from '../utils/format';
 import {
-  ConfirmationDialog, EmptyState, Pagination, FilterTabs, PageHeader,
+  ConfirmationDialog,
+  EmptyState,
+  Pagination,
+  FilterTabs,
+  PageHeader,
 } from '../components/ui';
 
 const TIPE_LABEL = {
@@ -36,7 +48,9 @@ export default function FinancePage() {
   const [saving, setSaving] = useState(false);
   const [confirmSave, setConfirmSave] = useState(false);
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => {
+    loadAll();
+  }, []);
 
   const loadAll = async () => {
     try {
@@ -66,16 +80,21 @@ export default function FinancePage() {
     });
   }, [transactions, tipeFilter, search]);
 
-  const txCounts = useMemo(() => ({
-    all: transactions.length,
-    pemasukan: transactions.filter((t) => t.tipe === 'pemasukan').length,
-    pengeluaran: transactions.filter((t) => t.tipe === 'pengeluaran').length,
-    transfer: transactions.filter((t) => t.tipe === 'transfer').length,
-  }), [transactions]);
+  const txCounts = useMemo(
+    () => ({
+      all: transactions.length,
+      pemasukan: transactions.filter((t) => t.tipe === 'pemasukan').length,
+      pengeluaran: transactions.filter((t) => t.tipe === 'pengeluaran').length,
+      transfer: transactions.filter((t) => t.tipe === 'transfer').length,
+    }),
+    [transactions]
+  );
 
   const total = filteredTx.length;
   const paged = filteredTx.slice((page - 1) * pageSize, page * pageSize);
-  useEffect(() => { setPage(1); }, [tipeFilter, search, tab]);
+  useEffect(() => {
+    setPage(1);
+  }, [tipeFilter, search, tab]);
 
   const openTxForm = (tipe) => {
     setTxForm({ ...initTxForm(), tipe });
@@ -90,8 +109,7 @@ export default function FinancePage() {
       errs.account_to_id = 'Akun tujuan wajib dipilih';
     if (txForm.tipe === 'transfer' && txForm.account_id === txForm.account_to_id)
       errs.account_to_id = 'Akun tujuan harus berbeda';
-    if (!txForm.jumlah || parseFloat(txForm.jumlah) <= 0)
-      errs.jumlah = 'Jumlah harus lebih dari 0';
+    if (!txForm.jumlah || parseFloat(txForm.jumlah) <= 0) errs.jumlah = 'Jumlah harus lebih dari 0';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -181,7 +199,7 @@ export default function FinancePage() {
       <div className="flex gap-1 border-b border-gray-200">
         {[
           { id: 'transactions', label: 'Transaksi' },
-          { id: 'accounts',     label: 'Buku Kas & Bank' },
+          { id: 'accounts', label: 'Buku Kas & Bank' },
         ].map((t) => (
           <button
             key={t.id}
@@ -213,10 +231,10 @@ export default function FinancePage() {
 
           <FilterTabs
             tabs={[
-              { id: 'all',         label: 'Semua',       count: txCounts.all },
-              { id: 'pemasukan',   label: 'Pemasukan',   count: txCounts.pemasukan },
+              { id: 'all', label: 'Semua', count: txCounts.all },
+              { id: 'pemasukan', label: 'Pemasukan', count: txCounts.pemasukan },
               { id: 'pengeluaran', label: 'Pengeluaran', count: txCounts.pengeluaran },
-              { id: 'transfer',    label: 'Transfer',    count: txCounts.transfer },
+              { id: 'transfer', label: 'Transfer', count: txCounts.transfer },
             ]}
             activeId={tipeFilter}
             onChange={setTipeFilter}
@@ -238,9 +256,14 @@ export default function FinancePage() {
                 </thead>
                 <tbody>
                   {paged.map((t) => (
-                    <tr key={t.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                    <tr
+                      key={t.id}
+                      className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
+                    >
                       <td className="px-4 py-3 text-gray-600">{formatDate(t.tanggal)}</td>
-                      <td className="px-4 py-3 text-center"><TipeBadge tipe={t.tipe} /></td>
+                      <td className="px-4 py-3 text-center">
+                        <TipeBadge tipe={t.tipe} />
+                      </td>
                       <td className="px-4 py-3">
                         <p className="font-medium text-gray-800">{t.account_name}</p>
                         {t.tipe === 'transfer' && t.account_to_name && (
@@ -249,14 +272,21 @@ export default function FinancePage() {
                         <p className="text-xs text-gray-400 font-mono">{t.account_kode}</p>
                       </td>
                       <td className="px-4 py-3 text-gray-600">{t.kategori || '-'}</td>
-                      <td className="px-4 py-3 text-gray-600 max-w-xs truncate" title={t.keterangan || ''}>
+                      <td
+                        className="px-4 py-3 text-gray-600 max-w-xs truncate"
+                        title={t.keterangan || ''}
+                      >
                         {t.keterangan || '-'}
                       </td>
-                      <td className={`px-4 py-3 text-right font-semibold ${
-                        t.tipe === 'pemasukan' ? 'text-emerald-600'
-                        : t.tipe === 'pengeluaran' ? 'text-rose-600'
-                        : 'text-blue-600'
-                      }`}>
+                      <td
+                        className={`px-4 py-3 text-right font-semibold ${
+                          t.tipe === 'pemasukan'
+                            ? 'text-emerald-600'
+                            : t.tipe === 'pengeluaran'
+                              ? 'text-rose-600'
+                              : 'text-blue-600'
+                        }`}
+                      >
                         {t.tipe === 'pemasukan' ? '+' : t.tipe === 'pengeluaran' ? '-' : ''}
                         {formatCurrency(t.jumlah)}
                       </td>
@@ -270,7 +300,10 @@ export default function FinancePage() {
               <EmptyState
                 description="Belum ada transaksi keuangan."
                 action={
-                  <button onClick={() => openTxForm('pemasukan')} className="btn-primary text-sm flex items-center gap-2">
+                  <button
+                    onClick={() => openTxForm('pemasukan')}
+                    className="btn-primary text-sm flex items-center gap-2"
+                  >
                     <Plus className="w-4 h-4" /> Catat Pemasukan
                   </button>
                 }
@@ -303,16 +336,23 @@ export default function FinancePage() {
               </thead>
               <tbody>
                 {accounts.map((a) => (
-                  <tr key={a.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                  <tr
+                    key={a.id}
+                    className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
+                  >
                     <td className="px-4 py-3 font-mono text-xs text-gray-700">{a.kode}</td>
                     <td className="px-4 py-3">
-                      <span className={`badge ${a.tipe === 'header' ? 'bg-gray-100 text-gray-600' : 'badge-info'}`}>
+                      <span
+                        className={`badge ${a.tipe === 'header' ? 'bg-gray-100 text-gray-600' : 'badge-info'}`}
+                      >
                         {a.tipe === 'header' ? 'Header' : 'Detail'}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-medium text-gray-800">{a.nama}</td>
                     <td className="px-4 py-3 text-gray-600">{a.kategori}</td>
-                    <td className="px-4 py-3 text-right text-gray-600">{formatCurrency(a.saldo_awal || 0)}</td>
+                    <td className="px-4 py-3 text-right text-gray-600">
+                      {formatCurrency(a.saldo_awal || 0)}
+                    </td>
                     <td className="px-4 py-3 text-right font-semibold text-gray-900">
                       {a.tipe === 'header' ? '-' : formatCurrency(a.saldo || 0)}
                     </td>
@@ -350,13 +390,14 @@ export default function FinancePage() {
 }
 
 function SummaryCard({ icon, label, value, tone = 'gray' }) {
-  const toneCls = {
-    primary: 'border-primary-200 bg-primary-50/40',
-    emerald: 'border-emerald-200 bg-emerald-50/40',
-    rose: 'border-rose-200 bg-rose-50/40',
-    blue: 'border-blue-200 bg-blue-50/40',
-    gray: 'border-gray-200',
-  }[tone] || 'border-gray-200';
+  const toneCls =
+    {
+      primary: 'border-primary-200 bg-primary-50/40',
+      emerald: 'border-emerald-200 bg-emerald-50/40',
+      rose: 'border-rose-200 bg-rose-50/40',
+      blue: 'border-blue-200 bg-blue-50/40',
+      gray: 'border-gray-200',
+    }[tone] || 'border-gray-200';
   return (
     <div className={`rounded-xl border p-4 flex items-center gap-3 bg-white ${toneCls}`}>
       <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center flex-shrink-0">
@@ -401,9 +442,7 @@ function CashTxFormPage({ form, setForm, accounts, errors, onCancel, onSave }) {
           <button onClick={onCancel} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600">
             <X className="w-5 h-5" />
           </button>
-          <h2 className="text-lg font-semibold text-gray-900">
-            Catat {TIPE_LABEL[form.tipe]}
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900">Catat {TIPE_LABEL[form.tipe]}</h2>
         </div>
       </div>
 
@@ -411,7 +450,9 @@ function CashTxFormPage({ form, setForm, accounts, errors, onCancel, onSave }) {
         <div className="max-w-2xl mx-auto p-4 sm:p-6">
           <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Tipe Transaksi</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Tipe Transaksi
+              </label>
               <select
                 value={form.tipe}
                 onChange={(e) => set({ tipe: e.target.value })}
@@ -438,7 +479,9 @@ function CashTxFormPage({ form, setForm, accounts, errors, onCancel, onSave }) {
                   Jumlah<span className="text-red-500 ml-0.5">*</span>
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">Rp</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
+                    Rp
+                  </span>
                   <input
                     type="number"
                     min="0"
@@ -465,10 +508,14 @@ function CashTxFormPage({ form, setForm, accounts, errors, onCancel, onSave }) {
               >
                 <option value="">Pilih akun...</option>
                 {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>{a.kode} — {a.nama}</option>
+                  <option key={a.id} value={a.id}>
+                    {a.kode} — {a.nama}
+                  </option>
                 ))}
               </select>
-              {errors.account_id && <p className="text-xs text-red-500 mt-1">{errors.account_id}</p>}
+              {errors.account_id && (
+                <p className="text-xs text-red-500 mt-1">{errors.account_id}</p>
+              )}
             </div>
 
             {form.tipe === 'transfer' && (
@@ -482,11 +529,17 @@ function CashTxFormPage({ form, setForm, accounts, errors, onCancel, onSave }) {
                   className="input-field"
                 >
                   <option value="">Pilih akun tujuan...</option>
-                  {accounts.filter((a) => String(a.id) !== String(form.account_id)).map((a) => (
-                    <option key={a.id} value={a.id}>{a.kode} — {a.nama}</option>
-                  ))}
+                  {accounts
+                    .filter((a) => String(a.id) !== String(form.account_id))
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.kode} — {a.nama}
+                      </option>
+                    ))}
                 </select>
-                {errors.account_to_id && <p className="text-xs text-red-500 mt-1">{errors.account_to_id}</p>}
+                {errors.account_to_id && (
+                  <p className="text-xs text-red-500 mt-1">{errors.account_to_id}</p>
+                )}
               </div>
             )}
 
@@ -516,7 +569,10 @@ function CashTxFormPage({ form, setForm, accounts, errors, onCancel, onSave }) {
       </div>
 
       <div className="border-t border-gray-200 px-4 sm:px-6 py-3 bg-white flex items-center justify-between">
-        <button onClick={onCancel} className="text-primary-600 hover:bg-primary-50 px-3 py-2 rounded-lg text-sm font-medium">
+        <button
+          onClick={onCancel}
+          className="text-primary-600 hover:bg-primary-50 px-3 py-2 rounded-lg text-sm font-medium"
+        >
           Batal
         </button>
         <button onClick={onSave} className="btn-primary text-sm">

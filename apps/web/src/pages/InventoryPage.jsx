@@ -1,14 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Plus, Search, Warehouse, X, ArrowUpCircle, ArrowDownCircle, ClipboardCheck,
-  Box, AlertTriangle,
+  Plus,
+  Search,
+  Warehouse,
+  X,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  ClipboardCheck,
+  Box,
+  AlertTriangle,
 } from 'lucide-react';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format';
 import {
-  ConfirmationDialog, EmptyState, Pagination, FilterTabs, PageHeader,
+  ConfirmationDialog,
+  EmptyState,
+  Pagination,
+  FilterTabs,
+  PageHeader,
 } from '../components/ui';
 
 const TIPE_LABEL = {
@@ -42,7 +53,9 @@ export default function InventoryPage() {
   const [saving, setSaving] = useState(false);
   const [confirmSave, setConfirmSave] = useState(false);
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => {
+    loadAll();
+  }, []);
 
   const loadAll = async () => {
     try {
@@ -72,16 +85,21 @@ export default function InventoryPage() {
     });
   }, [movements, tipeFilter, search]);
 
-  const counts = useMemo(() => ({
-    all: movements.length,
-    stok_in: movements.filter((m) => m.tipe === 'stok_in').length,
-    stok_out: movements.filter((m) => m.tipe === 'stok_out').length,
-    opname: movements.filter((m) => m.tipe === 'opname').length,
-  }), [movements]);
+  const counts = useMemo(
+    () => ({
+      all: movements.length,
+      stok_in: movements.filter((m) => m.tipe === 'stok_in').length,
+      stok_out: movements.filter((m) => m.tipe === 'stok_out').length,
+      opname: movements.filter((m) => m.tipe === 'opname').length,
+    }),
+    [movements]
+  );
 
   const total = filtered.length;
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
-  useEffect(() => { setPage(1); }, [tipeFilter, search]);
+  useEffect(() => {
+    setPage(1);
+  }, [tipeFilter, search]);
 
   const openForm = (tipe) => {
     setForm({ ...initForm(), tipe });
@@ -92,8 +110,7 @@ export default function InventoryPage() {
   const validate = () => {
     const errs = {};
     if (!form.product_id) errs.product_id = 'Produk wajib dipilih';
-    if (!form.qty || parseInt(form.qty, 10) <= 0)
-      errs.qty = 'Jumlah harus lebih dari 0';
+    if (!form.qty || parseInt(form.qty, 10) <= 0) errs.qty = 'Jumlah harus lebih dari 0';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -228,9 +245,16 @@ export default function InventoryPage() {
                     {m.tipe === 'stok_in' ? '+' : m.tipe === 'stok_out' ? '-' : ''}
                     {formatNumber(m.qty)}
                   </td>
-                  <td className="px-4 py-3 text-right text-gray-500">{formatNumber(m.stok_sebelum)}</td>
-                  <td className="px-4 py-3 text-right font-medium text-gray-900">{formatNumber(m.stok_sesudah)}</td>
-                  <td className="px-4 py-3 text-gray-600 max-w-xs truncate" title={m.keterangan || ''}>
+                  <td className="px-4 py-3 text-right text-gray-500">
+                    {formatNumber(m.stok_sebelum)}
+                  </td>
+                  <td className="px-4 py-3 text-right font-medium text-gray-900">
+                    {formatNumber(m.stok_sesudah)}
+                  </td>
+                  <td
+                    className="px-4 py-3 text-gray-600 max-w-xs truncate"
+                    title={m.keterangan || ''}
+                  >
                     {m.keterangan || '-'}
                   </td>
                   <td className="px-4 py-3 text-gray-500">{m.user_name || '-'}</td>
@@ -243,11 +267,16 @@ export default function InventoryPage() {
         {paged.length === 0 && (
           <EmptyState
             description="Belum ada pergerakan stok yang tercatat."
-            action={isAdmin && (
-              <button onClick={() => openForm('stok_in')} className="btn-primary text-sm flex items-center gap-2">
-                <Plus className="w-4 h-4" /> Catat Stok Masuk
-              </button>
-            )}
+            action={
+              isAdmin && (
+                <button
+                  onClick={() => openForm('stok_in')}
+                  className="btn-primary text-sm flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" /> Catat Stok Masuk
+                </button>
+              )
+            }
           />
         )}
 
@@ -286,9 +315,11 @@ export default function InventoryPage() {
 
 function SummaryCard({ icon, label, value, highlight }) {
   return (
-    <div className={`bg-white rounded-xl border p-4 flex items-center gap-3 ${
-      highlight ? 'border-amber-200 bg-amber-50/50' : 'border-gray-200'
-    }`}>
+    <div
+      className={`bg-white rounded-xl border p-4 flex items-center gap-3 ${
+        highlight ? 'border-amber-200 bg-amber-50/50' : 'border-gray-200'
+      }`}
+    >
       <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center flex-shrink-0">
         {icon}
       </div>
@@ -341,9 +372,7 @@ function MovementFormPage({ form, setForm, products, errors, onCancel, onSave })
           <button onClick={onCancel} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600">
             <X className="w-5 h-5" />
           </button>
-          <h2 className="text-lg font-semibold text-gray-900">
-            Catat {TIPE_LABEL[form.tipe]}
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900">Catat {TIPE_LABEL[form.tipe]}</h2>
         </div>
       </div>
 
@@ -351,9 +380,7 @@ function MovementFormPage({ form, setForm, products, errors, onCancel, onSave })
         <div className="max-w-2xl mx-auto p-4 sm:p-6">
           <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Tipe
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Tipe</label>
               <select
                 value={form.tipe}
                 onChange={(e) => set({ tipe: e.target.value })}
@@ -381,7 +408,9 @@ function MovementFormPage({ form, setForm, products, errors, onCancel, onSave })
                   </option>
                 ))}
               </select>
-              {errors.product_id && <p className="text-xs text-red-500 mt-1">{errors.product_id}</p>}
+              {errors.product_id && (
+                <p className="text-xs text-red-500 mt-1">{errors.product_id}</p>
+              )}
               {product && (
                 <p className="text-xs text-gray-500 mt-1">
                   Stok saat ini: <strong>{product.stock}</strong> {product.satuan || ''}

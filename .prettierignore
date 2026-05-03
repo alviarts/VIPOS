@@ -1,0 +1,19 @@
+node_modules
+dist
+build
+coverage
+apps/backend/data
+apps/web/dist
+package-lock.json
+*.min.js
+*.min.css
+.husky/_
+
+# Frozen analysis docs (jangan diubah)
+docs/v2
+MAJOO_ANALYSIS.md
+MAJOO_API_ANALYSIS.md
+
+# Test artifacts (sementara, akan dipindah ke folder dedikasi)
+test-plan-*.md
+test-report-*.md

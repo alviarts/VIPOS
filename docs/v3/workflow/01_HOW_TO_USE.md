@@ -6,12 +6,13 @@
 
 Organization VIPOS sudah punya secret org-level berikut yang **auto-inject** ke setiap session Devin baru. Cukup reference dengan `${VAR_NAME}` di prompt — Devin substitusi otomatis saat runtime. **Jangan** tulis nilai literal token/password di prompt, file, atau commit.
 
-| Secret | Scope | Kegunaan |
-|---|---|---|
-| `${GITHUB_PAT}` | org | Fallback push ke GitHub kalau Devin git proxy gagal: `git push "https://x-access-token:${GITHUB_PAT}@github.com/alviarts/VIPOS.git" <branch>` |
-| `${VPS_PASSWORD}` | org | Password root VPS `103.74.5.44` untuk SSH deploy + maintenance (dipakai di P0-02 CI/CD setup, P2-01 Postgres install, dll) |
+| Secret            | Scope | Kegunaan                                                                                                                                      |
+| ----------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `${GITHUB_PAT}`   | org   | Fallback push ke GitHub kalau Devin git proxy gagal: `git push "https://x-access-token:${GITHUB_PAT}@github.com/alviarts/VIPOS.git" <branch>` |
+| `${VPS_PASSWORD}` | org   | Password root VPS `103.74.5.44` untuk SSH deploy + maintenance (dipakai di P0-02 CI/CD setup, P2-01 Postgres install, dll)                    |
 
 **VPS info (literal, aman ditulis)**:
+
 - Host: `103.74.5.44`
 - User: `root`
 - Deploy path: `/var/www/vipos`
@@ -70,6 +71,7 @@ Devin 02 tidak butuh tahu apa yang Devin 01 kerjakan — cukup baca `docs/v3/wor
 Setiap Devin **WAJIB commit + push setiap milestone**, bukan tunggu sampai akhir task. Tujuan: user bisa monitor progress real-time + recovery mudah kalau session crash.
 
 Milestone yang pantas commit:
+
 1. Setelah setup awal (file/folder structure created)
 2. Setelah backend/API selesai
 3. Setelah frontend/UI selesai
@@ -81,6 +83,7 @@ Milestone yang pantas commit:
 Format commit message untuk WIP: `wip(P{X}-{nn}): {milestone}`. Format final: `{type}(P{X}-{nn}): {title}` (Conventional Commits).
 
 Push setiap commit ke remote (`git push origin <branch>`). User pantau di:
+
 - `https://github.com/alviarts/VIPOS/commits/devin/{{task-ID}}-{{slug}}` (per branch)
 - `https://github.com/alviarts/VIPOS/pulls` (PR aktif)
 
@@ -100,7 +103,7 @@ Kalau mau eksekusi task spesifik (bukan auto-pick):
 
 Copy block ini, ganti placeholder `{{...}}`, paste ke session Devin baru:
 
-````markdown
+```markdown
 Lanjutkan development VIPOS di https://github.com/alviarts/VIPOS.
 
 **Task**: {{P3-07: POS Cart UI}}
@@ -108,6 +111,7 @@ Lanjutkan development VIPOS di https://github.com/alviarts/VIPOS.
 **Phase**: {{Phase 3 - Android Kasir MVP}}
 
 **Reference**:
+
 - `docs/v3/workflow/phase_{{3}}_*.md` (cari section "{{P3-07}}")
 - `docs/v2/menus/penjualan/pos_kasir.md` (UI/UX blueprint)
 - `docs/v2/{{02_DATA_MODELS.md, 09_OFFLINE_AND_SYNC.md}}` (cross-cutting refs)
@@ -118,6 +122,7 @@ Lanjutkan development VIPOS di https://github.com/alviarts/VIPOS.
 {{Checklist langsung copy dari task spec}}
 
 **Workflow**:
+
 1. Pull latest: `cd /home/ubuntu/repos/VIPOS && git fetch && git checkout main && git pull`
 2. Buat branch: `git checkout -b devin/{{P3-07-pos-cart-ui}}`
 3. Implement sesuai spec di phase doc + reference v2 docs
@@ -129,12 +134,13 @@ Lanjutkan development VIPOS di https://github.com/alviarts/VIPOS.
 9. Notify user dengan link PR
 
 **Catatan penting**:
+
 - VIPOS standalone (tidak proxy ke Majoo). Pinjam pola UI/struktur API saja.
 - Push pakai proxy bawaan Devin (sudah authenticated) atau direct PAT fallback `https://x-access-token:${GITHUB_PAT}@github.com/alviarts/VIPOS.git`
 - Tidak skip CI checks. Tidak push ke `main` langsung.
 - Tailwind primary color = teal #04C99E
 - Lokasi file: lihat task spec untuk path eksak
-````
+```
 
 ## Multi-task assignment (kalau Devin multi-task per session)
 
@@ -144,6 +150,7 @@ Kalau mau assign 2-3 tasks sekaligus ke 1 Devin (bisa 1 PR atau multi PR):
 Lanjutkan development VIPOS di https://github.com/alviarts/VIPOS.
 
 **Tasks** (sequential, dalam 1 session):
+
 1. P1-04: Products Page
 2. P1-05: Categories Page
 3. P1-06: Customers Page
@@ -157,6 +164,7 @@ Lanjutkan development VIPOS di https://github.com/alviarts/VIPOS.
 ## Dependency check
 
 Sebelum mulai task X, pastikan:
+
 - Semua dependency task sudah `[done]` (lihat field "Dependencies" di task spec)
 - Branch `main` sudah ada hasil dari dependency
 
@@ -168,11 +176,11 @@ Kalau dependency belum done, jangan paksakan paralel — atau modifikasi task sp
 devin/P{phase}-{nn}-{slug}
 ```
 
-| Pola | Contoh |
-|---|---|
-| Phase task | `devin/P0-01-monorepo-setup` |
-| Phase task | `devin/P3-15-promo-discount-ui` |
-| Hotfix | `devin/hotfix-{slug}` |
+| Pola                        | Contoh                              |
+| --------------------------- | ----------------------------------- |
+| Phase task                  | `devin/P0-01-monorepo-setup`        |
+| Phase task                  | `devin/P3-15-promo-discount-ui`     |
+| Hotfix                      | `devin/hotfix-{slug}`               |
 | Bug fix on existing feature | `devin/P3-07-cart-fix-quantity-bug` |
 
 ## PR title convention
@@ -185,6 +193,7 @@ chore(P{phase}-{nn}): {title}   — untuk infra/setup task
 ```
 
 Contoh:
+
 - `feat(P3-07): POS Cart UI dengan adaptive layout`
 - `fix(P3-07): cart total tidak update saat quantity stepper`
 
@@ -202,17 +211,17 @@ Lihat `docs/v3/workflow/templates/pr_template.md`.
 
 Setelah Phase 0 selesai, tiap PR harus pass:
 
-| Check | Phase 0 | Phase 1+ | Phase 3+ |
-|---|---|---|---|
-| Lint web | — | ✅ | ✅ |
-| Lint backend | — | ✅ | ✅ |
-| Lint Android (ktlint/detekt) | — | — | ✅ |
-| Type check (tsc / kotlinc) | — | ✅ | ✅ |
-| Unit test web | — | ✅ | ✅ |
-| Unit test backend | — | ✅ | ✅ |
-| Unit test Android | — | — | ✅ |
-| Build web | — | ✅ | ✅ |
-| Build Android debug APK | — | — | ✅ |
+| Check                        | Phase 0 | Phase 1+ | Phase 3+ |
+| ---------------------------- | ------- | -------- | -------- |
+| Lint web                     | —       | ✅       | ✅       |
+| Lint backend                 | —       | ✅       | ✅       |
+| Lint Android (ktlint/detekt) | —       | —        | ✅       |
+| Type check (tsc / kotlinc)   | —       | ✅       | ✅       |
+| Unit test web                | —       | ✅       | ✅       |
+| Unit test backend            | —       | ✅       | ✅       |
+| Unit test Android            | —       | —        | ✅       |
+| Build web                    | —       | ✅       | ✅       |
+| Build Android debug APK      | —       | —        | ✅       |
 
 ## Tracking progress
 
@@ -221,7 +230,7 @@ Setelah Phase 0 selesai, tiap PR harus pass:
 Setelah task selesai dan PR merged:
 
 ```markdown
-### P3-07: POS Cart UI  [done]  ← was [pending]
+### P3-07: POS Cart UI [done] ← was [pending]
 
 PR: #34 (merged 2026-05-15)
 Devin session: https://app.devin.ai/sessions/abc123
@@ -230,9 +239,9 @@ Devin session: https://app.devin.ai/sessions/abc123
 ### Update progress di 00_OVERVIEW.md (per phase)
 
 ```markdown
-| Phase | Goal | Tasks | Done | Pending | Blocked |
-|---|---|---|---|---|---|
-| Phase 3 | Android Kasir MVP | 22 | 7 | 14 | 1 |
+| Phase   | Goal              | Tasks | Done | Pending | Blocked |
+| ------- | ----------------- | ----- | ---- | ------- | ------- |
+| Phase 3 | Android Kasir MVP | 22    | 7    | 14      | 1       |
 ```
 
 (Auto-grep cara: `grep -c '\[done\]' phase_3_*.md` etc.)
@@ -270,6 +279,7 @@ Devin session: https://app.devin.ai/sessions/abc123
 ## Konvensi commit message
 
 Conventional commits:
+
 ```
 feat(P3-07): add cart panel composable
 fix(P3-07): cart total updates on stepper change

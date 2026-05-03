@@ -9,7 +9,7 @@
 
 ---
 
-### P0-01: Monorepo struktur + workspaces  `[done]`
+### P0-01: Monorepo struktur + workspaces `[done]`
 
 > PR: [#6](https://github.com/alviarts/VIPOS/pull/6) (merged 2026-05-03), session: https://app.devin.ai/sessions/25c7eea136d1457c8c4dda8d16819659
 
@@ -18,6 +18,7 @@
 **Dependencies**: none
 
 **Outputs**:
+
 - `package.json` di root dengan npm/pnpm workspaces config
 - `apps/web/` (move dari `frontend/`)
 - `apps/backend/` (move dari `backend/`)
@@ -29,6 +30,7 @@
 - Root `README.md` updated dengan structure baru
 
 **Acceptance criteria**:
+
 - [ ] `npm install` di root install semua workspaces sekali
 - [ ] `npm run dev:web` jalan di apps/web
 - [ ] `npm run dev:backend` jalan di apps/backend
@@ -38,6 +40,7 @@
 - [ ] No regression di existing fitur (smoke test pakai checklist PR #1)
 
 **Verifikasi**:
+
 ```bash
 cd /home/ubuntu/repos/VIPOS
 npm install
@@ -51,7 +54,8 @@ cd apps/web && npm run dev
 **Estimasi**: 1 hari
 
 **Devin prompt**:
-````
+
+```
 Lanjutkan development VIPOS di https://github.com/alviarts/VIPOS.
 
 Task: P0-01 — Monorepo struktur + workspaces.
@@ -79,11 +83,11 @@ Catatan:
 - Jangan ubah API endpoint paths (/vipos/api/* harus tetap)
 - Update production deploy script supaya path baru ke-handle
 - Tailwind primary color teal #04C99E tetap dipertahankan
-````
+```
 
 ---
 
-### P0-02: CI/CD via GitHub Actions  `[done]`
+### P0-02: CI/CD via GitHub Actions `[done]`
 
 > PR: [#7](https://github.com/alviarts/VIPOS/pull/7) (merged 2026-05-03), session: https://app.devin.ai/sessions/25c7eea136d1457c8c4dda8d16819659
 
@@ -92,11 +96,13 @@ Catatan:
 **Dependencies**: P0-01
 
 **Outputs**:
+
 - `.github/workflows/ci.yml` — pipeline untuk PR + push to main
 - `.github/workflows/deploy-vps.yml` — auto-deploy on merge to main (web + backend)
 - (Phase 3+ akan tambahkan android workflow)
 
 **Acceptance criteria**:
+
 - [ ] PR baru otomatis trigger CI
 - [ ] CI checks: lint, typecheck, test, build (untuk web + backend)
 - [ ] Deploy workflow di-trigger saat merge ke main; SSH ke VPS, pull, build, restart pm2
@@ -105,6 +111,7 @@ Catatan:
 - [ ] CI badge di README.md
 
 **Verifikasi**:
+
 - Buka PR test (no-op change), confirm CI jalan dan pass.
 - Merge PR test, confirm deploy auto-trigger dan VPS terupdate.
 
@@ -112,7 +119,8 @@ Catatan:
 **Estimasi**: 1-2 hari
 
 **Devin prompt**:
-````
+
+```
 Lanjutkan VIPOS — Task P0-02: CI/CD via GitHub Actions.
 
 Goal: Setup GitHub Actions untuk auto-run lint + typecheck + test + build pada PR, dan auto-deploy ke VPS pada merge ke main.
@@ -128,17 +136,20 @@ Catatan:
 - SSH key user simpan sebagai GitHub Secret VPS_SSH_KEY
 - Backend pm2 service: `vipos-backend`
 - Branch protection: enable di Settings > Branches
-````
+```
 
 ---
 
-### P0-03: Code style + linting + git hooks  `[pending]`
+### P0-03: Code style + linting + git hooks `[done]`
+
+> PR: [#8](https://github.com/alviarts/VIPOS/pull/8) (open, awaiting CI/review/merge), session: https://app.devin.ai/sessions/25c7eea136d1457c8c4dda8d16819659
 
 **Goal**: ESLint + Prettier + Husky + lint-staged untuk web/backend; konsistensi style otomatis.
 
 **Dependencies**: P0-01
 
 **Outputs**:
+
 - `.eslintrc.json` di root + per-package override
 - `.prettierrc.json`
 - `.editorconfig`
@@ -147,6 +158,7 @@ Catatan:
 - `.husky/commit-msg` enforce conventional commits (commitlint)
 
 **Acceptance criteria**:
+
 - [ ] `npm run lint` pass tanpa error di kondisi awal
 - [ ] Pre-commit hook reject commit kalau lint fail
 - [ ] Commit message non-conventional di-reject
@@ -157,13 +169,14 @@ Catatan:
 
 ---
 
-### P0-04: Type-safe API contract (OpenAPI + Zod)  `[pending]`
+### P0-04: Type-safe API contract (OpenAPI + Zod) `[pending]`
 
 **Goal**: Define schema API menggunakan Zod (runtime validation) + generate OpenAPI spec untuk dokumentasi. Web client + backend pakai schema yang sama.
 
 **Dependencies**: P0-01
 
 **Outputs**:
+
 - `packages/shared/src/schemas/{resource}.ts` — Zod schemas per resource (auth, products, customers, dst)
 - `packages/shared/src/types/index.ts` — TypeScript types derived
 - Backend route handlers: validate request/response pakai schemas
@@ -172,6 +185,7 @@ Catatan:
 - Swagger UI accessible di `/api/docs` (dev mode)
 
 **Acceptance criteria**:
+
 - [ ] 5 existing resources (auth, products, categories, customers, finance, inventory) punya Zod schema
 - [ ] Backend reject invalid request body dengan 400 + error detail
 - [ ] Web client type-safe call ke backend (TypeScript autocomplete)
@@ -183,13 +197,14 @@ Catatan:
 
 ---
 
-### P0-05: Testing framework  `[pending]`
+### P0-05: Testing framework `[pending]`
 
 **Goal**: Vitest untuk web + backend; basic test coverage untuk login, products CRUD, finance basics.
 
 **Dependencies**: P0-01, P0-04
 
 **Outputs**:
+
 - `apps/web/vitest.config.ts` + `apps/web/src/__tests__/`
 - `apps/backend/vitest.config.ts` + `apps/backend/src/__tests__/`
 - React Testing Library setup untuk web component tests
@@ -197,6 +212,7 @@ Catatan:
 - Sample tests: auth login, products list, finance accounts list
 
 **Acceptance criteria**:
+
 - [ ] `npm test` jalan di kedua workspace
 - [ ] Coverage report generated (target awal 30%, akan naik per task)
 - [ ] CI jalankan tests + fail kalau test fail
@@ -216,6 +232,7 @@ Catatan:
 - [ ] Testing framework ready
 
 Setelah Phase 0 selesai, Phase 1 (web dashboard) bisa dijalankan dengan banyak Devin paralel karena setiap task punya:
+
 - Branch terpisah
 - CI auto-validate
 - Type-safe contract jadi tidak conflict di API

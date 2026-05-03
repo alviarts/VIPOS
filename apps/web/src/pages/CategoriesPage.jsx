@@ -4,7 +4,12 @@ import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import {
-  ConfirmationDialog, EmptyState, Pagination, FilterTabs, Toggle, PageHeader,
+  ConfirmationDialog,
+  EmptyState,
+  Pagination,
+  FilterTabs,
+  Toggle,
+  PageHeader,
 } from '../components/ui';
 
 export default function CategoriesPage() {
@@ -45,11 +50,14 @@ export default function CategoriesPage() {
     }
   };
 
-  const counts = useMemo(() => ({
-    all: categories.length,
-    shown: categories.filter((c) => c.is_tampil_di_menu).length,
-    hidden: categories.filter((c) => !c.is_tampil_di_menu).length,
-  }), [categories]);
+  const counts = useMemo(
+    () => ({
+      all: categories.length,
+      shown: categories.filter((c) => c.is_tampil_di_menu).length,
+      hidden: categories.filter((c) => !c.is_tampil_di_menu).length,
+    }),
+    [categories]
+  );
 
   const filtered = useMemo(() => {
     return categories.filter((c) => {
@@ -64,7 +72,9 @@ export default function CategoriesPage() {
   const total = filtered.length;
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
 
-  useEffect(() => { setPage(1); }, [search, filter]);
+  useEffect(() => {
+    setPage(1);
+  }, [search, filter]);
 
   const openForm = (cat = null) => {
     setEditCat(cat);
@@ -146,13 +156,12 @@ export default function CategoriesPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Daftar Kategori"
-        subtitle={`${categories.length} kategori`}
-        icon={Tag}
-      >
+      <PageHeader title="Daftar Kategori" subtitle={`${categories.length} kategori`} icon={Tag}>
         {isAdmin && (
-          <button onClick={() => openForm()} className="btn-primary flex items-center gap-2 text-sm">
+          <button
+            onClick={() => openForm()}
+            className="btn-primary flex items-center gap-2 text-sm"
+          >
             <Plus className="w-4 h-4" /> Tambah Kategori
           </button>
         )}
@@ -173,9 +182,9 @@ export default function CategoriesPage() {
       {/* Filter tabs */}
       <FilterTabs
         tabs={[
-          { id: 'all',    label: 'Semua',                count: counts.all },
-          { id: 'shown',  label: 'Tampil di Menu',        count: counts.shown },
-          { id: 'hidden', label: 'Tidak Tampil di Menu',  count: counts.hidden },
+          { id: 'all', label: 'Semua', count: counts.all },
+          { id: 'shown', label: 'Tampil di Menu', count: counts.shown },
+          { id: 'hidden', label: 'Tidak Tampil di Menu', count: counts.hidden },
         ]}
         activeId={filter}
         onChange={setFilter}
@@ -197,12 +206,13 @@ export default function CategoriesPage() {
             </thead>
             <tbody>
               {paged.map((cat) => (
-                <tr key={cat.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                <tr
+                  key={cat.id}
+                  className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
+                >
                   <td className="px-4 py-3">
                     <p className="font-medium text-gray-900">{cat.name}</p>
-                    {cat.description && (
-                      <p className="text-xs text-gray-400">{cat.description}</p>
-                    )}
+                    {cat.description && <p className="text-xs text-gray-400">{cat.description}</p>}
                   </td>
                   <td className="px-4 py-3 text-right text-gray-700">{cat.urutan ?? 0}</td>
                   <td className="px-4 py-3 text-right text-gray-700">{cat.product_count ?? 0}</td>
@@ -241,11 +251,16 @@ export default function CategoriesPage() {
         {paged.length === 0 && (
           <EmptyState
             description="Belum ada kategori yang sesuai dengan filter Anda."
-            action={isAdmin && (
-              <button onClick={() => openForm()} className="btn-primary text-sm flex items-center gap-2">
-                <Plus className="w-4 h-4" /> Tambah Kategori
-              </button>
-            )}
+            action={
+              isAdmin && (
+                <button
+                  onClick={() => openForm()}
+                  className="btn-primary text-sm flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" /> Tambah Kategori
+                </button>
+              )
+            }
           />
         )}
 
@@ -363,14 +378,18 @@ function CategoryFormPage({ editCat, form, setForm, errors, departments, onCance
                 >
                   <option value="">Pilih departemen...</option>
                   {departments.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
                   ))}
                 </select>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Deskripsi (Opsional)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Deskripsi (Opsional)
+              </label>
               <textarea
                 value={form.description}
                 onChange={(e) => set({ description: e.target.value })}

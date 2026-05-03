@@ -66,9 +66,7 @@ export default function Pagination({
               key={p}
               onClick={() => goTo(p)}
               className={`min-w-[32px] h-8 px-2 rounded-lg text-sm font-medium ${
-                p === page
-                  ? 'bg-primary-500 text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
+                p === page ? 'bg-primary-500 text-white' : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
               {p}

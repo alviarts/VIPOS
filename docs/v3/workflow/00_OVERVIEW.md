@@ -60,16 +60,16 @@ VIPOS = **standalone POS** untuk SME Indonesia (F&B, retail, salon, klinik, jasa
 
 ## Phases
 
-| Phase | Goal | Tasks | Estimasi (sequential) | Bisa paralel? |
-|---|---|---|---|---|
-| **Phase 0** Foundation | Setup monorepo, CI/CD, code style, type-safe API contract | 5 | 2 minggu | Limited (sequential) |
-| **Phase 1** Web Dashboard | Polish /vipos/ jadi Owner Dashboard penuh untuk semua 11 menu group | 18 | 8-10 minggu | Yes (across menu groups) |
-| **Phase 2** Backend hardening | Multi-tenant, audit, jobs, observability, migrate to Postgres | 8 | 6 minggu | Limited (some sequential) |
-| **Phase 3** Android Kasir MVP | POS core + offline + hardware + push, ship beta | 22 | 12-14 minggu | Yes (UI vs hardware vs sync) |
-| **Phase 4** Android Kasir Full | Order online, reservation, inventory mutation, reports, karyawan | 16 | 10-12 minggu | Yes |
-| **Phase 5** Specialized apps | KDS, Self Order, Customer Display | 11 | 6-8 minggu | Yes (per app) |
-| **Phase 6** GTM | Landing, marketing, beta merchant, sales material | 6 | 4 minggu | Yes |
-| **Total** | | **86 tasks** | **48-56 minggu (~12-14 bulan)** | Real time bisa **8-10 bulan** dengan team paralel |
+| Phase                          | Goal                                                                | Tasks        | Estimasi (sequential)           | Bisa paralel?                                     |
+| ------------------------------ | ------------------------------------------------------------------- | ------------ | ------------------------------- | ------------------------------------------------- |
+| **Phase 0** Foundation         | Setup monorepo, CI/CD, code style, type-safe API contract           | 5            | 2 minggu                        | Limited (sequential)                              |
+| **Phase 1** Web Dashboard      | Polish /vipos/ jadi Owner Dashboard penuh untuk semua 11 menu group | 18           | 8-10 minggu                     | Yes (across menu groups)                          |
+| **Phase 2** Backend hardening  | Multi-tenant, audit, jobs, observability, migrate to Postgres       | 8            | 6 minggu                        | Limited (some sequential)                         |
+| **Phase 3** Android Kasir MVP  | POS core + offline + hardware + push, ship beta                     | 22           | 12-14 minggu                    | Yes (UI vs hardware vs sync)                      |
+| **Phase 4** Android Kasir Full | Order online, reservation, inventory mutation, reports, karyawan    | 16           | 10-12 minggu                    | Yes                                               |
+| **Phase 5** Specialized apps   | KDS, Self Order, Customer Display                                   | 11           | 6-8 minggu                      | Yes (per app)                                     |
+| **Phase 6** GTM                | Landing, marketing, beta merchant, sales material                   | 6            | 4 minggu                        | Yes                                               |
+| **Total**                      |                                                                     | **86 tasks** | **48-56 minggu (~12-14 bulan)** | Real time bisa **8-10 bulan** dengan team paralel |
 
 ## Critical path (kalau cuma 1 Devin per waktu)
 
@@ -124,6 +124,7 @@ Phase 1 dan Phase 2 bisa paralel karena beda surface (web vs backend), tapi bany
 ### 1. Reference docs
 
 Semua tasks merujuk ke `docs/v2/` analysis Majoo sebagai blueprint:
+
 - `docs/v2/menus/<group>/<menu>.md` untuk per-menu spec
 - `docs/v2/02_DATA_MODELS.md` untuk entity schemas
 - `docs/v2/03_API_CONTRACT.md` untuk API conventions
@@ -153,6 +154,7 @@ Contoh: `devin/P3-07-pos-cart-ui`, `devin/P1-04-products-page`.
 ### 4. CI gates
 
 Setelah Phase 0 selesai, tiap PR harus pass:
+
 - Lint (web + backend + Android)
 - Type check (TypeScript + Kotlin)
 - Unit test
@@ -163,6 +165,7 @@ Hanya Phase 6 marketing tasks yang bisa skip (docs only).
 ### 5. Definition of Done (DoD)
 
 Task dianggap done kalau:
+
 - [ ] Semua acceptance criteria terpenuhi
 - [ ] PR di-create dengan template lengkap
 - [ ] CI pass
@@ -173,6 +176,7 @@ Task dianggap done kalau:
 ### 6. Markers
 
 Setiap task akan punya marker status:
+
 - `[pending]` — belum mulai
 - `[in_progress]` — sedang dikerjakan oleh Devin session X (link ke session)
 - `[done]` — merged to main
@@ -181,6 +185,7 @@ Setiap task akan punya marker status:
 ### 7. Update flow
 
 Kalau task selesai dan Anda perlu update workflow doc itu sendiri:
+
 1. Mark task `[done]` di phase doc
 2. Update progress percentage di 00_OVERVIEW.md
 3. Commit + push ke main (langsung, tanpa PR untuk update marker — biar gampang)
@@ -190,6 +195,7 @@ Kalau task selesai dan Anda perlu update workflow doc itu sendiri:
 **Recommended (1 prompt universal)**: Pakai `templates/devin_continuation_prompt.md`. Paste prompt yang sama ke setiap session Devin baru — Devin auto-detect task next berdasarkan markers `[pending]`/`[done]` di phase docs + merged PR.
 
 Workflow:
+
 1. User paste prompt → Devin 01 eksekusi task P0-01 → commit incremental → PR → merged.
 2. User paste prompt yang sama → Devin 02 auto-detect P0-01 done, eksekusi P0-02 → ...
 3. Repeat sampai Phase 6 selesai (~12-14 bulan dengan 1 Devin sequential, ~8-10 bulan paralel).
@@ -198,18 +204,18 @@ Detail di `01_HOW_TO_USE.md`.
 
 ## Ringkasan Phase isi
 
-| Phase | File | Highlight |
-|---|---|---|
-| 0 | `phase_0_foundation.md` | Monorepo struktur, CI/CD, OpenAPI/Zod, lint, husky |
-| 1 | `phase_1_web_dashboard.md` | Layout shell, Auth, semua 11 menu group web pages |
-| 2 | `phase_2_backend.md` | Multi-tenant, audit, jobs, observability, Postgres |
-| 3 | `phase_3_android_kasir_mvp.md` | Android bootstrap, sync, POS core, hardware, payment, beta |
-| 4 | `phase_4_android_kasir_full.md` | Order online, reservation, inventory, reports, karyawan |
-| 5 | `phase_5_specialized_apps.md` | KDS, Self Order, Customer Display |
-| 6 | `phase_6_gtm.md` | Landing, marketing site, beta program, sales kit |
+| Phase | File                            | Highlight                                                  |
+| ----- | ------------------------------- | ---------------------------------------------------------- |
+| 0     | `phase_0_foundation.md`         | Monorepo struktur, CI/CD, OpenAPI/Zod, lint, husky         |
+| 1     | `phase_1_web_dashboard.md`      | Layout shell, Auth, semua 11 menu group web pages          |
+| 2     | `phase_2_backend.md`            | Multi-tenant, audit, jobs, observability, Postgres         |
+| 3     | `phase_3_android_kasir_mvp.md`  | Android bootstrap, sync, POS core, hardware, payment, beta |
+| 4     | `phase_4_android_kasir_full.md` | Order online, reservation, inventory, reports, karyawan    |
+| 5     | `phase_5_specialized_apps.md`   | KDS, Self Order, Customer Display                          |
+| 6     | `phase_6_gtm.md`                | Landing, marketing site, beta program, sales kit           |
 
 ## Versioning
 
-| Version | Date | Notes |
-|---|---|---|
-| v3.0 | 2026-05-03 | Initial workflow blueprint berdasarkan v2 analysis. |
+| Version | Date       | Notes                                               |
+| ------- | ---------- | --------------------------------------------------- |
+| v3.0    | 2026-05-03 | Initial workflow blueprint berdasarkan v2 analysis. |

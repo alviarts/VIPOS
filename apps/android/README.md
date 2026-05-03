@@ -3,6 +3,7 @@
 Placeholder untuk VIPOS Android app (Phase 3+).
 
 Stack target (sesuai `docs/v3/workflow/00_OVERVIEW.md`):
+
 - Kotlin + Jetpack Compose
 - Room + DataStore (offline-first)
 - WorkManager + Retrofit (sync)

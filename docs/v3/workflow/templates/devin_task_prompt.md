@@ -6,7 +6,7 @@
 
 ## Template umum (semua task)
 
-````markdown
+```markdown
 Lanjutkan development VIPOS di https://github.com/alviarts/VIPOS.
 
 **Task**: {{P{phase}-{nn}: judul task}}
@@ -14,6 +14,7 @@ Lanjutkan development VIPOS di https://github.com/alviarts/VIPOS.
 **Branch**: `devin/{{P{phase}-{nn}-{slug}}}`
 
 **Reference dokumen**:
+
 - `docs/v3/workflow/phase_{{X}}_*.md` — cari section "{{P{phase}-{nn}}}"
 - `docs/v3/workflow/00_OVERVIEW.md` — visi & arsitektur
 - `docs/v3/workflow/01_HOW_TO_USE.md` — konvensi
@@ -28,6 +29,7 @@ Lanjutkan development VIPOS di https://github.com/alviarts/VIPOS.
 {{daftar checklist [ ]}}
 
 **Workflow**:
+
 1. Pull main: `cd /home/ubuntu/repos/VIPOS && git fetch && git checkout main && git pull`
 2. Buat branch: `git checkout -b devin/{{P{phase}-{nn}-{slug}}}`
 3. Implementasi sesuai spec; ikuti konvensi di `01_HOW_TO_USE.md`
@@ -39,6 +41,7 @@ Lanjutkan development VIPOS di https://github.com/alviarts/VIPOS.
 9. Notify user dengan link PR
 
 **Catatan penting**:
+
 - VIPOS standalone — tidak proxy ke Majoo, hanya pinjam pola UI/struktur API
 - Push pakai proxy bawaan Devin (sudah authenticated). Kalau 403, fallback ke direct PAT URL `https://x-access-token:${GITHUB_PAT}@github.com/alviarts/VIPOS.git`
 - Jangan push langsung ke `main` — selalu lewat PR
@@ -48,23 +51,25 @@ Lanjutkan development VIPOS di https://github.com/alviarts/VIPOS.
 - Estimasi durasi: {{X-Y hari}} — kalau ternyata > 2× estimate, message user untuk bahas pemecahan task
 
 **Verifikasi sebelum buka PR**:
+
 - [ ] `npm run lint` (web + backend) atau `./gradlew lint` (Android) pass
 - [ ] `npm test` atau `./gradlew test` pass
 - [ ] Build pass: `npm run build` atau `./gradlew assembleDebug`
 - [ ] Manual smoke test sesuai task
 - [ ] Tidak ada breaking change di endpoint existing (kecuali task explicit)
-````
+```
 
 ---
 
 ## Template khusus: Web task
 
-````markdown
+```markdown
 Lanjutkan VIPOS — Task {{P1-XX}}: {{judul web task}}.
 
 [Pakai template umum di atas]
 
 **Tech-specific**:
+
 - Web stack: React 18 + Vite + Tailwind 3 + React Router 6
 - API client: `apps/web/src/api/{resource}.js`
 - Form: React Hook Form + zod schema dari `packages/shared/src/schemas/`
@@ -73,23 +78,25 @@ Lanjutkan VIPOS — Task {{P1-XX}}: {{judul web task}}.
 - Test: Vitest + React Testing Library
 
 **Common pitfalls untuk web task**:
+
 - Jangan hardcode API URL — pakai `import.meta.env.VITE_API_URL`
 - Form validation pakai zod schema (shared dengan backend)
 - Loading state + empty state + error state semua harus ditangani
 - Mobile-responsive (Tailwind breakpoints sm/md/lg)
 - Role-aware: cek user permission lewat `usePermission()` hook
-````
+```
 
 ---
 
 ## Template khusus: Backend task
 
-````markdown
+```markdown
 Lanjutkan VIPOS — Task {{P2-XX}}: {{judul backend task}}.
 
 [Pakai template umum di atas]
 
 **Tech-specific**:
+
 - Stack: Node 18+ + Express 4 + Prisma (after P2-01) atau better-sqlite3 (sebelum)
 - Auth: JWT + middleware
 - Validation: zod schema dari `packages/shared/`
@@ -98,23 +105,25 @@ Lanjutkan VIPOS — Task {{P2-XX}}: {{judul backend task}}.
 - Test: Vitest + Supertest
 
 **Common pitfalls untuk backend task**:
+
 - Jangan return data tanpa filter `tenant_id` (after P2-02)
 - Audit log untuk mutation (after P2-03)
 - Idempotency key untuk webhook + mobile sync
 - Rate limit per user/IP (after P2-06)
 - Migration: pakai Prisma Migrate, jangan ALTER TABLE manual
-````
+```
 
 ---
 
 ## Template khusus: Android task
 
-````markdown
+```markdown
 Lanjutkan VIPOS — Task {{P3-XX or P4-XX or P5-XX}}: {{judul Android task}}.
 
 [Pakai template umum di atas]
 
 **Tech-specific**:
+
 - Stack: Kotlin 1.9+, Compose, Material 3, Hilt, Room, Retrofit, WorkManager
 - Min SDK 21, target SDK 34
 - Modul Gradle: `:app`, `:core:designsystem`, `:core:network`, `:core:database`, `:feature-{X}`
@@ -124,6 +133,7 @@ Lanjutkan VIPOS — Task {{P3-XX or P4-XX or P5-XX}}: {{judul Android task}}.
 - Test: JUnit + MockK (unit), Compose UI test (UI)
 
 **Common pitfalls untuk Android task**:
+
 - Compose recomposition: hindari unstable lambda di parameter
 - Don't block UI thread — semua I/O lewat coroutine + Dispatchers.IO
 - Hilt scoping: ViewModel `@ViewModelScoped`, repository `@Singleton`
@@ -132,38 +142,42 @@ Lanjutkan VIPOS — Task {{P3-XX or P4-XX or P5-XX}}: {{judul Android task}}.
 - Permission: BT/Camera/Storage runtime permission flow
 
 **Adaptive layout checklist**:
+
 - [ ] Compose Preview untuk Compact/Medium/Expanded (3 size class)
 - [ ] Test di emulator: Pixel 4 (phone), Pixel Tablet, Pixel C
 - [ ] Orientation change preserved state
 
 **Hardware task tambahan checklist**:
+
 - [ ] Test di device fisik (kalau task involve hardware printer/scanner/EDC)
 - [ ] Reconnect logic kalau hardware drop
 - [ ] Permission flow runtime
 - [ ] Settings screen untuk pair/config
 - [ ] Auto-recovery (retry queue kalau fail)
-````
+```
 
 ---
 
 ## Template khusus: GTM/marketing task
 
-````markdown
+```markdown
 Lanjutkan VIPOS — Task {{P6-XX}}: {{judul GTM task}}.
 
 [Pakai template umum di atas]
 
 **Tech-specific** (kalau ada engineering):
+
 - Marketing site: Next.js + Tailwind (separate project di `apps/web-marketing/`)
 - Help center: Docusaurus atau Mintlify
 
 **Common pitfalls GTM task**:
+
 - Konten Bahasa Indonesia native (bukan terjemahan kaku)
 - SEO-friendly: meta tags, structured data, sitemap
 - Page speed: image optimization, lazy load, cdn
 - Analytics: GA4 + Hotjar setup
 - Privacy: cookie banner kalau perlu (GDPR-style)
-````
+```
 
 ---
 
@@ -180,7 +194,7 @@ Lanjutkan VIPOS — Task {{P6-XX}}: {{judul GTM task}}.
 
 ## Contoh konkret: assigning P1-04
 
-````markdown
+```markdown
 Lanjutkan development VIPOS di https://github.com/alviarts/VIPOS.
 
 Task: P1-04 — Produk Master + 5-tab wizard.
@@ -188,6 +202,7 @@ Phase: Phase 1 — Web Dashboard.
 Branch: `devin/P1-04-products-page`.
 
 Reference:
+
 - docs/v3/workflow/phase_1_web_dashboard.md (section P1-04)
 - docs/v3/workflow/00_OVERVIEW.md
 - docs/v3/workflow/01_HOW_TO_USE.md
@@ -198,6 +213,7 @@ Reference:
 Goal: Refresh halaman Products di web `/vipos/`, lengkapi tab Varian, Resep, dan majoo Order yang saat ini locked. Tambah backend endpoint untuk product variant + recipe.
 
 Acceptance criteria:
+
 - [ ] List produk dengan filter (kategori, status, search), pagination
 - [ ] Tambah produk wizard 5 tab semua working
 - [ ] Tab Varian: tambah opsi (Ukuran/Warna/dll) + price modifier per opsi
@@ -211,10 +227,11 @@ Acceptance criteria:
 Workflow standard (per template).
 
 Catatan tech-specific (web task):
+
 - Tailwind primary teal #04C99E
 - Form: React Hook Form + zod
 - Loading/empty/error state semua handle
 - Mobile-responsive
 
 Estimasi: 4-5 hari Devin work.
-````
+```

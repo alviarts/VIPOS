@@ -1,9 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  TrendingUp, ShoppingCart, Package, AlertTriangle,
-  ArrowUpRight, DollarSign, BarChart3, CreditCard,
-  ShoppingBag, Star, Users
+  TrendingUp,
+  ShoppingCart,
+  Package,
+  AlertTriangle,
+  ArrowUpRight,
+  DollarSign,
+  BarChart3,
+  CreditCard,
+  ShoppingBag,
+  Star,
+  Users,
 } from 'lucide-react';
 import api from '../utils/api';
 import { formatCurrency, formatDateTime } from '../utils/format';
@@ -51,7 +59,7 @@ export default function DashboardPage() {
     );
   }
 
-  const maxChart = Math.max(...chartData.map(d => d.total), 1);
+  const maxChart = Math.max(...chartData.map((d) => d.total), 1);
 
   return (
     <div className="space-y-6">
@@ -63,10 +71,19 @@ export default function DashboardPage() {
             <Star className="w-4 h-4 text-gray-300 cursor-pointer hover:text-yellow-400" />
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
-            Diperbarui {new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}, {new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+            Diperbarui{' '}
+            {new Date().toLocaleDateString('id-ID', {
+              day: '2-digit',
+              month: 'long',
+              year: 'numeric',
+            })}
+            , {new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
-        <button onClick={() => navigate('/cashier')} className="btn-primary flex items-center gap-2">
+        <button
+          onClick={() => navigate('/cashier')}
+          className="btn-primary flex items-center gap-2"
+        >
           <ShoppingCart className="w-4 h-4" />
           <span className="hidden sm:inline">Buka Kasir</span>
         </button>
@@ -91,11 +108,15 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 divide-x-0 md:divide-x divide-gray-100">
           <div>
             <p className="text-xs text-gray-400 mb-1">Total Penjualan</p>
-            <p className="text-lg font-bold text-gray-900">{formatCurrency(stats?.today?.total || 0)}</p>
+            <p className="text-lg font-bold text-gray-900">
+              {formatCurrency(stats?.today?.total || 0)}
+            </p>
           </div>
           <div className="md:pl-4">
             <p className="text-xs text-gray-400 mb-1">Penjualan Terbayar</p>
-            <p className="text-lg font-bold text-gray-900">{formatCurrency(stats?.today?.total || 0)}</p>
+            <p className="text-lg font-bold text-gray-900">
+              {formatCurrency(stats?.today?.total || 0)}
+            </p>
           </div>
           <div className="md:pl-4">
             <p className="text-xs text-gray-400 mb-1">Transaksi</p>
@@ -104,7 +125,11 @@ export default function DashboardPage() {
           <div className="md:pl-4">
             <p className="text-xs text-gray-400 mb-1">Penjualan/Transaksi</p>
             <p className="text-lg font-bold text-gray-900">
-              {formatCurrency(stats?.today?.transactions ? Math.round((stats?.today?.total || 0) / stats.today.transactions) : 0)}
+              {formatCurrency(
+                stats?.today?.transactions
+                  ? Math.round((stats?.today?.total || 0) / stats.today.transactions)
+                  : 0
+              )}
             </p>
           </div>
           <div className="md:pl-4">
@@ -122,11 +147,20 @@ export default function DashboardPage() {
       <div className="card">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-gray-900">
-            Penjualan {new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}
+            Penjualan{' '}
+            {new Date().toLocaleDateString('id-ID', {
+              day: '2-digit',
+              month: 'long',
+              year: 'numeric',
+            })}
           </h2>
           <div className="flex items-center gap-4 text-xs">
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-gray-300" /> Periode Sebelumnya</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-primary-500" /> Total Penjualan</span>
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded-full bg-gray-300" /> Periode Sebelumnya
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded-full bg-primary-500" /> Total Penjualan
+            </span>
           </div>
         </div>
         {chartData.length > 0 ? (
@@ -226,7 +260,10 @@ export default function DashboardPage() {
       <div className="card">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-gray-900">Transaksi Terbaru</h2>
-          <button onClick={() => navigate('/transactions')} className="text-sm text-primary-600 hover:underline flex items-center gap-1">
+          <button
+            onClick={() => navigate('/transactions')}
+            className="text-sm text-primary-600 hover:underline flex items-center gap-1"
+          >
             Lihat Semua <ArrowUpRight className="w-3 h-3" />
           </button>
         </div>
@@ -250,14 +287,20 @@ export default function DashboardPage() {
                     <td className="px-4 py-3">{tx.cashier_name}</td>
                     <td className="px-4 py-3 font-semibold">{formatCurrency(tx.total_amount)}</td>
                     <td className="px-4 py-3">
-                      <span className="badge bg-gray-100 text-gray-600 uppercase">{tx.payment_method}</span>
+                      <span className="badge bg-gray-100 text-gray-600 uppercase">
+                        {tx.payment_method}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`badge ${tx.status === 'completed' ? 'badge-success' : 'badge-danger'}`}>
+                      <span
+                        className={`badge ${tx.status === 'completed' ? 'badge-success' : 'badge-danger'}`}
+                      >
                         {tx.status === 'completed' ? 'Selesai' : 'Batal'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">{formatDateTime(tx.created_at)}</td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">
+                      {formatDateTime(tx.created_at)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

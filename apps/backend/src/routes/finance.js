@@ -5,7 +5,9 @@ const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const router = express.Router();
 
 function getAccountSaldo(db, accountId) {
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT
       (SELECT saldo_awal FROM cash_accounts WHERE id = ?) AS saldo_awal,
       COALESCE(SUM(CASE
@@ -16,7 +18,9 @@ function getAccountSaldo(db, accountId) {
         ELSE 0 END), 0) AS movement
     FROM cash_transactions
     WHERE account_id = ? OR account_to_id = ?
-  `).get(accountId, accountId, accountId, accountId, accountId, accountId, accountId);
+  `
+    )
+    .get(accountId, accountId, accountId, accountId, accountId, accountId, accountId);
   return (row.saldo_awal || 0) + (row.movement || 0);
 }
 
@@ -25,11 +29,15 @@ function getAccountSaldo(db, accountId) {
 router.get('/accounts', authenticateToken, (req, res) => {
   try {
     const db = getDb();
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT * FROM cash_accounts
       WHERE is_active = 1
       ORDER BY kode
-    `).all();
+    `
+      )
+      .all();
     const enriched = rows.map((r) => ({ ...r, saldo: getAccountSaldo(db, r.id) }));
     res.json(enriched);
   } catch (err) {
@@ -42,16 +50,20 @@ router.post('/accounts', authenticateToken, requireAdmin, (req, res) => {
     const { kode, tipe, nama, kategori, saldo_awal } = req.body;
     if (!kode || !nama) return res.status(400).json({ error: 'Kode dan nama akun wajib diisi' });
     const db = getDb();
-    const result = db.prepare(`
+    const result = db
+      .prepare(
+        `
       INSERT INTO cash_accounts (kode, tipe, nama, kategori, saldo_awal)
       VALUES (?, ?, ?, ?, ?)
-    `).run(
-      kode.trim(),
-      tipe === 'header' ? 'header' : 'detail',
-      nama.trim(),
-      kategori ? kategori.trim() : 'Kas & Bank',
-      Number.isFinite(parseFloat(saldo_awal)) ? parseFloat(saldo_awal) : 0
-    );
+    `
+      )
+      .run(
+        kode.trim(),
+        tipe === 'header' ? 'header' : 'detail',
+        nama.trim(),
+        kategori ? kategori.trim() : 'Kas & Bank',
+        Number.isFinite(parseFloat(saldo_awal)) ? parseFloat(saldo_awal) : 0
+      );
     const row = db.prepare('SELECT * FROM cash_accounts WHERE id = ?').get(result.lastInsertRowid);
     res.status(201).json({ ...row, saldo: getAccountSaldo(db, row.id) });
   } catch (err) {
@@ -66,11 +78,13 @@ router.put('/accounts/:id', authenticateToken, requireAdmin, (req, res) => {
   try {
     const { kode, tipe, nama, kategori, saldo_awal } = req.body;
     const db = getDb();
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE cash_accounts
          SET kode = ?, tipe = ?, nama = ?, kategori = ?, saldo_awal = ?
        WHERE id = ?
-    `).run(
+    `
+    ).run(
       (kode || '').trim(),
       tipe === 'header' ? 'header' : 'detail',
       (nama || '').trim(),
@@ -91,9 +105,11 @@ router.put('/accounts/:id', authenticateToken, requireAdmin, (req, res) => {
 router.delete('/accounts/:id', authenticateToken, requireAdmin, (req, res) => {
   try {
     const db = getDb();
-    const used = db.prepare(
-      'SELECT COUNT(*) as count FROM cash_transactions WHERE account_id = ? OR account_to_id = ?'
-    ).get(req.params.id, req.params.id);
+    const used = db
+      .prepare(
+        'SELECT COUNT(*) as count FROM cash_transactions WHERE account_id = ? OR account_to_id = ?'
+      )
+      .get(req.params.id, req.params.id);
     if (used.count > 0) {
       db.prepare('UPDATE cash_accounts SET is_active = 0 WHERE id = ?').run(req.params.id);
       return res.json({ message: 'Akun dinonaktifkan karena sudah memiliki transaksi' });
@@ -132,7 +148,9 @@ router.get('/transactions', authenticateToken, (req, res) => {
     }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT
         ct.*,
         a1.nama AS account_name,
@@ -146,7 +164,9 @@ router.get('/transactions', authenticateToken, (req, res) => {
       ${where}
       ORDER BY ct.tanggal DESC, ct.id DESC
       LIMIT ?
-    `).all(...params, parseInt(limit, 10) || 100);
+    `
+      )
+      .all(...params, parseInt(limit, 10) || 100);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -155,7 +175,8 @@ router.get('/transactions', authenticateToken, (req, res) => {
 
 router.post('/transactions', authenticateToken, (req, res) => {
   try {
-    const { tanggal, tipe, account_id, account_to_id, kategori, jumlah, keterangan, reference } = req.body;
+    const { tanggal, tipe, account_id, account_to_id, kategori, jumlah, keterangan, reference } =
+      req.body;
     if (!tipe || !['pemasukan', 'pengeluaran', 'transfer'].includes(tipe)) {
       return res.status(400).json({ error: 'Tipe transaksi tidak valid' });
     }
@@ -171,23 +192,29 @@ router.post('/transactions', authenticateToken, (req, res) => {
     }
 
     const db = getDb();
-    const result = db.prepare(`
+    const result = db
+      .prepare(
+        `
       INSERT INTO cash_transactions
         (tanggal, tipe, account_id, account_to_id, kategori, jumlah, keterangan, reference, user_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      tanggal || new Date().toISOString().slice(0, 10),
-      tipe,
-      parseInt(account_id, 10),
-      account_to_id ? parseInt(account_to_id, 10) : null,
-      kategori ? kategori.trim() : null,
-      jumlahNum,
-      keterangan ? keterangan.trim() : null,
-      reference ? reference.trim() : null,
-      req.user.id
-    );
+    `
+      )
+      .run(
+        tanggal || new Date().toISOString().slice(0, 10),
+        tipe,
+        parseInt(account_id, 10),
+        account_to_id ? parseInt(account_to_id, 10) : null,
+        kategori ? kategori.trim() : null,
+        jumlahNum,
+        keterangan ? keterangan.trim() : null,
+        reference ? reference.trim() : null,
+        req.user.id
+      );
 
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT
         ct.*,
         a1.nama AS account_name,
@@ -199,7 +226,9 @@ router.post('/transactions', authenticateToken, (req, res) => {
       LEFT JOIN cash_accounts a2 ON a2.id = ct.account_to_id
       LEFT JOIN users u ON u.id = ct.user_id
       WHERE ct.id = ?
-    `).get(result.lastInsertRowid);
+    `
+      )
+      .get(result.lastInsertRowid);
     res.status(201).json(row);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -224,16 +253,26 @@ router.get('/summary', authenticateToken, (req, res) => {
     const { from, to } = req.query;
     const conditions = [];
     const params = [];
-    if (from) { conditions.push('tanggal >= ?'); params.push(from); }
-    if (to)   { conditions.push('tanggal <= ?'); params.push(to); }
+    if (from) {
+      conditions.push('tanggal >= ?');
+      params.push(from);
+    }
+    if (to) {
+      conditions.push('tanggal <= ?');
+      params.push(to);
+    }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT tipe, COALESCE(SUM(jumlah), 0) AS total, COUNT(*) AS count
       FROM cash_transactions
       ${where}
       GROUP BY tipe
-    `).all(...params);
+    `
+      )
+      .all(...params);
 
     const summary = { pemasukan: 0, pengeluaran: 0, transfer: 0, count: 0 };
     rows.forEach((r) => {

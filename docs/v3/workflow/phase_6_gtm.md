@@ -9,13 +9,14 @@
 
 ---
 
-### P6-01: Landing page (vipos.id)  `[pending]`
+### P6-01: Landing page (vipos.id) `[pending]`
 
 **Goal**: Marketing landing page profesional di domain `vipos.id`.
 
 **Dependencies**: P1-01 (web layout shell)
 
 **Outputs**:
+
 - `apps/web-marketing/` (separate Next.js project untuk SEO + statis cepat)
 - Sections: hero, problem, solution, features, pricing, testimonial, CTA
 - Trial signup form (lead → backend)
@@ -24,6 +25,7 @@
 - Google Analytics + Hotjar
 
 **Acceptance criteria**:
+
 - [ ] Live di vipos.id
 - [ ] Lighthouse score > 90 (Performance, SEO, Accessibility)
 - [ ] Trial form submit → lead di backend
@@ -35,19 +37,21 @@
 
 ---
 
-### P6-02: Pricing page + subscription self-service  `[pending]`
+### P6-02: Pricing page + subscription self-service `[pending]`
 
 **Goal**: Pricing tier (Lite, Starter, Advance, Prime, Prime+) dengan compare table + self-service signup → trial → paid.
 
 **Dependencies**: P6-01, P2-02 (multi-tenant)
 
 **Outputs**:
+
 - Pricing page detailed
 - Subscription flow: trial signup → payment (Midtrans/Xendit) → activation
 - Invoice generation
 - Trial reminder emails
 
 **Acceptance criteria**:
+
 - [ ] Compare table 5 tier dengan fitur per tier
 - [ ] Trial 14 hari free
 - [ ] Setelah trial, payment via Midtrans/Xendit
@@ -61,19 +65,21 @@
 
 ---
 
-### P6-03: Help center + docs  `[pending]`
+### P6-03: Help center + docs `[pending]`
 
 **Goal**: Help center di `docs.vipos.id` — getting started, video tutorial, FAQ, troubleshooting.
 
 **Dependencies**: P6-01
 
 **Outputs**:
+
 - Help center site (Docusaurus atau Mintlify)
 - 30+ artikel: setup, fitur per modul, troubleshooting
 - 10+ video tutorial (di-host di YouTube)
 - Search functional
 
 **Acceptance criteria**:
+
 - [ ] Live di docs.vipos.id
 - [ ] Setiap modul minimal 2 artikel + 1 video
 - [ ] Search berfungsi
@@ -84,13 +90,14 @@
 
 ---
 
-### P6-04: Beta program + onboarding kit  `[pending]`
+### P6-04: Beta program + onboarding kit `[pending]`
 
 **Goal**: Recruit 50 beta merchant. Provide onboarding kit (training, hardware reference, support).
 
 **Dependencies**: P3-22, P4-16
 
 **Outputs**:
+
 - Beta merchant landing form
 - Onboarding email sequence (5 email × 7 hari)
 - Hardware reference: list printer + scanner + tablet rekomendasi (link Tokopedia/Shopee)
@@ -99,6 +106,7 @@
 - Feedback survey monthly
 
 **Acceptance criteria**:
+
 - [ ] 50 merchant terdaftar
 - [ ] Onboarding email rate open > 70%
 - [ ] Setup video > 1000 view
@@ -109,13 +117,14 @@
 
 ---
 
-### P6-05: Sales kit + reseller program  `[pending]`
+### P6-05: Sales kit + reseller program `[pending]`
 
 **Goal**: Sales material (deck, brochure, demo video) + reseller partnership program.
 
 **Dependencies**: P6-01
 
 **Outputs**:
+
 - Sales deck (Keynote/PowerPoint, 20 slide)
 - Brochure PDF (1 page summary, 4 page detail)
 - Demo video (5 menit walkthrough)
@@ -123,6 +132,7 @@
 - Reseller agreement template
 
 **Acceptance criteria**:
+
 - [ ] Sales deck siap (kualitas profesional)
 - [ ] Brochure cetak-able
 - [ ] Demo video upload ke YouTube (target 1000 view)
@@ -133,13 +143,14 @@
 
 ---
 
-### P6-06: Public launch + PR  `[pending]`
+### P6-06: Public launch + PR `[pending]`
 
 **Goal**: Launch event (online/offline), PR di tech media, paid ads, content marketing kickoff.
 
 **Dependencies**: P6-01..P6-05
 
 **Outputs**:
+
 - Launch event plan (online webinar atau offline di kota besar)
 - Press release + media kit
 - Paid ads (Facebook/Instagram + Google) Rp 5-10jt budget
@@ -147,6 +158,7 @@
 - Influencer outreach (UMKM influencer Indonesia)
 
 **Acceptance criteria**:
+
 - [ ] Event terselenggara (target attendee: 100 online / 50 offline)
 - [ ] PR coverage minimal 3 outlet (DailySocial, Tech in Asia, dll)
 - [ ] Ads campaign live, lead form filled > 200
@@ -173,13 +185,13 @@ Setelah Phase 6, VIPOS = produk komersial live, scaling secara organik + paid ac
 
 Setelah 6 phase selesai (~12-14 bulan), pertimbangan ekspansi:
 
-| Initiative | Estimasi | Trigger |
-|---|---|---|
-| iOS app (Owner only) | 3 bulan | Saat ada > 100 owner request iOS |
-| WhatsApp Business automated chatbot | 2 bulan | Setelah marketing automation matang |
-| Inventory ML demand forecasting | 4 bulan | Saat ada > 500 merchant data |
-| Open API + marketplace integrations | 6 bulan | Kebutuhan ekosistem partner |
-| Capital lending (Majoo Capital pattern) | 6 bulan | Setelah > 1000 merchant + financial data |
-| Indonesia regional expansion (Vietnam, PH) | 6-12 bulan | Setelah PMF di Indonesia |
+| Initiative                                 | Estimasi   | Trigger                                  |
+| ------------------------------------------ | ---------- | ---------------------------------------- |
+| iOS app (Owner only)                       | 3 bulan    | Saat ada > 100 owner request iOS         |
+| WhatsApp Business automated chatbot        | 2 bulan    | Setelah marketing automation matang      |
+| Inventory ML demand forecasting            | 4 bulan    | Saat ada > 500 merchant data             |
+| Open API + marketplace integrations        | 6 bulan    | Kebutuhan ekosistem partner              |
+| Capital lending (Majoo Capital pattern)    | 6 bulan    | Setelah > 1000 merchant + financial data |
+| Indonesia regional expansion (Vietnam, PH) | 6-12 bulan | Setelah PMF di Indonesia                 |
 
 Tracked di `docs/v3/workflow/post_phase_6_roadmap.md` (akan dibuat saat phase 6 mendekati selesai).
