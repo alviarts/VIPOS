@@ -95,6 +95,23 @@ export default [
     },
   },
 
+  // 3b. apps/backend ESM test files (.mjs) — pakai import + Node globals
+  {
+    files: ['apps/backend/**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        ...globals.node,
+        ...globals.es2024,
+      },
+    },
+    rules: {
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      'no-console': 'off',
+    },
+  },
+
   // 4. packages/shared — module (akan diisi di P0-04)
   {
     files: ['packages/shared/**/*.{js,mjs}'],

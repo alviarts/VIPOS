@@ -25,6 +25,6 @@ describe('formatCurrency (IDR)', () => {
 describe('formatNumber (id-ID)', () => {
   it('inserts thousands separator', () => {
     const out = formatNumber(1000000);
-    expect(out).toMatch(/^1[\.\u00A0\s]?000[\.\u00A0\s]?000$/);
+    expect(out).toMatch(/^1[.\u00A0\s]?000[.\u00A0\s]?000$/);
   });
 });

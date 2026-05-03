@@ -34,7 +34,7 @@ export function teardownTestEnv() {
     const { dir } = created.pop();
     try {
       fs.rmSync(dir, { recursive: true, force: true });
-    } catch (_) {
+    } catch {
       /* ignore */
     }
   }
