@@ -11,11 +11,13 @@
     "build:watch": "tsc -p tsconfig.json --watch",
     "clean": "rm -rf dist",
     "prepare": "tsc -p tsconfig.json",
-    "test": "echo \"@vipos/shared: no tests yet\""
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@types/node": "^22.19.17",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.3.4",
