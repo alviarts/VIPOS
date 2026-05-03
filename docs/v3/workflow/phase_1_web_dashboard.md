@@ -378,7 +378,7 @@
 
 ---
 
-### P1-12: Order Online + Marketplace + Consumer App config `[pending]`
+### P1-12: Order Online + Marketplace + Consumer App config `[done]`
 
 **Goal**: Halaman Order Online: pesanan masuk, majoo Order config, marketplace integration, consumer app config.
 
@@ -386,25 +386,28 @@
 
 **Outputs**:
 
-- `apps/web/src/pages/order_online/OrdersPage.jsx`
-- `apps/web/src/pages/order_online/MajooOrderPage.jsx` (storefront config)
-- `apps/web/src/pages/order_online/MarketplacePage.jsx` (GoFood/GrabFood/Shopee oauth)
-- `apps/web/src/pages/order_online/ConsumerAppPage.jsx`
-- Backend: `/api/v1/online-order`, `/api/v1/marketplace/{provider}`
+- `apps/web/src/pages/order_online/OrdersPage.jsx` — queue tab NEW/PREPARING/READY/COMPLETED/CANCELLED, auto-refresh 10s, SLA color cue, detail dialog dengan accept / reject / ready / complete / cancel actions
+- `apps/web/src/pages/order_online/MajooOrderPage.jsx` — storefront e-menu config (domain, branding, jam buka, payment methods, delivery zones, ongkir, SEO/contact)
+- `apps/web/src/pages/order_online/MarketplacePage.jsx` — connect/disconnect 5 providers (GoFood/GrabFood/ShopeeFood/GrabMart/Tokopedia), product mapping dialog dengan override price/name/visibility, sync button, settlement report table
+- `apps/web/src/pages/order_online/ConsumerAppPage.jsx` — branding, bundle ID, status pipeline (draft → submitted → review → published → rejected), Play Store / App Store URL
+- Backend: `/api/online-order/*` (queue + state machine + webhook ingestion), `/api/marketplace/*` (mock OAuth + sync + settlement), `/api/storefront-settings`, `/api/consumer-app-config`
+- DB: 6 tabel baru (`online_orders`, `online_order_items`, `marketplace_connections`, `marketplace_product_overrides`, `storefront_settings`, `consumer_app_config`)
+- Shared: `packages/shared/src/schemas/order-online.ts` — Zod + OpenAPI registrations untuk semua endpoint
 
 **Acceptance criteria**:
 
-- [ ] Queue pesanan online (NEW → PREPARING → READY → COMPLETED)
-- [ ] Storefront config: domain custom, branding, payment methods, delivery zone, ongkir
-- [ ] Marketplace OAuth flow per provider
-- [ ] Sync produk ke marketplace (price markup)
-- [ ] Order webhook handler
-- [ ] Settlement report
+- [x] Queue pesanan online (NEW → PREPARING → READY → COMPLETED)
+- [x] Storefront config: domain custom, branding, payment methods, delivery zone, ongkir
+- [x] Marketplace OAuth flow per provider (mock — token sintetis, swap saat API resmi tersedia)
+- [x] Sync produk ke marketplace (price markup) — override price/name/visibility per produk per provider, sync button mock-mark synced
+- [x] Order webhook handler — `POST /api/online-order/webhook/:provider` (no-auth), auto-accept honored kalau setting nyala
+- [x] Settlement report — aggregate per provider dari `online_orders` status=COMPLETED, kurangi MDR%, hitung net
 
 **Reference**: `docs/v2/menus/order_online/*.md`
 
 **Branch**: `devin/P1-12-order-online`
 **Estimasi**: 6-8 hari
+**PR**: #30 — session: https://app.devin.ai/sessions/43ab2127d43747fbae02bf5c4a2352b8
 
 ---
 

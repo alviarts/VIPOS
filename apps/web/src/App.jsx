@@ -39,6 +39,10 @@ import CommissionsPage from './pages/CommissionsPage';
 import PromosPage from './pages/penjualan/PromosPage';
 import CouponsPage from './pages/penjualan/CouponsPage';
 import LoyaltyPage from './pages/penjualan/LoyaltyPage';
+import OrdersPage from './pages/order_online/OrdersPage';
+import MarketplacePage from './pages/order_online/MarketplacePage';
+import MajooOrderPage from './pages/order_online/MajooOrderPage';
+import ConsumerAppPage from './pages/order_online/ConsumerAppPage';
 import MarketingPage from './pages/penjualan/MarketingPage';
 import EmployeesPage from './pages/karyawan/EmployeesPage';
 import PayrollPage from './pages/karyawan/PayrollPage';
@@ -131,6 +135,10 @@ export default function App() {
         <Route path="receipts" element={<ReceiptsPage />} />
         <Route path="aging-report" element={<AgingReportPage />} />
         <Route path="commissions" element={<CommissionsPage />} />
+        <Route path="order-online/orders" element={<OrdersPage />} />
+        <Route path="order-online/marketplace" element={<MarketplacePage />} />
+        <Route path="order-online/majoo-order" element={<MajooOrderPage />} />
+        <Route path="order-online/consumer-app" element={<ConsumerAppPage />} />
         <Route path="employees" element={<EmployeesPage />} />
         <Route path="payroll" element={<PayrollPage />} />
         <Route path="permissions" element={<PermissionsPage />} />

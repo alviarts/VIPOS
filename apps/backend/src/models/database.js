@@ -727,6 +727,161 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_b2b_invoices_due ON b2b_invoices(due_date);
     CREATE INDEX IF NOT EXISTS idx_b2b_invoice_items_inv ON b2b_invoice_items(invoice_id);
     CREATE INDEX IF NOT EXISTS idx_b2b_receipts_invoice ON b2b_receipts(invoice_id);
+
+    -- P1-12: Online orders + marketplace integrations + storefront/consumer app config.
+    CREATE TABLE IF NOT EXISTS online_orders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ref_no TEXT UNIQUE NOT NULL,
+      channel TEXT NOT NULL CHECK(channel IN ('emenu', 'consumer_app', 'gofood', 'grabfood', 'shopeefood', 'grabmart', 'tokopedia')),
+      external_ref TEXT,
+      order_type TEXT NOT NULL DEFAULT 'delivery' CHECK(order_type IN ('dine_in', 'takeaway', 'delivery')),
+      table_no TEXT,
+      customer_name TEXT,
+      customer_phone TEXT,
+      customer_address TEXT,
+      delivery_zone TEXT,
+      delivery_fee REAL DEFAULT 0,
+      subtotal REAL NOT NULL DEFAULT 0,
+      discount REAL NOT NULL DEFAULT 0,
+      service_charge REAL NOT NULL DEFAULT 0,
+      tax REAL NOT NULL DEFAULT 0,
+      total REAL NOT NULL DEFAULT 0,
+      payment_method TEXT,
+      payment_status TEXT NOT NULL DEFAULT 'unpaid' CHECK(payment_status IN ('unpaid', 'paid', 'cod', 'refunded')),
+      status TEXT NOT NULL DEFAULT 'NEW' CHECK(status IN ('NEW', 'PREPARING', 'READY', 'COMPLETED', 'REJECTED', 'CANCELLED')),
+      reject_reason TEXT,
+      cancel_reason TEXT,
+      sla_minutes INTEGER DEFAULT 30,
+      accepted_at DATETIME,
+      ready_at DATETIME,
+      completed_at DATETIME,
+      cancelled_at DATETIME,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS online_order_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER NOT NULL,
+      product_id INTEGER,
+      product_name TEXT NOT NULL,
+      qty INTEGER NOT NULL DEFAULT 1,
+      price REAL NOT NULL DEFAULT 0,
+      modifiers TEXT,
+      notes TEXT,
+      subtotal REAL NOT NULL DEFAULT 0,
+      FOREIGN KEY (order_id) REFERENCES online_orders(id) ON DELETE CASCADE,
+      FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS marketplace_connections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      provider TEXT UNIQUE NOT NULL CHECK(provider IN ('gofood', 'grabfood', 'shopeefood', 'grabmart', 'tokopedia')),
+      status TEXT NOT NULL DEFAULT 'disconnected' CHECK(status IN ('connected', 'disconnected', 'paused')),
+      merchant_id TEXT,
+      outlet_id TEXT,
+      oauth_token TEXT,
+      refresh_token TEXT,
+      token_expires_at DATETIME,
+      auto_accept INTEGER DEFAULT 0,
+      sla_accept_minutes INTEGER DEFAULT 5,
+      sla_ready_minutes INTEGER DEFAULT 15,
+      mdr_percent REAL DEFAULT 20,
+      price_markup_percent REAL DEFAULT 0,
+      settings TEXT,
+      connected_at DATETIME,
+      last_sync_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS marketplace_product_overrides (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      provider TEXT NOT NULL CHECK(provider IN ('gofood', 'grabfood', 'shopeefood', 'grabmart', 'tokopedia')),
+      product_id INTEGER NOT NULL,
+      override_name TEXT,
+      override_price REAL,
+      override_image_url TEXT,
+      is_enabled INTEGER NOT NULL DEFAULT 1,
+      synced_at DATETIME,
+      sync_status TEXT DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'failed')),
+      sync_error TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(provider, product_id),
+      FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS storefront_settings (
+      id INTEGER PRIMARY KEY CHECK(id = 1),
+      slug TEXT,
+      custom_domain TEXT,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      brand_name TEXT,
+      logo_url TEXT,
+      cover_image_url TEXT,
+      primary_color TEXT DEFAULT '#04C99E',
+      accent_color TEXT,
+      theme TEXT DEFAULT 'light' CHECK(theme IN ('light', 'dark', 'auto')),
+      language TEXT DEFAULT 'id',
+      currency TEXT DEFAULT 'IDR',
+      tagline TEXT,
+      about_text TEXT,
+      contact_phone TEXT,
+      contact_whatsapp TEXT,
+      contact_email TEXT,
+      contact_instagram TEXT,
+      tos_text TEXT,
+      privacy_text TEXT,
+      faq_text TEXT,
+      seo_title TEXT,
+      seo_description TEXT,
+      seo_og_image_url TEXT,
+      ga_id TEXT,
+      fb_pixel_id TEXT,
+      operating_hours TEXT,
+      payment_methods TEXT,
+      delivery_zones TEXT,
+      min_order_amount REAL DEFAULT 0,
+      service_charge_percent REAL DEFAULT 0,
+      tax_percent REAL DEFAULT 0,
+      supports_dine_in INTEGER DEFAULT 1,
+      supports_takeaway INTEGER DEFAULT 1,
+      supports_delivery INTEGER DEFAULT 1,
+      banner_slides TEXT,
+      featured_product_ids TEXT,
+      hidden_category_ids TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS consumer_app_config (
+      id INTEGER PRIMARY KEY CHECK(id = 1),
+      app_name TEXT,
+      app_icon_url TEXT,
+      splash_image_url TEXT,
+      primary_color TEXT DEFAULT '#04C99E',
+      bundle_id_android TEXT,
+      bundle_id_ios TEXT,
+      play_store_url TEXT,
+      app_store_url TEXT,
+      status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'submitted', 'review', 'published', 'rejected')),
+      provisioned_at DATETIME,
+      published_at DATETIME,
+      featured_promo_ids TEXT,
+      hidden_product_ids TEXT,
+      operating_hours TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_online_orders_status ON online_orders(status);
+    CREATE INDEX IF NOT EXISTS idx_online_orders_channel ON online_orders(channel);
+    CREATE INDEX IF NOT EXISTS idx_online_orders_created ON online_orders(created_at);
+    CREATE INDEX IF NOT EXISTS idx_online_order_items_order ON online_order_items(order_id);
+    CREATE INDEX IF NOT EXISTS idx_marketplace_overrides_provider ON marketplace_product_overrides(provider);
+    CREATE INDEX IF NOT EXISTS idx_marketplace_overrides_product ON marketplace_product_overrides(product_id);
   `);
 
   // ============================================================
