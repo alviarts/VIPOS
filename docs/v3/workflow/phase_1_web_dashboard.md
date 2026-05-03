@@ -468,7 +468,7 @@
 
 ---
 
-### P1-15: Keuangan (Buku Kas + Penerimaan + Pengeluaran + Aset + Laporan) `[pending]`
+### P1-15: Keuangan (Buku Kas + Penerimaan + Pengeluaran + Aset + Laporan) `[done]`
 
 **Goal**: Halaman Keuangan lengkap.
 
@@ -482,21 +482,25 @@
 - `apps/web/src/pages/keuangan/FixedAssetsPage.jsx`
 - `apps/web/src/pages/keuangan/FinancialReportsPage.jsx` (jurnal, neraca, laba-rugi, buku besar, arus kas, hutang, piutang)
 - `apps/web/src/pages/keuangan/ChartOfAccountsPage.jsx`
-- Backend: `/api/v1/cash-account`, `/api/v1/income`, `/api/v1/expense`, `/api/v1/fixed-asset`, `/api/v1/journal`, `/api/v1/account`
+- `apps/web/src/pages/keuangan/JournalPage.jsx`
+- `apps/web/src/pages/keuangan/VendorsPage.jsx`
+- Backend: `/api/account`, `/api/journal`, `/api/cash-transfer`, `/api/income`, `/api/expense`, `/api/recurring-bill`, `/api/vendor`, `/api/fixed-asset`, `/api/financial-report`
 
 **Acceptance criteria**:
 
-- [ ] Buku kas: list + transfer + ledger per akun
-- [ ] Penerimaan: manual + reconciliation POS sales
-- [ ] Pengeluaran: list + kategori biaya + recurring bill + vendor master
-- [ ] Aset Tetap: list + depresiasi + disposal + report
-- [ ] Laporan: 7 jenis (jurnal, neraca, laba-rugi, buku besar, arus kas, hutang, piutang)
-- [ ] Chart of Accounts + jurnal umum + saldo awal
+- [x] Buku kas: list + transfer + ledger per akun
+- [x] Penerimaan: manual + reconciliation POS sales
+- [x] Pengeluaran: list + kategori biaya + recurring bill + vendor master
+- [x] Aset Tetap: list + depresiasi + disposal + report
+- [x] Laporan: 7 jenis (jurnal, neraca, laba-rugi, buku besar, arus kas, hutang, piutang)
+- [x] Chart of Accounts + jurnal umum + saldo awal
 
 **Reference**: `docs/v2/menus/keuangan/*.md`
 
 **Branch**: `devin/P1-15-keuangan`
 **Estimasi**: 8-10 hari
+**PR**: #33 (CI green 2026-05-03; pending merge)
+**Session**: https://app.devin.ai/sessions/5b4e510fac5044bb8f1b0f2d6c3f4d27
 
 ---
 
