@@ -1,0 +1,294 @@
+Path	URL	Permissions
+PENJUALAN		view,create,update,delete
+PENJUALAN / Menu Favorit		
+PENJUALAN / Dashboard	sales-dashboard	view,create,update,delete
+PENJUALAN / Laporan		view,create,update,delete
+PENJUALAN / Laporan / Laporan Penjualan		view,create,update,delete
+PENJUALAN / Laporan / Laporan Penjualan / Ringkasan Penjualan	laporan/penjualan/sales-summary	view,create,update,delete
+PENJUALAN / Laporan / Laporan Penjualan / Detail Penjualan	laporan/penjualan/transaksi-v2	view,create,update,delete
+PENJUALAN / Laporan / Laporan Penjualan / Penjualan Per Periode	laporan/penjualan/sales-harian	view,create,update,delete
+PENJUALAN / Laporan / Laporan Penjualan / Penjualan Outlet	laporan/penjualan/sales-outlet	view,create,update,delete
+PENJUALAN / Laporan / Laporan Penjualan / Laporan Jenis Bayar	laporan/penjualan/sales-jenis-pembayaran	view,create,update,delete
+PENJUALAN / Laporan / Laporan Penjualan / Laporan Jenis Order	laporan/penjualan/sales-jenis-order	view,create,update,delete
+PENJUALAN / Laporan / Laporan Penjualan / Laporan Void	laporan/penjualan/void	view,create,update,delete
+PENJUALAN / Laporan / Laporan Penjualan / Laporan Refund	laporan/penjualan/sales-refund	view,create,update,delete
+PENJUALAN / Laporan / Laporan Dapur		view,create,update,delete
+PENJUALAN / Laporan / Laporan Dapur / Laporan Proses Order	laporan/dapur/proses-order	view,create,update,delete
+PENJUALAN / Laporan / Laporan Dapur / Laporan Proses Produk	laporan/dapur/proses-produk	view,create,update,delete
+PENJUALAN / Laporan / Laporan Produk		view,create,update,delete
+PENJUALAN / Laporan / Laporan Produk / Penjualan Produk	laporan/penjualan/sales-item	view,create,update,delete
+PENJUALAN / Laporan / Laporan Produk / Penjualan Departemen	laporan/penjualan/sales-department	view,create,update,delete
+PENJUALAN / Laporan / Laporan Produk / Penjualan Kategori	laporan/penjualan/sales-kategori	view,create,update,delete
+PENJUALAN / Laporan / Laporan Produk / Penjualan Ekstra	laporan/penjualan/sales-varian	view,create,update,delete
+PENJUALAN / Laporan / Laporan Produk / Penjualan Sub Ekstra	laporan/penjualan/sales-sub-varian	view,create,update,delete
+PENJUALAN / Laporan / Laporan Jasa		view,create,update,delete
+PENJUALAN / Laporan / Laporan Jasa / Laporan Jasa	laporan/penjualan/jasa	view,create,update,delete
+PENJUALAN / Laporan / Laporan Jasa / Laporan Reservasi	laporan/penjualan/reservasi	view,create,update,delete
+PENJUALAN / Laporan / Laporan Jasa / Laporan Reservasi & Utilisasi	laporan/penjualan/reservasi-new	view
+PENJUALAN / Laporan / Laporan Promo & Loyalti		view,create,update,delete
+PENJUALAN / Laporan / Laporan Promo & Loyalti / Laporan Promo	laporan/penjualan/sales-promo	view,create,update,delete
+PENJUALAN / Laporan / Laporan Promo & Loyalti / Laporan Poin	laporan/penjualan/sales-poin	view,create,update,delete
+PENJUALAN / Laporan / Laporan Promo & Loyalti / Laporan Kupon	laporan/penjualan/sales-voucher	view,create,update,delete
+PENJUALAN / Laporan / Laporan Promo & Loyalti / Laporan Komplimen	laporan/penjualan/sales-compliment	view,create,update,delete
+PENJUALAN / Laporan / Laporan Pajak		view,create,update,delete
+PENJUALAN / Laporan / Laporan Pajak / Laporan Pajak	laporan/penjualan/sales-pajak	view,create,update,delete
+PENJUALAN / Laporan / Laporan Pajak / Laporan Service Charge	laporan/penjualan/service-charge	view
+PENJUALAN / Laporan / Laporan Kasir		view,create,update,delete
+PENJUALAN / Laporan / Laporan Kasir / Laporan Kas Kasir	laporan/penjualan/kas-kecil	view,create,update,delete
+PENJUALAN / Laporan / Laporan Kasir / Penjualan Per Kasir	laporan/penjualan/sales-per-kasir	view,create,update,delete
+PENJUALAN / Laporan / Laporan Kasir / Penjualan Per Terminal	laporan/penjualan/per-terminal	view,create,update,delete
+PENJUALAN / Laporan / Laporan Kasir / Laporan Tutup Kasir	laporan/penjualan/tutup-kasir	view,create,update,delete
+PENJUALAN / Laporan / Laporan Kasir / Laporan Tutup Toko	laporan/penjualan/tutup-toko	view,create,update,delete
+PENJUALAN / Laporan / Laporan Deposit		view,create,update,delete
+PENJUALAN / Laporan / Laporan Deposit / Penjualan Deposit	laporan/penjualan/deposit	view,create,update,delete
+PENJUALAN / Laporan / Laporan Deposit / Deposit Kadaluarsa	laporan/penjualan/deposit-kedaluwarsa	view,create,update,delete
+PENJUALAN / Laporan / Laporan Deposit / Sisa Deposit	laporan/penjualan/sisa-deposit	view,create,update,delete
+PENJUALAN / Laporan / Laporan Pelanggan		view,create,update,delete
+PENJUALAN / Laporan / Laporan Pelanggan / Laporan Pelanggan	laporan/penjualan/sales-pelanggan	view,create,update,delete
+PENJUALAN / Laporan / Laporan Karyawan		view,create,update,delete
+PENJUALAN / Laporan / Laporan Karyawan / Komisi Bertingkat	laporan/karyawan/komisi-bertingkat/ringkasan	view,create,update,delete
+PENJUALAN / Laporan / Laporan Karyawan / Absensi	laporan/karyawan/absensi	view,create,update,delete
+PENJUALAN / Laporan / Laporan Karyawan / Komisi Tetap	laporan/karyawan/komisi/ringkasan	view,create,update,delete
+PENJUALAN / Laporan / Laporan Persediaan		view,create,update,delete
+PENJUALAN / Laporan / Laporan Persediaan / Lap. Ringkasan Persediaan	laporan/persediaan/ringkasan-persediaan	view,create,update,delete
+PENJUALAN / Laporan / Laporan Persediaan / Lap. Detail Persediaan	laporan/persediaan/detail-persediaan	view,create,update,delete
+PENJUALAN / Laporan / Laporan Persediaan / Laporan Stok Kedaluwarsa	laporan/persediaan/stok-kedaluwarsa	view,create,update,delete
+PENJUALAN / Laporan / Laporan Persediaan / Laporan Serial Number	laporan/penjualan/serial-number	view,create,update,delete
+PENJUALAN / Laporan / Laporan Persediaan / Laporan Batch Number	laporan/penjualan/batch-number	view,create,update,delete
+PENJUALAN / Laporan / Laporan Settlement		view,create,update,delete
+PENJUALAN / Laporan / Laporan Settlement / QRIS	laporan/settlement-v2	view,create,update,delete
+PENJUALAN / Laporan / Laporan Settlement / Order Online	laporan/webstore/saldo	view,create,update,delete
+PENJUALAN / Analisa Laporan		view,create,update,delete
+PENJUALAN / Analisa Laporan / Waktu Teramai Produk	laporan/analisa-laporan/sales-waktu-produk	view,create,update,delete
+PENJUALAN / Analisa Laporan / Waktu Teramai Penjualan	laporan/analisa-laporan/sales-waktu-transaksi	view,create,update,delete
+PENJUALAN / Analisa Laporan / Perputaran Stok	laporan/analisa-laporan/perputaran-stok	view,create,update,delete
+PENJUALAN / Analisa Laporan / Kepuasan Pelanggan	laporan/analisa-laporan/kepuasan-pelanggan	view,create,update,delete
+PENJUALAN / Produk		view,create,update,delete
+PENJUALAN / Produk / Daftar Departemen	item/department	view,create,update,delete
+PENJUALAN / Produk / Daftar Kategori	item/category	view,create,update,delete
+PENJUALAN / Produk / Daftar Produk	item	view,create,update,delete
+PENJUALAN / Produk / Produk Layanan	item/service	view,create,update,delete
+PENJUALAN / Produk / Produk Ekstra	item/addon	view,create,update,delete
+PENJUALAN / Produk / Produk Paket	item/bundles	view,create,update,delete
+PENJUALAN / Produk / Deposit	item/deposit	view,create,update,delete
+PENJUALAN / Produk / Penjadwalan Perubahan Resep	item/scheduler-recipe-changes	view,create,update,delete
+PENJUALAN / Produk / Daftar Harga Ojek Online	item/ojek-online-price	view,create,update,delete
+PENJUALAN / Produk / Penjadwalan Harga	item/scheduler-price	view,create,update,delete
+PENJUALAN / Produk / Harga Berdasarkan Waktu	item/time-based-pricing	view,create,update,delete
+PENJUALAN / Produk / Cetak Barcode	item/price-tag-print	view,create,update,delete
+PENJUALAN / Produk / Daftar Kategori Catatan	item/notes-category	view,create,update,delete
+PENJUALAN / Produk / Master Resep	item/recipe	view,create,update,delete
+PENJUALAN / Inventori		view,create,update,delete
+PENJUALAN / Inventori / Daftar Bahan Baku	inventory/bahan-baku	view,create,update,delete
+PENJUALAN / Inventori / Pembelian Stok		view,create,update,delete
+PENJUALAN / Inventori / Pembelian Stok / Permintaan Barang	inventory/pembelian-stok/product-request	view,create,update,delete
+PENJUALAN / Inventori / Pembelian Stok / Pemesanan Stok	inventory/pembelian-stok/purchase-order	view,create,update,delete
+PENJUALAN / Inventori / Pembelian Stok / Pengiriman Pembelian	inventory/pembelian-stok/purchase-shipment	view,create,update,delete
+PENJUALAN / Inventori / Pembelian Stok / Faktur Pembelian	inventory/kelola-stok/stok-masuk	view,create,update,delete
+PENJUALAN / Inventori / Pembelian Stok / Pembayaran Faktur	pengeluaran/daftar-pembayaran-pembelian	view,create,update,delete
+PENJUALAN / Inventori / Pembelian Stok / Retur		view,create,update,delete
+PENJUALAN / Inventori / Pembelian Stok / Retur / Retur Pembelian	inventory/retur/retur-pembelian	view,create,update,delete
+PENJUALAN / Inventori / Pembelian Stok / Retur / Rekonsiliasi Retur	inventory/retur/rekonsiliasi-retur	view,create,update,delete
+PENJUALAN / Inventori / Kelola Stok		view,create,update,delete
+PENJUALAN / Inventori / Kelola Stok / Daftar Stok	inventory/kelola-stok/daftar-stok	view,create,update,delete
+PENJUALAN / Inventori / Kelola Stok / Stok Opname	inventory/kelola-stok/stock-opname	view,create,update,delete
+PENJUALAN / Inventori / Kelola Stok / Stok Terbuang	inventory/kelola-stok/stock-terbuang	view,create,update,delete
+PENJUALAN / Inventori / Produksi Stok		view,create,update,delete
+PENJUALAN / Inventori / Produksi Stok / Daftar Produksi Stok	inventory/kelola-stok/stok-produksi/daftar-stok-produksi	view,create,update,delete
+PENJUALAN / Inventori / Produksi Stok / Acuan Produksi Stok	inventory/kelola-stok/stok-produksi/template-stok-produksi	view,create,update,delete
+PENJUALAN / Inventori / Mutasi Antar Outlet		view,create,update,delete
+PENJUALAN / Inventori / Mutasi Antar Outlet / Permintaan Stok	inventory/mutasi-stok/permintaan-stok	view,create,update,delete
+PENJUALAN / Inventori / Mutasi Antar Outlet / Stok Harus Dikirim	inventory/mutasi-stok/stok-harus-dikirim	view,create,update,delete
+PENJUALAN / Inventori / Mutasi Antar Outlet / Kirim Stok	inventory/mutasi-stok/kirim-transfer-stok	view,create,update,delete
+PENJUALAN / Inventori / Mutasi Antar Outlet / Terima Mutasi Stok	inventory/mutasi-stok/terima-mutasi-stok	view,create
+PENJUALAN / Inventori / Mutasi Antar Outlet / Stok Transit	inventory/mutasi-stok/terima-transfer-stok	view,create,update,delete
+PENJUALAN / Inventori / Daftar Pemasok	inventory/pembelian-stok/supplier	view,create,update,delete
+PENJUALAN / Pelanggan		view,create,update,delete
+PENJUALAN / Pelanggan / Daftar Pelanggan	pelanggan/daftar-pelanggan	view,create,update,delete
+PENJUALAN / Pelanggan / Grup Pelanggan	pelanggan/grup-pelanggan	view,create,update,delete
+PENJUALAN / Pelanggan / Grup Harga Spesial	pelanggan/special-price-group	view,create,update,delete
+PENJUALAN / Pelanggan / Kustom Data Pelanggan	pelanggan/kustom-data	view,create,update,delete
+PENJUALAN / Pelanggan / Pengaturan Data Pelanggan	pelanggan/pengaturan-data-pelanggan	view,create,update,delete
+PENJUALAN / Promosi		view,create,update,delete
+PENJUALAN / Promosi / Promo		view,create,update,delete
+PENJUALAN / Promosi / Promo / Basic Promo	promosi/promo/basic	view,create,update,delete
+PENJUALAN / Promosi / Promo / Per Total Pembelian	promosi/promo/invoice	view,create,update,delete
+PENJUALAN / Promosi / Promo / Per Produk	promosi/promo/product	view,create,update,delete
+PENJUALAN / Promosi / Kupon		view,create,update,delete
+PENJUALAN / Promosi / Kupon / Tambah Kupon	promosi/voucher-diskon/voucher-campaign	view,create,update,delete
+PENJUALAN / Promosi / Kupon / Daftar Kupon	promosi/voucher-diskon/voucher	view,create,update,delete
+PENJUALAN / Promosi / Poin Reward		view,create,update,delete
+PENJUALAN / Promosi / Poin Reward / Per Total Pembelian	promosi/poin/invoice	view,create,update,delete
+PENJUALAN / Promosi / Poin Reward / Per Produk	promosi/poin/product	view,create,update,delete
+PENJUALAN / Promosi / Poin Reward / Pengaturan Penukaran	promosi/poin/redeem-setting	view,create,update,delete
+PENJUALAN / Komisi		view,create,update,delete
+PENJUALAN / Komisi / Daftar Grup Komisi	commission/group	view,create,update,delete
+PENJUALAN / Invoice		view,create,update,delete
+PENJUALAN / Invoice / Daftar Penawaran Penjualan	penjualan/sq-list	view,create,update,delete
+PENJUALAN / Invoice / Daftar Pesanan Penjualan	penjualan/so-list-v2	view,create,update,delete
+PENJUALAN / Invoice / Daftar Pengiriman Penjualan	penjualan/do-list-v2	view,create,update,delete
+PENJUALAN / Invoice / Daftar Invoice	penjualan/invoice-v2	view,create,update,delete
+PENJUALAN / Invoice / Daftar Penerimaan Penjualan	penjualan/sales-receipt-list-v2	view,create,update,delete
+PENJUALAN / Marketing		view,create,update,delete
+PENJUALAN / Marketing / Kirim Kampanye Marketing	marketing/kampanye	view,create,update,delete
+PENJUALAN / Marketing / Beli Kampanye Marketing	marketing/transaction	view,create,update,delete
+ORDER ONLINE		view,create,update,delete
+ORDER ONLINE / Menu Favorit		
+ORDER ONLINE / Pesanan	marketplace-order	view,create,update,delete
+ORDER ONLINE / majoo Order		view,create,update,delete
+ORDER ONLINE / majoo Order / Pengaturan Penjualan	toko-online/pengaturan-penjualan	view,create,update,delete
+ORDER ONLINE / majoo Order / Pengaturan Tampilan	toko-online/kustomisasi-toko	view,create,update,delete
+ORDER ONLINE / majoo Order / Pengaturan Lainnya	toko-online/pengaturan-lain	view,create,update,delete
+ORDER ONLINE / Marketplace		view,create,update,delete
+ORDER ONLINE / Marketplace / GrabMart	grabmart	view,create,update,delete
+ORDER ONLINE / Marketplace / Shopee	shopee	view,create,update,delete
+ORDER ONLINE / Food Order		view,create,update,delete
+ORDER ONLINE / Food Order / GrabFood	grabfood	view,create,update,delete
+ORDER ONLINE / Food Order / GoFood	gofood	view,create,update,delete
+ORDER ONLINE / Consumer Apps	consumer-app	view,create,update,delete
+APPOINTMENT		view,create,update,delete
+APPOINTMENT / Menu Favorit		
+APPOINTMENT / Appointment		view,create,update,delete
+APPOINTMENT / Appointment / Daftar Appointment	appointment	view,create,update,delete
+APPOINTMENT / Appointment / Kalender Appoinment	appointment-calendar	view
+KARYAWAN		view,create,update,delete
+KARYAWAN / Menu Favorit		
+KARYAWAN / Pengaturan Karyawan		view,create,update,delete
+KARYAWAN / Pengaturan Karyawan / Daftar Karyawan	employee/employee-list	view,create,update,delete
+KARYAWAN / Payroll		view,create,update,delete
+KARYAWAN / Payroll / Pengaturan Payroll	payroll-menu/setting	view,create,update,delete
+KARYAWAN / Payroll / Struktur Gaji	gaji/struktur-gaji	view,create,update,delete
+KARYAWAN / Payroll / Daftar Pemetaan Akun Gaji	gaji/list-mapping-payroll-account	view,create,update,delete
+KARYAWAN / Payroll / Pembayaran Payroll	gaji/pembayaran-payroll	view,create,update,delete
+KARYAWAN / Payroll / Laporan Pembayaran	gaji/laporan-pembayaran	view
+KARYAWAN / Payroll / Rekonsiliasi Pembayaran	gaji/rekonsiliasi-pembayaran	view,create,update,delete
+KARYAWAN / Hak Akses		view,create,update,delete
+KARYAWAN / Hak Akses / Daftar Hak Akses	employee/privilege-list	view,create,update,delete
+KARYAWAN / Hak Akses / Pengaturan Hak Akses	karyawan/hak-akses	view,create,update,delete
+KARYAWAN / Absensi		view,create,update,delete
+KARYAWAN / Absensi / Akses Absensi	employee/attendance-access	view,create,update,delete
+KARYAWAN / Absensi / Radius Absensi	employee/attendance-radius	view,create,update,delete
+KARYAWAN / majoo Teams		view,create,update,delete
+KARYAWAN / majoo Teams / Akses majoo Teams	majoo-teams/access	view,create
+KARYAWAN / majoo Teams / Kirim Notifikasi	majoo-teams/send-notification	view,create
+KARYAWAN / Jadwal Kerja		view,create,update,delete
+KARYAWAN / Jadwal Kerja / Daftar Shift	work-schedule/master-shift-list	view,create,update
+KARYAWAN / Jadwal Kerja / Daftar Jadwal Kerja	work-schedule/master-schedule-list	view,create,update
+KARYAWAN / Jadwal Kerja / Jadwal Kerja Karyawan	work-schedule/employee-schedule	view,create,update
+KARYAWAN / Pengaturan Master		view,create,update,delete
+KARYAWAN / Pengaturan Master / Tingkat Jabatan	master-setting/position-level	view,create,update,delete
+KARYAWAN / Pengaturan Master / Organisasi	master-setting/organization	view,create,update,delete
+KARYAWAN / Pengaturan Master / Tipe Karyawan	master-setting/employee-type	view,create,update,delete
+KARYAWAN / Alur Kerja Persetujuan		view,create,update,delete
+KARYAWAN / Alur Kerja Persetujuan / Persetujuan Pembelian	approval-workflow/purchase	view,create,update,delete
+KARYAWAN / Alur Kerja Persetujuan / Persetujuan Keuangan	approval-workflow/finance	view,create,update,delete
+KEUANGAN		view,create,update,delete
+KEUANGAN / Menu Favorit		
+KEUANGAN / Dashboard Keuangan	sales-dashboard-keuangan	view
+KEUANGAN / Buku Kas		view,create,update,delete
+KEUANGAN / Buku Kas / Daftar Buku Kas & Bank	buku-kas/daftar-buku-kas	view,create,update,delete
+KEUANGAN / Buku Kas / Daftar Transfer	buku-kas/daftar-transfer	view,create,update,delete
+KEUANGAN / Penerimaan		view,create,update,delete
+KEUANGAN / Penerimaan / Daftar Penerimaan	income/daftar-penerimaan	view,create,update,delete
+KEUANGAN / Penerimaan / Rekonsiliasi Penerimaan Penjualan	income/reconciliation	view,create,update,delete
+KEUANGAN / Pengeluaran		view,create,update,delete
+KEUANGAN / Pengeluaran / Daftar Pengeluaran	pengeluaran/daftar-pengeluaran	view,create,update,delete
+KEUANGAN / Pengeluaran / Daftar Biaya	pengeluaran/daftar-biaya	view,create,update,delete
+KEUANGAN / Pengeluaran / Daftar Tagihan Rutin 	pengeluaran/daftar-tagihan-rutin	view,create,update,delete
+KEUANGAN / Pengeluaran / Daftar Mitra	pengeluaran/mitra	view,create,update,delete
+KEUANGAN / Pengeluaran / Rekonsiliasi Refund Penjualan	pengeluaran/sales-refund-reconcile	view,create
+KEUANGAN / Manajemen Aset		view,create,update,delete
+KEUANGAN / Manajemen Aset / Daftar Aset Tetap	asset-management/fixed-assets	view,create,update,delete
+KEUANGAN / Manajemen Aset / Penyusutan Aset Tetap	asset-management/depreciation-fixed-assets	view,create,update,delete
+KEUANGAN / Manajemen Aset / Pelepasan Aset Tetap	asset-management/disposal-fixed-assets	view,create,update,delete
+KEUANGAN / Manajemen Aset / Laporan Aset Tetap	asset-management/report-assets	view,create,update,delete
+KEUANGAN / Laporan Keuangan		view,create,update,delete
+KEUANGAN / Laporan Keuangan / Laporan Jurnal	laporan-keuangan/accounting-jurnal	view,create,update,delete
+KEUANGAN / Laporan Keuangan / Laporan Neraca	laporan-keuangan/accounting-neraca	view,create,update,delete
+KEUANGAN / Laporan Keuangan / Laporan Laba Rugi	laporan-keuangan/accounting-rugi-laba	view,create,update,delete
+KEUANGAN / Laporan Keuangan / Laporan Buku Besar	laporan-keuangan/accounting-buku-besar	view,create,update,delete
+KEUANGAN / Laporan Keuangan / Laporan Arus Kas	laporan-keuangan/accounting-arus-kas	view,create,update,delete
+KEUANGAN / Laporan Keuangan / Laporan Hutang	laporan-keuangan/accounting-hutang	view,create,update,delete
+KEUANGAN / Laporan Keuangan / Laporan Piutang	laporan-keuangan/accounting-piutang	view,create,update,delete
+KEUANGAN / Daftar Akun		view,create,update,delete
+KEUANGAN / Daftar Akun / Daftar Akun 	akunting/account-list	view,create,update,delete
+KEUANGAN / Daftar Akun / Jurnal Umum	jurnal-umum-penyesuaian	view,create,update,delete
+KEUANGAN / Daftar Akun / Saldo Awal	saldo-awal	view,create,update,delete
+PENGATURAN		view,create,update,delete
+PENGATURAN / Menu Favorit		
+PENGATURAN / Pesan Masuk		view,create,update,delete
+PENGATURAN / Pesan Masuk / Daftar Pesan	message/inbox	view,create,update,delete
+PENGATURAN / Notifikasi		view,create,update,delete
+PENGATURAN / Notifikasi / Pengaturan WhatsApp	message-setting/setting-whatsapp	view,create,update,delete
+PENGATURAN / Notifikasi / Daftar Notifikasi	message-setting/inbox	view,create,update,delete
+PENGATURAN / Notifikasi / Pengaturan Notifikasi	pengaturan-bisnis/notification/dashboard	view,create,update,delete
+PENGATURAN / Notifikasi / Transaksi Dihapus	message-setting/deleted-transaction	view,create,update,delete
+PENGATURAN / Akun Profile		view,create,update,delete
+PENGATURAN / Akun Profile / Informasi Akun	user-profile/account	view,create,update,delete
+PENGATURAN / Akun Profile / Informasi Bisnis	user-profile/business	view,create,update,delete
+PENGATURAN / Akun Profile / Informasi Rekening	user-profile/bank-account	view,create,update,delete
+PENGATURAN / Langganan		view,create,update,delete
+PENGATURAN / Langganan / Langganan & Support	support/buy	view,create,update,delete
+PENGATURAN / Langganan / Tiket Support	support/ticket	view,create,update,delete
+PENGATURAN / Langganan / Klaim Voucher	support/claim-voucher	view,create,update,delete
+PENGATURAN / Outlet		view,create,update,delete
+PENGATURAN / Outlet / Daftar Outlet	pengaturan-bisnis/cabang	view,create,update,delete
+PENGATURAN / Outlet / Denah dan Meja	pengaturan-bisnis/floorplan-and-table	view,create,update,delete
+PENGATURAN / Produk dan Inventori	stock-notif-setting	view,create,update,delete
+PENGATURAN / Reservasi	reservation-setting	view,create,update,delete
+PENGATURAN / Pembayaran		view,create,update,delete
+PENGATURAN / Pembayaran / Struk	payment-setting/receipt	view,create,update,delete
+PENGATURAN / Pembayaran / Biaya	payment-setting/receipt-and-charge	view,create,update,delete
+PENGATURAN / Pembayaran / Pajak	payment-setting/tax-setting	view,create,update,delete
+PENGATURAN / Pembayaran / Pembayaran Non-Tunai	payment-setting/non-cash	view,create,update,delete
+PENGATURAN / Pembayaran / Satuan Barang	satuan-barang	view,create,update,delete
+PENGATURAN / Cetak		view,create,update,delete
+PENGATURAN / Cetak / PDF	print-setting/pdf	view,create,update,delete
+PENGATURAN / Kasir		view,create,update,delete
+PENGATURAN / Kasir / Daftar Kasir	kasir	view,create,update,delete
+PENGATURAN / Kasir / Kategori Kas Kasir	kategori-kasir	view,create,update,delete
+PENGATURAN / Terminal		view,create,update,delete
+PENGATURAN / Terminal / Daftar Perangkat	terminal-setting/device	view,create,update,delete
+PENGATURAN / Terminal / Perangkat Pay Go	terminal-setting/soundbox	view,create,update,delete
+PENGATURAN / Akses Support		view,create,update,delete
+PENGATURAN / Akses Support / Daftar Akses Support	pengaturan-bisnis/support-access	view,create,update,delete
+PENGATURAN / Daftar Ekspor	import-export-list	view,create,update,delete
+Bantuan		view,create,update,delete
+Bantuan / Menu Favorit		
+Bantuan / Panduan Penggunaan		view,create,update,delete
+Bantuan / Panduan Penggunaan / Panduan Penggunaan	guideline/online	view,create,update,delete
+Bantuan / Panduan Penggunaan / Masukan Perbaikan	support/feedback	view,create,update,delete
+LAYANAN		view,create,update,delete
+LAYANAN / Menu Favorit		
+LAYANAN / Majoopay		view,create,update,delete
+LAYANAN / Majoopay / QRIS majoo	pembayaran-digital/pengajuan-wallet	view,create,update,delete
+LAYANAN / Majoopay / Pengajuan EDC	pembayaran-digital/pengajuan-edc	view,create,update,delete
+LAYANAN / Integrasi Satu Sehat		view,create,update,delete
+LAYANAN / Integrasi Satu Sehat / Pengaturan Satu Sehat	satu-sehat/setting	view,create,update,delete
+LAYANAN / Aura - AI Asisten Manajer	wa-assistance-manager	view,create,update,delete
+INSPIRASI		view,create,update,delete
+INSPIRASI / Menu Favorit		
+INSPIRASI / Informasi Update	informasi-update	view,create,update,delete
+INSPIRASI / Inspirasi Wirausaha		view,create,update,delete
+INSPIRASI / Inspirasi Wirausaha / majoo blog		view,create,update,delete
+INSPIRASI / Inspirasi Wirausaha / majoo blog / Home majoo blog	blog	view,create,update,delete
+INSPIRASI / Inspirasi Wirausaha / majoo blog / majoo berbagi	blog/inspirasi/category/majoo-berbagi	view,create,update,delete
+INSPIRASI / Inspirasi Wirausaha / majoo blog / Tren Bisnis	blog/inspirasi/category/tren-bisnis	view,create,update,delete
+INSPIRASI / Inspirasi Wirausaha / majoo blog / Trivia	blog/inspirasi/category/trivia	view,create,update,delete
+INSPIRASI / Inspirasi Wirausaha / majoo blog / Kisah Sukses	blog/inspirasi/category/kisahsukses	view,create,update,delete
+INSPIRASI / Inspirasi Wirausaha / majoo blog / Tips	blog/inspirasi/category/tips	view,create,update,delete
+INSPIRASI / Inspirasi Wirausaha / majoo blog / Inspirasi	blog/inspirasi/category/inspirasi	view,create,update,delete
+INSPIRASI / Inspirasi Wirausaha / majoo blog / Edukasi	blog/inspirasi/category/edukasi	view,create,update,delete
+INSPIRASI / Event		view,create,update,delete
+INSPIRASI / Event / Majoo Event	majoo-preneur/event	view,create,update,delete
+INSPIRASI / Majoo Preneur		view,create,update,delete
+INSPIRASI / Majoo Preneur / Majalah Bulanan	majoo-preneur/magazine	view,create,update,delete
+Capital		view,create,update,delete
+Capital / Menu Favorit		
+Capital / Majoo Capital		view,create,update,delete
+Capital / Majoo Capital / Pengajuan majoo Capital	layanan-pengembangan/kredit-usaha	view,create,update,delete
+SUPPLIES		view,create,update,delete
+SUPPLIES / Menu Favorit		
+SUPPLIES / Supplies		view,create,update,delete
+SUPPLIES / Supplies / Supplies	shopping/order	view,create,update,delete
+SUPPLIES / Supplies / Daftar Belanja	shopping/transaction	view,create,update,delete

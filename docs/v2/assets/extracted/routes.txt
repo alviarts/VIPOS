@@ -1,0 +1,7 @@
+1	/auth
+1	/employee-settings/employee-list
+1	/employee/employee-shift
+1	/gaji/pembayaran-payroll
+1	/majoo-teams/access
+1	/payroll-menu/setting
+1	/print-setting/pdf/reservation

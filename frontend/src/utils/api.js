@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+// In dev BASE_URL is '/', in prod build it is '/vipos/' (set by vite.config.js).
+// API requests go to <BASE_URL>api/* so the same axios instance works in both modes.
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${import.meta.env.BASE_URL}api`,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -18,7 +20,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401 || error.response?.status === 403) {
       localStorage.removeItem('vipos_token');
-      window.location.href = '/login';
+      window.location.href = `${import.meta.env.BASE_URL}login`;
     }
     return Promise.reject(error);
   }

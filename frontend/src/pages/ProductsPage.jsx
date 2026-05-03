@@ -1,22 +1,51 @@
-import { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, Package, X } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import {
+  Plus, Search, Edit2, Trash2, Package, RefreshCw, Download, Upload, Star,
+  ChevronDown, MoreVertical,
+} from 'lucide-react';
 import api from '../utils/api';
 import { formatCurrency } from '../utils/format';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import ProductWizardForm from '../components/ProductWizardForm';
+import {
+  ConfirmationDialog, EmptyState, Pagination, FilterTabs, PageHeader,
+} from '../components/ui';
+
+const FILTERS = [
+  { id: 'all',    label: 'Semua' },
+  { id: 'shown',  label: 'Tampil di Menu' },
+  { id: 'hidden', label: 'Tidak Tampil di Menu' },
+];
 
 export default function ProductsPage() {
   const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('');
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   const [showForm, setShowForm] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
-  const [form, setForm] = useState({ name: '', sku: '', price: '', stock: '', category_id: '' });
 
-  useEffect(() => { loadData(); }, []);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const loadData = async () => {
+    setLoading(true);
     try {
       const [prodRes, catRes] = await Promise.all([
         api.get('/products?active_only=false'),
@@ -26,221 +55,295 @@ export default function ProductsPage() {
       setCategories(catRes.data);
     } catch (err) {
       toast.error('Gagal memuat data');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const filtered = products.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.sku.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    return products.filter((p) => {
+      if (filter === 'shown' && !p.is_tampil_di_menu) return false;
+      if (filter === 'hidden' && p.is_tampil_di_menu) return false;
+      if (categoryFilter && String(p.category_id) !== categoryFilter) return false;
+      const q = search.toLowerCase();
+      if (q && !(
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.sku || '').toLowerCase().includes(q) ||
+        (p.barcode || '').toLowerCase().includes(q)
+      )) return false;
+      return true;
+    });
+  }, [products, search, filter, categoryFilter]);
+
+  const counts = useMemo(() => ({
+    all: products.length,
+    shown: products.filter((p) => p.is_tampil_di_menu).length,
+    hidden: products.filter((p) => !p.is_tampil_di_menu).length,
+  }), [products]);
+
+  const total = filtered.length;
+  const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => { setPage(1); }, [search, filter, categoryFilter]);
 
   const openForm = (product = null) => {
-    if (product) {
-      setEditProduct(product);
-      setForm({
-        name: product.name,
-        sku: product.sku,
-        price: String(product.price),
-        stock: String(product.stock),
-        category_id: product.category_id ? String(product.category_id) : '',
-      });
-    } else {
-      setEditProduct(null);
-      setForm({ name: '', sku: '', price: '', stock: '', category_id: '' });
-    }
+    setEditProduct(product);
     setShowForm(true);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const data = {
-        ...form,
-        price: parseFloat(form.price),
-        stock: parseInt(form.stock) || 0,
-        category_id: form.category_id ? parseInt(form.category_id) : null,
-      };
+  const closeForm = () => {
+    setShowForm(false);
+    setEditProduct(null);
+    setConfirmCancel(false);
+  };
 
+  const handleSubmit = async (payload) => {
+    try {
       if (editProduct) {
-        await api.put(`/products/${editProduct.id}`, { ...data, is_active: editProduct.is_active });
+        await api.put(`/products/${editProduct.id}`, { ...payload, is_active: editProduct.is_active });
         toast.success('Produk berhasil diupdate');
       } else {
-        await api.post('/products', data);
+        await api.post('/products', payload);
         toast.success('Produk berhasil ditambahkan');
       }
-      setShowForm(false);
+      closeForm();
       loadData();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Gagal menyimpan produk');
     }
   };
 
-  const handleDelete = async (product) => {
-    if (!confirm(`Hapus produk "${product.name}"?`)) return;
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    setDeleting(true);
     try {
-      await api.delete(`/products/${product.id}`);
+      await api.delete(`/products/${confirmDelete.id}`);
       toast.success('Produk berhasil dihapus');
+      setConfirmDelete(null);
       loadData();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Gagal menghapus produk');
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const isAdmin = user?.role === 'admin';
-
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Produk</h1>
-          <p className="text-sm text-gray-400">{products.length} produk terdaftar</p>
-        </div>
+      <PageHeader
+        title="Daftar Produk"
+        subtitle={`${products.length} produk terdaftar`}
+        icon={Package}
+      >
+        <button
+          onClick={loadData}
+          className="text-gray-500 hover:bg-gray-100 p-2 rounded-lg"
+          title="Refresh"
+        >
+          <RefreshCw className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => toast('Fitur Impor Data segera hadir', { icon: 'ℹ️' })}
+          className="flex items-center gap-1.5 text-gray-600 hover:bg-gray-100 px-3 py-2 rounded-lg text-sm"
+        >
+          <Upload className="w-4 h-4" /> Impor
+        </button>
+        <button
+          onClick={() => toast('Fitur Ekspor Data segera hadir', { icon: 'ℹ️' })}
+          className="flex items-center gap-1.5 text-gray-600 hover:bg-gray-100 px-3 py-2 rounded-lg text-sm"
+        >
+          <Download className="w-4 h-4" /> Ekspor
+        </button>
         {isAdmin && (
-          <button onClick={() => openForm()} className="btn-primary flex items-center gap-2">
+          <button onClick={() => openForm()} className="btn-primary flex items-center gap-2 text-sm">
             <Plus className="w-4 h-4" /> Tambah Produk
           </button>
         )}
+      </PageHeader>
+
+      {/* Search + category filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Cari nama, SKU, atau barcode..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="input-field pl-9"
+          />
+        </div>
+        <div className="relative sm:w-56">
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="input-field appearance-none pr-9"
+          >
+            <option value="">Semua Kategori</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Cari produk..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="input-field pl-10"
+      {/* Filter tabs */}
+      <FilterTabs
+        tabs={[
+          { id: 'all',    label: 'Semua',                count: counts.all },
+          { id: 'shown',  label: 'Tampil di Menu',        count: counts.shown },
+          { id: 'hidden', label: 'Tidak Tampil di Menu',  count: counts.hidden },
+        ]}
+        activeId={filter}
+        onChange={setFilter}
+      />
+
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="table-header w-10 px-4 py-3 text-left">
+                  <input type="checkbox" disabled className="rounded border-gray-300" />
+                </th>
+                <th className="table-header px-4 py-3 text-left">Nama Produk</th>
+                <th className="table-header px-4 py-3 text-left">SKU</th>
+                <th className="table-header px-4 py-3 text-left">Kategori</th>
+                <th className="table-header px-4 py-3 text-right">Harga Modal</th>
+                <th className="table-header px-4 py-3 text-right">Harga Beli</th>
+                <th className="table-header px-4 py-3 text-right">Harga Jual</th>
+                <th className="table-header px-4 py-3 text-right">Stok</th>
+                <th className="table-header px-4 py-3 text-center">Status</th>
+                {isAdmin && <th className="table-header px-4 py-3 w-20 text-center">Aksi</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {paged.map((product) => (
+                <tr
+                  key={product.id}
+                  className={`border-b border-gray-100 last:border-0 hover:bg-gray-50 ${
+                    !product.is_active ? 'opacity-60' : ''
+                  }`}
+                >
+                  <td className="px-4 py-3">
+                    <input type="checkbox" disabled className="rounded border-gray-300" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      {product.is_favorit ? (
+                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400 flex-shrink-0" />
+                      ) : null}
+                      <span className="font-medium text-gray-900">{product.name}</span>
+                    </div>
+                    {product.satuan && (
+                      <p className="text-xs text-gray-400">per {product.satuan}</p>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600 font-mono text-xs">{product.sku}</td>
+                  <td className="px-4 py-3 text-gray-600">{product.category_name || '-'}</td>
+                  <td className="px-4 py-3 text-right text-gray-700">{formatCurrency(product.harga_modal || 0)}</td>
+                  <td className="px-4 py-3 text-right text-gray-700">{formatCurrency(product.harga_beli || 0)}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-primary-700">{formatCurrency(product.price || 0)}</td>
+                  <td className="px-4 py-3 text-right">
+                    <span className={
+                      product.monitor_stok && product.stock <= product.stok_minimum
+                        ? 'text-amber-600 font-medium'
+                        : 'text-gray-700'
+                    }>
+                      {product.stock}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {product.is_tampil_di_menu ? (
+                      <span className="badge badge-success">Tampil</span>
+                    ) : (
+                      <span className="badge bg-gray-100 text-gray-500">Tidak Tampil</span>
+                    )}
+                  </td>
+                  {isAdmin && (
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex justify-center gap-1">
+                        <button
+                          onClick={() => openForm(product)}
+                          className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"
+                          aria-label="Edit"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setConfirmDelete(product)}
+                          className="p-1.5 hover:bg-red-50 rounded-lg text-red-500"
+                          aria-label="Hapus"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {paged.length === 0 && !loading && (
+          <EmptyState
+            title="Data tidak tersedia"
+            description="Belum ada produk yang sesuai dengan filter pencarian Anda."
+            action={isAdmin && (
+              <button onClick={() => openForm()} className="btn-primary text-sm flex items-center gap-2">
+                <Plus className="w-4 h-4" /> Tambah Produk
+              </button>
+            )}
+          />
+        )}
+
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
         />
       </div>
 
-      {/* Product List */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filtered.map((product) => (
-          <div key={product.id} className={`card ${!product.is_active ? 'opacity-50' : ''}`}>
-            <div className="w-full aspect-video bg-gray-100 rounded-xl mb-3 flex items-center justify-center">
-              <Package className="w-10 h-10 text-gray-300" />
-            </div>
-            <div className="flex items-start justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900 truncate">{product.name}</p>
-                <p className="text-xs text-gray-400 font-mono">{product.sku}</p>
-              </div>
-              {!product.is_active && (
-                <span className="badge bg-red-100 text-red-600 ml-2">Nonaktif</span>
-              )}
-            </div>
-            <div className="flex items-center justify-between mt-2">
-              <p className="text-lg font-bold text-primary-600">{formatCurrency(product.price)}</p>
-              <span className={`text-sm ${product.stock <= 5 ? 'text-amber-500 font-medium' : 'text-gray-400'}`}>
-                Stok: {product.stock}
-              </span>
-            </div>
-            {product.category_name && (
-              <p className="text-xs text-gray-400 mt-1">Kategori: {product.category_name}</p>
-            )}
-            {isAdmin && (
-              <div className="flex gap-2 mt-3">
-                <button onClick={() => openForm(product)} className="btn-secondary flex-1 flex items-center justify-center gap-1 py-2 text-sm">
-                  <Edit2 className="w-3 h-3" /> Edit
-                </button>
-                <button onClick={() => handleDelete(product)} className="btn-danger flex-1 flex items-center justify-center gap-1 py-2 text-sm">
-                  <Trash2 className="w-3 h-3" /> Hapus
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      {/* Wizard form */}
+      <ProductWizardForm
+        open={showForm}
+        onClose={() => {
+          if (editProduct) closeForm();
+          else setConfirmCancel(true);
+        }}
+        initialData={editProduct}
+        categories={categories}
+        onSubmit={handleSubmit}
+      />
 
-      {filtered.length === 0 && (
-        <div className="text-center py-16 text-gray-400">
-          <Package className="w-16 h-16 mx-auto mb-3 opacity-50" />
-          <p className="text-lg">Tidak ada produk</p>
-        </div>
-      )}
+      {/* Confirm cancel (only for new product flow) */}
+      <ConfirmationDialog
+        open={confirmCancel}
+        title="Membatalkan Tambah Produk"
+        message="Membatalkan akan menghapus seluruh data yang telah diinput dan tidak dapat dibatalkan. Lanjutkan?"
+        confirmLabel="Ya, Lanjutkan"
+        cancelLabel="Kembali"
+        variant="danger"
+        onCancel={() => setConfirmCancel(false)}
+        onConfirm={closeForm}
+      />
 
-      {/* Product Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900">
-                  {editProduct ? 'Edit Produk' : 'Tambah Produk'}
-                </h2>
-                <button onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-100 rounded-xl">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nama Produk</label>
-                  <input
-                    type="text"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="input-field"
-                    placeholder="Nama produk"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">SKU</label>
-                  <input
-                    type="text"
-                    value={form.sku}
-                    onChange={(e) => setForm({ ...form, sku: e.target.value })}
-                    className="input-field"
-                    placeholder="Kode SKU"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Harga</label>
-                    <input
-                      type="number"
-                      value={form.price}
-                      onChange={(e) => setForm({ ...form, price: e.target.value })}
-                      className="input-field"
-                      placeholder="0"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Stok</label>
-                    <input
-                      type="number"
-                      value={form.stock}
-                      onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                      className="input-field"
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
-                  <select
-                    value={form.category_id}
-                    onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-                    className="input-field"
-                  >
-                    <option value="">Tanpa Kategori</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <button type="submit" className="btn-primary w-full">
-                  {editProduct ? 'Update Produk' : 'Simpan Produk'}
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Confirm delete */}
+      <ConfirmationDialog
+        open={!!confirmDelete}
+        title="Hapus Produk"
+        message={confirmDelete ? `Produk "${confirmDelete.name}" akan dihapus dari daftar produk. Lanjutkan?` : ''}
+        confirmLabel="Ya, Hapus"
+        variant="danger"
+        loading={deleting}
+        onCancel={() => setConfirmDelete(null)}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

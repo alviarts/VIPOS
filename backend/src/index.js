@@ -21,8 +21,16 @@ initDatabase();
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/categories', require('./routes/categories'));
+app.use('/api/departments', require('./routes/departments'));
+app.use('/api/customers', require('./routes/customers'));
 app.use('/api/transactions', require('./routes/transactions'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/finance', require('./routes/finance'));
+app.use('/api/inventory', require('./routes/inventory'));
+
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {

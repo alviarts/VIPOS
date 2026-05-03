@@ -5,6 +5,10 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import CashierPage from './pages/CashierPage';
 import ProductsPage from './pages/ProductsPage';
+import CategoriesPage from './pages/CategoriesPage';
+import CustomersPage from './pages/CustomersPage';
+import InventoryPage from './pages/InventoryPage';
+import FinancePage from './pages/FinancePage';
 import TransactionsPage from './pages/TransactionsPage';
 import ReportsPage from './pages/ReportsPage';
 import SettingsPage from './pages/SettingsPage';
@@ -30,6 +34,10 @@ export default function App() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="cashier" element={<CashierPage />} />
         <Route path="products" element={<ProductsPage />} />
+        <Route path="categories" element={<CategoriesPage />} />
+        <Route path="customers" element={<CustomersPage />} />
+        <Route path="inventory" element={<InventoryPage />} />
+        <Route path="finance" element={<FinancePage />} />
         <Route path="transactions" element={<TransactionsPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
