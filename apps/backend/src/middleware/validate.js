@@ -10,12 +10,12 @@
 // (so handler dapat akses data yang clean). Kalau invalid, balikin 400 dengan
 // `details` berisi field-level error.
 
-const ZOD_LOCATIONS = ['body', 'query', 'params'];
+const ZOD_LOCATIONS = ["body", "query", "params"];
 
 function formatZodError(error) {
   // `error.issues` dari Zod 3 — array of {path, message, code, ...}
   return error.issues.map((issue) => ({
-    path: issue.path.join('.') || '(root)',
+    path: issue.path.join(".") || "(root)",
     message: issue.message,
     code: issue.code,
   }));
@@ -29,7 +29,7 @@ function validate(schemaMap) {
       const result = schema.safeParse(req[loc]);
       if (!result.success) {
         return res.status(400).json({
-          error: 'Validation failed',
+          error: "Validation failed",
           location: loc,
           details: formatZodError(result.error),
         });
@@ -37,7 +37,7 @@ function validate(schemaMap) {
       // Hindari overwrite query/params (Express read-only di sebagian versi).
       // body aman untuk overwrite. Untuk query/params, kita simpan parsed
       // value di req.validated.{loc}.
-      if (loc === 'body') {
+      if (loc === "body") {
         req.body = result.data;
       } else {
         req.validated = req.validated || {};

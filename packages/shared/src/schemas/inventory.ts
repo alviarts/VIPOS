@@ -1,9 +1,13 @@
 // Schema untuk endpoint /api/inventory/*
 
-import { z, registry } from '../openapi';
-import { DateOnlySchema, DateTimeStringSchema, ErrorResponseSchema } from './common';
+import { z, registry } from "../openapi";
+import {
+  DateOnlySchema,
+  DateTimeStringSchema,
+  ErrorResponseSchema,
+} from "./common";
 
-export const InventoryTipeSchema = z.enum(['stok_in', 'stok_out', 'opname']);
+export const InventoryTipeSchema = z.enum(["stok_in", "stok_out", "opname"]);
 
 export const InventoryMovementSchema = z
   .object({
@@ -20,7 +24,7 @@ export const InventoryMovementSchema = z
     user_name: z.string().nullable().optional(),
     created_at: DateTimeStringSchema.optional(),
   })
-  .openapi('InventoryMovement');
+  .openapi("InventoryMovement");
 export type InventoryMovement = z.infer<typeof InventoryMovementSchema>;
 
 export const InventoryMovementCreateSchema = z
@@ -28,19 +32,21 @@ export const InventoryMovementCreateSchema = z
     tanggal: DateOnlySchema.optional(),
     product_id: z.coerce.number().int().positive(),
     tipe: InventoryTipeSchema,
-    qty: z.coerce.number().int().refine((v) => v !== 0, { message: 'Qty tidak boleh 0' }),
+    qty: z.coerce.number().int().nonnegative("Qty harus >= 0"),
     keterangan: z.string().max(512).optional().nullable(),
   })
-  .openapi('InventoryMovementCreateRequest');
-export type InventoryMovementCreate = z.infer<typeof InventoryMovementCreateSchema>;
+  .openapi("InventoryMovementCreateRequest");
+export type InventoryMovementCreate = z.infer<
+  typeof InventoryMovementCreateSchema
+>;
 
 // --- OpenAPI path registrations -------------------------------------------
 
 registry.registerPath({
-  method: 'get',
-  path: '/api/inventory/movements',
-  description: 'List inventory movement (stok_in / stok_out / opname).',
-  tags: ['Inventory'],
+  method: "get",
+  path: "/api/inventory/movements",
+  description: "List inventory movement (stok_in / stok_out / opname).",
+  tags: ["Inventory"],
   security: [{ bearerAuth: [] }],
   request: {
     query: z.object({
@@ -52,32 +58,36 @@ registry.registerPath({
   },
   responses: {
     200: {
-      description: 'Array inventory movements',
-      content: { 'application/json': { schema: z.array(InventoryMovementSchema) } },
+      description: "Array inventory movements",
+      content: {
+        "application/json": { schema: z.array(InventoryMovementSchema) },
+      },
     },
   },
 });
 
 registry.registerPath({
-  method: 'post',
-  path: '/api/inventory/movements',
-  description: 'Catat inventory movement (otomatis update stock di products).',
-  tags: ['Inventory'],
+  method: "post",
+  path: "/api/inventory/movements",
+  description: "Catat inventory movement (otomatis update stock di products).",
+  tags: ["Inventory"],
   security: [{ bearerAuth: [] }],
   request: {
     body: {
       required: true,
-      content: { 'application/json': { schema: InventoryMovementCreateSchema } },
+      content: {
+        "application/json": { schema: InventoryMovementCreateSchema },
+      },
     },
   },
   responses: {
     201: {
-      description: 'Movement dibuat',
-      content: { 'application/json': { schema: InventoryMovementSchema } },
+      description: "Movement dibuat",
+      content: { "application/json": { schema: InventoryMovementSchema } },
     },
     400: {
-      description: 'Validation error',
-      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: "Validation error",
+      content: { "application/json": { schema: ErrorResponseSchema } },
     },
   },
 });
