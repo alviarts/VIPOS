@@ -44,6 +44,7 @@ const QUEUE_NAMES = Object.freeze({
   AUDIT_RETENTION: 'audit-retention',
   DB_BACKUP: 'db-backup',
   UPLOADS_BACKUP: 'uploads-backup',
+  RESTORE_TEST: 'restore-test',
 });
 
 const DEFAULT_JOB_OPTIONS = Object.freeze({
