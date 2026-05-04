@@ -49,6 +49,7 @@ const DEFAULT_JOB_OPTIONS = Object.freeze({
 });
 
 let sharedConnection = null;
+const _queueRegistry = new Map();
 
 /**
  * Returns true if `REDIS_URL` is set. Callers can use this to short-circuit
@@ -84,10 +85,29 @@ function getConnection() {
 }
 
 /**
+ * Close every cached queue handle from the shared registry (see
+ * `getOrCreateQueue`). Idempotent. Used by `closeConnection()` and by
+ * tests that want to drop the cache without tearing down Redis itself.
+ */
+async function closeAllQueues() {
+  const queues = Array.from(_queueRegistry.values());
+  _queueRegistry.clear();
+  for (const q of queues) {
+    try {
+      await q.close();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+/**
  * Close the shared Redis connection. Idempotent. Used by tests + graceful
- * shutdown handlers.
+ * shutdown handlers. Also drops any queues cached via `getOrCreateQueue`
+ * so subsequent calls re-instantiate against the new connection.
  */
 async function closeConnection() {
+  await closeAllQueues();
   if (!sharedConnection) return;
   const c = sharedConnection;
   sharedConnection = null;
@@ -118,6 +138,28 @@ function createQueue(name, opts = {}) {
       ...(opts.defaultJobOptions || {}),
     },
   });
+}
+
+/**
+ * Return a process-wide cached Queue handle for `name`, creating it on
+ * first call. Producers (request handlers, cron-style schedulers) and
+ * the Bull Board mount share this cache so the same `Queue` instance is
+ * reused across the codebase — avoids N redundant ioredis subscriptions
+ * per queue and lets `closeAllQueues()` deterministically tear them down.
+ *
+ * Returns `null` if `REDIS_URL` is unset so callers can fall back to a
+ * synchronous code path without throwing.
+ *
+ * @param {string} name canonical queue name (use `QUEUE_NAMES.*`).
+ * @returns {Queue | null}
+ */
+function getOrCreateQueue(name) {
+  if (!isQueueEnabled()) return null;
+  const cached = _queueRegistry.get(name);
+  if (cached) return cached;
+  const q = createQueue(name);
+  _queueRegistry.set(name, q);
+  return q;
 }
 
 /**
@@ -184,7 +226,9 @@ module.exports = {
   isQueueEnabled,
   getConnection,
   closeConnection,
+  closeAllQueues,
   createQueue,
+  getOrCreateQueue,
   createWorker,
   createQueueEvents,
   safeEnqueue,

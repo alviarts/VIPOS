@@ -11,12 +11,12 @@
  *   process.on('SIGTERM', () => stop());
  *
  * Usage from tests:
- *   const { processAuditRetention } = require('./jobs/audit-retention');
- *   const w = createWorker(QUEUE_NAMES.AUDIT_RETENTION, processAuditRetention);
+ *   const { processNotification } = require('./jobs/notification');
+ *   const w = createWorker(QUEUE_NAMES.NOTIFICATION, processNotification);
  *
- * PR-A only registers the audit-retention queue. PR-B will add the
- * notification / email / report / settlement / marketplace-webhook /
- * import-export workers + Bull Board.
+ * PR-A registered the audit-retention queue. PR-B adds the
+ * notification / email / marketplace-webhook workers + Bull Board.
+ * PR-C will add report / settlement / import-export.
  */
 const {
   QUEUE_NAMES,
@@ -26,6 +26,9 @@ const {
   isQueueEnabled,
 } = require('../lib/queue');
 const { processAuditRetention, DEFAULT_RETENTION_DAYS } = require('./audit-retention');
+const { processNotification } = require('./notification');
+const { processEmail } = require('./email');
+const { processMarketplaceWebhook } = require('./marketplace-webhook');
 
 const AUDIT_RETENTION_SCHEDULER = 'audit-retention-nightly';
 // 03:15 every day. Pick an off-peak window; tenant clocks are TZ-naive
@@ -55,7 +58,22 @@ async function scheduleAuditRetention(queue) {
 }
 
 /**
- * Start every PR-A worker. Returns a `stop()` callback that closes
+ * Worker registry — every queue we run is declared here so the boot
+ * order, lifecycle, and naming are obvious in one spot. Extend this
+ * list when adding a new queue (PR-C will append report / settlement /
+ * import-export).
+ *
+ * Each entry maps the canonical queue name to its processor function.
+ */
+const WORKER_REGISTRY = Object.freeze([
+  { name: QUEUE_NAMES.AUDIT_RETENTION, processor: processAuditRetention },
+  { name: QUEUE_NAMES.NOTIFICATION, processor: processNotification },
+  { name: QUEUE_NAMES.EMAIL, processor: processEmail },
+  { name: QUEUE_NAMES.MARKETPLACE_WEBHOOK, processor: processMarketplaceWebhook },
+]);
+
+/**
+ * Start every registered worker. Returns a `stop()` callback that closes
  * everything cleanly, including the shared Redis connection.
  *
  * @param {object} [opts]
@@ -68,16 +86,42 @@ async function startWorkers(opts = {}) {
     throw new Error('startWorkers: REDIS_URL is not set');
   }
   const { scheduleRecurring = true } = opts;
-  const auditQueue = createQueue(QUEUE_NAMES.AUDIT_RETENTION);
-  const auditWorker = createWorker(QUEUE_NAMES.AUDIT_RETENTION, processAuditRetention);
+
+  // Construct queues + workers in pairs. We intentionally instantiate
+  // fresh handles here (rather than reuse `getOrCreateQueue`) because
+  // the worker process owns the lifecycle — when `stop()` runs, we
+  // must close exactly these queues without affecting any cached
+  // producer queues that might live in the same process during tests.
+  const queues = [];
+  const workers = [];
+  for (const { name, processor } of WORKER_REGISTRY) {
+    const queue = createQueue(name);
+    const worker = createWorker(name, processor);
+    queues.push(queue);
+    workers.push(worker);
+  }
 
   if (scheduleRecurring) {
-    await scheduleAuditRetention(auditQueue);
+    const auditQueue = queues.find((q) => q.name === QUEUE_NAMES.AUDIT_RETENTION);
+    if (auditQueue) await scheduleAuditRetention(auditQueue);
   }
 
   return async function stop() {
-    await auditWorker.close();
-    await auditQueue.close();
+    // Close workers before queues so in-flight jobs drain.
+    for (const w of workers) {
+      try {
+        await w.close();
+      } catch {
+        /* ignore */
+      }
+    }
+    for (const q of queues) {
+      try {
+        await q.close();
+      } catch {
+        /* ignore */
+      }
+    }
     await closeConnection();
   };
 }
@@ -87,4 +131,5 @@ module.exports = {
   scheduleAuditRetention,
   AUDIT_RETENTION_SCHEDULER,
   AUDIT_RETENTION_CRON,
+  WORKER_REGISTRY,
 };
