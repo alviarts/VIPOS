@@ -147,7 +147,7 @@
 
 ---
 
-### P2-05: Observability (logging + monitoring + tracing) `[pending]`
+### P2-05: Observability (logging + monitoring + tracing) `[done]`
 
 **Goal**: Structured logging (Winston/Pino), error tracking (Sentry), metrics (Prometheus), tracing (OpenTelemetry).
 
@@ -163,11 +163,16 @@
 
 **Acceptance criteria**:
 
-- [ ] All API request logged dengan request_id, tenant_id, user_id
-- [ ] Error throw → captured di Sentry
-- [ ] `/metrics` expose RED metrics (request rate, error rate, duration)
-- [ ] `/health` cek DB + Redis + version
-- [ ] Trace dari API request → DB query visible
+- [x] All API request logged dengan request_id, tenant_id, user_id — `pino-http` + `requestIdMiddleware` mounted in `app.js` (PR-A); pino mixin stamps `trace_id` from active OTel span (PR-B)
+- [x] Error throw → captured di Sentry — `initSentry()` + `attachSentryErrorHandler()` + `globalErrorHandler` (PR-A); no-op when `SENTRY_DSN` unset
+- [x] `/metrics` expose RED metrics (request rate, error rate, duration) — `vipos_http_requests_total`, `vipos_http_request_duration_seconds`, `vipos_bullmq_jobs_total`, `vipos_bullmq_job_duration_seconds` + default Node metrics (PR-B); optional `METRICS_TOKEN` bearer gate
+- [x] `/health` cek DB + Redis + version — extended `/health` probes DB (`SELECT 1`) + Redis (`PING`) concurrently, returns `{status, version, db, redis}` (PR-A); 503 when DB down, Redis-down does not degrade
+- [x] Trace dari API request → DB query visible — OpenTelemetry NodeSDK with auto-instrumentations (`http`, `express`, `pg`, `ioredis`, `bullmq`) gated on `OTEL_EXPORTER_OTLP_ENDPOINT` (PR-B); `OTEL_EXPORTER=console` toggle for dev
+
+**Status breakdown**:
+
+- **PR-A** (`#56`, merged): observability foundation — `lib/logger.js` (pino), `lib/sentry.js` (gated), `middleware/request-id.js`, `middleware/error-handler.js`, extended `routes/health.js` with concurrent DB+Redis probes. ~20 runtime `console.*` callsites swept to structured child loggers.
+- **PR-B** (`#57`, merged): metrics + tracing — `lib/metrics.js` (prom-client RED counters/histograms + helpers), `middleware/metrics.js` (`res.on('finish'+'close')` observer with cardinality-safe route labels), `routes/metrics.js` (top-level `GET /metrics` with optional bearer gate), `lib/otel.js` (NodeSDK init no-op when exporter env unset), `jobs/index.js` worker metrics (`completed`/`failed` counter + duration histogram per queue), `app.js` wiring (`initOtel()` before `require('express')`, pino-http `mixin` injecting `trace_id`).
 
 **Branch**: `devin/P2-05-observability`
 **Estimasi**: 3-4 hari
