@@ -127,12 +127,25 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      # P2-04: BullMQ tests need a real Redis broker. Tests gracefully
+      # skip when REDIS_URL is unset, so removing this service still
+      # keeps CI green if needed.
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       # Tests use vipos_app for runtime so RLS policies apply.
       # Migrations still run as the schema owner via DIRECT_URL.
       DATABASE_URL: postgresql://vipos_app:apppass@localhost:5432/vipos_test
       DIRECT_URL: postgresql://test:test@localhost:5432/vipos_test
       DATABASE_DRIVER: postgres
+      REDIS_URL: redis://localhost:6379
       JWT_SECRET: test-secret-vipos
     steps:
       - name: Checkout
