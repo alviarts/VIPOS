@@ -69,6 +69,11 @@ function mountVersionedRoutes(parent) {
   parent.use('/online-order', require('./routes/order-online'));
   // P2-02: marketplace integration is Advance+.
   parent.use('/marketplace', advanceGate, require('./routes/marketplace'));
+  // P2-04 PR-B: marketplace webhook ingress is intentionally public (no
+  // JWT) so upstream providers can POST without per-tenant credentials —
+  // tenant scope comes from the URL slug + (optional) HMAC signature.
+  // Mounted *outside* `advanceGate` deliberately.
+  parent.use('/marketplace-webhook', require('./routes/marketplace-webhook'));
   parent.use('/storefront-settings', require('./routes/storefront-settings'));
   parent.use('/consumer-app-config', require('./routes/consumer-app-config'));
 
@@ -146,6 +151,12 @@ function mountVersionedRoutes(parent) {
   // P1-17 Reports.
   parent.use('/reports', require('./routes/reports'));
 
+  // P2-04 PR-B: notification + email producer ingress (admin-only).
+  // The actual delivery happens in worker processes — see
+  // `apps/backend/src/jobs/notification.js` and `jobs/email.js`.
+  parent.use('/notifications', require('./routes/notifications'));
+  parent.use('/email', require('./routes/email'));
+
   // P1-18 LAINNYA.
   const {
     helpRouter,
@@ -202,6 +213,12 @@ function buildApp(opts = {}) {
   // Cross-tenant admin surface (super_admin only — never exposed via
   // legacy `/api` alias on purpose).
   app.use('/api/admin/tenant', require('./routes/tenant').adminRouter);
+
+  // P2-04 PR-B Bull Board (admin-only). Mounted at /api/admin/queues
+  // alongside the tenant admin surface — never exposed via the legacy
+  // /api alias. Returns 503 when REDIS_URL is unset.
+  const { mountBullBoard } = require('./lib/bull-board');
+  mountBullBoard(app);
 
   // Legacy alias: /api/* delegates to the same handlers but adds Deprecation
   // / Sunset / Link response headers per RFC 8594. Will be removed once the

@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.3.4",
+    "@bull-board/api": "^7.0.0",
+    "@bull-board/express": "^7.0.0",
     "@prisma/client": "^5.22.0",
     "@vipos/shared": "*",
     "bcryptjs": "^2.4.3",
