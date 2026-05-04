@@ -42,6 +42,8 @@ const QUEUE_NAMES = Object.freeze({
   MARKETPLACE_WEBHOOK: 'marketplace-webhook',
   IMPORT_EXPORT: 'import-export',
   AUDIT_RETENTION: 'audit-retention',
+  DB_BACKUP: 'db-backup',
+  UPLOADS_BACKUP: 'uploads-backup',
 });
 
 const DEFAULT_JOB_OPTIONS = Object.freeze({
