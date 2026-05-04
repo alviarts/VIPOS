@@ -244,7 +244,7 @@
 
 ---
 
-### P2-08: Backup + disaster recovery `[partial]`
+### P2-08: Backup + disaster recovery `[done]`
 
 **Goal**: Daily DB backup ke S3 (Cloudflare R2 selected — zero-egress, S3-compatible), uploads backup, runbook recovery.
 
@@ -255,23 +255,23 @@
 - Daily Postgres dump → upload ke S3 / R2 / B2 (provider-neutral via `S3_ENDPOINT` env) — `jobs/db-backup.js` (PR-A)
 - Daily upload (uploaded files) → sync ke S3 — `jobs/uploads-backup.js` (PR-A, incremental size-diff)
 - Retention: local 14 hari (worker-pruned) + S3 prefix tagging `daily/`/`weekly/`/`monthly/`. Long-tail retention (30 / 12 / 12) delegated to bucket lifecycle rules per runbook
-- Test recovery script (auto-test setiap minggu di staging) — **PR-B (pending)**, requires staging + R2 creds
+- Test recovery script (auto-test setiap minggu di staging) — `jobs/restore-test.js` BullMQ scheduler `restore-test-weekly` cron `0 4 * * 0` UTC (PR-B), gated on `BACKUP_RESTORE_TEST_ENABLED`
 - Runbook: `docs/runbook/disaster_recovery.md` — RTO/RPO targets, env contract, 4 recovery scenarios, R2 provisioning (PR-A)
 
 **Acceptance criteria**:
 
 - [x] Cron jalan harian, backup berhasil tersimpan — BullMQ schedulers (DB `0 2 * * *`, uploads `30 2 * * *`) + S3 daily/weekly/monthly tiering (PR-A)
-- [x] Restore script tested berhasil di staging — `scripts/test-backup-restore.sh` does a Docker round-trip; `scripts/restore-postgres.sh` + `scripts/restore-uploads.sh` cover production restore (PR-A). Auto-test loop in staging follows in PR-B
+- [x] Restore script tested berhasil di staging — `scripts/test-backup-restore.sh` does a Docker round-trip; `scripts/restore-postgres.sh` + `scripts/restore-uploads.sh` cover production restore (PR-A); `jobs/restore-test.js` weekly auto-test loop with `pg_restore` + sanity queries against an ephemeral sandbox (PR-B)
 - [x] Runbook lengkap (langkah-langkah recovery) — `docs/runbook/disaster_recovery.md` (PR-A)
 - [x] Notification kalau backup fail — `attachBackupFailureNotifier()` captures via Sentry + emails `BACKUP_NOTIFY_EMAILS` through the existing email queue (PR-A)
 
 **Status breakdown**:
 
 - PR-A (foundation): [done] — PR #61 squashed as `b201fbb`. Storage wrapper, both BullMQ jobs, schedulers, failure notifier, restore + smoke scripts, runbook, MinIO integration test in CI.
-- PR-B (auto-test recovery in staging): [pending] — weekly recurring restore test against a sandbox Postgres. Deferred until staging environment + R2 credentials are provisioned.
+- PR-B (auto-test recovery in staging): [done] — PR #63 squashed as `7e5a991`. Weekly `restore-test` BullMQ scheduler (Sun 04:00 UTC), throwaway sandbox DB, sanity queries on core tables + `MAX(audit_logs.created_at)`, dedicated Prometheus signals (`vipos_backup_restore_test_total{status}` counter + `_duration_seconds` histogram), runbook section 5 documented. Off-by-default; staging worker enables via `BACKUP_RESTORE_TEST_ENABLED=1` + `RESTORE_TEST_DATABASE_URL`.
 
-**Branch**: `devin/P2-08-backup-dr`
-**Estimasi**: 2-3 hari (PR-A done; PR-B ~0.5 hari once staging is available)
+**Branch**: `devin/P2-08-backup-dr` (PR-A) + `devin/1777926984-P2-08b-restore-test` (PR-B)
+**Estimasi aktual**: 2 hari (PR-A) + 0.5 hari (PR-B)
 
 ---
 
