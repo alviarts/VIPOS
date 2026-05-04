@@ -277,31 +277,40 @@ router.post(
 
 // Public webhook endpoint (no auth) — mock simulator. In real deployment kita
 // validate signature header per provider; di sini cukup buat order baru.
+//
+// Multi-tenant note (P2-02): production webhook should resolve tenant from a
+// signed payload (e.g. marketplace merchant_id → tenant_id lookup) or from a
+// tenant slug in the URL. For now we default the legacy single-tenant flow
+// to tenant id = 1 so existing webhook-driven tests / GoFood mock simulator
+// keeps working unchanged.
+const { runWithTenant } = require('../db');
 router.post('/webhook/:provider', validate({ body: OnlineOrderCreateSchema }), async (req, res) => {
-  try {
-    const { provider } = req.params;
-    const validProviders = ['gofood', 'grabfood', 'shopeefood', 'grabmart', 'tokopedia'];
-    if (!validProviders.includes(provider)) {
-      return res.status(400).json({ error: 'Provider tidak dikenal' });
-    }
-    const order = await createOrderInDb({ ...req.body, channel: provider });
-
-    // Auto-accept kalau marketplace_connections.auto_accept = 1.
-    const conn = (
-      await query('SELECT * FROM marketplace_connections WHERE provider = $1', [provider])
-    ).rows[0];
-    if (conn && conn.auto_accept === 1) {
-      try {
-        const accepted = await transitionOrder(order.id, 'PREPARING');
-        return res.status(201).json(accepted);
-      } catch {
-        // ignore — biarkan tetap NEW
+  return runWithTenant(1, async () => {
+    try {
+      const { provider } = req.params;
+      const validProviders = ['gofood', 'grabfood', 'shopeefood', 'grabmart', 'tokopedia'];
+      if (!validProviders.includes(provider)) {
+        return res.status(400).json({ error: 'Provider tidak dikenal' });
       }
+      const order = await createOrderInDb({ ...req.body, channel: provider });
+
+      // Auto-accept kalau marketplace_connections.auto_accept = 1.
+      const conn = (
+        await query('SELECT * FROM marketplace_connections WHERE provider = $1', [provider])
+      ).rows[0];
+      if (conn && conn.auto_accept === 1) {
+        try {
+          const accepted = await transitionOrder(order.id, 'PREPARING');
+          return res.status(201).json(accepted);
+        } catch {
+          // ignore — biarkan tetap NEW
+        }
+      }
+      res.status(201).json(order);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-    res.status(201).json(order);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  });
 });
 
 router.post('/:id(\\d+)/accept', authenticateToken, async (req, res) => {

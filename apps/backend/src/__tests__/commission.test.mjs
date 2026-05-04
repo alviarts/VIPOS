@@ -49,42 +49,48 @@ async function createProduct(name, price, options = {}) {
 
 async function createEmployeeUser() {
   // Seed an employee user via direct DB insert for tests (no admin endpoint for users yet).
-  const { query } = require('../db');
+  const { query, runWithTenant } = require('../db');
   const bcrypt = require('bcryptjs');
   const hashed = bcrypt.hashSync('test123', 10);
-  const r = await query(
-    `INSERT INTO users (username, password, name, role, tenant_id)
-     VALUES ($1, $2, $3, $4, 1) RETURNING id`,
-    ['staff_test', hashed, 'Staff Test', 'cashier']
-  );
-  return r.rows[0].id;
+  return runWithTenant(1, async () => {
+    const r = await query(
+      `INSERT INTO users (username, password, name, role, tenant_id)
+       VALUES ($1, $2, $3, $4, 1) RETURNING id`,
+      ['staff_test', hashed, 'Staff Test', 'cashier']
+    );
+    return r.rows[0].id;
+  });
 }
 
 async function createTransaction(items) {
-  // Insert transaction directly to control items.
-  const { query } = require('../db');
-  const total = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
-  const txnRes = await query(
-    `INSERT INTO transactions (invoice_number, user_id, total_amount, payment_amount, change_amount)
-     VALUES ($1, 1, $2, $3, 0) RETURNING id`,
-    [`TEST-${Date.now()}`, total, total]
-  );
-  const id = txnRes.rows[0].id;
-  for (const item of items) {
-    await query(
-      `INSERT INTO transaction_items (transaction_id, product_id, product_name, price, quantity, subtotal)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [
-        id,
-        item.product_id,
-        item.product_name,
-        item.price,
-        item.quantity,
-        item.price * item.quantity,
-      ]
+  // Insert transaction directly to control items. Direct query() in tests runs
+  // outside a request scope so we explicitly bind the default tenant via
+  // runWithTenant() — same context the authenticateToken middleware would set.
+  const { query, runWithTenant } = require('../db');
+  return runWithTenant(1, async () => {
+    const total = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
+    const txnRes = await query(
+      `INSERT INTO transactions (invoice_number, user_id, total_amount, payment_amount, change_amount)
+       VALUES ($1, 1, $2, $3, 0) RETURNING id`,
+      [`TEST-${Date.now()}`, total, total]
     );
-  }
-  return id;
+    const id = txnRes.rows[0].id;
+    for (const item of items) {
+      await query(
+        `INSERT INTO transaction_items (transaction_id, product_id, product_name, price, quantity, subtotal)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          id,
+          item.product_id,
+          item.product_name,
+          item.price,
+          item.quantity,
+          item.price * item.quantity,
+        ]
+      );
+    }
+    return id;
+  });
 }
 
 beforeAll(async () => {

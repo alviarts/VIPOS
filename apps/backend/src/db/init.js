@@ -16,7 +16,7 @@
  */
 
 const bcrypt = require('bcryptjs');
-const { query, tx } = require('./index');
+const { query, tx, runWithTenant, runAsSystem } = require('./index');
 
 const DEFAULT_TENANT_ID = 1;
 
@@ -666,11 +666,18 @@ async function seedDefaultLainnya() {
  * in CI / startup script before booting the backend).
  */
 async function initDatabase() {
-  await seedDefaultTenant();
-  await seedDefaultAdmin();
-  await seedDefaultChartOfAccounts();
-  await seedDefaultSettings();
-  await seedDefaultLainnya();
+  // Default tenant must be seeded under the system bypass — the row that
+  // backs `app.current_tenant = 1` does not exist yet.
+  await runAsSystem(seedDefaultTenant);
+  // Everything else is scoped to the default tenant so RLS-aware DEFAULT
+  // expressions (`tenant_id = current_setting('app.current_tenant')::int`)
+  // pick up tenant_id=1 automatically.
+  await runWithTenant(DEFAULT_TENANT_ID, async () => {
+    await seedDefaultAdmin();
+    await seedDefaultChartOfAccounts();
+    await seedDefaultSettings();
+    await seedDefaultLainnya();
+  });
   console.log('Database initialized successfully');
 }
 

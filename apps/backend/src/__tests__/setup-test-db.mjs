@@ -14,23 +14,27 @@ const require = createRequire(import.meta.url);
 
 let _query;
 let _initDatabase;
+let _runAsSystem;
 let _resetForTests;
 let _cachedTables;
 
 function getDeps() {
   if (!_query) {
     process.env.DATABASE_DRIVER = 'postgres';
+    // P2-02: default to the non-superuser `vipos_app` role so Postgres RLS
+    // policies actually apply during tests. Override via DATABASE_URL_TEST or
+    // DATABASE_URL if the local Postgres has a different role configured.
     process.env.DATABASE_URL =
       process.env.DATABASE_URL ||
       process.env.DATABASE_URL_TEST ||
-      'postgresql://test:test@localhost:5432/vipos_test';
+      'postgresql://vipos_app:apppass@localhost:5432/vipos_test';
     process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-vipos';
     process.env.DISABLE_API_DOCS = '1';
 
-    ({ query: _query, _resetForTests } = require('../db'));
+    ({ query: _query, runAsSystem: _runAsSystem, _resetForTests } = require('../db'));
     ({ initDatabase: _initDatabase } = require('../db/init'));
   }
-  return { query: _query, initDatabase: _initDatabase };
+  return { query: _query, initDatabase: _initDatabase, runAsSystem: _runAsSystem };
 }
 
 async function listAppTables(query) {
@@ -48,12 +52,13 @@ async function listAppTables(query) {
 async function resetDb(query) {
   const tables = await listAppTables(query);
   if (!tables.length) return;
+  // RLS blocks cross-tenant TRUNCATE outside the system bypass.
   await query(`TRUNCATE TABLE ${tables.join(', ')} RESTART IDENTITY CASCADE`);
 }
 
 export async function setupTestEnv() {
-  const { query, initDatabase } = getDeps();
-  await resetDb(query);
+  const { query, initDatabase, runAsSystem } = getDeps();
+  await runAsSystem(() => resetDb(query));
   await initDatabase();
 }
 

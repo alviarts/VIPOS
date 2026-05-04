@@ -16,10 +16,13 @@ model app_settings {
   value_json String
   updated_by Int?
   updated_at DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id  Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   outlets    outlets?  @relation(fields: [outlet_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants    tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "app_settings_tenant_fk")
   users      users?    @relation(fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([outlet_id, category, key])
+  @@index([tenant_id], map: "idx_app_settings_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -31,7 +34,11 @@ model appointment_resources {
   is_active     Int            @default(1)
   created_at    DateTime?      @default(now()) @db.Timestamptz(6)
   updated_at    DateTime?      @default(now()) @db.Timestamptz(6)
+  tenant_id     Int            @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants       tenants        @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "appointment_resources_tenant_fk")
   appointments  appointments[]
+
+  @@index([tenant_id], map: "idx_appointment_resources_tenant")
 }
 
 model appointment_services {
@@ -43,16 +50,19 @@ model appointment_services {
   price            Float        @default(0)
   duration_minutes Int?         @default(0)
   subtotal         Float        @default(0)
+  tenant_id        Int          @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   appointments     appointments @relation(fields: [appointment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   products         products?    @relation(fields: [product_id], references: [id], onUpdate: NoAction)
+  tenants          tenants      @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "appointment_services_tenant_fk")
 
   @@index([appointment_id], map: "idx_appointment_services_appt")
+  @@index([tenant_id], map: "idx_appointment_services_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model appointments {
   id                    Int                    @id @default(autoincrement())
-  ref_no                String                 @unique
+  ref_no                String
   customer_id           Int?
   customer_name         String?
   customer_phone        String?
@@ -75,16 +85,20 @@ model appointments {
   reminder_1h_sent_at   DateTime?              @db.Timestamptz(6)
   created_at            DateTime?              @default(now()) @db.Timestamptz(6)
   updated_at            DateTime?              @default(now()) @db.Timestamptz(6)
+  tenant_id             Int                    @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   appointment_services  appointment_services[]
   customers             customers?             @relation(fields: [customer_id], references: [id], onUpdate: NoAction)
   appointment_resources appointment_resources? @relation(fields: [resource_id], references: [id], onUpdate: NoAction)
   staff                 staff?                 @relation(fields: [staff_id], references: [id], onUpdate: NoAction)
+  tenants               tenants                @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "appointments_tenant_fk")
   transactions          transactions?          @relation(fields: [transaction_id], references: [id], onUpdate: NoAction)
 
+  @@unique([tenant_id, ref_no])
   @@index([customer_id], map: "idx_appointments_customer")
   @@index([staff_id], map: "idx_appointments_staff")
   @@index([start_at], map: "idx_appointments_start")
   @@index([status], map: "idx_appointments_status")
+  @@index([tenant_id], map: "idx_appointments_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -97,6 +111,10 @@ model approval_chains {
   is_active        Int       @default(1)
   created_at       DateTime? @default(now()) @db.Timestamptz(6)
   updated_at       DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id        Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants          tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "approval_chains_tenant_fk")
+
+  @@index([tenant_id], map: "idx_approval_chains_tenant")
 }
 
 model attendance_geofences {
@@ -108,6 +126,10 @@ model attendance_geofences {
   radius_m    Int?      @default(100)
   strict_mode Int?      @default(0)
   updated_at  DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id   Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants     tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "attendance_geofences_tenant_fk")
+
+  @@index([tenant_id], map: "idx_attendance_geofences_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -125,10 +147,13 @@ model attendance_logs {
   approved_by Int?
   approved_at DateTime? @db.Timestamptz(6)
   created_at  DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id   Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   employees   employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants     tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "attendance_logs_tenant_fk")
 
   @@index([employee_id], map: "idx_attendance_employee")
   @@index([logged_at], map: "idx_attendance_logged")
+  @@index([tenant_id], map: "idx_attendance_logs_tenant")
 }
 
 model b2b_delivery_order_items {
@@ -138,16 +163,19 @@ model b2b_delivery_order_items {
   product_id            Int?
   product_name          String
   qty                   Float
+  tenant_id             Int                    @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   b2b_delivery_orders   b2b_delivery_orders    @relation(fields: [delivery_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   products              products?              @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   b2b_sales_order_items b2b_sales_order_items? @relation(fields: [sales_order_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants               tenants                @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "b2b_delivery_order_items_tenant_fk")
 
   @@index([delivery_order_id], map: "idx_b2b_delivery_order_items_do")
+  @@index([tenant_id], map: "idx_b2b_delivery_order_items_tenant")
 }
 
 model b2b_delivery_orders {
   id                       Int                        @id @default(autoincrement())
-  number                   String                     @unique
+  number                   String
   sales_order_id           Int?
   customer_id              Int?
   customer_name            String
@@ -162,12 +190,16 @@ model b2b_delivery_orders {
   created_by               Int?
   created_at               DateTime?                  @default(now()) @db.Timestamptz(6)
   updated_at               DateTime?                  @default(now()) @db.Timestamptz(6)
+  tenant_id                Int                        @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   b2b_delivery_order_items b2b_delivery_order_items[]
   users                    users?                     @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   customers                customers?                 @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   b2b_sales_orders         b2b_sales_orders?          @relation(fields: [sales_order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                  tenants                    @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "b2b_delivery_orders_tenant_fk")
 
+  @@unique([tenant_id, number])
   @@index([sales_order_id], map: "idx_b2b_delivery_orders_so")
+  @@index([tenant_id], map: "idx_b2b_delivery_orders_tenant")
 }
 
 model b2b_invoice_items {
@@ -180,16 +212,19 @@ model b2b_invoice_items {
   unit_price            Float
   discount_percent      Float?                 @default(0)
   subtotal              Float
+  tenant_id             Int                    @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   b2b_invoices          b2b_invoices           @relation(fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   products              products?              @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   b2b_sales_order_items b2b_sales_order_items? @relation(fields: [sales_order_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants               tenants                @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "b2b_invoice_items_tenant_fk")
 
   @@index([invoice_id], map: "idx_b2b_invoice_items_inv")
+  @@index([tenant_id], map: "idx_b2b_invoice_items_tenant")
 }
 
 model b2b_invoices {
   id                Int                 @id @default(autoincrement())
-  number            String              @unique
+  number            String
   sales_order_id    Int?
   customer_id       Int?
   customer_name     String
@@ -208,15 +243,19 @@ model b2b_invoices {
   created_by        Int?
   created_at        DateTime?           @default(now()) @db.Timestamptz(6)
   updated_at        DateTime?           @default(now()) @db.Timestamptz(6)
+  tenant_id         Int                 @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   b2b_invoice_items b2b_invoice_items[]
   users             users?              @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   customers         customers?          @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   b2b_sales_orders  b2b_sales_orders?   @relation(fields: [sales_order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants           tenants             @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "b2b_invoices_tenant_fk")
   b2b_receipts      b2b_receipts[]
 
+  @@unique([tenant_id, number])
   @@index([customer_id], map: "idx_b2b_invoices_customer")
   @@index([due_date], map: "idx_b2b_invoices_due")
   @@index([status], map: "idx_b2b_invoices_status")
+  @@index([tenant_id], map: "idx_b2b_invoices_tenant")
 }
 
 model b2b_quotation_items {
@@ -228,15 +267,18 @@ model b2b_quotation_items {
   unit_price       Float
   discount_percent Float?         @default(0)
   subtotal         Float
+  tenant_id        Int            @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   products         products?      @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   b2b_quotations   b2b_quotations @relation(fields: [quotation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants          tenants        @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "b2b_quotation_items_tenant_fk")
 
   @@index([quotation_id], map: "idx_b2b_quotation_items_qid")
+  @@index([tenant_id], map: "idx_b2b_quotation_items_tenant")
 }
 
 model b2b_quotations {
   id                  Int                   @id @default(autoincrement())
-  number              String                @unique
+  number              String
   customer_id         Int?
   customer_name       String
   quote_date          String
@@ -253,18 +295,22 @@ model b2b_quotations {
   created_by          Int?
   created_at          DateTime?             @default(now()) @db.Timestamptz(6)
   updated_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  tenant_id           Int                   @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   b2b_quotation_items b2b_quotation_items[]
   users               users?                @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   customers           customers?            @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants             tenants               @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "b2b_quotations_tenant_fk")
   b2b_sales_orders    b2b_sales_orders[]
 
+  @@unique([tenant_id, number])
   @@index([customer_id], map: "idx_b2b_quotations_customer")
   @@index([status], map: "idx_b2b_quotations_status")
+  @@index([tenant_id], map: "idx_b2b_quotations_tenant")
 }
 
 model b2b_receipts {
   id              Int            @id @default(autoincrement())
-  number          String         @unique
+  number          String
   invoice_id      Int
   customer_id     Int?
   payment_date    String
@@ -275,12 +321,16 @@ model b2b_receipts {
   notes           String?
   created_by      Int?
   created_at      DateTime?      @default(now()) @db.Timestamptz(6)
+  tenant_id       Int            @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   cash_accounts   cash_accounts? @relation(fields: [bank_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users           users?         @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   customers       customers?     @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   b2b_invoices    b2b_invoices   @relation(fields: [invoice_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants         tenants        @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "b2b_receipts_tenant_fk")
 
+  @@unique([tenant_id, number])
   @@index([invoice_id], map: "idx_b2b_receipts_invoice")
+  @@index([tenant_id], map: "idx_b2b_receipts_tenant")
 }
 
 model b2b_sales_order_items {
@@ -294,17 +344,20 @@ model b2b_sales_order_items {
   unit_price               Float
   discount_percent         Float?                     @default(0)
   subtotal                 Float
+  tenant_id                Int                        @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   b2b_delivery_order_items b2b_delivery_order_items[]
   b2b_invoice_items        b2b_invoice_items[]
   products                 products?                  @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   b2b_sales_orders         b2b_sales_orders           @relation(fields: [sales_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants                  tenants                    @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "b2b_sales_order_items_tenant_fk")
 
   @@index([sales_order_id], map: "idx_b2b_sales_order_items_so")
+  @@index([tenant_id], map: "idx_b2b_sales_order_items_tenant")
 }
 
 model b2b_sales_orders {
   id                    Int                     @id @default(autoincrement())
-  number                String                  @unique
+  number                String
   quotation_id          Int?
   customer_id           Int?
   customer_name         String
@@ -320,15 +373,19 @@ model b2b_sales_orders {
   created_by            Int?
   created_at            DateTime?               @default(now()) @db.Timestamptz(6)
   updated_at            DateTime?               @default(now()) @db.Timestamptz(6)
+  tenant_id             Int                     @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   b2b_delivery_orders   b2b_delivery_orders[]
   b2b_invoices          b2b_invoices[]
   b2b_sales_order_items b2b_sales_order_items[]
   users                 users?                  @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   customers             customers?              @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   b2b_quotations        b2b_quotations?         @relation(fields: [quotation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants               tenants                 @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "b2b_sales_orders_tenant_fk")
 
+  @@unique([tenant_id, number])
   @@index([customer_id], map: "idx_b2b_sales_orders_customer")
   @@index([status], map: "idx_b2b_sales_orders_status")
+  @@index([tenant_id], map: "idx_b2b_sales_orders_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -345,22 +402,31 @@ model capital_applications {
   submitted_by            Int?
   submitted_at            DateTime? @default(now()) @db.Timestamptz(6)
   reviewed_at             DateTime? @db.Timestamptz(6)
+  tenant_id               Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   users                   users?    @relation(fields: [submitted_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                 tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "capital_applications_tenant_fk")
+
+  @@index([tenant_id], map: "idx_capital_applications_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model cash_accounts {
   id                                                               Int                 @id @default(autoincrement())
-  kode                                                             String              @unique
+  kode                                                             String
   tipe                                                             String?             @default("detail")
   nama                                                             String
   kategori                                                         String?             @default("Kas & Bank")
   saldo_awal                                                       Float?              @default(0)
   is_active                                                        Int?                @default(1)
   created_at                                                       DateTime?           @default(now()) @db.Timestamptz(6)
+  tenant_id                                                        Int                 @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   b2b_receipts                                                     b2b_receipts[]
+  tenants                                                          tenants             @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "cash_accounts_tenant_fk")
   cash_transactions_cash_transactions_account_idTocash_accounts    cash_transactions[] @relation("cash_transactions_account_idTocash_accounts")
   cash_transactions_cash_transactions_account_to_idTocash_accounts cash_transactions[] @relation("cash_transactions_account_to_idTocash_accounts")
+
+  @@unique([tenant_id, kode])
+  @@index([tenant_id], map: "idx_cash_accounts_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -376,17 +442,20 @@ model cash_transactions {
   reference                                                    String?
   user_id                                                      Int?
   created_at                                                   DateTime?      @default(now()) @db.Timestamptz(6)
+  tenant_id                                                    Int            @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   cash_accounts_cash_transactions_account_idTocash_accounts    cash_accounts  @relation("cash_transactions_account_idTocash_accounts", fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   cash_accounts_cash_transactions_account_to_idTocash_accounts cash_accounts? @relation("cash_transactions_account_to_idTocash_accounts", fields: [account_to_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                                                      tenants        @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "cash_transactions_tenant_fk")
   users                                                        users?         @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([account_id], map: "idx_cash_transactions_account")
   @@index([tanggal], map: "idx_cash_transactions_tanggal")
+  @@index([tenant_id], map: "idx_cash_transactions_tenant")
 }
 
 model categories {
   id                Int          @id @default(autoincrement())
-  name              String       @unique
+  name              String
   description       String?
   urutan            Int?         @default(0)
   department_id     Int?
@@ -394,8 +463,13 @@ model categories {
   icon_url          String?
   is_tampil_di_menu Int?         @default(1)
   created_at        DateTime?    @default(now()) @db.Timestamptz(6)
+  tenant_id         Int          @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   departments       departments? @relation(fields: [department_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants           tenants      @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "categories_tenant_fk")
   products          products[]
+
+  @@unique([tenant_id, name])
+  @@index([tenant_id], map: "idx_categories_tenant")
 }
 
 model commission_assignments {
@@ -410,13 +484,16 @@ model commission_assignments {
   period_key          String?
   notes               String?
   created_at          DateTime?         @default(now()) @db.Timestamptz(6)
+  tenant_id           Int               @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   commission_groups   commission_groups @relation(fields: [commission_group_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users               users             @relation(fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants             tenants           @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "commission_assignments_tenant_fk")
   transactions        transactions      @relation(fields: [transaction_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([employee_id], map: "idx_commission_assign_employee")
   @@index([period_key], map: "idx_commission_assign_period")
   @@index([transaction_id], map: "idx_commission_assign_transaction")
+  @@index([tenant_id], map: "idx_commission_assignments_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -438,7 +515,11 @@ model commission_groups {
   is_active                 Int?                     @default(1)
   created_at                DateTime?                @default(now()) @db.Timestamptz(6)
   updated_at                DateTime?                @default(now()) @db.Timestamptz(6)
+  tenant_id                 Int                      @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   commission_assignments    commission_assignments[]
+  tenants                   tenants                  @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "commission_groups_tenant_fk")
+
+  @@index([tenant_id], map: "idx_commission_groups_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -460,6 +541,10 @@ model consumer_app_config {
   operating_hours    String?
   created_at         DateTime? @default(now()) @db.Timestamptz(6)
   updated_at         DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id          Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants            tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "consumer_app_config_tenant_fk")
+
+  @@index([tenant_id], map: "idx_consumer_app_config_tenant")
 }
 
 model coupon_redemptions {
@@ -469,18 +554,21 @@ model coupon_redemptions {
   customer_id    Int?
   amount         Float?        @default(0)
   redeemed_at    DateTime?     @default(now()) @db.Timestamptz(6)
+  tenant_id      Int           @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   coupons        coupons       @relation(fields: [coupon_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   customers      customers?    @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants        tenants       @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "coupon_redemptions_tenant_fk")
   transactions   transactions? @relation(fields: [transaction_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([coupon_id], map: "idx_coupon_redemptions_coupon")
   @@index([customer_id], map: "idx_coupon_redemptions_customer")
+  @@index([tenant_id], map: "idx_coupon_redemptions_tenant")
 }
 
 model coupons {
   id                   Int                  @id @default(autoincrement())
   promo_id             Int
-  code                 String               @unique
+  code                 String
   batch_id             String?
   max_uses             Int?                 @default(1)
   used_count           Int?                 @default(0)
@@ -489,50 +577,67 @@ model coupons {
   valid_until          DateTime?            @db.Timestamptz(6)
   is_active            Int?                 @default(1)
   created_at           DateTime?            @default(now()) @db.Timestamptz(6)
+  tenant_id            Int                  @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   coupon_redemptions   coupon_redemptions[]
   customers            customers?           @relation(fields: [assigned_customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   promos               promos               @relation(fields: [promo_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants              tenants              @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "coupons_tenant_fk")
 
+  @@unique([tenant_id, code])
   @@index([is_active], map: "idx_coupons_active")
   @@index([batch_id], map: "idx_coupons_batch")
   @@index([promo_id], map: "idx_coupons_promo")
+  @@index([tenant_id], map: "idx_coupons_tenant")
 }
 
 model customer_groups {
   id                Int         @id @default(autoincrement())
-  name              String      @unique
+  name              String
   description       String?
   discount_percent  Float?      @default(0)
   points_multiplier Float?      @default(1)
   color             String?
   created_at        DateTime?   @default(now()) @db.Timestamptz(6)
+  tenant_id         Int         @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants           tenants     @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "customer_groups_tenant_fk")
   customers         customers[]
+
+  @@unique([tenant_id, name])
+  @@index([tenant_id], map: "idx_customer_groups_tenant")
 }
 
 model customer_tag_map {
   customer_id   Int
   tag_id        Int
   created_at    DateTime?     @default(now()) @db.Timestamptz(6)
+  tenant_id     Int           @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   customers     customers     @relation(fields: [customer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   customer_tags customer_tags @relation(fields: [tag_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants       tenants       @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "customer_tag_map_tenant_fk")
 
   @@id([customer_id, tag_id])
   @@index([customer_id], map: "idx_customer_tag_map_customer")
   @@index([tag_id], map: "idx_customer_tag_map_tag")
+  @@index([tenant_id], map: "idx_customer_tag_map_tenant")
 }
 
 model customer_tags {
   id               Int                @id @default(autoincrement())
-  name             String             @unique
+  name             String
   color            String?
   created_at       DateTime?          @default(now()) @db.Timestamptz(6)
+  tenant_id        Int                @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   customer_tag_map customer_tag_map[]
+  tenants          tenants            @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "customer_tags_tenant_fk")
+
+  @@unique([tenant_id, name])
+  @@index([tenant_id], map: "idx_customer_tags_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model customers {
   id                            Int                             @id @default(autoincrement())
-  kode                          String?                         @unique
+  kode                          String?
   name                          String
   phone                         String?
   email                         String?
@@ -551,6 +656,7 @@ model customers {
   is_active                     Int?                            @default(1)
   created_at                    DateTime?                       @default(now()) @db.Timestamptz(6)
   updated_at                    DateTime?                       @default(now()) @db.Timestamptz(6)
+  tenant_id                     Int                             @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   appointments                  appointments[]
   b2b_delivery_orders           b2b_delivery_orders[]
   b2b_invoices                  b2b_invoices[]
@@ -561,23 +667,31 @@ model customers {
   coupons                       coupons[]
   customer_tag_map              customer_tag_map[]
   customer_groups               customer_groups?                @relation(fields: [customer_group_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                       tenants                         @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "customers_tenant_fk")
   gl_incomes                    gl_incomes[]
   loyalty_transactions          loyalty_transactions[]
   marketing_campaign_recipients marketing_campaign_recipients[]
   transactions                  transactions[]
 
+  @@unique([tenant_id, kode])
   @@index([customer_group_id], map: "idx_customers_group")
+  @@index([tenant_id], map: "idx_customers_tenant")
 }
 
 model departments {
   id          Int          @id @default(autoincrement())
-  name        String       @unique
+  name        String
   description String?
   urutan      Int?         @default(0)
   is_active   Int?         @default(1)
   created_at  DateTime?    @default(now()) @db.Timestamptz(6)
+  tenant_id   Int          @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   categories  categories[]
+  tenants     tenants      @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "departments_tenant_fk")
   employees   employees[]
+
+  @@unique([tenant_id, name])
+  @@index([tenant_id], map: "idx_departments_tenant")
 }
 
 model employee_documents {
@@ -587,14 +701,18 @@ model employee_documents {
   file_url    String
   file_name   String?
   uploaded_at DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id   Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   employees   employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants     tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "employee_documents_tenant_fk")
+
+  @@index([tenant_id], map: "idx_employee_documents_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model employees {
   id                                                    Int                    @id @default(autoincrement())
   user_id                                               Int?                   @unique
-  employee_no                                           String                 @unique
+  employee_no                                           String
   name                                                  String
   photo_url                                             String?
   nik_ktp                                               String?
@@ -630,9 +748,11 @@ model employees {
   status                                                String                 @default("active")
   created_at                                            DateTime?              @default(now()) @db.Timestamptz(6)
   updated_at                                            DateTime?              @default(now()) @db.Timestamptz(6)
+  tenant_id                                             Int                    @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   attendance_logs                                       attendance_logs[]
   employee_documents                                    employee_documents[]
   departments                                           departments?           @relation(fields: [department_id], references: [id], onUpdate: NoAction)
+  tenants                                               tenants                @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "employees_tenant_fk")
   users                                                 users?                 @relation(fields: [user_id], references: [id], onUpdate: NoAction)
   payslips                                              payslips[]
   permission_overrides                                  permission_overrides[]
@@ -640,14 +760,16 @@ model employees {
   schedule_swaps_schedule_swaps_partner_idToemployees   schedule_swaps[]       @relation("schedule_swaps_partner_idToemployees")
   schedule_swaps_schedule_swaps_requester_idToemployees schedule_swaps[]       @relation("schedule_swaps_requester_idToemployees")
 
+  @@unique([tenant_id, employee_no])
   @@index([department_id], map: "idx_employees_dept")
   @@index([status], map: "idx_employees_status")
+  @@index([tenant_id], map: "idx_employees_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model gl_accounts {
   id                                                                    Int                        @id @default(autoincrement())
-  code                                                                  String                     @unique
+  code                                                                  String
   name                                                                  String
   type                                                                  String
   subtype                                                               String?
@@ -658,8 +780,10 @@ model gl_accounts {
   description                                                           String?
   created_at                                                            DateTime?                  @default(now()) @db.Timestamptz(6)
   updated_at                                                            DateTime?                  @default(now()) @db.Timestamptz(6)
+  tenant_id                                                             Int                        @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   gl_accounts                                                           gl_accounts?               @relation("gl_accountsTogl_accounts", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_gl_accounts                                                     gl_accounts[]              @relation("gl_accountsTogl_accounts")
+  tenants                                                               tenants                    @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "gl_accounts_tenant_fk")
   gl_expenses_gl_expenses_expense_account_idTogl_accounts               gl_expenses[]              @relation("gl_expenses_expense_account_idTogl_accounts")
   gl_expenses_gl_expenses_payment_account_idTogl_accounts               gl_expenses[]              @relation("gl_expenses_payment_account_idTogl_accounts")
   gl_fixed_asset_disposals                                              gl_fixed_asset_disposals[]
@@ -675,13 +799,15 @@ model gl_accounts {
   gl_vendors                                                            gl_vendors[]
   payment_methods                                                       payment_methods[]
 
+  @@unique([tenant_id, code])
   @@index([parent_id], map: "idx_gl_accounts_parent")
   @@index([type], map: "idx_gl_accounts_type")
+  @@index([tenant_id], map: "idx_gl_accounts_tenant")
 }
 
 model gl_expenses {
   id                                                      Int          @id @default(autoincrement())
-  ref_no                                                  String       @unique
+  ref_no                                                  String
   expense_date                                            DateTime     @db.Date
   vendor_id                                               Int?
   expense_account_id                                      Int
@@ -694,13 +820,17 @@ model gl_expenses {
   journal_id                                              Int?
   created_by                                              Int?
   created_at                                              DateTime?    @default(now()) @db.Timestamptz(6)
+  tenant_id                                               Int          @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   users                                                   users?       @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   gl_accounts_gl_expenses_expense_account_idTogl_accounts gl_accounts  @relation("gl_expenses_expense_account_idTogl_accounts", fields: [expense_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   gl_journals                                             gl_journals? @relation(fields: [journal_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   gl_accounts_gl_expenses_payment_account_idTogl_accounts gl_accounts  @relation("gl_expenses_payment_account_idTogl_accounts", fields: [payment_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                                                 tenants      @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "gl_expenses_tenant_fk")
   gl_vendors                                              gl_vendors?  @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@unique([tenant_id, ref_no])
   @@index([expense_date], map: "idx_gl_expenses_date")
+  @@index([tenant_id], map: "idx_gl_expenses_tenant")
 }
 
 model gl_fixed_asset_depreciations {
@@ -711,10 +841,13 @@ model gl_fixed_asset_depreciations {
   amount          Float
   journal_id      Int?
   run_at          DateTime?       @default(now()) @db.Timestamptz(6)
+  tenant_id       Int             @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   gl_fixed_assets gl_fixed_assets @relation(fields: [asset_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   gl_journals     gl_journals?    @relation(fields: [journal_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants         tenants         @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "gl_fixed_asset_depreciations_tenant_fk")
 
   @@unique([asset_id, period_year, period_month])
+  @@index([tenant_id], map: "idx_gl_fixed_asset_depreciations_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -729,15 +862,19 @@ model gl_fixed_asset_disposals {
   proceeds_account_id Int?
   journal_id          Int?
   created_at          DateTime?       @default(now()) @db.Timestamptz(6)
+  tenant_id           Int             @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   gl_fixed_assets     gl_fixed_assets @relation(fields: [asset_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   gl_journals         gl_journals?    @relation(fields: [journal_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   gl_accounts         gl_accounts?    @relation(fields: [proceeds_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants             tenants         @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "gl_fixed_asset_disposals_tenant_fk")
+
+  @@index([tenant_id], map: "idx_gl_fixed_asset_disposals_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model gl_fixed_assets {
   id                                                              Int                            @id @default(autoincrement())
-  code                                                            String                         @unique
+  code                                                            String
   name                                                            String
   category                                                        String?
   acquisition_date                                                DateTime                       @db.Date
@@ -757,6 +894,7 @@ model gl_fixed_assets {
   acquisition_journal_id                                          Int?
   created_at                                                      DateTime?                      @default(now()) @db.Timestamptz(6)
   updated_at                                                      DateTime?                      @default(now()) @db.Timestamptz(6)
+  tenant_id                                                       Int                            @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   gl_fixed_asset_depreciations                                    gl_fixed_asset_depreciations[]
   gl_fixed_asset_disposals                                        gl_fixed_asset_disposals?
   gl_accounts_gl_fixed_assets_accum_dep_account_idTogl_accounts   gl_accounts                    @relation("gl_fixed_assets_accum_dep_account_idTogl_accounts", fields: [accum_dep_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -764,13 +902,17 @@ model gl_fixed_assets {
   gl_accounts_gl_fixed_assets_asset_account_idTogl_accounts       gl_accounts                    @relation("gl_fixed_assets_asset_account_idTogl_accounts", fields: [asset_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   gl_accounts_gl_fixed_assets_dep_expense_account_idTogl_accounts gl_accounts                    @relation("gl_fixed_assets_dep_expense_account_idTogl_accounts", fields: [dep_expense_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   gl_accounts_gl_fixed_assets_payment_account_idTogl_accounts     gl_accounts?                   @relation("gl_fixed_assets_payment_account_idTogl_accounts", fields: [payment_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                                                         tenants                        @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "gl_fixed_assets_tenant_fk")
   gl_vendors                                                      gl_vendors?                    @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id], map: "idx_gl_fixed_assets_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model gl_incomes {
   id                                                     Int          @id @default(autoincrement())
-  ref_no                                                 String       @unique
+  ref_no                                                 String
   income_date                                            DateTime     @db.Date
   source_type                                            String       @default("other")
   customer_id                                            Int?
@@ -785,13 +927,17 @@ model gl_incomes {
   journal_id                                             Int?
   created_by                                             Int?
   created_at                                             DateTime?    @default(now()) @db.Timestamptz(6)
+  tenant_id                                              Int          @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   gl_accounts_gl_incomes_cash_account_idTogl_accounts    gl_accounts  @relation("gl_incomes_cash_account_idTogl_accounts", fields: [cash_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users                                                  users?       @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   customers                                              customers?   @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   gl_journals                                            gl_journals? @relation(fields: [journal_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   gl_accounts_gl_incomes_revenue_account_idTogl_accounts gl_accounts  @relation("gl_incomes_revenue_account_idTogl_accounts", fields: [revenue_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                                                tenants      @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "gl_incomes_tenant_fk")
 
+  @@unique([tenant_id, ref_no])
   @@index([income_date], map: "idx_gl_incomes_date")
+  @@index([tenant_id], map: "idx_gl_incomes_tenant")
 }
 
 model gl_journal_lines {
@@ -802,17 +948,20 @@ model gl_journal_lines {
   credit      Float       @default(0)
   description String?
   sort_order  Int         @default(0)
+  tenant_id   Int         @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   gl_accounts gl_accounts @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   gl_journals gl_journals @relation(fields: [journal_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants     tenants     @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "gl_journal_lines_tenant_fk")
 
   @@index([account_id], map: "idx_gl_journal_lines_account")
   @@index([journal_id], map: "idx_gl_journal_lines_journal")
+  @@index([tenant_id], map: "idx_gl_journal_lines_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model gl_journals {
   id                           Int                            @id @default(autoincrement())
-  journal_no                   String                         @unique
+  journal_no                   String
   journal_date                 DateTime                       @db.Date
   description                  String?
   source_type                  String                         @default("manual")
@@ -821,6 +970,7 @@ model gl_journals {
   is_locked                    Int                            @default(0)
   created_by                   Int?
   created_at                   DateTime?                      @default(now()) @db.Timestamptz(6)
+  tenant_id                    Int                            @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   gl_expenses                  gl_expenses[]
   gl_fixed_asset_depreciations gl_fixed_asset_depreciations[]
   gl_fixed_asset_disposals     gl_fixed_asset_disposals[]
@@ -828,9 +978,12 @@ model gl_journals {
   gl_incomes                   gl_incomes[]
   gl_journal_lines             gl_journal_lines[]
   users                        users?                         @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                      tenants                        @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "gl_journals_tenant_fk")
 
+  @@unique([tenant_id, journal_no])
   @@index([journal_date], map: "idx_gl_journals_date")
   @@index([source_type, source_id], map: "idx_gl_journals_source")
+  @@index([tenant_id], map: "idx_gl_journals_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -848,14 +1001,18 @@ model gl_recurring_bills {
   is_active                                                      Int          @default(1)
   created_at                                                     DateTime?    @default(now()) @db.Timestamptz(6)
   updated_at                                                     DateTime?    @default(now()) @db.Timestamptz(6)
+  tenant_id                                                      Int          @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   gl_accounts_gl_recurring_bills_expense_account_idTogl_accounts gl_accounts  @relation("gl_recurring_bills_expense_account_idTogl_accounts", fields: [expense_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   gl_accounts_gl_recurring_bills_payment_account_idTogl_accounts gl_accounts? @relation("gl_recurring_bills_payment_account_idTogl_accounts", fields: [payment_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                                                        tenants      @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "gl_recurring_bills_tenant_fk")
   gl_vendors                                                     gl_vendors?  @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([tenant_id], map: "idx_gl_recurring_bills_tenant")
 }
 
 model gl_vendors {
   id                  Int                  @id @default(autoincrement())
-  code                String               @unique
+  code                String
   name                String
   npwp                String?
   address             String?
@@ -870,10 +1027,15 @@ model gl_vendors {
   note                String?
   created_at          DateTime?            @default(now()) @db.Timestamptz(6)
   updated_at          DateTime?            @default(now()) @db.Timestamptz(6)
+  tenant_id           Int                  @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   gl_expenses         gl_expenses[]
   gl_fixed_assets     gl_fixed_assets[]
   gl_recurring_bills  gl_recurring_bills[]
   gl_accounts         gl_accounts?         @relation(fields: [default_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants             tenants              @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "gl_vendors_tenant_fk")
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id], map: "idx_gl_vendors_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -889,12 +1051,16 @@ model help_feedback {
   submitted_by   Int?
   created_at     DateTime? @default(now()) @db.Timestamptz(6)
   updated_at     DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id      Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   users          users?    @relation(fields: [submitted_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants        tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "help_feedback_tenant_fk")
+
+  @@index([tenant_id], map: "idx_help_feedback_tenant")
 }
 
 model help_topics {
   id         Int       @id @default(autoincrement())
-  slug       String    @unique
+  slug       String
   title      String
   category   String?
   excerpt    String?
@@ -903,8 +1069,12 @@ model help_topics {
   is_active  Int?      @default(1)
   created_at DateTime? @default(now()) @db.Timestamptz(6)
   updated_at DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id  Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants    tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "help_topics_tenant_fk")
 
+  @@unique([tenant_id, slug])
   @@index([category], map: "idx_help_topics_category")
+  @@index([tenant_id], map: "idx_help_topics_tenant")
 }
 
 model informasi_updates {
@@ -913,11 +1083,15 @@ model informasi_updates {
   title        String
   body         String?
   published_at DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id    Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants      tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "informasi_updates_tenant_fk")
+
+  @@index([tenant_id], map: "idx_informasi_updates_tenant")
 }
 
 model inspirasi_articles {
   id              Int       @id @default(autoincrement())
-  slug            String    @unique
+  slug            String
   category        String
   title           String
   excerpt         String?
@@ -927,8 +1101,12 @@ model inspirasi_articles {
   reading_minutes Int?      @default(3)
   published_at    DateTime? @default(now()) @db.Timestamptz(6)
   is_active       Int?      @default(1)
+  tenant_id       Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants         tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "inspirasi_articles_tenant_fk")
 
+  @@unique([tenant_id, slug])
   @@index([category], map: "idx_inspirasi_articles_category")
+  @@index([tenant_id], map: "idx_inspirasi_articles_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -938,15 +1116,18 @@ model inspirasi_event_rsvps {
   user_id          Int
   status           String           @default("going")
   created_at       DateTime?        @default(now()) @db.Timestamptz(6)
+  tenant_id        Int              @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   inspirasi_events inspirasi_events @relation(fields: [event_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants          tenants          @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "inspirasi_event_rsvps_tenant_fk")
   users            users            @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([event_id, user_id])
+  @@index([tenant_id], map: "idx_inspirasi_event_rsvps_tenant")
 }
 
 model inspirasi_events {
   id                    Int                     @id @default(autoincrement())
-  slug                  String                  @unique
+  slug                  String
   title                 String
   description           String?
   location              String?
@@ -954,9 +1135,13 @@ model inspirasi_events {
   cover_url             String?
   capacity              Int?
   created_at            DateTime?               @default(now()) @db.Timestamptz(6)
+  tenant_id             Int                     @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   inspirasi_event_rsvps inspirasi_event_rsvps[]
+  tenants               tenants                 @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "inspirasi_events_tenant_fk")
 
+  @@unique([tenant_id, slug])
   @@index([event_date], map: "idx_inspirasi_events_date")
+  @@index([tenant_id], map: "idx_inspirasi_events_tenant")
 }
 
 model inspirasi_magazines {
@@ -967,8 +1152,11 @@ model inspirasi_magazines {
   cover_url    String?
   pdf_url      String?
   published_at DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id    Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants      tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "inspirasi_magazines_tenant_fk")
 
-  @@unique([year, month])
+  @@unique([tenant_id, year, month])
+  @@index([tenant_id], map: "idx_inspirasi_magazines_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -987,12 +1175,15 @@ model inventory_movements {
   keterangan   String?
   user_id      Int?
   created_at   DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id    Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   products     products  @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants      tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "inventory_movements_tenant_fk")
   users        users?    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([product_id], map: "idx_inventory_movements_product")
   @@index([ref_type, ref_id], map: "idx_inventory_movements_ref")
   @@index([tanggal], map: "idx_inventory_movements_tanggal")
+  @@index([tenant_id], map: "idx_inventory_movements_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1017,10 +1208,13 @@ model loyalty_rules {
   is_active                       Int?                   @default(1)
   created_at                      DateTime?              @default(now()) @db.Timestamptz(6)
   updated_at                      DateTime?              @default(now()) @db.Timestamptz(6)
+  tenant_id                       Int                    @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants                         tenants                @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "loyalty_rules_tenant_fk")
   loyalty_transactions            loyalty_transactions[]
 
   @@index([is_active], map: "idx_loyalty_rules_active")
   @@index([rule_type], map: "idx_loyalty_rules_type")
+  @@index([tenant_id], map: "idx_loyalty_rules_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1035,12 +1229,15 @@ model loyalty_transactions {
   notes          String?
   expires_at     DateTime?      @db.Timestamptz(6)
   created_at     DateTime?      @default(now()) @db.Timestamptz(6)
+  tenant_id      Int            @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   customers      customers      @relation(fields: [customer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   loyalty_rules  loyalty_rules? @relation(fields: [rule_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants        tenants        @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "loyalty_transactions_tenant_fk")
   transactions   transactions?  @relation(fields: [transaction_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([customer_id], map: "idx_loyalty_tx_customer")
   @@index([type], map: "idx_loyalty_tx_type")
+  @@index([tenant_id], map: "idx_loyalty_transactions_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1060,11 +1257,14 @@ model marketing_campaign_recipients {
   opened_at           DateTime?           @db.Timestamptz(6)
   clicked_at          DateTime?           @db.Timestamptz(6)
   created_at          DateTime?           @default(now()) @db.Timestamptz(6)
+  tenant_id           Int                 @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   marketing_campaigns marketing_campaigns @relation(fields: [campaign_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   customers           customers?          @relation(fields: [customer_id], references: [id], onUpdate: NoAction)
+  tenants             tenants             @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "marketing_campaign_recipients_tenant_fk")
 
   @@index([campaign_id], map: "idx_marketing_recipients_campaign")
   @@index([status], map: "idx_marketing_recipients_status")
+  @@index([tenant_id], map: "idx_marketing_campaign_recipients_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1096,14 +1296,17 @@ model marketing_campaigns {
   created_by                    Int?
   created_at                    DateTime?                       @default(now()) @db.Timestamptz(6)
   updated_at                    DateTime?                       @default(now()) @db.Timestamptz(6)
+  tenant_id                     Int                             @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   marketing_campaign_recipients marketing_campaign_recipients[]
   users                         users?                          @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   marketing_templates           marketing_templates?            @relation(fields: [template_id], references: [id], onUpdate: NoAction)
+  tenants                       tenants                         @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "marketing_campaigns_tenant_fk")
   marketing_credit_ledger       marketing_credit_ledger[]
 
   @@index([channel], map: "idx_marketing_campaigns_channel")
   @@index([scheduled_at], map: "idx_marketing_campaigns_scheduled")
   @@index([status], map: "idx_marketing_campaigns_status")
+  @@index([tenant_id], map: "idx_marketing_campaigns_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1117,10 +1320,13 @@ model marketing_credit_ledger {
   notes               String?
   created_by          Int?
   created_at          DateTime?            @default(now()) @db.Timestamptz(6)
+  tenant_id           Int                  @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   marketing_campaigns marketing_campaigns? @relation(fields: [campaign_id], references: [id], onUpdate: NoAction)
   users               users?               @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants             tenants              @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "marketing_credit_ledger_tenant_fk")
 
   @@index([channel], map: "idx_marketing_credit_channel")
+  @@index([tenant_id], map: "idx_marketing_credit_ledger_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1136,15 +1342,18 @@ model marketing_templates {
   caption             String?
   created_at          DateTime?             @default(now()) @db.Timestamptz(6)
   updated_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  tenant_id           Int                   @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   marketing_campaigns marketing_campaigns[]
+  tenants             tenants               @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "marketing_templates_tenant_fk")
 
   @@index([channel], map: "idx_marketing_templates_channel")
+  @@index([tenant_id], map: "idx_marketing_templates_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model marketplace_connections {
   id                   Int       @id @default(autoincrement())
-  provider             String    @unique
+  provider             String
   status               String    @default("disconnected")
   merchant_id          String?
   outlet_id            String?
@@ -1161,6 +1370,11 @@ model marketplace_connections {
   last_sync_at         DateTime? @db.Timestamptz(6)
   created_at           DateTime? @default(now()) @db.Timestamptz(6)
   updated_at           DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id            Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants              tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "marketplace_connections_tenant_fk")
+
+  @@unique([tenant_id, provider])
+  @@index([tenant_id], map: "idx_marketplace_connections_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1177,11 +1391,14 @@ model marketplace_product_overrides {
   sync_error         String?
   created_at         DateTime? @default(now()) @db.Timestamptz(6)
   updated_at         DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id          Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   products           products  @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants            tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "marketplace_product_overrides_tenant_fk")
 
   @@unique([provider, product_id])
   @@index([product_id], map: "idx_marketplace_overrides_product")
   @@index([provider], map: "idx_marketplace_overrides_provider")
+  @@index([tenant_id], map: "idx_marketplace_product_overrides_tenant")
 }
 
 model notification_prefs {
@@ -1193,9 +1410,12 @@ model notification_prefs {
   via_sms    Int?      @default(0)
   via_email  Int?      @default(1)
   updated_at DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id  Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants    tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "notification_prefs_tenant_fk")
   users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([user_id, event_key])
+  @@index([tenant_id], map: "idx_notification_prefs_tenant")
 }
 
 model online_order_items {
@@ -1208,16 +1428,19 @@ model online_order_items {
   modifiers     String?
   notes         String?
   subtotal      Float         @default(0)
+  tenant_id     Int           @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   online_orders online_orders @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   products      products?     @relation(fields: [product_id], references: [id], onUpdate: NoAction)
+  tenants       tenants       @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "online_order_items_tenant_fk")
 
   @@index([order_id], map: "idx_online_order_items_order")
+  @@index([tenant_id], map: "idx_online_order_items_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model online_orders {
   id                 Int                  @id @default(autoincrement())
-  ref_no             String               @unique
+  ref_no             String
   channel            String
   external_ref       String?
   order_type         String               @default("delivery")
@@ -1245,11 +1468,15 @@ model online_orders {
   notes              String?
   created_at         DateTime?            @default(now()) @db.Timestamptz(6)
   updated_at         DateTime?            @default(now()) @db.Timestamptz(6)
+  tenant_id          Int                  @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   online_order_items online_order_items[]
+  tenants            tenants              @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "online_orders_tenant_fk")
 
+  @@unique([tenant_id, ref_no])
   @@index([channel], map: "idx_online_orders_channel")
   @@index([created_at], map: "idx_online_orders_created")
   @@index([status], map: "idx_online_orders_status")
+  @@index([tenant_id], map: "idx_online_orders_tenant")
 }
 
 model outlet_floor_plans {
@@ -1260,12 +1487,16 @@ model outlet_floor_plans {
   height      Int?      @default(700)
   tables_json String    @default("[]")
   updated_at  DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id   Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   outlets     outlets   @relation(fields: [outlet_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants     tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "outlet_floor_plans_tenant_fk")
+
+  @@index([tenant_id], map: "idx_outlet_floor_plans_tenant")
 }
 
 model outlets {
   id                 Int                  @id @default(autoincrement())
-  code               String?              @unique
+  code               String?
   name               String
   type               String?
   address            String?
@@ -1281,9 +1512,14 @@ model outlets {
   is_active          Int?                 @default(1)
   created_at         DateTime?            @default(now()) @db.Timestamptz(6)
   updated_at         DateTime?            @default(now()) @db.Timestamptz(6)
+  tenant_id          Int                  @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   app_settings       app_settings[]
   outlet_floor_plans outlet_floor_plans[]
+  tenants            tenants              @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "outlets_tenant_fk")
   terminals          terminals[]
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id], map: "idx_outlets_tenant")
 }
 
 model password_reset_tokens {
@@ -1301,7 +1537,7 @@ model password_reset_tokens {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model payment_methods {
   id          Int          @id @default(autoincrement())
-  code        String?      @unique
+  code        String?
   name        String
   type        String
   provider    String?
@@ -1311,13 +1547,18 @@ model payment_methods {
   is_active   Int?         @default(1)
   sort_order  Int?         @default(0)
   created_at  DateTime?    @default(now()) @db.Timestamptz(6)
+  tenant_id   Int          @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   gl_accounts gl_accounts? @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants     tenants      @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "payment_methods_tenant_fk")
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id], map: "idx_payment_methods_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model payroll_runs {
   id               Int        @id @default(autoincrement())
-  ref_no           String     @unique
+  ref_no           String
   period_start     DateTime   @db.Date
   period_end       DateTime   @db.Date
   payment_date     DateTime?  @db.Date
@@ -1329,7 +1570,12 @@ model payroll_runs {
   notes            String?
   created_at       DateTime?  @default(now()) @db.Timestamptz(6)
   updated_at       DateTime?  @default(now()) @db.Timestamptz(6)
+  tenant_id        Int        @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants          tenants    @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "payroll_runs_tenant_fk")
   payslips         payslips[]
+
+  @@unique([tenant_id, ref_no])
+  @@index([tenant_id], map: "idx_payroll_runs_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1345,11 +1591,15 @@ model payroll_settings {
   bpjs_jht_employee       Float?    @default(2.0)
   bpjs_jp_employee        Float?    @default(1.0)
   updated_at              DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id               Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants                 tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "payroll_settings_tenant_fk")
+
+  @@index([tenant_id], map: "idx_payroll_settings_tenant")
 }
 
 model payroll_structures {
   id            Int       @id @default(autoincrement())
-  name          String    @unique
+  name          String
   description   String?
   basic_salary  Float     @default(0)
   allowances    String?
@@ -1360,6 +1610,11 @@ model payroll_structures {
   is_active     Int       @default(1)
   created_at    DateTime? @default(now()) @db.Timestamptz(6)
   updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id     Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants       tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "payroll_structures_tenant_fk")
+
+  @@unique([tenant_id, name])
+  @@index([tenant_id], map: "idx_payroll_structures_tenant")
 }
 
 model payslips {
@@ -1384,11 +1639,14 @@ model payslips {
   bank_name        String?
   bank_account_no  String?
   created_at       DateTime?    @default(now()) @db.Timestamptz(6)
+  tenant_id        Int          @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   employees        employees    @relation(fields: [employee_id], references: [id], onUpdate: NoAction)
   payroll_runs     payroll_runs @relation(fields: [payroll_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants          tenants      @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "payslips_tenant_fk")
 
   @@index([employee_id], map: "idx_payslips_employee")
   @@index([payroll_run_id], map: "idx_payslips_run")
+  @@index([tenant_id], map: "idx_payslips_tenant")
 }
 
 model permission_overrides {
@@ -1397,9 +1655,12 @@ model permission_overrides {
   permission_key String
   granted        Int       @default(1)
   created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id      Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   employees      employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants        tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "permission_overrides_tenant_fk")
 
   @@unique([employee_id, permission_key])
+  @@index([tenant_id], map: "idx_permission_overrides_tenant")
 }
 
 model product_recipe_items {
@@ -1410,10 +1671,13 @@ model product_recipe_items {
   unit                                                  String?
   notes                                                 String?
   created_at                                            DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id                                             Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   products_product_recipe_items_ingredient_idToproducts products  @relation("product_recipe_items_ingredient_idToproducts", fields: [ingredient_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   products_product_recipe_items_product_idToproducts    products  @relation("product_recipe_items_product_idToproducts", fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants                                               tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "product_recipe_items_tenant_fk")
 
   @@index([product_id], map: "idx_product_recipe_product")
+  @@index([tenant_id], map: "idx_product_recipe_items_tenant")
 }
 
 model product_variants {
@@ -1427,15 +1691,18 @@ model product_variants {
   is_default     Int?      @default(0)
   sort_order     Int?      @default(0)
   created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id      Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   products       products  @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants        tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "product_variants_tenant_fk")
 
   @@index([product_id], map: "idx_product_variants_product")
+  @@index([tenant_id], map: "idx_product_variants_tenant")
 }
 
 model products {
   id                                                                Int                             @id @default(autoincrement())
   name                                                              String
-  sku                                                               String                          @unique
+  sku                                                               String
   barcode                                                           String?
   price                                                             Float
   harga_modal                                                       Float?                          @default(0)
@@ -1457,6 +1724,7 @@ model products {
   image_urls                                                        String?
   has_variants                                                      Int?                            @default(0)
   has_recipe                                                        Int?                            @default(0)
+  tenant_id                                                         Int                             @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   appointment_services                                              appointment_services[]
   b2b_delivery_order_items                                          b2b_delivery_order_items[]
   b2b_invoice_items                                                 b2b_invoice_items[]
@@ -1469,8 +1737,12 @@ model products {
   product_recipe_items_product_recipe_items_product_idToproducts    product_recipe_items[]          @relation("product_recipe_items_product_idToproducts")
   product_variants                                                  product_variants[]
   categories                                                        categories?                     @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                                                           tenants                         @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "products_tenant_fk")
   stock_opname_items                                                stock_opname_items[]
   transaction_items                                                 transaction_items[]
+
+  @@unique([tenant_id, sku])
+  @@index([tenant_id], map: "idx_products_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1503,10 +1775,13 @@ model promos {
   is_active            Int?      @default(1)
   created_at           DateTime? @default(now()) @db.Timestamptz(6)
   updated_at           DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id            Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   coupons              coupons[]
+  tenants              tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "promos_tenant_fk")
 
   @@index([is_active], map: "idx_promos_active")
   @@index([promo_type], map: "idx_promos_type")
+  @@index([tenant_id], map: "idx_promos_tenant")
 }
 
 model refresh_tokens {
@@ -1537,7 +1812,11 @@ model report_schedules {
   last_run_at DateTime? @db.Timestamptz(6)
   created_by  Int?
   created_at  DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id   Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   users       users?    @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants     tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "report_schedules_tenant_fk")
+
+  @@index([tenant_id], map: "idx_report_schedules_tenant")
 }
 
 model schedule_assignments {
@@ -1549,14 +1828,17 @@ model schedule_assignments {
   note                                                                        String?
   created_at                                                                  DateTime?        @default(now()) @db.Timestamptz(6)
   updated_at                                                                  DateTime?        @default(now()) @db.Timestamptz(6)
+  tenant_id                                                                   Int              @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   employees                                                                   employees        @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   shifts                                                                      shifts?          @relation(fields: [shift_id], references: [id], onUpdate: NoAction)
+  tenants                                                                     tenants          @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "schedule_assignments_tenant_fk")
   schedule_swaps_schedule_swaps_partner_assignment_idToschedule_assignments   schedule_swaps[] @relation("schedule_swaps_partner_assignment_idToschedule_assignments")
   schedule_swaps_schedule_swaps_requester_assignment_idToschedule_assignments schedule_swaps[] @relation("schedule_swaps_requester_assignment_idToschedule_assignments")
 
   @@unique([employee_id, schedule_date])
   @@index([schedule_date], map: "idx_schedule_date")
   @@index([employee_id], map: "idx_schedule_employee")
+  @@index([tenant_id], map: "idx_schedule_assignments_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1572,10 +1854,14 @@ model schedule_swaps {
   decided_at                                                                        DateTime?            @db.Timestamptz(6)
   decision_note                                                                     String?
   created_at                                                                        DateTime?            @default(now()) @db.Timestamptz(6)
+  tenant_id                                                                         Int                  @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   schedule_assignments_schedule_swaps_partner_assignment_idToschedule_assignments   schedule_assignments @relation("schedule_swaps_partner_assignment_idToschedule_assignments", fields: [partner_assignment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   employees_schedule_swaps_partner_idToemployees                                    employees            @relation("schedule_swaps_partner_idToemployees", fields: [partner_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   schedule_assignments_schedule_swaps_requester_assignment_idToschedule_assignments schedule_assignments @relation("schedule_swaps_requester_assignment_idToschedule_assignments", fields: [requester_assignment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   employees_schedule_swaps_requester_idToemployees                                  employees            @relation("schedule_swaps_requester_idToemployees", fields: [requester_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants                                                                           tenants              @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "schedule_swaps_tenant_fk")
+
+  @@index([tenant_id], map: "idx_schedule_swaps_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1588,12 +1874,16 @@ model service_applications {
   submitted_by Int?
   submitted_at DateTime? @default(now()) @db.Timestamptz(6)
   reviewed_at  DateTime? @db.Timestamptz(6)
+  tenant_id    Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   users        users?    @relation(fields: [submitted_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants      tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "service_applications_tenant_fk")
+
+  @@index([tenant_id], map: "idx_service_applications_tenant")
 }
 
 model shifts {
   id                   Int                    @id @default(autoincrement())
-  name                 String                 @unique
+  name                 String
   start_time           String
   end_time             String
   break_minutes        Int?                   @default(0)
@@ -1601,7 +1891,12 @@ model shifts {
   is_active            Int?                   @default(1)
   created_at           DateTime?              @default(now()) @db.Timestamptz(6)
   updated_at           DateTime?              @default(now()) @db.Timestamptz(6)
+  tenant_id            Int                    @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   schedule_assignments schedule_assignments[]
+  tenants              tenants                @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "shifts_tenant_fk")
+
+  @@unique([tenant_id, name])
+  @@index([tenant_id], map: "idx_shifts_tenant")
 }
 
 model staff {
@@ -1614,15 +1909,18 @@ model staff {
   is_active    Int            @default(1)
   created_at   DateTime?      @default(now()) @db.Timestamptz(6)
   updated_at   DateTime?      @default(now()) @db.Timestamptz(6)
+  tenant_id    Int            @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   appointments appointments[]
+  tenants      tenants        @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "staff_tenant_fk")
 
   @@index([is_active], map: "idx_staff_active")
+  @@index([tenant_id], map: "idx_staff_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model stock_opname {
   id                                     Int                  @id @default(autoincrement())
-  kode                                   String               @unique
+  kode                                   String
   tanggal                                DateTime             @default(dbgenerated("CURRENT_DATE")) @db.Date
   status                                 String               @default("draft")
   catatan                                String?
@@ -1631,11 +1929,15 @@ model stock_opname {
   finalized_at                           DateTime?            @db.Timestamptz(6)
   created_at                             DateTime?            @default(now()) @db.Timestamptz(6)
   updated_at                             DateTime?            @default(now()) @db.Timestamptz(6)
+  tenant_id                              Int                  @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   users_stock_opname_created_byTousers   users?               @relation("stock_opname_created_byTousers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users_stock_opname_finalized_byTousers users?               @relation("stock_opname_finalized_byTousers", fields: [finalized_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                                tenants              @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "stock_opname_tenant_fk")
   stock_opname_items                     stock_opname_items[]
 
+  @@unique([tenant_id, kode])
   @@index([status], map: "idx_stock_opname_status")
+  @@index([tenant_id], map: "idx_stock_opname_tenant")
 }
 
 model stock_opname_items {
@@ -1646,11 +1948,14 @@ model stock_opname_items {
   qty_fisik    Int?
   catatan      String?
   created_at   DateTime?    @default(now()) @db.Timestamptz(6)
+  tenant_id    Int          @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   stock_opname stock_opname @relation(fields: [opname_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   products     products     @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants      tenants      @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "stock_opname_items_tenant_fk")
 
   @@unique([opname_id, product_id])
   @@index([opname_id], map: "idx_stock_opname_items_opname")
+  @@index([tenant_id], map: "idx_stock_opname_items_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1695,6 +2000,10 @@ model storefront_settings {
   hidden_category_ids    String?
   created_at             DateTime? @default(now()) @db.Timestamptz(6)
   updated_at             DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id              Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants                tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "storefront_settings_tenant_fk")
+
+  @@index([tenant_id], map: "idx_storefront_settings_tenant")
 }
 
 model supplies_cart_items {
@@ -1703,10 +2012,13 @@ model supplies_cart_items {
   product_id        Int
   qty               Int               @default(1)
   created_at        DateTime?         @default(now()) @db.Timestamptz(6)
+  tenant_id         Int               @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   supplies_carts    supplies_carts    @relation(fields: [cart_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   supplies_products supplies_products @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants           tenants           @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "supplies_cart_items_tenant_fk")
 
   @@unique([cart_id, product_id])
+  @@index([tenant_id], map: "idx_supplies_cart_items_tenant")
 }
 
 model supplies_carts {
@@ -1714,16 +2026,25 @@ model supplies_carts {
   user_id             Int                   @unique
   created_at          DateTime?             @default(now()) @db.Timestamptz(6)
   updated_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  tenant_id           Int                   @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   supplies_cart_items supplies_cart_items[]
+  tenants             tenants               @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "supplies_carts_tenant_fk")
   users               users                 @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([tenant_id], map: "idx_supplies_carts_tenant")
 }
 
 model supplies_categories {
   id                Int                 @id @default(autoincrement())
-  slug              String              @unique
+  slug              String
   name              String
   sort_order        Int?                @default(0)
+  tenant_id         Int                 @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants           tenants             @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "supplies_categories_tenant_fk")
   supplies_products supplies_products[]
+
+  @@unique([tenant_id, slug])
+  @@index([tenant_id], map: "idx_supplies_categories_tenant")
 }
 
 model supplies_order_items {
@@ -1733,14 +2054,18 @@ model supplies_order_items {
   qty               Int
   price             Float
   subtotal          Float
+  tenant_id         Int               @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   supplies_orders   supplies_orders   @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   supplies_products supplies_products @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants           tenants           @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "supplies_order_items_tenant_fk")
+
+  @@index([tenant_id], map: "idx_supplies_order_items_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model supplies_orders {
   id                   Int                    @id @default(autoincrement())
-  order_no             String                 @unique
+  order_no             String
   user_id              Int
   total_amount         Float
   payment_method       String?
@@ -1749,16 +2074,20 @@ model supplies_orders {
   status               String                 @default("ordered")
   ordered_at           DateTime?              @default(now()) @db.Timestamptz(6)
   delivered_at         DateTime?              @db.Timestamptz(6)
+  tenant_id            Int                    @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   supplies_order_items supplies_order_items[]
+  tenants              tenants                @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "supplies_orders_tenant_fk")
   users                users                  @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@unique([tenant_id, order_no])
   @@index([user_id], map: "idx_supplies_orders_user")
+  @@index([tenant_id], map: "idx_supplies_orders_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model supplies_products {
   id                   Int                    @id @default(autoincrement())
-  sku                  String                 @unique
+  sku                  String
   name                 String
   description          String?
   image_url            String?
@@ -1769,11 +2098,15 @@ model supplies_products {
   category_id          Int?
   is_active            Int?                   @default(1)
   created_at           DateTime?              @default(now()) @db.Timestamptz(6)
+  tenant_id            Int                    @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   supplies_cart_items  supplies_cart_items[]
   supplies_order_items supplies_order_items[]
   supplies_categories  supplies_categories?   @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants              tenants                @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "supplies_products_tenant_fk")
 
+  @@unique([tenant_id, sku])
   @@index([category_id], map: "idx_supplies_products_category")
+  @@index([tenant_id], map: "idx_supplies_products_tenant")
 }
 
 model support_access_grants {
@@ -1784,17 +2117,26 @@ model support_access_grants {
   expires_at    DateTime  @db.Timestamptz(6)
   revoked_at    DateTime? @db.Timestamptz(6)
   created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id     Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   users         users?    @relation(fields: [granted_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants       tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "support_access_grants_tenant_fk")
+
+  @@index([tenant_id], map: "idx_support_access_grants_tenant")
 }
 
 model tax_rates {
   id           Int       @id @default(autoincrement())
-  code         String?   @unique
+  code         String?
   name         String
   rate         Float     @default(0)
   is_inclusive Int?      @default(0)
   is_active    Int?      @default(1)
   created_at   DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id    Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants      tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "tax_rates_tenant_fk")
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id], map: "idx_tax_rates_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1813,8 +2155,12 @@ model terminals {
   last_seen_at   DateTime? @db.Timestamptz(6)
   is_active      Int?      @default(1)
   created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id      Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   outlets        outlets?  @relation(fields: [outlet_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users          users?    @relation(fields: [paired_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants        tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "terminals_tenant_fk")
+
+  @@index([tenant_id], map: "idx_terminals_tenant")
 }
 
 model transaction_items {
@@ -1825,14 +2171,18 @@ model transaction_items {
   price          Float
   quantity       Int
   subtotal       Float
+  tenant_id      Int          @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   products       products     @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants        tenants      @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "transaction_items_tenant_fk")
   transactions   transactions @relation(fields: [transaction_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([tenant_id], map: "idx_transaction_items_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model transactions {
   id                     Int                      @id @default(autoincrement())
-  invoice_number         String                   @unique
+  invoice_number         String
   user_id                Int
   customer_id            Int?
   total_amount           Float
@@ -1842,13 +2192,18 @@ model transactions {
   status                 String?                  @default("completed")
   notes                  String?
   created_at             DateTime?                @default(now()) @db.Timestamptz(6)
+  tenant_id              Int                      @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   appointments           appointments[]
   commission_assignments commission_assignments[]
   coupon_redemptions     coupon_redemptions[]
   loyalty_transactions   loyalty_transactions[]
   transaction_items      transaction_items[]
   customers              customers?               @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                tenants                  @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "transactions_tenant_fk")
   users                  users                    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([tenant_id, invoice_number])
+  @@index([tenant_id], map: "idx_transactions_tenant")
 }
 
 model uoms {
@@ -1859,8 +2214,12 @@ model uoms {
   base_uom_id       Int?
   conversion_factor Float?  @default(1)
   is_active         Int?    @default(1)
+  tenant_id         Int     @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   uoms              uoms?   @relation("uomsTouoms", fields: [base_uom_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   other_uoms        uoms[]  @relation("uomsTouoms")
+  tenants           tenants @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "uoms_tenant_fk")
+
+  @@index([tenant_id], map: "idx_uoms_tenant")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1877,9 +2236,7 @@ model users {
   last_login_at                                 DateTime?                 @db.Timestamptz(6)
   photo_url                                     String?
   phone                                         String?
-  tenant_id                                     Int
-  tenants                                       tenants                   @relation(fields: [tenant_id], references: [id], onDelete: Restrict, map: "users_tenant_fk")
-  tenant_users                                  tenant_users[]
+  tenant_id                                     Int                       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   app_settings                                  app_settings[]
   b2b_delivery_orders                           b2b_delivery_orders[]
   b2b_invoices                                  b2b_invoices[]
@@ -1908,32 +2265,130 @@ model users {
   supplies_carts                                supplies_carts?
   supplies_orders                               supplies_orders[]
   support_access_grants                         support_access_grants[]
+  tenant_users                                  tenant_users[]
   terminals                                     terminals[]
   transactions                                  transactions[]
+  tenants                                       tenants                   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "users_tenant_fk")
+
+  @@index([tenant_id], map: "idx_users_tenant")
 }
 
 model tenants {
-  id           Int            @id @default(autoincrement())
-  slug         String         @unique
-  name         String
-  tier         String         @default("lite")
-  status       String         @default("active")
-  metadata     Json?
-  created_at   DateTime       @default(now()) @db.Timestamptz(6)
-  updated_at   DateTime       @default(now()) @db.Timestamptz(6)
-  users        users[]
-  tenant_users tenant_users[]
+  id                            Int                             @id @default(autoincrement())
+  slug                          String                          @unique
+  name                          String
+  tier                          String                          @default("lite")
+  status                        String                          @default("active")
+  metadata                      Json?
+  created_at                    DateTime                        @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime                        @default(now()) @db.Timestamptz(6)
+  app_settings                  app_settings[]
+  appointment_resources         appointment_resources[]
+  appointment_services          appointment_services[]
+  appointments                  appointments[]
+  approval_chains               approval_chains[]
+  attendance_geofences          attendance_geofences[]
+  attendance_logs               attendance_logs[]
+  b2b_delivery_order_items      b2b_delivery_order_items[]
+  b2b_delivery_orders           b2b_delivery_orders[]
+  b2b_invoice_items             b2b_invoice_items[]
+  b2b_invoices                  b2b_invoices[]
+  b2b_quotation_items           b2b_quotation_items[]
+  b2b_quotations                b2b_quotations[]
+  b2b_receipts                  b2b_receipts[]
+  b2b_sales_order_items         b2b_sales_order_items[]
+  b2b_sales_orders              b2b_sales_orders[]
+  capital_applications          capital_applications[]
+  cash_accounts                 cash_accounts[]
+  cash_transactions             cash_transactions[]
+  categories                    categories[]
+  commission_assignments        commission_assignments[]
+  commission_groups             commission_groups[]
+  consumer_app_config           consumer_app_config[]
+  coupon_redemptions            coupon_redemptions[]
+  coupons                       coupons[]
+  customer_groups               customer_groups[]
+  customer_tag_map              customer_tag_map[]
+  customer_tags                 customer_tags[]
+  customers                     customers[]
+  departments                   departments[]
+  employee_documents            employee_documents[]
+  employees                     employees[]
+  gl_accounts                   gl_accounts[]
+  gl_expenses                   gl_expenses[]
+  gl_fixed_asset_depreciations  gl_fixed_asset_depreciations[]
+  gl_fixed_asset_disposals      gl_fixed_asset_disposals[]
+  gl_fixed_assets               gl_fixed_assets[]
+  gl_incomes                    gl_incomes[]
+  gl_journal_lines              gl_journal_lines[]
+  gl_journals                   gl_journals[]
+  gl_recurring_bills            gl_recurring_bills[]
+  gl_vendors                    gl_vendors[]
+  help_feedback                 help_feedback[]
+  help_topics                   help_topics[]
+  informasi_updates             informasi_updates[]
+  inspirasi_articles            inspirasi_articles[]
+  inspirasi_event_rsvps         inspirasi_event_rsvps[]
+  inspirasi_events              inspirasi_events[]
+  inspirasi_magazines           inspirasi_magazines[]
+  inventory_movements           inventory_movements[]
+  loyalty_rules                 loyalty_rules[]
+  loyalty_transactions          loyalty_transactions[]
+  marketing_campaign_recipients marketing_campaign_recipients[]
+  marketing_campaigns           marketing_campaigns[]
+  marketing_credit_ledger       marketing_credit_ledger[]
+  marketing_templates           marketing_templates[]
+  marketplace_connections       marketplace_connections[]
+  marketplace_product_overrides marketplace_product_overrides[]
+  notification_prefs            notification_prefs[]
+  online_order_items            online_order_items[]
+  online_orders                 online_orders[]
+  outlet_floor_plans            outlet_floor_plans[]
+  outlets                       outlets[]
+  payment_methods               payment_methods[]
+  payroll_runs                  payroll_runs[]
+  payroll_settings              payroll_settings[]
+  payroll_structures            payroll_structures[]
+  payslips                      payslips[]
+  permission_overrides          permission_overrides[]
+  product_recipe_items          product_recipe_items[]
+  product_variants              product_variants[]
+  products                      products[]
+  promos                        promos[]
+  report_schedules              report_schedules[]
+  schedule_assignments          schedule_assignments[]
+  schedule_swaps                schedule_swaps[]
+  service_applications          service_applications[]
+  shifts                        shifts[]
+  staff                         staff[]
+  stock_opname                  stock_opname[]
+  stock_opname_items            stock_opname_items[]
+  storefront_settings           storefront_settings[]
+  supplies_cart_items           supplies_cart_items[]
+  supplies_carts                supplies_carts[]
+  supplies_categories           supplies_categories[]
+  supplies_order_items          supplies_order_items[]
+  supplies_orders               supplies_orders[]
+  supplies_products             supplies_products[]
+  support_access_grants         support_access_grants[]
+  tax_rates                     tax_rates[]
+  tenant_users                  tenant_users[]
+  terminals                     terminals[]
+  transaction_items             transaction_items[]
+  transactions                  transactions[]
+  uoms                          uoms[]
+  users                         users[]
 }
 
 model tenant_users {
   id         Int      @id @default(autoincrement())
-  tenant_id  Int
+  tenant_id  Int      @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   user_id    Int
   role       String   @default("member")
   is_default Boolean  @default(false)
   created_at DateTime @default(now()) @db.Timestamptz(6)
-  tenants    tenants  @relation(fields: [tenant_id], references: [id], onDelete: Cascade, map: "tenant_users_tenant_fk")
-  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "tenant_users_user_fk")
+  tenants    tenants  @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "tenant_users_tenant_fk")
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "tenant_users_user_fk")
 
   @@unique([tenant_id, user_id], map: "tenant_users_tenant_user_key")
   @@index([user_id], map: "idx_tenant_users_user")

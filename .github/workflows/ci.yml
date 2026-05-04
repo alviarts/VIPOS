@@ -31,6 +31,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
+      # Migrations + smoke run as the schema owner (postgres superuser).
       DATABASE_URL: postgresql://test:test@localhost:5432/vipos_test
       DIRECT_URL: postgresql://test:test@localhost:5432/vipos_test
       DATABASE_DRIVER: postgres
@@ -51,6 +52,14 @@ jobs:
         working-directory: apps/backend
         run: npx prisma migrate deploy
 
+      - name: Provision non-superuser app role for RLS
+        # P2-02: app must connect via a non-superuser role so RLS policies apply.
+        env:
+          PGPASSWORD: test
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          psql -h localhost -U test -d vipos_test -f apps/backend/scripts/setup-app-role.sql
+
       - name: Build all workspaces
         run: npm run build
 
@@ -59,7 +68,8 @@ jobs:
           NODE_ENV: production
           JWT_SECRET: ci-smoke-secret
           PORT: 3001
-          DATABASE_URL: postgresql://test:test@localhost:5432/vipos_test
+          # Backend itself runs as the non-superuser app role so RLS applies.
+          DATABASE_URL: postgresql://vipos_app:apppass@localhost:5432/vipos_test
           DIRECT_URL: postgresql://test:test@localhost:5432/vipos_test
           DATABASE_DRIVER: postgres
         run: |
@@ -118,7 +128,9 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://test:test@localhost:5432/vipos_test
+      # Tests use vipos_app for runtime so RLS policies apply.
+      # Migrations still run as the schema owner via DIRECT_URL.
+      DATABASE_URL: postgresql://vipos_app:apppass@localhost:5432/vipos_test
       DIRECT_URL: postgresql://test:test@localhost:5432/vipos_test
       DATABASE_DRIVER: postgres
       JWT_SECRET: test-secret-vipos
@@ -137,7 +149,16 @@ jobs:
 
       - name: Apply Prisma migrations to CI Postgres
         working-directory: apps/backend
-        run: npx prisma migrate deploy
+        run: npx prisma migrate deploy --schema prisma/schema.prisma
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/vipos_test
+
+      - name: Provision non-superuser app role for RLS
+        env:
+          PGPASSWORD: test
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          psql -h localhost -U test -d vipos_test -f apps/backend/scripts/setup-app-role.sql
 
       - name: Test
         run: npm test --if-present

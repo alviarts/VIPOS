@@ -68,10 +68,31 @@ function _resetForTests() {
   }
 }
 
+/**
+ * Run `fn` inside a tenant scope — every `query()` / `tx()` invoked while
+ * `fn` (or its async descendants) is on the call stack will execute inside
+ * a `SET LOCAL app.current_tenant = $tenantId` block, and Postgres RLS
+ * policies will enforce row-level isolation automatically.
+ */
+function runWithTenant(tenantId, fn) {
+  return driverImpl.runWithTenant(tenantId, fn);
+}
+
+/**
+ * Run `fn` outside any tenant — queries see the "system" bypass branch of
+ * the RLS policy. Use sparingly: bootstrap seeders, login lookups by
+ * username, the public `/tenant/register` endpoint.
+ */
+function runAsSystem(fn) {
+  return driverImpl.runAsSystem(fn);
+}
+
 module.exports = {
   query,
   tx,
   iLikePattern,
+  runWithTenant,
+  runAsSystem,
   _resetForTests,
   driverName: 'postgres',
 };

@@ -266,6 +266,235 @@ describe('Cross-tenant isolation (smoke — /api/auth/users + /register)', () =>
   });
 });
 
+describe('Cross-tenant isolation (RLS — products, categories, customers, transactions)', () => {
+  // Two fully isolated tenants share the same backend; each writes its own
+  // products/customers/transactions and we assert they cannot see each other's
+  // rows even though we are not adding `WHERE tenant_id = ?` to the route SQL —
+  // it is enforced purely by Postgres RLS policies driven by the
+  // `app.current_tenant` GUC set by the auth middleware.
+  let tokenC;
+  let tokenD;
+
+  beforeAll(async () => {
+    const tenantC = await request(app).post('/api/v1/tenant/register').send({
+      tenant_slug: 'rls-tenant-c',
+      tenant_name: 'RLS C',
+      tier: 'advance',
+      admin_username: 'rls_c_admin',
+      admin_password: 'rahasia123',
+      admin_name: 'RLS C',
+    });
+    expect(tenantC.status).toBe(201);
+    tokenC = tenantC.body.access_token || tenantC.body.token;
+
+    const tenantD = await request(app).post('/api/v1/tenant/register').send({
+      tenant_slug: 'rls-tenant-d',
+      tenant_name: 'RLS D',
+      tier: 'advance',
+      admin_username: 'rls_d_admin',
+      admin_password: 'rahasia123',
+      admin_name: 'RLS D',
+    });
+    expect(tenantD.status).toBe(201);
+    tokenD = tenantD.body.access_token || tenantD.body.token;
+
+    if (!tokenC) {
+      const loginC = await request(app)
+        .post('/api/auth/login')
+        .send({ username: 'rls_c_admin', password: 'rahasia123' });
+      tokenC = loginC.body.token;
+    }
+    if (!tokenD) {
+      const loginD = await request(app)
+        .post('/api/auth/login')
+        .send({ username: 'rls_d_admin', password: 'rahasia123' });
+      tokenD = loginD.body.token;
+    }
+  });
+
+  it('products: tenant C tidak dapat melihat produk tenant D', async () => {
+    const catC = await request(app)
+      .post('/api/categories')
+      .set('Authorization', `Bearer ${tokenC}`)
+      .send({ name: 'Cat C' });
+    expect(catC.status).toBe(201);
+
+    const catD = await request(app)
+      .post('/api/categories')
+      .set('Authorization', `Bearer ${tokenD}`)
+      .send({ name: 'Cat D' });
+    expect(catD.status).toBe(201);
+
+    const prodC = await request(app)
+      .post('/api/products')
+      .set('Authorization', `Bearer ${tokenC}`)
+      .send({
+        name: 'Kopi Tenant C',
+        sku: 'C-COFFEE',
+        price: 25000,
+        stock: 100,
+        category_id: catC.body.id,
+      });
+    expect(prodC.status).toBe(201);
+
+    const prodD = await request(app)
+      .post('/api/products')
+      .set('Authorization', `Bearer ${tokenD}`)
+      .send({
+        name: 'Kopi Tenant D',
+        sku: 'D-COFFEE',
+        price: 28000,
+        stock: 100,
+        category_id: catD.body.id,
+      });
+    expect(prodD.status).toBe(201);
+
+    const listC = await request(app).get('/api/products').set('Authorization', `Bearer ${tokenC}`);
+    expect(listC.status).toBe(200);
+    const namesC = listC.body.map((p) => p.name);
+    expect(namesC).toContain('Kopi Tenant C');
+    expect(namesC).not.toContain('Kopi Tenant D');
+
+    const listD = await request(app).get('/api/products').set('Authorization', `Bearer ${tokenD}`);
+    expect(listD.status).toBe(200);
+    const namesD = listD.body.map((p) => p.name);
+    expect(namesD).toContain('Kopi Tenant D');
+    expect(namesD).not.toContain('Kopi Tenant C');
+
+    // Attempting to fetch tenant D's product by id from tenant C's session
+    // returns 404 (RLS hides the row from the SELECT entirely).
+    const cross = await request(app)
+      .get(`/api/products/${prodD.body.id}`)
+      .set('Authorization', `Bearer ${tokenC}`);
+    expect([403, 404]).toContain(cross.status);
+  });
+
+  it('categories: tenant C tidak dapat melihat kategori tenant D', async () => {
+    const listC = await request(app)
+      .get('/api/categories')
+      .set('Authorization', `Bearer ${tokenC}`);
+    const listD = await request(app)
+      .get('/api/categories')
+      .set('Authorization', `Bearer ${tokenD}`);
+    const namesC = listC.body.map((c) => c.name);
+    const namesD = listD.body.map((c) => c.name);
+    expect(namesC).toContain('Cat C');
+    expect(namesC).not.toContain('Cat D');
+    expect(namesD).toContain('Cat D');
+    expect(namesD).not.toContain('Cat C');
+  });
+
+  it('customers: tenant C tidak dapat melihat pelanggan tenant D', async () => {
+    const custC = await request(app)
+      .post('/api/customers')
+      .set('Authorization', `Bearer ${tokenC}`)
+      .send({ name: 'Pelanggan C', phone: '081200000001' });
+    expect(custC.status).toBe(201);
+
+    const custD = await request(app)
+      .post('/api/customers')
+      .set('Authorization', `Bearer ${tokenD}`)
+      .send({ name: 'Pelanggan D', phone: '081200000002' });
+    expect(custD.status).toBe(201);
+
+    const listC = await request(app).get('/api/customers').set('Authorization', `Bearer ${tokenC}`);
+    expect(listC.status).toBe(200);
+    const rowsC = Array.isArray(listC.body) ? listC.body : listC.body.customers || listC.body.data;
+    const namesC = rowsC.map((c) => c.name);
+    expect(namesC).toContain('Pelanggan C');
+    expect(namesC).not.toContain('Pelanggan D');
+
+    const listD = await request(app).get('/api/customers').set('Authorization', `Bearer ${tokenD}`);
+    expect(listD.status).toBe(200);
+    const rowsD = Array.isArray(listD.body) ? listD.body : listD.body.customers || listD.body.data;
+    const namesD = rowsD.map((c) => c.name);
+    expect(namesD).toContain('Pelanggan D');
+    expect(namesD).not.toContain('Pelanggan C');
+  });
+
+  it('transactions: tenant C tidak dapat melihat transaksi tenant D', async () => {
+    // POST /api/transactions creates a transaction.
+    const prodList = (
+      await request(app).get('/api/products').set('Authorization', `Bearer ${tokenC}`)
+    ).body;
+    const oneProd = prodList[0];
+    expect(oneProd).toBeTruthy();
+    const txnC = await request(app)
+      .post('/api/transactions')
+      .set('Authorization', `Bearer ${tokenC}`)
+      .send({
+        items: [{ product_id: oneProd.id, quantity: 1, price: oneProd.price }],
+        payment_amount: oneProd.price,
+      });
+    expect([200, 201]).toContain(txnC.status);
+
+    const prodListD = (
+      await request(app).get('/api/products').set('Authorization', `Bearer ${tokenD}`)
+    ).body;
+    const oneProdD = prodListD[0];
+    const txnD = await request(app)
+      .post('/api/transactions')
+      .set('Authorization', `Bearer ${tokenD}`)
+      .send({
+        items: [{ product_id: oneProdD.id, quantity: 1, price: oneProdD.price }],
+        payment_amount: oneProdD.price,
+      });
+    expect([200, 201]).toContain(txnD.status);
+
+    const listC = await request(app)
+      .get('/api/transactions')
+      .set('Authorization', `Bearer ${tokenC}`);
+    expect(listC.status).toBe(200);
+    const rowsC = Array.isArray(listC.body)
+      ? listC.body
+      : listC.body.data || listC.body.rows || listC.body.transactions || [];
+    expect(rowsC.length).toBeGreaterThanOrEqual(1);
+    // Every row visible to tenant C must reference tenant C's product (oneProd.id).
+    for (const row of rowsC) {
+      if (row.id === txnD.body?.id) {
+        throw new Error('tenant C should not see transaction from tenant D');
+      }
+    }
+
+    const listD = await request(app)
+      .get('/api/transactions')
+      .set('Authorization', `Bearer ${tokenD}`);
+    const rowsD = Array.isArray(listD.body)
+      ? listD.body
+      : listD.body.data || listD.body.rows || listD.body.transactions || [];
+    expect(rowsD.length).toBeGreaterThanOrEqual(1);
+    for (const row of rowsD) {
+      if (row.id === txnC.body?.id) {
+        throw new Error('tenant D should not see transaction from tenant C');
+      }
+    }
+  });
+
+  it('cross-tenant write blocked: tenant C cannot mutate tenant D resource', async () => {
+    // First, fetch a tenant-D-owned category from tenant D's session.
+    const listD = await request(app)
+      .get('/api/categories')
+      .set('Authorization', `Bearer ${tokenD}`);
+    const catD = listD.body.find((c) => c.name === 'Cat D');
+    expect(catD).toBeTruthy();
+
+    // From tenant C, try to UPDATE/DELETE that id. RLS makes the row invisible,
+    // so the route returns 404 (or 403). Either way the row stays untouched.
+    const upd = await request(app)
+      .put(`/api/categories/${catD.id}`)
+      .set('Authorization', `Bearer ${tokenC}`)
+      .send({ name: 'Hijacked' });
+    expect([403, 404]).toContain(upd.status);
+
+    // Verify from tenant D that the row is still 'Cat D'.
+    const refetch = await request(app)
+      .get('/api/categories')
+      .set('Authorization', `Bearer ${tokenD}`);
+    const stillCatD = refetch.body.find((c) => c.id === catD.id);
+    expect(stillCatD.name).toBe('Cat D');
+  });
+});
+
 describe('requireTier middleware', () => {
   it('blocks request when tenant tier rank < required', async () => {
     const { requireTier } = require('../middleware/tier');
@@ -337,5 +566,60 @@ describe('requireTier middleware', () => {
     await guard({ tenantId: 999999 }, res, next);
     expect(captured.code).toBe(403);
     expect(nextCalled).toBe(false);
+  });
+});
+
+describe('Tier gating end-to-end on /api/v1 routes', () => {
+  // We register a fresh `lite` tenant and prove an Advance-only feature is
+  // 403'd at the HTTP boundary, not just at the middleware unit-test level.
+  it('lite tenant cannot access /api/v1/marketing (requires advance)', async () => {
+    const reg = await request(app).post('/api/v1/tenant/register').send({
+      tenant_slug: 'tier-lite-x',
+      tenant_name: 'Tier Lite X',
+      tier: 'lite',
+      admin_username: 'tier_lite_admin',
+      admin_password: 'rahasia123',
+      admin_name: 'Tier Lite Admin',
+    });
+    expect(reg.status).toBe(201);
+    const liteToken = reg.body.access_token || reg.body.token;
+    const login = liteToken
+      ? null
+      : await request(app)
+          .post('/api/auth/login')
+          .send({ username: 'tier_lite_admin', password: 'rahasia123' });
+    const token = liteToken || login.body.token;
+
+    const res = await request(app)
+      .get('/api/v1/marketing/campaign')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(403);
+    expect(res.body.required_tier).toBe('advance');
+    expect(res.body.current_tier).toBe('lite');
+  });
+
+  it('advance tenant can access /api/v1/marketing/campaign', async () => {
+    const reg = await request(app).post('/api/v1/tenant/register').send({
+      tenant_slug: 'tier-adv-y',
+      tenant_name: 'Tier Advance Y',
+      tier: 'advance',
+      admin_username: 'tier_adv_admin',
+      admin_password: 'rahasia123',
+      admin_name: 'Tier Advance Admin',
+    });
+    expect(reg.status).toBe(201);
+    const token =
+      reg.body.access_token ||
+      reg.body.token ||
+      (
+        await request(app)
+          .post('/api/auth/login')
+          .send({ username: 'tier_adv_admin', password: 'rahasia123' })
+      ).body.token;
+
+    const res = await request(app)
+      .get('/api/v1/marketing/campaign')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
   });
 });
