@@ -5,8 +5,10 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { query, tx } = require('../db');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { safeLogAudit, ACTIONS } = require('../lib/audit');
+const { QUEUE_NAMES, isQueueEnabled, getOrCreateQueue, safeEnqueue } = require('../lib/queue');
+const { SUPPORTED_ENTITIES: IMPORT_ENTITIES_ASYNC } = require('../jobs/import-export');
 
 // ============================================================
 // 1. /api/outlet
@@ -532,8 +534,7 @@ taxRateRouter.post('/', authenticateToken, async (req, res) => {
       d.is_active === false ? 0 : 1,
     ]
   );
-  const created = (await query(`SELECT * FROM tax_rates WHERE id = $1`, [ins.rows[0].id]))
-    .rows[0];
+  const created = (await query(`SELECT * FROM tax_rates WHERE id = $1`, [ins.rows[0].id])).rows[0];
   await safeLogAudit(req, {
     entity: 'tax_rate',
     entity_id: created.id,
@@ -763,6 +764,47 @@ importExportRouter.post('/import/:entity', authenticateToken, async (req, res) =
   });
   res.json({ inserted, errors });
 });
+
+// P2-04 PR-C: async producer for bulk import. Same body shape as the
+// sync endpoint above (`{ rows: [...] }`) but returns 202 immediately
+// after enqueueing. The processor performs the same bulk insert under
+// `runWithTenant` — see `apps/backend/src/jobs/import-export.js`.
+// Admin-only — bulk insert can be data-destructive on misconfigured rows.
+importExportRouter.post(
+  '/import/:entity/async',
+  authenticateToken,
+  requireAdmin,
+  async (req, res) => {
+    const entity = req.params.entity;
+    if (!IMPORT_ENTITIES_ASYNC.includes(entity)) {
+      return res.status(400).json({ error: 'Entity tidak didukung' });
+    }
+    const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
+    if (rows.length === 0) {
+      return res.status(202).json({ enqueued: false, sync: true, total: 0 });
+    }
+    const data = {
+      tenant_id: req.tenantId ?? null,
+      user_id: req.user?.id ?? null,
+      entity,
+      rows,
+    };
+    if (!isQueueEnabled()) {
+      return res.status(202).json({ enqueued: false, sync: true, total: rows.length });
+    }
+    const queue = getOrCreateQueue(QUEUE_NAMES.IMPORT_EXPORT);
+    const job = await safeEnqueue(queue, 'import', data);
+    if (!job) {
+      return res.status(202).json({ enqueued: false, sync: true, total: rows.length });
+    }
+    return res.status(202).json({
+      enqueued: true,
+      job_id: job.id,
+      queue: queue.name,
+      total: rows.length,
+    });
+  }
+);
 
 module.exports = {
   outletRouter,

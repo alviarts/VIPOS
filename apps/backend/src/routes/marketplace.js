@@ -22,6 +22,8 @@ const {
   MarketplaceUpdateSchema,
   MarketplaceOverrideUpsertSchema,
 } = require('@vipos/shared');
+const { QUEUE_NAMES, isQueueEnabled, getOrCreateQueue, safeEnqueue } = require('../lib/queue');
+const { SUPPORTED_PROVIDERS: SETTLEMENT_PROVIDERS } = require('../jobs/settlement');
 
 const router = express.Router();
 
@@ -322,6 +324,72 @@ router.get('/settlement', authenticateToken, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// P2-04 PR-C: enqueue a settlement reconcile job. Admin-only — the job
+// recomputes gross/mdr/net per provider and writes an `audit_logs` row
+// with the totals + (stub) external diff. Idempotency: jobId derives
+// from `(tenant_id, from, to, providers_sorted)` so re-triggering the
+// same range/providers combo within the dedup window is a no-op.
+router.post('/settlement/reconcile', authenticateToken, requireAdmin, async (req, res) => {
+  const { from, to, providers } = req.body || {};
+
+  if (from != null && (typeof from !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(from))) {
+    return res.status(400).json({ error: 'from harus format YYYY-MM-DD' });
+  }
+  if (to != null && (typeof to !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(to))) {
+    return res.status(400).json({ error: 'to harus format YYYY-MM-DD' });
+  }
+  let providersNorm = null;
+  if (providers != null) {
+    if (!Array.isArray(providers)) {
+      return res.status(400).json({ error: 'providers harus array' });
+    }
+    providersNorm = [];
+    for (const p of providers) {
+      if (typeof p !== 'string') {
+        return res.status(400).json({ error: 'providers entries harus string' });
+      }
+      if (!SETTLEMENT_PROVIDERS.includes(p)) {
+        return res.status(400).json({
+          error: `provider tidak didukung: ${p} (allowed: ${SETTLEMENT_PROVIDERS.join(', ')})`,
+        });
+      }
+      if (!providersNorm.includes(p)) providersNorm.push(p);
+    }
+    providersNorm.sort();
+  }
+
+  const data = {
+    tenant_id: req.tenantId ?? null,
+    user_id: req.user?.id ?? null,
+    from: from || null,
+    to: to || null,
+    providers: providersNorm,
+  };
+
+  if (!isQueueEnabled()) {
+    return res.status(202).json({ enqueued: false, sync: true });
+  }
+  const queue = getOrCreateQueue(QUEUE_NAMES.SETTLEMENT);
+  // Build deterministic jobId for idempotency. BullMQ disallows `:` in
+  // custom ids (it reserves the colon for internal key prefixes), so
+  // use `|` as the field separator.
+  const jobId = [
+    String(data.tenant_id ?? 'unscoped'),
+    data.from || 'all',
+    data.to || 'all',
+    (providersNorm || ['all']).join(','),
+  ].join('|');
+  const job = await safeEnqueue(queue, 'reconcile', data, { jobId });
+  if (!job) {
+    return res.status(202).json({ enqueued: false, sync: true });
+  }
+  return res.status(202).json({
+    enqueued: true,
+    job_id: job.id,
+    queue: queue.name,
+  });
 });
 
 module.exports = router;

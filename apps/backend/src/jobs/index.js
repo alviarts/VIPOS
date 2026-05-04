@@ -14,9 +14,10 @@
  *   const { processNotification } = require('./jobs/notification');
  *   const w = createWorker(QUEUE_NAMES.NOTIFICATION, processNotification);
  *
- * PR-A registered the audit-retention queue. PR-B adds the
+ * PR-A registered the audit-retention queue. PR-B added the
  * notification / email / marketplace-webhook workers + Bull Board.
- * PR-C will add report / settlement / import-export.
+ * PR-C wires the remaining queues: report (chained → email),
+ * settlement (manual reconcile), and import-export (bulk async insert).
  */
 const {
   QUEUE_NAMES,
@@ -29,6 +30,9 @@ const { processAuditRetention, DEFAULT_RETENTION_DAYS } = require('./audit-reten
 const { processNotification } = require('./notification');
 const { processEmail } = require('./email');
 const { processMarketplaceWebhook } = require('./marketplace-webhook');
+const { processReport } = require('./report');
+const { processSettlement } = require('./settlement');
+const { processImportExport } = require('./import-export');
 
 const AUDIT_RETENTION_SCHEDULER = 'audit-retention-nightly';
 // 03:15 every day. Pick an off-peak window; tenant clocks are TZ-naive
@@ -60,8 +64,7 @@ async function scheduleAuditRetention(queue) {
 /**
  * Worker registry — every queue we run is declared here so the boot
  * order, lifecycle, and naming are obvious in one spot. Extend this
- * list when adding a new queue (PR-C will append report / settlement /
- * import-export).
+ * list when adding a new queue.
  *
  * Each entry maps the canonical queue name to its processor function.
  */
@@ -70,6 +73,9 @@ const WORKER_REGISTRY = Object.freeze([
   { name: QUEUE_NAMES.NOTIFICATION, processor: processNotification },
   { name: QUEUE_NAMES.EMAIL, processor: processEmail },
   { name: QUEUE_NAMES.MARKETPLACE_WEBHOOK, processor: processMarketplaceWebhook },
+  { name: QUEUE_NAMES.REPORT, processor: processReport },
+  { name: QUEUE_NAMES.SETTLEMENT, processor: processSettlement },
+  { name: QUEUE_NAMES.IMPORT_EXPORT, processor: processImportExport },
 ]);
 
 /**
