@@ -13,7 +13,7 @@
 // State machine sederhana — transition divalidasi sebelum update. Settlement
 // ledger (per-provider) dihitung via /api/marketplace/settlement.
 const express = require('express');
-const { getDb } = require('../models/database');
+const { query, tx } = require('../db');
 const { authenticateToken } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const {
@@ -51,12 +51,12 @@ function rowToOrder(row, items) {
   return { ...row, items: items || [] };
 }
 
-function loadOrder(db, id) {
-  const order = db.prepare('SELECT * FROM online_orders WHERE id = ?').get(id);
+async function loadOrder(q, id) {
+  const order = (await q('SELECT * FROM online_orders WHERE id = $1', [id])).rows[0];
   if (!order) return null;
-  const items = db
-    .prepare('SELECT * FROM online_order_items WHERE order_id = ? ORDER BY id ASC')
-    .all(id);
+  const items = (
+    await q('SELECT * FROM online_order_items WHERE order_id = $1 ORDER BY id ASC', [id])
+  ).rows;
   return rowToOrder(order, items);
 }
 
@@ -74,78 +74,73 @@ function applyTotals(payload) {
   return { subtotal, total };
 }
 
-function createOrderInDb(db, payload) {
+async function createOrderInDb(payload) {
   const refNo = generateRefNo(payload.channel);
   const { subtotal, total } = applyTotals(payload);
 
-  const orderInsert = db.prepare(`
-    INSERT INTO online_orders (
-      ref_no, channel, external_ref, order_type, table_no,
-      customer_name, customer_phone, customer_address,
-      delivery_zone, delivery_fee, subtotal, discount,
-      service_charge, tax, total, payment_method, payment_status,
-      status, sla_minutes, notes
-    ) VALUES (
-      @ref_no, @channel, @external_ref, @order_type, @table_no,
-      @customer_name, @customer_phone, @customer_address,
-      @delivery_zone, @delivery_fee, @subtotal, @discount,
-      @service_charge, @tax, @total, @payment_method, @payment_status,
-      'NEW', @sla_minutes, @notes
-    )
-  `);
-
-  const itemInsert = db.prepare(`
-    INSERT INTO online_order_items (
-      order_id, product_id, product_name, qty, price, modifiers, notes, subtotal
-    ) VALUES (
-      @order_id, @product_id, @product_name, @qty, @price, @modifiers, @notes, @subtotal
-    )
-  `);
-
-  const tx = db.transaction(() => {
-    const result = orderInsert.run({
-      ref_no: refNo,
-      channel: payload.channel,
-      external_ref: payload.external_ref || null,
-      order_type: payload.order_type || 'delivery',
-      table_no: payload.table_no || null,
-      customer_name: payload.customer_name || null,
-      customer_phone: payload.customer_phone || null,
-      customer_address: payload.customer_address || null,
-      delivery_zone: payload.delivery_zone || null,
-      delivery_fee: Number(payload.delivery_fee || 0),
-      subtotal,
-      discount: Number(payload.discount || 0),
-      service_charge: Number(payload.service_charge || 0),
-      tax: Number(payload.tax || 0),
-      total,
-      payment_method: payload.payment_method || null,
-      payment_status: payload.payment_status || 'unpaid',
-      sla_minutes: payload.sla_minutes || 30,
-      notes: payload.notes || null,
-    });
-    const orderId = result.lastInsertRowid;
+  const orderId = await tx(async (txQuery) => {
+    const ins = await txQuery(
+      `INSERT INTO online_orders (
+        ref_no, channel, external_ref, order_type, table_no,
+        customer_name, customer_phone, customer_address,
+        delivery_zone, delivery_fee, subtotal, discount,
+        service_charge, tax, total, payment_method, payment_status,
+        status, sla_minutes, notes
+      ) VALUES (
+        $1, $2, $3, $4, $5,
+        $6, $7, $8,
+        $9, $10, $11, $12,
+        $13, $14, $15, $16, $17,
+        'NEW', $18, $19
+      ) RETURNING id`,
+      [
+        refNo,
+        payload.channel,
+        payload.external_ref || null,
+        payload.order_type || 'delivery',
+        payload.table_no || null,
+        payload.customer_name || null,
+        payload.customer_phone || null,
+        payload.customer_address || null,
+        payload.delivery_zone || null,
+        Number(payload.delivery_fee || 0),
+        subtotal,
+        Number(payload.discount || 0),
+        Number(payload.service_charge || 0),
+        Number(payload.tax || 0),
+        total,
+        payload.payment_method || null,
+        payload.payment_status || 'unpaid',
+        payload.sla_minutes || 30,
+        payload.notes || null,
+      ]
+    );
+    const newId = ins.rows[0].id;
     for (const it of payload.items) {
-      itemInsert.run({
-        order_id: orderId,
-        product_id: it.product_id || null,
-        product_name: it.product_name,
-        qty: Number(it.qty),
-        price: Number(it.price),
-        modifiers: it.modifiers || null,
-        notes: it.notes || null,
-        subtotal: Number(it.price) * Number(it.qty),
-      });
+      await txQuery(
+        `INSERT INTO online_order_items (
+          order_id, product_id, product_name, qty, price, modifiers, notes, subtotal
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          newId,
+          it.product_id || null,
+          it.product_name,
+          Number(it.qty),
+          Number(it.price),
+          it.modifiers || null,
+          it.notes || null,
+          Number(it.price) * Number(it.qty),
+        ]
+      );
     }
-    return orderId;
+    return newId;
   });
 
-  const orderId = tx();
-  return loadOrder(db, orderId);
+  return loadOrder(query, orderId);
 }
 
-function transitionOrder(db, id, nextStatus, extra = {}) {
-  const order = loadOrder(db, id);
+async function transitionOrder(id, nextStatus, extra = {}) {
+  const order = await loadOrder(query, id);
   if (!order) {
     const err = new Error('Order tidak ditemukan');
     err.status = 404;
@@ -157,135 +152,161 @@ function transitionOrder(db, id, nextStatus, extra = {}) {
     err.status = 400;
     throw err;
   }
-  const updates = ['status = ?', 'updated_at = CURRENT_TIMESTAMP'];
+
+  const setClauses = ['status = $1', 'updated_at = CURRENT_TIMESTAMP'];
   const params = [nextStatus];
+  let p = 2;
 
   if (nextStatus === 'PREPARING' && !order.accepted_at) {
-    updates.push('accepted_at = ?');
+    setClauses.push(`accepted_at = $${p++}`);
     params.push(nowIso());
   }
   if (nextStatus === 'READY') {
-    updates.push('ready_at = ?');
+    setClauses.push(`ready_at = $${p++}`);
     params.push(nowIso());
   }
   if (nextStatus === 'COMPLETED') {
-    updates.push('completed_at = ?');
+    setClauses.push(`completed_at = $${p++}`);
     params.push(nowIso());
   }
   if (nextStatus === 'CANCELLED') {
-    updates.push('cancelled_at = ?');
+    setClauses.push(`cancelled_at = $${p++}`);
     params.push(nowIso());
     if (extra.cancel_reason) {
-      updates.push('cancel_reason = ?');
+      setClauses.push(`cancel_reason = $${p++}`);
       params.push(extra.cancel_reason);
     }
   }
   if (nextStatus === 'REJECTED') {
     if (extra.reject_reason) {
-      updates.push('reject_reason = ?');
+      setClauses.push(`reject_reason = $${p++}`);
       params.push(extra.reject_reason);
     }
   }
 
   params.push(id);
-  db.prepare(`UPDATE online_orders SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+  await query(`UPDATE online_orders SET ${setClauses.join(', ')} WHERE id = $${p}`, params);
 
-  return loadOrder(db, id);
+  return loadOrder(query, id);
 }
 
-router.get('/', authenticateToken, (req, res) => {
-  const db = getDb();
-  const { status, channel, from, to } = req.query;
-  const limit = Math.min(parseInt(req.query.limit || '100', 10) || 100, 500);
-  const offset = parseInt(req.query.offset || '0', 10) || 0;
+router.get('/', authenticateToken, async (req, res) => {
+  try {
+    const { status, channel, from, to } = req.query;
+    const limit = Math.min(parseInt(req.query.limit || '100', 10) || 100, 500);
+    const offset = parseInt(req.query.offset || '0', 10) || 0;
 
-  const where = [];
-  const params = [];
-  if (status) {
-    where.push('status = ?');
-    params.push(status);
-  }
-  if (channel) {
-    where.push('channel = ?');
-    params.push(channel);
-  }
-  if (from) {
-    where.push('created_at >= ?');
-    params.push(from);
-  }
-  if (to) {
-    where.push('created_at <= ?');
-    params.push(to);
-  }
-  const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const where = [];
+    const params = [];
+    let p = 1;
+    if (status) {
+      where.push(`status = $${p++}`);
+      params.push(status);
+    }
+    if (channel) {
+      where.push(`channel = $${p++}`);
+      params.push(channel);
+    }
+    if (from) {
+      where.push(`created_at >= $${p++}`);
+      params.push(from);
+    }
+    if (to) {
+      where.push(`created_at <= $${p++}`);
+      params.push(to);
+    }
+    const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
-  const total = db
-    .prepare(`SELECT COUNT(*) AS c FROM online_orders ${whereClause}`)
-    .get(...params).c;
-  const rows = db
-    .prepare(`SELECT * FROM online_orders ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`)
-    .all(...params, limit, offset);
-
-  // Items lazily — embed compact item count for list view.
-  const orderIds = rows.map((r) => r.id);
-  const itemCountByOrder = new Map();
-  if (orderIds.length) {
-    const placeholders = orderIds.map(() => '?').join(',');
-    const counts = db
-      .prepare(
-        `SELECT order_id, SUM(qty) AS c FROM online_order_items WHERE order_id IN (${placeholders}) GROUP BY order_id`
+    const total = Number(
+      (await query(`SELECT COUNT(*) AS c FROM online_orders ${whereClause}`, params)).rows[0].c
+    );
+    const rows = (
+      await query(
+        `SELECT * FROM online_orders ${whereClause} ORDER BY created_at DESC LIMIT $${p} OFFSET $${p + 1}`,
+        [...params, limit, offset]
       )
-      .all(...orderIds);
-    for (const c of counts) itemCountByOrder.set(c.order_id, c.c);
+    ).rows;
+
+    const orderIds = rows.map((r) => r.id);
+    const itemCountByOrder = new Map();
+    if (orderIds.length) {
+      const placeholders = orderIds.map((_, i) => `$${i + 1}`).join(',');
+      const counts = (
+        await query(
+          `SELECT order_id, SUM(qty) AS c FROM online_order_items WHERE order_id IN (${placeholders}) GROUP BY order_id`,
+          orderIds
+        )
+      ).rows;
+      for (const c of counts) itemCountByOrder.set(c.order_id, Number(c.c));
+    }
+    res.json({
+      items: rows.map((r) => ({
+        ...r,
+        item_count: itemCountByOrder.get(r.id) || 0,
+      })),
+      total,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  res.json({
-    items: rows.map((r) => ({
-      ...r,
-      item_count: itemCountByOrder.get(r.id) || 0,
-    })),
-    total,
-  });
 });
 
-router.get('/:id(\\d+)', authenticateToken, (req, res) => {
-  const order = loadOrder(getDb(), Number(req.params.id));
-  if (!order) return res.status(404).json({ error: 'Order tidak ditemukan' });
-  res.json(order);
+router.get('/:id(\\d+)', authenticateToken, async (req, res) => {
+  try {
+    const order = await loadOrder(query, Number(req.params.id));
+    if (!order) return res.status(404).json({ error: 'Order tidak ditemukan' });
+    res.json(order);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-router.post('/', authenticateToken, validate({ body: OnlineOrderCreateSchema }), (req, res) => {
-  const order = createOrderInDb(getDb(), req.body);
-  res.status(201).json(order);
-});
+router.post(
+  '/',
+  authenticateToken,
+  validate({ body: OnlineOrderCreateSchema }),
+  async (req, res) => {
+    try {
+      const order = await createOrderInDb(req.body);
+      res.status(201).json(order);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
 
 // Public webhook endpoint (no auth) — mock simulator. In real deployment kita
 // validate signature header per provider; di sini cukup buat order baru.
-router.post('/webhook/:provider', validate({ body: OnlineOrderCreateSchema }), (req, res) => {
-  const { provider } = req.params;
-  const validProviders = ['gofood', 'grabfood', 'shopeefood', 'grabmart', 'tokopedia'];
-  if (!validProviders.includes(provider)) {
-    return res.status(400).json({ error: 'Provider tidak dikenal' });
-  }
-  const order = createOrderInDb(getDb(), { ...req.body, channel: provider });
-
-  // Auto-accept kalau marketplace_connections.auto_accept = 1.
-  const conn = getDb()
-    .prepare('SELECT * FROM marketplace_connections WHERE provider = ?')
-    .get(provider);
-  if (conn && conn.auto_accept === 1) {
-    try {
-      const accepted = transitionOrder(getDb(), order.id, 'PREPARING');
-      return res.status(201).json(accepted);
-    } catch {
-      // ignore — biarkan tetap NEW
+router.post('/webhook/:provider', validate({ body: OnlineOrderCreateSchema }), async (req, res) => {
+  try {
+    const { provider } = req.params;
+    const validProviders = ['gofood', 'grabfood', 'shopeefood', 'grabmart', 'tokopedia'];
+    if (!validProviders.includes(provider)) {
+      return res.status(400).json({ error: 'Provider tidak dikenal' });
     }
+    const order = await createOrderInDb({ ...req.body, channel: provider });
+
+    // Auto-accept kalau marketplace_connections.auto_accept = 1.
+    const conn = (
+      await query('SELECT * FROM marketplace_connections WHERE provider = $1', [provider])
+    ).rows[0];
+    if (conn && conn.auto_accept === 1) {
+      try {
+        const accepted = await transitionOrder(order.id, 'PREPARING');
+        return res.status(201).json(accepted);
+      } catch {
+        // ignore — biarkan tetap NEW
+      }
+    }
+    res.status(201).json(order);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  res.status(201).json(order);
 });
 
-router.post('/:id(\\d+)/accept', authenticateToken, (req, res) => {
+router.post('/:id(\\d+)/accept', authenticateToken, async (req, res) => {
   try {
-    res.json(transitionOrder(getDb(), Number(req.params.id), 'PREPARING'));
+    res.json(await transitionOrder(Number(req.params.id), 'PREPARING'));
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
@@ -295,10 +316,10 @@ router.post(
   '/:id(\\d+)/reject',
   authenticateToken,
   validate({ body: OnlineOrderRejectSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
       res.json(
-        transitionOrder(getDb(), Number(req.params.id), 'REJECTED', {
+        await transitionOrder(Number(req.params.id), 'REJECTED', {
           reject_reason: req.body.reason,
         })
       );
@@ -308,17 +329,17 @@ router.post(
   }
 );
 
-router.post('/:id(\\d+)/ready', authenticateToken, (req, res) => {
+router.post('/:id(\\d+)/ready', authenticateToken, async (req, res) => {
   try {
-    res.json(transitionOrder(getDb(), Number(req.params.id), 'READY'));
+    res.json(await transitionOrder(Number(req.params.id), 'READY'));
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
 });
 
-router.post('/:id(\\d+)/complete', authenticateToken, (req, res) => {
+router.post('/:id(\\d+)/complete', authenticateToken, async (req, res) => {
   try {
-    res.json(transitionOrder(getDb(), Number(req.params.id), 'COMPLETED'));
+    res.json(await transitionOrder(Number(req.params.id), 'COMPLETED'));
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
@@ -328,10 +349,10 @@ router.post(
   '/:id(\\d+)/cancel',
   authenticateToken,
   validate({ body: OnlineOrderCancelSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
       res.json(
-        transitionOrder(getDb(), Number(req.params.id), 'CANCELLED', {
+        await transitionOrder(Number(req.params.id), 'CANCELLED', {
           cancel_reason: req.body.reason,
         })
       );
