@@ -3,7 +3,7 @@
 // sebelum simpan, di-parse balik saat baca.
 
 const express = require('express');
-const { getDb } = require('../models/database');
+const { query } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { CommissionGroupCreateSchema, CommissionGroupUpdateSchema } = require('@vipos/shared');
@@ -111,33 +111,33 @@ function validateTypeSpecific(body) {
   return null;
 }
 
-router.get('/', authenticateToken, (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
     const where = [];
     const params = [];
+    let p = 1;
     if (req.query.is_active === '0' || req.query.is_active === '1') {
-      where.push('is_active = ?');
+      where.push(`is_active = $${p++}`);
       params.push(Number(req.query.is_active));
     }
     if (req.query.type === 'FIXED' || req.query.type === 'TIERED') {
-      where.push('type = ?');
+      where.push(`type = $${p++}`);
       params.push(req.query.type);
     }
     const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
-    const rows = db
-      .prepare(`SELECT * FROM commission_groups ${whereClause} ORDER BY name ASC`)
-      .all(...params);
+    const rows = (
+      await query(`SELECT * FROM commission_groups ${whereClause} ORDER BY name ASC`, params)
+    ).rows;
     res.json(rows.map(rowToGroup));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/:id', authenticateToken, (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
-    const row = db.prepare('SELECT * FROM commission_groups WHERE id = ?').get(req.params.id);
+    const row = (await query('SELECT * FROM commission_groups WHERE id = $1', [req.params.id]))
+      .rows[0];
     if (!row) return res.status(404).json({ error: 'Grup komisi tidak ditemukan' });
     res.json(rowToGroup(row));
   } catch (err) {
@@ -150,7 +150,7 @@ router.post(
   authenticateToken,
   requireAdmin,
   validate({ body: CommissionGroupCreateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
       const err = validateTypeSpecific(req.body);
       if (err) return res.status(400).json({ error: err });
@@ -162,16 +162,15 @@ router.post(
         is_active: true,
         ...req.body,
       });
-      const placeholders = COLUMNS.map(() => '?').join(', ');
+      const placeholders = COLUMNS.map((_, i) => `$${i + 1}`).join(', ');
       const cols = COLUMNS.join(', ');
       const values = COLUMNS.map((c) => (body[c] === undefined ? null : body[c]));
-      const db = getDb();
-      const result = db
-        .prepare(`INSERT INTO commission_groups (${cols}) VALUES (${placeholders})`)
-        .run(...values);
-      const row = db
-        .prepare('SELECT * FROM commission_groups WHERE id = ?')
-        .get(result.lastInsertRowid);
+      const ins = await query(
+        `INSERT INTO commission_groups (${cols}) VALUES (${placeholders}) RETURNING id`,
+        values
+      );
+      const row = (await query('SELECT * FROM commission_groups WHERE id = $1', [ins.rows[0].id]))
+        .rows[0];
       res.status(201).json(rowToGroup(row));
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -184,12 +183,11 @@ router.put(
   authenticateToken,
   requireAdmin,
   validate({ body: CommissionGroupUpdateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
-      const existing = db
-        .prepare('SELECT * FROM commission_groups WHERE id = ?')
-        .get(req.params.id);
+      const existing = (
+        await query('SELECT * FROM commission_groups WHERE id = $1', [req.params.id])
+      ).rows[0];
       if (!existing) return res.status(404).json({ error: 'Grup komisi tidak ditemukan' });
 
       const existingParsed = rowToGroup(existing);
@@ -198,13 +196,16 @@ router.put(
       if (err) return res.status(400).json({ error: err });
       const body = normalizeBody(merged);
 
-      const setClause = COLUMNS.map((c) => `${c} = ?`).join(', ');
+      const setClause = COLUMNS.map((c, i) => `${c} = $${i + 1}`).join(', ');
       const values = COLUMNS.map((c) => (body[c] === undefined ? null : body[c]));
       values.push(req.params.id);
-      db.prepare(
-        `UPDATE commission_groups SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-      ).run(...values);
-      const row = db.prepare('SELECT * FROM commission_groups WHERE id = ?').get(req.params.id);
+      await query(
+        `UPDATE commission_groups SET ${setClause}, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $${COLUMNS.length + 1}`,
+        values
+      );
+      const row = (await query('SELECT * FROM commission_groups WHERE id = $1', [req.params.id]))
+        .rows[0];
       res.json(rowToGroup(row));
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -212,11 +213,10 @@ router.put(
   }
 );
 
-router.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
+router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const db = getDb();
-    const result = db.prepare('DELETE FROM commission_groups WHERE id = ?').run(req.params.id);
-    if (!result.changes) return res.status(404).json({ error: 'Grup komisi tidak ditemukan' });
+    const result = await query('DELETE FROM commission_groups WHERE id = $1', [req.params.id]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Grup komisi tidak ditemukan' });
     res.json({ id: Number(req.params.id) });
   } catch (err) {
     res.status(500).json({ error: err.message });
