@@ -15,6 +15,17 @@ const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { logAuditWithTenant, ACTIONS } = require('../lib/audit');
 const { child: childLogger } = require('../lib/logger');
+const { loginRateLimit } = require('../lib/rate-limit');
+
+// P2-06: per-IP rate limit applied to credential entry points so a
+// brute-force run against `/auth/login` or `/auth/login/2fa` is
+// capped at 5 attempts per 15 minutes per IP. Tests pass the
+// `RATE_LIMIT_LOGIN_DISABLED=1` env var to opt out so they don't trip
+// the limiter mid-suite.
+const loginLimiter =
+  process.env.NODE_ENV === 'test' && process.env.RATE_LIMIT_LOGIN_ENABLED !== '1'
+    ? (req, res, next) => next()
+    : loginRateLimit();
 
 const authLog = childLogger({ component: 'auth' });
 const {
@@ -88,7 +99,7 @@ async function buildLoginPayload(user, rememberMe, req) {
   };
 }
 
-router.post('/login', validate({ body: LoginRequestSchema }), async (req, res) => {
+router.post('/login', loginLimiter, validate({ body: LoginRequestSchema }), async (req, res) => {
   try {
     const { username, password, remember_me } = req.body;
     const r = await query('SELECT * FROM users WHERE username = $1', [username]);
@@ -108,28 +119,33 @@ router.post('/login', validate({ body: LoginRequestSchema }), async (req, res) =
   }
 });
 
-router.post('/login/2fa', validate({ body: LoginVerify2FARequestSchema }), async (req, res) => {
-  try {
-    const { login_token, code, remember_me } = req.body;
-    let payload;
+router.post(
+  '/login/2fa',
+  loginLimiter,
+  validate({ body: LoginVerify2FARequestSchema }),
+  async (req, res) => {
     try {
-      payload = verifyLogin2faToken(login_token);
-    } catch {
-      return res.status(401).json({ error: 'Sesi 2FA expired, silakan login ulang' });
+      const { login_token, code, remember_me } = req.body;
+      let payload;
+      try {
+        payload = verifyLogin2faToken(login_token);
+      } catch {
+        return res.status(401).json({ error: 'Sesi 2FA expired, silakan login ulang' });
+      }
+      const r = await query('SELECT * FROM users WHERE id = $1', [payload.id]);
+      const user = r.rows[0];
+      if (!user || !user.totp_enabled || !user.totp_secret) {
+        return res.status(401).json({ error: '2FA tidak aktif' });
+      }
+      if (!authenticator.check(code, user.totp_secret)) {
+        return res.status(401).json({ error: 'Kode 2FA salah' });
+      }
+      res.json(await buildLoginPayload(user, !!remember_me, req));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-    const r = await query('SELECT * FROM users WHERE id = $1', [payload.id]);
-    const user = r.rows[0];
-    if (!user || !user.totp_enabled || !user.totp_secret) {
-      return res.status(401).json({ error: '2FA tidak aktif' });
-    }
-    if (!authenticator.check(code, user.totp_secret)) {
-      return res.status(401).json({ error: 'Kode 2FA salah' });
-    }
-    res.json(await buildLoginPayload(user, !!remember_me, req));
-  } catch (err) {
-    res.status(500).json({ error: err.message });
   }
-});
+);
 
 router.post('/refresh', validate({ body: RefreshRequestSchema }), async (req, res) => {
   try {

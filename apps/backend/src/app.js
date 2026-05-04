@@ -15,7 +15,6 @@ const { initOtel, currentTraceId } = require('./lib/otel');
 initOtel();
 
 const express = require('express');
-const cors = require('cors');
 const pinoHttp = require('pino-http');
 const path = require('path');
 const { legacyDeprecationMiddleware } = require('./api-version');
@@ -24,6 +23,8 @@ const { requireTier } = require('./middleware/tier');
 const { requestIdMiddleware } = require('./middleware/request-id');
 const { globalErrorHandler } = require('./middleware/error-handler');
 const { metricsMiddleware } = require('./middleware/metrics');
+const { configureTrustProxy, helmetMiddleware, corsMiddleware } = require('./lib/security');
+const { apiRateLimit } = require('./lib/rate-limit');
 const { logger } = require('./lib/logger');
 const { router: healthRouter } = require('./routes/health');
 const { router: metricsRouter } = require('./routes/metrics');
@@ -210,9 +211,26 @@ function mountVersionedRoutes(parent) {
  * @returns {import('express').Express}
  */
 function buildApp(opts = {}) {
-  const { morganEnabled = true } = opts;
+  const {
+    morganEnabled = true,
+    // P2-06: tests fire dozens of requests against `/api/v1/*` per
+    // file and would otherwise blow through the 100/min budget. Tests
+    // that specifically exercise the limiter pass `rateLimitEnabled:
+    // true` explicitly.
+    rateLimitEnabled = process.env.NODE_ENV !== 'test',
+  } = opts;
 
   const app = express();
+
+  // P2-06: trust the upstream proxy chain so `req.ip` reflects the
+  // real client IP (X-Forwarded-For). Required for per-IP rate
+  // limiting to behave correctly behind nginx / Cloudflare.
+  configureTrustProxy(app);
+
+  // P2-06: Helmet first — cheap, sets the default response header
+  // baseline for every downstream handler. CSP is auto-disabled
+  // outside production to keep Vite HMR working.
+  app.use(helmetMiddleware());
 
   // P2-05 PR-A: request id MUST run before any logging middleware so
   // pino-http picks up `req.id` automatically via genReqId.
@@ -262,8 +280,17 @@ function buildApp(opts = {}) {
   // the route fallthrough.
   app.use(metricsMiddleware());
 
-  app.use(cors());
+  // P2-06: strict CORS allowlist (env-driven, fail-closed in prod).
+  app.use(corsMiddleware());
   app.use(express.json());
+
+  // P2-06: global API rate limiter. Skips /metrics and every /health
+  // variant (handled inside the limiter). Disabled by passing
+  // `rateLimitEnabled: false` from tests that need to fire many
+  // requests without tripping the limit.
+  if (rateLimitEnabled) {
+    app.use(apiRateLimit());
+  }
 
   // P2-05 PR-A: attach req.user / req.tenantId to Sentry scope after
   // auth runs. authenticateToken sets these per-request inside route
