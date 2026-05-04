@@ -113,7 +113,7 @@
 
 ---
 
-### P2-04: Background jobs (BullMQ + Redis) `[in-progress]`
+### P2-04: Background jobs (BullMQ + Redis) `[done]`
 
 **Goal**: Job queue untuk async work (notification, email, settlement reconcile, report generation, marketplace webhook processing).
 
@@ -123,14 +123,14 @@
 
 - Redis di VPS (Docker)
 - BullMQ workers
-- Queues: `notification`, `email`, `report`, `settlement`, `marketplace-webhook`, `import-export`
+- Queues: `notification`, `email`, `report`, `settlement`, `marketplace-webhook`, `import-export`, `audit-retention`
 - Job retry + DLQ
 - Admin dashboard (Bull Board) di `/admin/queues`
 
 **Acceptance criteria**:
 
 - [x] Send notification async via queue — `POST /api/v1/notifications` (PR-B)
-- [ ] Generate report async, notify user lewat email saat done — deferred ke PR-C
+- [x] Generate report async, notify user lewat email saat done — `POST /api/v1/reports/schedule/:id/run` chains downstream email jobs per recipient (PR-C)
 - [x] Marketplace webhook processed via queue (idempotent) — `POST /api/v1/marketplace-webhook/:tenant_slug/:provider` (PR-B)
 - [x] Retry logic dengan exponential backoff — `lib/queue.js` default backoff (PR-A)
 - [x] DLQ untuk job yang fail > 3 kali — built into `createWorker()` (PR-A)
@@ -140,7 +140,7 @@
 
 - **PR-A** (`#51`, merged): foundation — `lib/queue.js`, recurring `audit-retention` job, standalone worker entry point, CI Redis service.
 - **PR-B** (`#52`, merged): producers + workers untuk `notification`, `email`, `marketplace-webhook` + Bull Board UI.
-- **PR-C** (pending): producers + workers untuk `report`, `settlement`, `import-export`. Lihat `WORKER_REGISTRY` di `apps/backend/src/jobs/index.js` — tinggal append 3 entry.
+- **PR-C** (`#54`, merged): producers + workers untuk `report` (chained email orchestration), `settlement` (deterministic-jobId idempotency), `import-export` (RLS-scoped bulk insert). `WORKER_REGISTRY` extended ke 7 entry.
 
 **Branch**: `devin/P2-04-background-jobs`
 **Estimasi**: 3-4 hari
