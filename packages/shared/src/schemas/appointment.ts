@@ -1,30 +1,20 @@
-// Schemas untuk endpoint /api/appointment, /api/staff,
-// /api/appointment-resource, /api/calendar (P1-13 Appointment / Reservasi).
+// Schemas untuk endpoint /api/v1/appointment, /api/v1/staff,
+// /api/v1/appointment-resource, /api/v1/calendar (P1-13 Appointment / Reservasi).
 
-import { z, registry } from "../openapi";
-import {
-  DateTimeStringSchema,
-  ErrorResponseSchema,
-  IdStringSchema,
-} from "./common";
+import { z, registry } from '../openapi';
+import { DateTimeStringSchema, ErrorResponseSchema, IdStringSchema } from './common';
 
 export const AppointmentStatusSchema = z.enum([
-  "PENDING",
-  "CONFIRMED",
-  "IN_PROGRESS",
-  "COMPLETED",
-  "CANCELLED",
-  "NO_SHOW",
+  'PENDING',
+  'CONFIRMED',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'CANCELLED',
+  'NO_SHOW',
 ]);
 export type AppointmentStatus = z.infer<typeof AppointmentStatusSchema>;
 
-export const ResourceTypeSchema = z.enum([
-  "room",
-  "table",
-  "chair",
-  "equipment",
-  "other",
-]);
+export const ResourceTypeSchema = z.enum(['room', 'table', 'chair', 'equipment', 'other']);
 
 // ---------- STAFF ----------
 export const StaffSchema = z
@@ -39,13 +29,13 @@ export const StaffSchema = z
     created_at: DateTimeStringSchema.optional(),
     updated_at: DateTimeStringSchema.optional(),
   })
-  .openapi("Staff");
+  .openapi('Staff');
 export type Staff = z.infer<typeof StaffSchema>;
 
 export const StaffCreateSchema = z.object({
   name: z.string().min(1),
   phone: z.string().optional().nullable(),
-  email: z.string().email().optional().nullable().or(z.literal("")),
+  email: z.string().email().optional().nullable().or(z.literal('')),
   role: z.string().optional().nullable(),
   color: z.string().optional().nullable(),
   is_active: z.coerce.number().int().optional(),
@@ -64,17 +54,16 @@ export const AppointmentResourceSchema = z
     created_at: DateTimeStringSchema.optional(),
     updated_at: DateTimeStringSchema.optional(),
   })
-  .openapi("AppointmentResource");
+  .openapi('AppointmentResource');
 export type AppointmentResource = z.infer<typeof AppointmentResourceSchema>;
 
 export const AppointmentResourceCreateSchema = z.object({
   name: z.string().min(1),
-  resource_type: ResourceTypeSchema.optional().default("room"),
+  resource_type: ResourceTypeSchema.optional().default('room'),
   capacity: z.coerce.number().int().positive().optional().default(1),
   is_active: z.coerce.number().int().optional(),
 });
-export const AppointmentResourceUpdateSchema =
-  AppointmentResourceCreateSchema.partial();
+export const AppointmentResourceUpdateSchema = AppointmentResourceCreateSchema.partial();
 
 // ---------- APPOINTMENT ----------
 export const AppointmentServiceSchema = z.object({
@@ -127,7 +116,7 @@ export const AppointmentSchema = z
     created_at: DateTimeStringSchema.optional(),
     updated_at: DateTimeStringSchema.optional(),
   })
-  .openapi("Appointment");
+  .openapi('Appointment');
 export type Appointment = z.infer<typeof AppointmentSchema>;
 
 export const AppointmentCreateSchema = z.object({
@@ -138,11 +127,11 @@ export const AppointmentCreateSchema = z.object({
   resource_id: z.coerce.number().int().nullable().optional(),
   start_at: z.string().min(1),
   duration_minutes: z.coerce.number().int().positive().optional(),
-  status: AppointmentStatusSchema.optional().default("PENDING"),
+  status: AppointmentStatusSchema.optional().default('PENDING'),
   notes: z.string().optional().nullable(),
   deposit_amount: z.coerce.number().nonnegative().optional().default(0),
   reminders_config: z.unknown().optional(),
-  services: z.array(AppointmentServiceInputSchema).min(1, "Minimal 1 layanan"),
+  services: z.array(AppointmentServiceInputSchema).min(1, 'Minimal 1 layanan'),
 });
 
 export const AppointmentUpdateSchema = z.object({
@@ -199,137 +188,137 @@ export type CalendarResponse = z.infer<typeof CalendarResponseSchema>;
 // ============================================================
 // OpenAPI registry
 // ============================================================
-const tags = ["Appointment"];
+const tags = ['Appointment'];
 
 function listResponse(itemSchema: z.ZodTypeAny) {
   return {
     200: {
-      description: "List",
-      content: { "application/json": { schema: z.array(itemSchema) } },
+      description: 'List',
+      content: { 'application/json': { schema: z.array(itemSchema) } },
     },
   };
 }
 function notFound() {
   return {
     404: {
-      description: "Not found",
-      content: { "application/json": { schema: ErrorResponseSchema } },
+      description: 'Not found',
+      content: { 'application/json': { schema: ErrorResponseSchema } },
     },
   };
 }
 
 // Staff
 registry.registerPath({
-  method: "get",
-  path: "/api/staff",
+  method: 'get',
+  path: '/api/v1/staff',
   tags,
-  summary: "List staff",
+  summary: 'List staff',
   responses: listResponse(StaffSchema),
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/staff",
+  method: 'post',
+  path: '/api/v1/staff',
   tags,
-  summary: "Create staff",
+  summary: 'Create staff',
   request: {
-    body: { content: { "application/json": { schema: StaffCreateSchema } } },
+    body: { content: { 'application/json': { schema: StaffCreateSchema } } },
   },
   responses: {
     201: {
-      description: "Created",
-      content: { "application/json": { schema: StaffSchema } },
+      description: 'Created',
+      content: { 'application/json': { schema: StaffSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "put",
-  path: "/api/staff/{id}",
+  method: 'put',
+  path: '/api/v1/staff/{id}',
   tags,
-  summary: "Update staff",
+  summary: 'Update staff',
   request: {
     params: z.object({ id: IdStringSchema }),
-    body: { content: { "application/json": { schema: StaffUpdateSchema } } },
+    body: { content: { 'application/json': { schema: StaffUpdateSchema } } },
   },
   responses: {
     200: {
-      description: "Updated",
-      content: { "application/json": { schema: StaffSchema } },
+      description: 'Updated',
+      content: { 'application/json': { schema: StaffSchema } },
     },
     ...notFound(),
   },
 });
 registry.registerPath({
-  method: "delete",
-  path: "/api/staff/{id}",
+  method: 'delete',
+  path: '/api/v1/staff/{id}',
   tags,
-  summary: "Delete staff",
+  summary: 'Delete staff',
   request: { params: z.object({ id: IdStringSchema }) },
-  responses: { 200: { description: "Deleted" }, ...notFound() },
+  responses: { 200: { description: 'Deleted' }, ...notFound() },
 });
 
 // Resource
 registry.registerPath({
-  method: "get",
-  path: "/api/appointment-resource",
+  method: 'get',
+  path: '/api/v1/appointment-resource',
   tags,
-  summary: "List appointment resources",
+  summary: 'List appointment resources',
   responses: listResponse(AppointmentResourceSchema),
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/appointment-resource",
+  method: 'post',
+  path: '/api/v1/appointment-resource',
   tags,
-  summary: "Create resource",
+  summary: 'Create resource',
   request: {
     body: {
       content: {
-        "application/json": { schema: AppointmentResourceCreateSchema },
+        'application/json': { schema: AppointmentResourceCreateSchema },
       },
     },
   },
   responses: {
     201: {
-      description: "Created",
-      content: { "application/json": { schema: AppointmentResourceSchema } },
+      description: 'Created',
+      content: { 'application/json': { schema: AppointmentResourceSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "put",
-  path: "/api/appointment-resource/{id}",
+  method: 'put',
+  path: '/api/v1/appointment-resource/{id}',
   tags,
-  summary: "Update resource",
+  summary: 'Update resource',
   request: {
     params: z.object({ id: IdStringSchema }),
     body: {
       content: {
-        "application/json": { schema: AppointmentResourceUpdateSchema },
+        'application/json': { schema: AppointmentResourceUpdateSchema },
       },
     },
   },
   responses: {
     200: {
-      description: "Updated",
-      content: { "application/json": { schema: AppointmentResourceSchema } },
+      description: 'Updated',
+      content: { 'application/json': { schema: AppointmentResourceSchema } },
     },
     ...notFound(),
   },
 });
 registry.registerPath({
-  method: "delete",
-  path: "/api/appointment-resource/{id}",
+  method: 'delete',
+  path: '/api/v1/appointment-resource/{id}',
   tags,
-  summary: "Delete resource",
+  summary: 'Delete resource',
   request: { params: z.object({ id: IdStringSchema }) },
-  responses: { 200: { description: "Deleted" }, ...notFound() },
+  responses: { 200: { description: 'Deleted' }, ...notFound() },
 });
 
 // Appointment
 registry.registerPath({
-  method: "get",
-  path: "/api/appointment",
+  method: 'get',
+  path: '/api/v1/appointment',
   tags,
-  summary: "List appointments",
+  summary: 'List appointments',
   request: {
     query: z.object({
       from: z.string().optional(),
@@ -342,195 +331,195 @@ registry.registerPath({
   responses: listResponse(AppointmentSchema),
 });
 registry.registerPath({
-  method: "get",
-  path: "/api/appointment/{id}",
+  method: 'get',
+  path: '/api/v1/appointment/{id}',
   tags,
-  summary: "Get appointment detail",
+  summary: 'Get appointment detail',
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: AppointmentSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: AppointmentSchema } },
     },
     ...notFound(),
   },
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/appointment",
+  method: 'post',
+  path: '/api/v1/appointment',
   tags,
-  summary: "Create appointment",
+  summary: 'Create appointment',
   request: {
     body: {
-      content: { "application/json": { schema: AppointmentCreateSchema } },
+      content: { 'application/json': { schema: AppointmentCreateSchema } },
     },
   },
   responses: {
     201: {
-      description: "Created",
-      content: { "application/json": { schema: AppointmentSchema } },
+      description: 'Created',
+      content: { 'application/json': { schema: AppointmentSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "put",
-  path: "/api/appointment/{id}",
+  method: 'put',
+  path: '/api/v1/appointment/{id}',
   tags,
-  summary: "Update appointment",
+  summary: 'Update appointment',
   request: {
     params: z.object({ id: IdStringSchema }),
     body: {
-      content: { "application/json": { schema: AppointmentUpdateSchema } },
+      content: { 'application/json': { schema: AppointmentUpdateSchema } },
     },
   },
   responses: {
     200: {
-      description: "Updated",
-      content: { "application/json": { schema: AppointmentSchema } },
+      description: 'Updated',
+      content: { 'application/json': { schema: AppointmentSchema } },
     },
     ...notFound(),
   },
 });
 registry.registerPath({
-  method: "delete",
-  path: "/api/appointment/{id}",
+  method: 'delete',
+  path: '/api/v1/appointment/{id}',
   tags,
-  summary: "Delete appointment",
+  summary: 'Delete appointment',
   request: { params: z.object({ id: IdStringSchema }) },
-  responses: { 200: { description: "Deleted" }, ...notFound() },
+  responses: { 200: { description: 'Deleted' }, ...notFound() },
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/appointment/{id}/confirm",
+  method: 'post',
+  path: '/api/v1/appointment/{id}/confirm',
   tags,
-  summary: "Confirm appointment (PENDING → CONFIRMED)",
+  summary: 'Confirm appointment (PENDING → CONFIRMED)',
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: AppointmentSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: AppointmentSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/appointment/{id}/checkin",
+  method: 'post',
+  path: '/api/v1/appointment/{id}/checkin',
   tags,
-  summary: "Check-in appointment (CONFIRMED → IN_PROGRESS)",
+  summary: 'Check-in appointment (CONFIRMED → IN_PROGRESS)',
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: AppointmentSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: AppointmentSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/appointment/{id}/complete",
+  method: 'post',
+  path: '/api/v1/appointment/{id}/complete',
   tags,
-  summary: "Complete appointment",
+  summary: 'Complete appointment',
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: AppointmentSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: AppointmentSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/appointment/{id}/cancel",
+  method: 'post',
+  path: '/api/v1/appointment/{id}/cancel',
   tags,
-  summary: "Cancel appointment",
+  summary: 'Cancel appointment',
   request: {
     params: z.object({ id: IdStringSchema }),
     body: {
-      content: { "application/json": { schema: AppointmentCancelSchema } },
+      content: { 'application/json': { schema: AppointmentCancelSchema } },
     },
   },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: AppointmentSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: AppointmentSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/appointment/{id}/no-show",
+  method: 'post',
+  path: '/api/v1/appointment/{id}/no-show',
   tags,
-  summary: "Mark no-show",
+  summary: 'Mark no-show',
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: AppointmentSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: AppointmentSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/appointment/{id}/reschedule",
+  method: 'post',
+  path: '/api/v1/appointment/{id}/reschedule',
   tags,
-  summary: "Reschedule appointment",
+  summary: 'Reschedule appointment',
   request: {
     params: z.object({ id: IdStringSchema }),
     body: {
       content: {
-        "application/json": { schema: AppointmentRescheduleSchema },
+        'application/json': { schema: AppointmentRescheduleSchema },
       },
     },
   },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: AppointmentSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: AppointmentSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/appointment/{id}/send-reminder",
+  method: 'post',
+  path: '/api/v1/appointment/{id}/send-reminder',
   tags,
-  summary: "Send reminder (24h or 1h)",
+  summary: 'Send reminder (24h or 1h)',
   request: {
     params: z.object({ id: IdStringSchema }),
     body: {
       content: {
-        "application/json": {
-          schema: z.object({ window: z.enum(["24h", "1h"]) }),
+        'application/json': {
+          schema: z.object({ window: z.enum(['24h', '1h']) }),
         },
       },
     },
   },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: AppointmentSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: AppointmentSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/appointment/{id}/convert",
+  method: 'post',
+  path: '/api/v1/appointment/{id}/convert',
   tags,
-  summary: "Convert appointment to transaction",
+  summary: 'Convert appointment to transaction',
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: AppointmentSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: AppointmentSchema } },
     },
   },
 });
 
 // Calendar
 registry.registerPath({
-  method: "get",
-  path: "/api/calendar",
+  method: 'get',
+  path: '/api/v1/calendar',
   tags,
-  summary: "Calendar view (appointments + staff + resources within range)",
+  summary: 'Calendar view (appointments + staff + resources within range)',
   request: {
     query: z.object({
       from: z.string(),
@@ -541,8 +530,8 @@ registry.registerPath({
   },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: CalendarResponseSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: CalendarResponseSchema } },
     },
   },
 });

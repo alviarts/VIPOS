@@ -120,27 +120,39 @@ Frontend di-serve via nginx static dari `apps/web/dist/`. Lihat [DEPLOYMENT.md](
 | `npm run format`       | Prettier --write . (format semua file)                         |
 | `npm run format:check` | Prettier --check . (verify formatted)                          |
 
-## API Endpoints
+## API
 
-| Method | Endpoint                    | Description             |
-| ------ | --------------------------- | ----------------------- |
-| POST   | /api/auth/login             | Login                   |
-| GET    | /api/auth/me                | Current user            |
-| POST   | /api/auth/register          | Register (admin)        |
-| GET    | /api/products               | List products           |
-| POST   | /api/products               | Create product (admin)  |
-| PUT    | /api/products/:id           | Update product (admin)  |
-| DELETE | /api/products/:id           | Delete product (admin)  |
-| GET    | /api/categories             | List categories         |
-| POST   | /api/categories             | Create category (admin) |
-| GET    | /api/transactions           | List transactions       |
-| POST   | /api/transactions           | Create transaction      |
-| POST   | /api/transactions/:id/void  | Void transaction        |
-| GET    | /api/dashboard/stats        | Dashboard stats         |
-| GET    | /api/dashboard/chart        | Sales chart data        |
-| GET    | /api/dashboard/top-products | Top selling products    |
+### Versioning (P2-07)
 
-Production: prefix `/vipos` di-strip oleh nginx (lihat [DEPLOYMENT.md](./DEPLOYMENT.md)). Endpoint internal tetap `/api/*`.
+VIPOS API pakai **URI versioning** dengan canonical prefix `/api/v{N}/`. Versi aktif: **v1**.
+
+| Method | Canonical endpoint      | Legacy alias         | Description            |
+| ------ | ----------------------- | -------------------- | ---------------------- |
+| POST   | /api/v1/auth/login      | /api/auth/login      | Login                  |
+| GET    | /api/v1/auth/me         | /api/auth/me         | Current user           |
+| POST   | /api/v1/auth/register   | /api/auth/register   | Register (admin)       |
+| GET    | /api/v1/products        | /api/products        | List products          |
+| POST   | /api/v1/products        | /api/products        | Create product (admin) |
+| PUT    | /api/v1/products/:id    | /api/products/:id    | Update product (admin) |
+| DELETE | /api/v1/products/:id    | /api/products/:id    | Delete product (admin) |
+| GET    | /api/v1/categories      | /api/categories      | List categories        |
+| GET    | /api/v1/transactions    | /api/transactions    | List transactions      |
+| POST   | /api/v1/transactions    | /api/transactions    | Create transaction     |
+| GET    | /api/v1/dashboard/stats | /api/dashboard/stats | Dashboard stats        |
+
+Daftar lengkap semua endpoint ada di Swagger UI (lihat di bawah).
+
+**Legacy alias** `/api/*` (tanpa `v1`) masih bekerja untuk backward compatibility, tapi setiap response dari alias tersebut otomatis menambahkan header:
+
+- `Deprecation: true`
+- `Sunset: Wed, 04 Nov 2026 23:59:59 GMT`
+- `Link: </api/v1/...>; rel="successor-version"`
+
+Sunset window 6 bulan; alias akan dihapus pada commit terpisah setelah 2026-11-04. Konsumen API (web client, Android di Phase 3, integrasi pihak ketiga) dipersilakan migrasi ke `/api/v1/...` sebelum tanggal tersebut.
+
+Policy versioning lengkap di [`CHANGELOG.md`](./CHANGELOG.md#api-versioning-policy).
+
+Production: prefix `/vipos` di-strip oleh nginx (lihat [DEPLOYMENT.md](./DEPLOYMENT.md)). Endpoint internal tetap `/api/v1/*`.
 
 ### API Documentation (Swagger / OpenAPI)
 
@@ -149,7 +161,7 @@ OpenAPI 3.1 spec di-generate otomatis dari Zod schemas di `packages/shared/src/s
 - Dev: http://localhost:3001/api/docs
 - Raw spec: http://localhost:3001/api/docs.json
 
-Mau test endpoint langsung di browser dengan auth? Login sekali via `POST /api/auth/login`, copy `token`, klik **Authorize** di Swagger UI, paste sebagai `Bearer <token>`. Spec berisi semua resource (`auth`, `products`, `categories`, `customers`, `finance`, `inventory`).
+Semua path di spec sudah pakai prefix `/api/v1/...` (legacy alias tidak di-document). Mau test endpoint langsung di browser dengan auth? Login sekali via `POST /api/v1/auth/login`, copy `token`, klik **Authorize** di Swagger UI, paste sebagai `Bearer <token>`.
 
 Untuk disable Swagger UI di production, set env `DISABLE_API_DOCS=1`.
 

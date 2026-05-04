@@ -1,72 +1,39 @@
 // Schemas untuk P1-14 (Karyawan + Payroll + Absensi + Schedule + Approval).
 //
 // Endpoint:
-//   /api/employee, /api/employee/:id/document, /api/employee/:id/permissions
-//   /api/payroll-settings (single-row), /api/payroll-structure (CRUD),
-//     /api/payroll-run (CRUD + calculate + approve + paid),
-//   /api/attendance (log + manual), /api/attendance-geofence,
-//   /api/shift, /api/schedule (assign + swap),
-//   /api/approval-chain.
+//   /api/v1/employee, /api/v1/employee/:id/document, /api/v1/employee/:id/permissions
+//   /api/v1/payroll-settings (single-row), /api/v1/payroll-structure (CRUD),
+//     /api/v1/payroll-run (CRUD + calculate + approve + paid),
+//   /api/v1/attendance (log + manual), /api/v1/attendance-geofence,
+//   /api/v1/shift, /api/v1/schedule (assign + swap),
+//   /api/v1/approval-chain.
 
-import { z, registry } from "../openapi";
-import { ErrorResponseSchema, IdStringSchema } from "./common";
+import { z, registry } from '../openapi';
+import { ErrorResponseSchema, IdStringSchema } from './common';
 
 // ================== ENUMS ==================
-export const EmployeeStatusSchema = z.enum(["active", "resigned", "on_leave"]);
-export const EmployeeTypeSchema = z.enum([
-  "permanent",
-  "contract",
-  "intern",
-  "freelance",
-]);
-export const EmployeeRoleSchema = z.enum([
-  "admin",
-  "manager",
-  "cashier",
-  "staff",
-  "waiters",
-]);
-export const PayrollPeriodSchema = z.enum(["monthly", "biweekly", "weekly"]);
-export const TaxMethodSchema = z.enum([
-  "gross",
-  "nett",
-  "progressive",
-  "gross-up",
-]);
-export const PayrollRunStatusSchema = z.enum([
-  "DRAFT",
-  "CALCULATED",
-  "APPROVED",
-  "PAID",
-  "VOIDED",
-]);
+export const EmployeeStatusSchema = z.enum(['active', 'resigned', 'on_leave']);
+export const EmployeeTypeSchema = z.enum(['permanent', 'contract', 'intern', 'freelance']);
+export const EmployeeRoleSchema = z.enum(['admin', 'manager', 'cashier', 'staff', 'waiters']);
+export const PayrollPeriodSchema = z.enum(['monthly', 'biweekly', 'weekly']);
+export const TaxMethodSchema = z.enum(['gross', 'nett', 'progressive', 'gross-up']);
+export const PayrollRunStatusSchema = z.enum(['DRAFT', 'CALCULATED', 'APPROVED', 'PAID', 'VOIDED']);
 export const AttendanceLogTypeSchema = z.enum([
-  "check_in",
-  "check_out",
-  "break_start",
-  "break_end",
+  'check_in',
+  'check_out',
+  'break_start',
+  'break_end',
 ]);
-export const AttendanceMethodSchema = z.enum([
-  "gps",
-  "selfie",
-  "nfc",
-  "manual",
-  "qr",
-]);
+export const AttendanceMethodSchema = z.enum(['gps', 'selfie', 'nfc', 'manual', 'qr']);
 export const ApprovalDomainSchema = z.enum([
-  "purchase",
-  "finance",
-  "leave",
-  "overtime",
-  "attendance_correction",
-  "other",
+  'purchase',
+  'finance',
+  'leave',
+  'overtime',
+  'attendance_correction',
+  'other',
 ]);
-export const SwapStatusSchema = z.enum([
-  "PENDING",
-  "APPROVED",
-  "REJECTED",
-  "CANCELLED",
-]);
+export const SwapStatusSchema = z.enum(['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']);
 
 // ================== EMPLOYEE ==================
 export const EmployeeSchema = z
@@ -80,7 +47,7 @@ export const EmployeeSchema = z
     npwp: z.string().nullable(),
     birth_date: z.string().nullable(),
     birth_place: z.string().nullable(),
-    gender: z.enum(["M", "F"]).nullable(),
+    gender: z.enum(['M', 'F']).nullable(),
     marital_status: z.string().nullable(),
     religion: z.string().nullable(),
     blood_type: z.string().nullable(),
@@ -112,7 +79,7 @@ export const EmployeeSchema = z
     created_at: z.string().optional(),
     updated_at: z.string().optional(),
   })
-  .openapi("Employee");
+  .openapi('Employee');
 export type Employee = z.infer<typeof EmployeeSchema>;
 
 export const EmployeeCreateSchema = z.object({
@@ -121,7 +88,7 @@ export const EmployeeCreateSchema = z.object({
   npwp: z.string().optional().nullable(),
   birth_date: z.string().optional().nullable(),
   birth_place: z.string().optional().nullable(),
-  gender: z.enum(["M", "F"]).optional().nullable(),
+  gender: z.enum(['M', 'F']).optional().nullable(),
   marital_status: z.string().optional().nullable(),
   religion: z.string().optional().nullable(),
   blood_type: z.string().optional().nullable(),
@@ -135,10 +102,10 @@ export const EmployeeCreateSchema = z.object({
   emergency_contact_phone: z.string().optional().nullable(),
   department_id: z.coerce.number().int().nullable().optional(),
   position: z.string().optional().nullable(),
-  employee_type: EmployeeTypeSchema.optional().default("permanent"),
+  employee_type: EmployeeTypeSchema.optional().default('permanent'),
   date_joined: z.string().optional().nullable(),
   date_resigned: z.string().optional().nullable(),
-  role: EmployeeRoleSchema.optional().default("cashier"),
+  role: EmployeeRoleSchema.optional().default('cashier'),
   payroll_structure_id: z.coerce.number().int().nullable().optional(),
   bank_name: z.string().optional().nullable(),
   bank_account_no: z.string().optional().nullable(),
@@ -147,7 +114,7 @@ export const EmployeeCreateSchema = z.object({
   pin_code: z.string().optional().nullable(),
   attendance_methods: z.array(AttendanceMethodSchema).optional(),
   allowed_outlet_ids: z.array(z.number().int()).optional(),
-  status: EmployeeStatusSchema.optional().default("active"),
+  status: EmployeeStatusSchema.optional().default('active'),
   photo_url: z.string().optional().nullable(),
 });
 export const EmployeeUpdateSchema = EmployeeCreateSchema.partial();
@@ -162,7 +129,7 @@ export const EmployeeDocumentSchema = z
     file_name: z.string().nullable(),
     uploaded_at: z.string(),
   })
-  .openapi("EmployeeDocument");
+  .openapi('EmployeeDocument');
 
 export const EmployeeDocumentCreateSchema = z.object({
   doc_type: z.string().min(1),
@@ -203,7 +170,7 @@ export const PayrollSettingsSchema = z
     bpjs_jp_employee: z.number(),
     updated_at: z.string().optional(),
   })
-  .openapi("PayrollSettings");
+  .openapi('PayrollSettings');
 
 export const PayrollSettingsUpdateSchema = z.object({
   period: PayrollPeriodSchema.optional(),
@@ -244,7 +211,7 @@ export const PayrollStructureSchema = z
     created_at: z.string().optional(),
     updated_at: z.string().optional(),
   })
-  .openapi("PayrollStructure");
+  .openapi('PayrollStructure');
 
 export const PayrollStructureCreateSchema = z.object({
   name: z.string().min(1),
@@ -257,8 +224,7 @@ export const PayrollStructureCreateSchema = z.object({
   include_pph21: z.coerce.number().int().optional().default(1),
   is_active: z.coerce.number().int().optional().default(1),
 });
-export const PayrollStructureUpdateSchema =
-  PayrollStructureCreateSchema.partial();
+export const PayrollStructureUpdateSchema = PayrollStructureCreateSchema.partial();
 
 // ================== PAYROLL RUN + PAYSLIP ==================
 export const PayslipSchema = z.object({
@@ -302,7 +268,7 @@ export const PayrollRunSchema = z
     created_at: z.string().optional(),
     updated_at: z.string().optional(),
   })
-  .openapi("PayrollRun");
+  .openapi('PayrollRun');
 
 export const PayrollRunCreateSchema = z.object({
   period_start: z.string().min(1),
@@ -329,13 +295,13 @@ export const AttendanceLogSchema = z
     approved_at: z.string().nullable(),
     created_at: z.string().optional(),
   })
-  .openapi("AttendanceLog");
+  .openapi('AttendanceLog');
 
 export const AttendanceLogCreateSchema = z.object({
   employee_id: z.coerce.number().int(),
   log_type: AttendanceLogTypeSchema,
   logged_at: z.string().optional(),
-  method: AttendanceMethodSchema.optional().default("manual"),
+  method: AttendanceMethodSchema.optional().default('manual'),
   latitude: z.coerce.number().optional().nullable(),
   longitude: z.coerce.number().optional().nullable(),
   photo_url: z.string().optional().nullable(),
@@ -354,7 +320,7 @@ export const AttendanceGeofenceSchema = z
     strict_mode: z.coerce.number().int(),
     updated_at: z.string().optional(),
   })
-  .openapi("AttendanceGeofence");
+  .openapi('AttendanceGeofence');
 
 export const AttendanceGeofenceUpsertSchema = z.object({
   outlet_id: z.coerce.number().int(),
@@ -378,14 +344,14 @@ export const ShiftSchema = z
     created_at: z.string().optional(),
     updated_at: z.string().optional(),
   })
-  .openapi("Shift");
+  .openapi('Shift');
 
 export const ShiftCreateSchema = z.object({
   name: z.string().min(1),
   start_time: z.string().min(1),
   end_time: z.string().min(1),
   break_minutes: z.coerce.number().int().nonnegative().optional().default(0),
-  color: z.string().optional().default("#04C99E"),
+  color: z.string().optional().default('#04C99E'),
   is_active: z.coerce.number().int().optional().default(1),
 });
 export const ShiftUpdateSchema = ShiftCreateSchema.partial();
@@ -405,7 +371,7 @@ export const ScheduleAssignmentSchema = z
     created_at: z.string().optional(),
     updated_at: z.string().optional(),
   })
-  .openapi("ScheduleAssignment");
+  .openapi('ScheduleAssignment');
 
 export const ScheduleAssignSchema = z.object({
   assignments: z.array(
@@ -435,7 +401,7 @@ export const ScheduleSwapSchema = z
     decision_note: z.string().nullable(),
     created_at: z.string().optional(),
   })
-  .openapi("ScheduleSwap");
+  .openapi('ScheduleSwap');
 
 export const ScheduleSwapCreateSchema = z.object({
   requester_id: z.coerce.number().int(),
@@ -467,7 +433,7 @@ export const ApprovalChainSchema = z
     created_at: z.string().optional(),
     updated_at: z.string().optional(),
   })
-  .openapi("ApprovalChain");
+  .openapi('ApprovalChain');
 
 export const ApprovalChainCreateSchema = z.object({
   domain: ApprovalDomainSchema,
@@ -481,440 +447,440 @@ export const ApprovalChainUpdateSchema = ApprovalChainCreateSchema.partial();
 // ============================================================
 // OpenAPI registry
 // ============================================================
-const tags = ["Karyawan"];
+const tags = ['Karyawan'];
 
 function listResponse(itemSchema: z.ZodTypeAny) {
   return {
     200: {
-      description: "List",
-      content: { "application/json": { schema: z.array(itemSchema) } },
+      description: 'List',
+      content: { 'application/json': { schema: z.array(itemSchema) } },
     },
   };
 }
 function notFound() {
   return {
     404: {
-      description: "Not found",
-      content: { "application/json": { schema: ErrorResponseSchema } },
+      description: 'Not found',
+      content: { 'application/json': { schema: ErrorResponseSchema } },
     },
   };
 }
 
 // Employee
 registry.registerPath({
-  method: "get",
-  path: "/api/employee",
+  method: 'get',
+  path: '/api/v1/employee',
   tags,
-  summary: "List employees",
+  summary: 'List employees',
   responses: listResponse(EmployeeSchema),
 });
 registry.registerPath({
-  method: "get",
-  path: "/api/employee/{id}",
+  method: 'get',
+  path: '/api/v1/employee/{id}',
   tags,
-  summary: "Get employee detail",
+  summary: 'Get employee detail',
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: EmployeeSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: EmployeeSchema } },
     },
     ...notFound(),
   },
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/employee",
+  method: 'post',
+  path: '/api/v1/employee',
   tags,
-  summary: "Create employee",
+  summary: 'Create employee',
   request: {
     body: {
-      content: { "application/json": { schema: EmployeeCreateSchema } },
+      content: { 'application/json': { schema: EmployeeCreateSchema } },
     },
   },
   responses: {
     201: {
-      description: "Created",
-      content: { "application/json": { schema: EmployeeSchema } },
+      description: 'Created',
+      content: { 'application/json': { schema: EmployeeSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "put",
-  path: "/api/employee/{id}",
+  method: 'put',
+  path: '/api/v1/employee/{id}',
   tags,
-  summary: "Update employee",
+  summary: 'Update employee',
   request: {
     params: z.object({ id: IdStringSchema }),
     body: {
-      content: { "application/json": { schema: EmployeeUpdateSchema } },
+      content: { 'application/json': { schema: EmployeeUpdateSchema } },
     },
   },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: EmployeeSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: EmployeeSchema } },
     },
     ...notFound(),
   },
 });
 registry.registerPath({
-  method: "delete",
-  path: "/api/employee/{id}",
+  method: 'delete',
+  path: '/api/v1/employee/{id}',
   tags,
-  summary: "Delete employee (soft, set status=resigned)",
+  summary: 'Delete employee (soft, set status=resigned)',
   request: { params: z.object({ id: IdStringSchema }) },
-  responses: { 200: { description: "Deleted" }, ...notFound() },
+  responses: { 200: { description: 'Deleted' }, ...notFound() },
 });
 
 // Documents
 registry.registerPath({
-  method: "post",
-  path: "/api/employee/{id}/document",
+  method: 'post',
+  path: '/api/v1/employee/{id}/document',
   tags,
-  summary: "Add document",
+  summary: 'Add document',
   request: {
     params: z.object({ id: IdStringSchema }),
     body: {
       content: {
-        "application/json": { schema: EmployeeDocumentCreateSchema },
+        'application/json': { schema: EmployeeDocumentCreateSchema },
       },
     },
   },
   responses: {
     201: {
-      description: "Created",
-      content: { "application/json": { schema: EmployeeDocumentSchema } },
+      description: 'Created',
+      content: { 'application/json': { schema: EmployeeDocumentSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "delete",
-  path: "/api/employee/{id}/document/{documentId}",
+  method: 'delete',
+  path: '/api/v1/employee/{id}/document/{documentId}',
   tags,
-  summary: "Delete document",
+  summary: 'Delete document',
   request: {
     params: z.object({ id: IdStringSchema, documentId: IdStringSchema }),
   },
-  responses: { 200: { description: "Deleted" } },
+  responses: { 200: { description: 'Deleted' } },
 });
 
 // Permissions
 registry.registerPath({
-  method: "get",
-  path: "/api/employee/{id}/permissions",
+  method: 'get',
+  path: '/api/v1/employee/{id}/permissions',
   tags,
-  summary: "List permission overrides",
+  summary: 'List permission overrides',
   request: { params: z.object({ id: IdStringSchema }) },
   responses: listResponse(PermissionOverrideSchema),
 });
 registry.registerPath({
-  method: "put",
-  path: "/api/employee/{id}/permissions",
+  method: 'put',
+  path: '/api/v1/employee/{id}/permissions',
   tags,
-  summary: "Bulk assign permissions",
+  summary: 'Bulk assign permissions',
   request: {
     params: z.object({ id: IdStringSchema }),
     body: {
-      content: { "application/json": { schema: PermissionAssignSchema } },
+      content: { 'application/json': { schema: PermissionAssignSchema } },
     },
   },
-  responses: { 200: { description: "OK" } },
+  responses: { 200: { description: 'OK' } },
 });
 
 // Payroll settings
 registry.registerPath({
-  method: "get",
-  path: "/api/payroll-settings",
+  method: 'get',
+  path: '/api/v1/payroll-settings',
   tags,
-  summary: "Get payroll settings",
+  summary: 'Get payroll settings',
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: PayrollSettingsSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: PayrollSettingsSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "put",
-  path: "/api/payroll-settings",
+  method: 'put',
+  path: '/api/v1/payroll-settings',
   tags,
-  summary: "Update payroll settings",
+  summary: 'Update payroll settings',
   request: {
     body: {
       content: {
-        "application/json": { schema: PayrollSettingsUpdateSchema },
+        'application/json': { schema: PayrollSettingsUpdateSchema },
       },
     },
   },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: PayrollSettingsSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: PayrollSettingsSchema } },
     },
   },
 });
 
 // Payroll structure
 registry.registerPath({
-  method: "get",
-  path: "/api/payroll-structure",
+  method: 'get',
+  path: '/api/v1/payroll-structure',
   tags,
-  summary: "List structures",
+  summary: 'List structures',
   responses: listResponse(PayrollStructureSchema),
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/payroll-structure",
+  method: 'post',
+  path: '/api/v1/payroll-structure',
   tags,
-  summary: "Create structure",
+  summary: 'Create structure',
   request: {
     body: {
       content: {
-        "application/json": { schema: PayrollStructureCreateSchema },
+        'application/json': { schema: PayrollStructureCreateSchema },
       },
     },
   },
   responses: {
     201: {
-      description: "Created",
-      content: { "application/json": { schema: PayrollStructureSchema } },
+      description: 'Created',
+      content: { 'application/json': { schema: PayrollStructureSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "put",
-  path: "/api/payroll-structure/{id}",
+  method: 'put',
+  path: '/api/v1/payroll-structure/{id}',
   tags,
-  summary: "Update structure",
+  summary: 'Update structure',
   request: {
     params: z.object({ id: IdStringSchema }),
     body: {
       content: {
-        "application/json": { schema: PayrollStructureUpdateSchema },
+        'application/json': { schema: PayrollStructureUpdateSchema },
       },
     },
   },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: PayrollStructureSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: PayrollStructureSchema } },
     },
     ...notFound(),
   },
 });
 registry.registerPath({
-  method: "delete",
-  path: "/api/payroll-structure/{id}",
+  method: 'delete',
+  path: '/api/v1/payroll-structure/{id}',
   tags,
-  summary: "Delete structure",
+  summary: 'Delete structure',
   request: { params: z.object({ id: IdStringSchema }) },
-  responses: { 200: { description: "Deleted" } },
+  responses: { 200: { description: 'Deleted' } },
 });
 
 // Payroll run
 registry.registerPath({
-  method: "get",
-  path: "/api/payroll-run",
+  method: 'get',
+  path: '/api/v1/payroll-run',
   tags,
-  summary: "List payroll runs",
+  summary: 'List payroll runs',
   responses: listResponse(PayrollRunSchema),
 });
 registry.registerPath({
-  method: "get",
-  path: "/api/payroll-run/{id}",
+  method: 'get',
+  path: '/api/v1/payroll-run/{id}',
   tags,
-  summary: "Get payroll run with payslips",
+  summary: 'Get payroll run with payslips',
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: PayrollRunSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: PayrollRunSchema } },
     },
     ...notFound(),
   },
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/payroll-run",
+  method: 'post',
+  path: '/api/v1/payroll-run',
   tags,
-  summary: "Create payroll run (DRAFT)",
+  summary: 'Create payroll run (DRAFT)',
   request: {
     body: {
-      content: { "application/json": { schema: PayrollRunCreateSchema } },
+      content: { 'application/json': { schema: PayrollRunCreateSchema } },
     },
   },
   responses: {
     201: {
-      description: "Created",
-      content: { "application/json": { schema: PayrollRunSchema } },
+      description: 'Created',
+      content: { 'application/json': { schema: PayrollRunSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/payroll-run/{id}/calculate",
+  method: 'post',
+  path: '/api/v1/payroll-run/{id}/calculate',
   tags,
-  summary: "Calculate payslips for run",
+  summary: 'Calculate payslips for run',
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: PayrollRunSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: PayrollRunSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/payroll-run/{id}/approve",
+  method: 'post',
+  path: '/api/v1/payroll-run/{id}/approve',
   tags,
-  summary: "Approve calculated run",
+  summary: 'Approve calculated run',
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: PayrollRunSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: PayrollRunSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/payroll-run/{id}/paid",
+  method: 'post',
+  path: '/api/v1/payroll-run/{id}/paid',
   tags,
-  summary: "Mark run as paid",
+  summary: 'Mark run as paid',
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: PayrollRunSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: PayrollRunSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "get",
-  path: "/api/payroll-run/{id}/bank-file",
+  method: 'get',
+  path: '/api/v1/payroll-run/{id}/bank-file',
   tags,
-  summary: "Download bank transfer CSV",
+  summary: 'Download bank transfer CSV',
   request: { params: z.object({ id: IdStringSchema }) },
-  responses: { 200: { description: "CSV file" } },
+  responses: { 200: { description: 'CSV file' } },
 });
 
 // Attendance
 registry.registerPath({
-  method: "get",
-  path: "/api/attendance",
+  method: 'get',
+  path: '/api/v1/attendance',
   tags,
-  summary: "List attendance logs",
+  summary: 'List attendance logs',
   responses: listResponse(AttendanceLogSchema),
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/attendance",
+  method: 'post',
+  path: '/api/v1/attendance',
   tags,
-  summary: "Add attendance log",
+  summary: 'Add attendance log',
   request: {
     body: {
-      content: { "application/json": { schema: AttendanceLogCreateSchema } },
+      content: { 'application/json': { schema: AttendanceLogCreateSchema } },
     },
   },
   responses: {
     201: {
-      description: "Created",
-      content: { "application/json": { schema: AttendanceLogSchema } },
+      description: 'Created',
+      content: { 'application/json': { schema: AttendanceLogSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "delete",
-  path: "/api/attendance/{id}",
+  method: 'delete',
+  path: '/api/v1/attendance/{id}',
   tags,
-  summary: "Delete attendance log",
+  summary: 'Delete attendance log',
   request: { params: z.object({ id: IdStringSchema }) },
-  responses: { 200: { description: "Deleted" } },
+  responses: { 200: { description: 'Deleted' } },
 });
 
 registry.registerPath({
-  method: "get",
-  path: "/api/attendance-geofence",
+  method: 'get',
+  path: '/api/v1/attendance-geofence',
   tags,
-  summary: "List geofences",
+  summary: 'List geofences',
   responses: listResponse(AttendanceGeofenceSchema),
 });
 registry.registerPath({
-  method: "put",
-  path: "/api/attendance-geofence",
+  method: 'put',
+  path: '/api/v1/attendance-geofence',
   tags,
-  summary: "Upsert geofence (by outlet_id)",
+  summary: 'Upsert geofence (by outlet_id)',
   request: {
     body: {
       content: {
-        "application/json": { schema: AttendanceGeofenceUpsertSchema },
+        'application/json': { schema: AttendanceGeofenceUpsertSchema },
       },
     },
   },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: AttendanceGeofenceSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: AttendanceGeofenceSchema } },
     },
   },
 });
 
 // Shift
 registry.registerPath({
-  method: "get",
-  path: "/api/shift",
+  method: 'get',
+  path: '/api/v1/shift',
   tags,
-  summary: "List shifts",
+  summary: 'List shifts',
   responses: listResponse(ShiftSchema),
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/shift",
+  method: 'post',
+  path: '/api/v1/shift',
   tags,
-  summary: "Create shift",
+  summary: 'Create shift',
   request: {
-    body: { content: { "application/json": { schema: ShiftCreateSchema } } },
+    body: { content: { 'application/json': { schema: ShiftCreateSchema } } },
   },
   responses: {
     201: {
-      description: "Created",
-      content: { "application/json": { schema: ShiftSchema } },
+      description: 'Created',
+      content: { 'application/json': { schema: ShiftSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "put",
-  path: "/api/shift/{id}",
+  method: 'put',
+  path: '/api/v1/shift/{id}',
   tags,
-  summary: "Update shift",
+  summary: 'Update shift',
   request: {
     params: z.object({ id: IdStringSchema }),
-    body: { content: { "application/json": { schema: ShiftUpdateSchema } } },
+    body: { content: { 'application/json': { schema: ShiftUpdateSchema } } },
   },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: ShiftSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: ShiftSchema } },
     },
     ...notFound(),
   },
 });
 registry.registerPath({
-  method: "delete",
-  path: "/api/shift/{id}",
+  method: 'delete',
+  path: '/api/v1/shift/{id}',
   tags,
-  summary: "Delete shift",
+  summary: 'Delete shift',
   request: { params: z.object({ id: IdStringSchema }) },
-  responses: { 200: { description: "Deleted" } },
+  responses: { 200: { description: 'Deleted' } },
 });
 
 // Schedule
 registry.registerPath({
-  method: "get",
-  path: "/api/schedule",
+  method: 'get',
+  path: '/api/v1/schedule',
   tags,
-  summary: "List schedule assignments (range)",
+  summary: 'List schedule assignments (range)',
   request: {
     query: z.object({
       from: z.string(),
@@ -925,146 +891,146 @@ registry.registerPath({
   responses: listResponse(ScheduleAssignmentSchema),
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/schedule/assign",
+  method: 'post',
+  path: '/api/v1/schedule/assign',
   tags,
-  summary: "Bulk assign shifts",
+  summary: 'Bulk assign shifts',
   request: {
     body: {
-      content: { "application/json": { schema: ScheduleAssignSchema } },
+      content: { 'application/json': { schema: ScheduleAssignSchema } },
     },
   },
-  responses: { 200: { description: "OK" } },
+  responses: { 200: { description: 'OK' } },
 });
 registry.registerPath({
-  method: "delete",
-  path: "/api/schedule/{id}",
+  method: 'delete',
+  path: '/api/v1/schedule/{id}',
   tags,
-  summary: "Delete schedule assignment",
+  summary: 'Delete schedule assignment',
   request: { params: z.object({ id: IdStringSchema }) },
-  responses: { 200: { description: "Deleted" } },
+  responses: { 200: { description: 'Deleted' } },
 });
 
 registry.registerPath({
-  method: "get",
-  path: "/api/schedule-swap",
+  method: 'get',
+  path: '/api/v1/schedule-swap',
   tags,
-  summary: "List swap requests",
+  summary: 'List swap requests',
   responses: listResponse(ScheduleSwapSchema),
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/schedule-swap",
+  method: 'post',
+  path: '/api/v1/schedule-swap',
   tags,
-  summary: "Create swap request",
+  summary: 'Create swap request',
   request: {
     body: {
       content: {
-        "application/json": { schema: ScheduleSwapCreateSchema },
+        'application/json': { schema: ScheduleSwapCreateSchema },
       },
     },
   },
   responses: {
     201: {
-      description: "Created",
-      content: { "application/json": { schema: ScheduleSwapSchema } },
+      description: 'Created',
+      content: { 'application/json': { schema: ScheduleSwapSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/schedule-swap/{id}/approve",
+  method: 'post',
+  path: '/api/v1/schedule-swap/{id}/approve',
   tags,
-  summary: "Approve swap (atomic exchange of dates/shifts)",
+  summary: 'Approve swap (atomic exchange of dates/shifts)',
   request: {
     params: z.object({ id: IdStringSchema }),
     body: {
       content: {
-        "application/json": { schema: ScheduleSwapDecisionSchema },
+        'application/json': { schema: ScheduleSwapDecisionSchema },
       },
     },
   },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: ScheduleSwapSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: ScheduleSwapSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/schedule-swap/{id}/reject",
+  method: 'post',
+  path: '/api/v1/schedule-swap/{id}/reject',
   tags,
-  summary: "Reject swap",
+  summary: 'Reject swap',
   request: {
     params: z.object({ id: IdStringSchema }),
     body: {
       content: {
-        "application/json": { schema: ScheduleSwapDecisionSchema },
+        'application/json': { schema: ScheduleSwapDecisionSchema },
       },
     },
   },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: ScheduleSwapSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: ScheduleSwapSchema } },
     },
   },
 });
 
 // Approval chain
 registry.registerPath({
-  method: "get",
-  path: "/api/approval-chain",
+  method: 'get',
+  path: '/api/v1/approval-chain',
   tags,
-  summary: "List approval chains",
+  summary: 'List approval chains',
   responses: listResponse(ApprovalChainSchema),
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/approval-chain",
+  method: 'post',
+  path: '/api/v1/approval-chain',
   tags,
-  summary: "Create approval chain",
+  summary: 'Create approval chain',
   request: {
     body: {
       content: {
-        "application/json": { schema: ApprovalChainCreateSchema },
+        'application/json': { schema: ApprovalChainCreateSchema },
       },
     },
   },
   responses: {
     201: {
-      description: "Created",
-      content: { "application/json": { schema: ApprovalChainSchema } },
+      description: 'Created',
+      content: { 'application/json': { schema: ApprovalChainSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "put",
-  path: "/api/approval-chain/{id}",
+  method: 'put',
+  path: '/api/v1/approval-chain/{id}',
   tags,
-  summary: "Update approval chain",
+  summary: 'Update approval chain',
   request: {
     params: z.object({ id: IdStringSchema }),
     body: {
       content: {
-        "application/json": { schema: ApprovalChainUpdateSchema },
+        'application/json': { schema: ApprovalChainUpdateSchema },
       },
     },
   },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: ApprovalChainSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: ApprovalChainSchema } },
     },
     ...notFound(),
   },
 });
 registry.registerPath({
-  method: "delete",
-  path: "/api/approval-chain/{id}",
+  method: 'delete',
+  path: '/api/v1/approval-chain/{id}',
   tags,
-  summary: "Delete approval chain",
+  summary: 'Delete approval chain',
   request: { params: z.object({ id: IdStringSchema }) },
-  responses: { 200: { description: "Deleted" } },
+  responses: { 200: { description: 'Deleted' } },
 });

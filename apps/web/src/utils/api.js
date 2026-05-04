@@ -15,7 +15,10 @@ import axios from 'axios';
 const ACCESS_KEY = 'vipos_token';
 const REFRESH_KEY = 'vipos_refresh_token';
 
-const baseURL = `${import.meta.env.BASE_URL}api`;
+// API base URL — pakai prefix `/api/v1/` (canonical, P2-07). Legacy `/api/*`
+// masih bekerja sebagai backward-compat alias dengan `Deprecation` /
+// `Sunset` header sampai sunset date di apps/backend/src/api-version.js.
+const baseURL = `${import.meta.env.BASE_URL}api/v1`;
 
 const api = axios.create({
   baseURL,
@@ -47,9 +50,13 @@ async function refreshTokens() {
   const refresh_token = getRefreshToken();
   if (!refresh_token) throw new Error('no_refresh_token');
   refreshInFlight = axios
-    .post(`${baseURL}/auth/refresh`, { refresh_token }, {
-      headers: { 'Content-Type': 'application/json' },
-    })
+    .post(
+      `${baseURL}/auth/refresh`,
+      { refresh_token },
+      {
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )
     .then((res) => {
       setTokens(res.data);
       return res.data.token;
@@ -80,7 +87,8 @@ api.interceptors.response.use(
   async (error) => {
     const original = error.config;
     const status = error.response?.status;
-    const isAuthEndpoint = original?.url?.includes('/auth/login') || original?.url?.includes('/auth/refresh');
+    const isAuthEndpoint =
+      original?.url?.includes('/auth/login') || original?.url?.includes('/auth/refresh');
     if (status === 401 && !original?._retry && !isAuthEndpoint) {
       original._retry = true;
       try {
@@ -94,7 +102,7 @@ api.interceptors.response.use(
       if (!isAuthEndpoint) redirectToLogin();
     }
     return Promise.reject(error);
-  },
+  }
 );
 
 export default api;

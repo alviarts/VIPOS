@@ -1,31 +1,27 @@
-// Schema untuk endpoint /api/promo/* — 8 jenis promo (PERCENT, NOMINAL,
+// Schema untuk endpoint /api/v1/promo/* — 8 jenis promo (PERCENT, NOMINAL,
 // FREE_PRODUCT, BUY_X_GET_Y, BUNDLE_PRICE, MIN_PURCHASE, STEP_DISCOUNT,
 // MEMBER_PRICE) + kondisi waktu/customer-group/produk/min-purchase.
 
-import { z, registry } from "../openapi";
-import {
-  DateTimeStringSchema,
-  ErrorResponseSchema,
-  IdStringSchema,
-} from "./common";
+import { z, registry } from '../openapi';
+import { DateTimeStringSchema, ErrorResponseSchema, IdStringSchema } from './common';
 
 const PromoTypeSchema = z.enum([
-  "PERCENT",
-  "NOMINAL",
-  "FREE_PRODUCT",
-  "BUY_X_GET_Y",
-  "BUNDLE_PRICE",
-  "MIN_PURCHASE",
-  "STEP_DISCOUNT",
-  "MEMBER_PRICE",
+  'PERCENT',
+  'NOMINAL',
+  'FREE_PRODUCT',
+  'BUY_X_GET_Y',
+  'BUNDLE_PRICE',
+  'MIN_PURCHASE',
+  'STEP_DISCOUNT',
+  'MEMBER_PRICE',
 ]);
 export type PromoType = z.infer<typeof PromoTypeSchema>;
 
 const DiscountTargetSchema = z.enum([
-  "WHOLE_CART",
-  "TARGET_PRODUCTS",
-  "CHEAPEST_OF_TARGET",
-  "MOST_EXPENSIVE_OF_TARGET",
+  'WHOLE_CART',
+  'TARGET_PRODUCTS',
+  'CHEAPEST_OF_TARGET',
+  'MOST_EXPENSIVE_OF_TARGET',
 ]);
 export type DiscountTarget = z.infer<typeof DiscountTargetSchema>;
 
@@ -41,7 +37,7 @@ export type StepTier = z.infer<typeof StepTierSchema>;
 
 const TimeOfDaySchema = z
   .string()
-  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Format waktu HH:MM (00:00-23:59)");
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Format waktu HH:MM (00:00-23:59)');
 
 export const PromoSchema = z
   .object({
@@ -75,12 +71,12 @@ export const PromoSchema = z
     created_at: DateTimeStringSchema.optional(),
     updated_at: DateTimeStringSchema.optional(),
   })
-  .openapi("Promo");
+  .openapi('Promo');
 export type Promo = z.infer<typeof PromoSchema>;
 
 export const PromoCreateSchema = z
   .object({
-    name: z.string().min(1, "Nama promo wajib diisi").max(120),
+    name: z.string().min(1, 'Nama promo wajib diisi').max(120),
     description: z.string().max(1024).optional().nullable(),
     promo_type: PromoTypeSchema,
     discount_value: z.coerce.number().nonnegative().default(0),
@@ -88,7 +84,7 @@ export const PromoCreateSchema = z
     bundle_price: z.coerce.number().nonnegative().optional().nullable(),
     qty_required: z.coerce.number().int().nonnegative().default(0),
     give_qty: z.coerce.number().int().nonnegative().default(0),
-    discount_target: DiscountTargetSchema.default("WHOLE_CART"),
+    discount_target: DiscountTargetSchema.default('WHOLE_CART'),
     target_product_ids: IdArraySchema.default([]),
     target_category_ids: IdArraySchema.default([]),
     customer_group_ids: IdArraySchema.default([]),
@@ -105,105 +101,102 @@ export const PromoCreateSchema = z
     requires_coupon: z.coerce.boolean().default(false),
     is_active: z.coerce.boolean().default(true),
   })
-  .openapi("PromoCreateRequest");
+  .openapi('PromoCreateRequest');
 export type PromoCreate = z.infer<typeof PromoCreateSchema>;
 
-export const PromoUpdateSchema = PromoCreateSchema.partial().openapi(
-  "PromoUpdateRequest"
-);
+export const PromoUpdateSchema = PromoCreateSchema.partial().openapi('PromoUpdateRequest');
 export type PromoUpdate = z.infer<typeof PromoUpdateSchema>;
 
 // --- OpenAPI registrations ------------------------------------------------
 
 const json = (schema: z.ZodTypeAny) => ({
-  "application/json": { schema },
+  'application/json': { schema },
 });
 const okMessage = z.object({ message: z.string() });
 
 registry.registerPath({
-  method: "get",
-  path: "/api/promo",
-  description:
-    "List semua promo dengan filter optional (is_active, promo_type, search).",
-  tags: ["Promos"],
+  method: 'get',
+  path: '/api/v1/promo',
+  description: 'List semua promo dengan filter optional (is_active, promo_type, search).',
+  tags: ['Promos'],
   security: [{ bearerAuth: [] }],
   request: {
     query: z.object({
-      is_active: z.enum(["0", "1"]).optional(),
+      is_active: z.enum(['0', '1']).optional(),
       promo_type: PromoTypeSchema.optional(),
       search: z.string().optional(),
     }),
   },
   responses: {
     200: {
-      description: "Array promo",
+      description: 'Array promo',
       content: json(z.array(PromoSchema)),
     },
   },
 });
 
 registry.registerPath({
-  method: "get",
-  path: "/api/promo/{id}",
-  description: "Detail satu promo.",
-  tags: ["Promos"],
+  method: 'get',
+  path: '/api/v1/promo/{id}',
+  description: 'Detail satu promo.',
+  tags: ['Promos'],
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
-    200: { description: "Promo", content: json(PromoSchema) },
+    200: { description: 'Promo', content: json(PromoSchema) },
     404: {
-      description: "Tidak ditemukan",
+      description: 'Tidak ditemukan',
       content: json(ErrorResponseSchema),
     },
   },
 });
 
 registry.registerPath({
-  method: "post",
-  path: "/api/promo",
-  description: "Buat promo baru (admin).",
-  tags: ["Promos"],
+  method: 'post',
+  path: '/api/v1/promo',
+  description: 'Buat promo baru (admin).',
+  tags: ['Promos'],
   security: [{ bearerAuth: [] }],
   request: { body: { required: true, content: json(PromoCreateSchema) } },
   responses: {
-    201: { description: "Promo dibuat", content: json(PromoSchema) },
+    201: { description: 'Promo dibuat', content: json(PromoSchema) },
     400: {
-      description: "Validation error",
+      description: 'Validation error',
       content: json(ErrorResponseSchema),
     },
   },
 });
 
 registry.registerPath({
-  method: "put",
-  path: "/api/promo/{id}",
-  description: "Update promo (admin).",
-  tags: ["Promos"],
+  method: 'put',
+  path: '/api/v1/promo/{id}',
+  description: 'Update promo (admin).',
+  tags: ['Promos'],
   security: [{ bearerAuth: [] }],
   request: {
     params: z.object({ id: IdStringSchema }),
     body: { required: true, content: json(PromoUpdateSchema) },
   },
   responses: {
-    200: { description: "Promo ter-update", content: json(PromoSchema) },
+    200: { description: 'Promo ter-update', content: json(PromoSchema) },
     404: {
-      description: "Tidak ditemukan",
+      description: 'Tidak ditemukan',
       content: json(ErrorResponseSchema),
     },
   },
 });
 
 registry.registerPath({
-  method: "delete",
-  path: "/api/promo/{id}",
-  description: "Hapus promo (admin). Akan cascade hapus coupon terkait.",
-  tags: ["Promos"],
+  method: 'delete',
+  path: '/api/v1/promo/{id}',
+  description: 'Hapus promo (admin). Akan cascade hapus coupon terkait.',
+  tags: ['Promos'],
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
-    200: { description: "Berhasil", content: json(okMessage) },
+    200: { description: 'Berhasil', content: json(okMessage) },
     404: {
-      description: "Tidak ditemukan",
+      description: 'Tidak ditemukan',
       content: json(ErrorResponseSchema),
     },
   },

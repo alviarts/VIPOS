@@ -98,7 +98,7 @@ function RunsTab() {
 
   function downloadBankFile() {
     if (!detail) return;
-    const url = `/api/payroll-run/${detail.id}/bank-file`;
+    const url = `${import.meta.env.BASE_URL}api/v1/payroll-run/${detail.id}/bank-file`;
     const a = document.createElement('a');
     a.href = url;
     a.target = '_blank';
