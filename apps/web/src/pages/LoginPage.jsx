@@ -89,7 +89,9 @@ export default function LoginPage() {
               <form onSubmit={handleCredentials}>
                 <div className="space-y-5">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Username</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Username
+                    </label>
                     <input
                       type="text"
                       value={username}
@@ -104,7 +106,10 @@ export default function LoginPage() {
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="block text-sm font-medium text-gray-700">Password</label>
-                      <Link to="/forgot-password" className="text-xs font-medium text-primary-600 hover:underline">
+                      <Link
+                        to="/forgot-password"
+                        className="text-xs font-medium text-primary-600 hover:underline"
+                      >
                         Lupa password?
                       </Link>
                     </div>
@@ -122,7 +127,11 @@ export default function LoginPage() {
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                       >
-                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        {showPassword ? (
+                          <EyeOff className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -150,6 +159,13 @@ export default function LoginPage() {
                   )}
                 </button>
               </form>
+
+              <p className="text-center text-sm text-gray-600 mt-6">
+                Belum punya akun?{' '}
+                <Link to="/signup" className="font-medium text-primary-600 hover:underline">
+                  Daftar gratis
+                </Link>
+              </p>
             </>
           ) : (
             <>

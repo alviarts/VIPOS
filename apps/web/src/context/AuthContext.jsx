@@ -3,12 +3,7 @@
 // Talks to /api/auth/* and keeps the access + refresh token in localStorage.
 // All HTTP requests go through `utils/api.js` which auto-refreshes 401s.
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import api, {
-  clearTokens,
-  getAccessToken,
-  getRefreshToken,
-  setTokens,
-} from '../utils/api';
+import api, { clearTokens, getAccessToken, getRefreshToken, setTokens } from '../utils/api';
 
 const AuthContext = createContext(null);
 
@@ -77,9 +72,38 @@ export function AuthProvider({ children }) {
     return res.data.user;
   };
 
+  // Self-service tenant signup. Calls POST /api/v1/tenant/register, which
+  // creates the tenant + first admin user in a single tx and returns access
+  // + refresh tokens. On success we authenticate the new admin immediately
+  // (no double-login round-trip), then return the user so the caller can
+  // navigate to /onboarding (PR-3) or /dashboard.
+  const signupTenant = async ({
+    tenant_slug,
+    tenant_name,
+    admin_username,
+    admin_password,
+    admin_name,
+    admin_email,
+    tier = 'lite',
+  }) => {
+    const res = await api.post('/tenant/register', {
+      tenant_slug,
+      tenant_name,
+      tier,
+      admin_username,
+      admin_password,
+      admin_name,
+      admin_email: admin_email || undefined,
+    });
+    setTokens(res.data);
+    setToken(res.data.token);
+    setUser(res.data.user);
+    return { user: res.data.user, tenant: res.data.tenant };
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, token, loading, login, verifyLogin2FA, logout }}
+      value={{ user, token, loading, login, verifyLogin2FA, signupTenant, logout }}
     >
       {children}
     </AuthContext.Provider>
