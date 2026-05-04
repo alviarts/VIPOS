@@ -1,0 +1,109 @@
+{
+  "id": "retail",
+  "name": "Retail / Toko Sembako",
+  "tagline": "Cocok untuk toko kelontong, mini-market, sembako, ritel UMKM",
+  "categories": [
+    { "name": "Sembako", "color": "#F59E0B", "urutan": 1 },
+    { "name": "Snack & Makanan Ringan", "color": "#EF4444", "urutan": 2 },
+    { "name": "Minuman", "color": "#3B82F6", "urutan": 3 },
+    { "name": "Toiletries", "color": "#8B5CF6", "urutan": 4 }
+  ],
+  "products": [
+    {
+      "sku": "RTL-001",
+      "name": "Beras Premium 5kg",
+      "category": "Sembako",
+      "price": 75000,
+      "harga_modal": 65000,
+      "satuan": "karung",
+      "description": "Beras premium kemasan 5 kilogram",
+      "stock": 20,
+      "monitor_stok": 1,
+      "stok_minimum": 5
+    },
+    {
+      "sku": "RTL-002",
+      "name": "Minyak Goreng 1 Liter",
+      "category": "Sembako",
+      "price": 18000,
+      "harga_modal": 15000,
+      "satuan": "botol",
+      "description": "Minyak goreng kemasan 1 liter",
+      "stock": 30,
+      "monitor_stok": 1,
+      "stok_minimum": 6
+    },
+    {
+      "sku": "RTL-003",
+      "name": "Gula Pasir 1kg",
+      "category": "Sembako",
+      "price": 15000,
+      "harga_modal": 12000,
+      "satuan": "kg",
+      "description": "Gula pasir putih kemasan 1 kilogram",
+      "stock": 40,
+      "monitor_stok": 1,
+      "stok_minimum": 8
+    },
+    {
+      "sku": "RTL-004",
+      "name": "Indomie Goreng",
+      "category": "Snack & Makanan Ringan",
+      "price": 3500,
+      "harga_modal": 2700,
+      "satuan": "bungkus",
+      "description": "Mie instan goreng original",
+      "stock": 100,
+      "monitor_stok": 1,
+      "stok_minimum": 24
+    },
+    {
+      "sku": "RTL-005",
+      "name": "Aqua 600ml",
+      "category": "Minuman",
+      "price": 4000,
+      "harga_modal": 2500,
+      "satuan": "botol",
+      "description": "Air mineral kemasan botol 600ml",
+      "stock": 48,
+      "monitor_stok": 1,
+      "stok_minimum": 12
+    },
+    {
+      "sku": "RTL-006",
+      "name": "Teh Kotak 250ml",
+      "category": "Minuman",
+      "price": 5500,
+      "harga_modal": 3800,
+      "satuan": "kotak",
+      "description": "Teh dalam kemasan kotak 250ml",
+      "stock": 36,
+      "monitor_stok": 1,
+      "stok_minimum": 12
+    },
+    {
+      "sku": "RTL-007",
+      "name": "Sabun Mandi Lifebuoy",
+      "category": "Toiletries",
+      "price": 8000,
+      "harga_modal": 5500,
+      "satuan": "pcs",
+      "description": "Sabun mandi batangan kemasan kecil",
+      "stock": 24,
+      "monitor_stok": 1,
+      "stok_minimum": 6
+    },
+    {
+      "sku": "RTL-008",
+      "name": "Pasta Gigi Pepsodent 75g",
+      "category": "Toiletries",
+      "price": 12000,
+      "harga_modal": 8500,
+      "satuan": "tube",
+      "description": "Pasta gigi kemasan tube 75 gram",
+      "stock": 18,
+      "monitor_stok": 1,
+      "stok_minimum": 6
+    }
+  ]
+}
