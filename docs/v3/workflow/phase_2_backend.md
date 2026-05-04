@@ -28,12 +28,13 @@
 
 **Sub-task split (executed)**:
 
-- **P2-01a — Infrastructure** (this PR): Prisma + schema + initial migration + data sync tool + backup script + .env.example. Routes belum migrate; semua test masih jalan via better-sqlite3.
-- **P2-01b — Route cutover** (next PR): Replace 759 raw SQL `.prepare()` calls di 45 route file → Prisma client. Drop better-sqlite3 dependency. Production deploy switch ke Postgres.
+- **P2-01a — Infrastructure** `[done]`: Prisma + schema + initial migration + data sync tool + backup script + .env.example. Routes belum migrate; semua test masih jalan via better-sqlite3.
+  PR: [#41](https://github.com/alviarts/VIPOS/pull/41) (merged 2026-05-04, sha `b9d6869`), session: https://app.devin.ai/sessions/b8f03d6f55d34ed1acb3242d3fb8f910
+- **P2-01b — Route cutover** `[pending]`: Replace 759 raw SQL `.prepare()` calls di 45 route file → Prisma client. Drop better-sqlite3 dependency. Production deploy switch ke Postgres.
 
 **Acceptance criteria**:
 
-- [x] Postgres running (Supabase staging + Docker lokal)
+- [x] Postgres running (Supabase staging + Docker lokal) `[P2-01a]`
 - [x] Schema sama dengan SQLite version (97 model di Prisma) `[P2-01a]`
 - [x] Migration tool berfungsi (`prisma migrate dev/deploy`) `[P2-01a]`
 - [x] Initial migration applied ke Supabase staging `[P2-01a]`
@@ -44,8 +45,8 @@
 - [ ] Existing endpoints semua working di Postgres `[P2-01b]`
 - [ ] Drop better-sqlite3 dependency `[P2-01b]`
 
-**Branch**: `devin/P2-01a-postgres-infrastructure` (P2-01a), `devin/P2-01b-prisma-cutover` (P2-01b, future)
-**Estimasi**: 5-7 hari (P2-01a 1 hari, P2-01b 4-6 hari)
+**Branch**: `devin/P2-01a-postgres-infrastructure` (P2-01a, merged), `devin/P2-01b-prisma-cutover` (P2-01b, future)
+**Estimasi**: 5-7 hari (P2-01a ✅ 1 hari, P2-01b 4-6 hari)
 
 ---
 
