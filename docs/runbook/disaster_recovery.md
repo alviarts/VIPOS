@@ -136,12 +136,104 @@ This spins up two ephemeral Postgres containers, dumps from one and restores int
 
 ---
 
-## 5. Auto-test in staging (P2-08 PR-B follow-up)
+## 5. Auto-test recovery in staging
 
-A weekly recovery test in staging is tracked separately under P2-08 PR-B. When that ships, this section will document:
+A recurring BullMQ job verifies that the daily dumps are actually _restorable_, not just _uploaded_. Wired in `apps/backend/src/jobs/restore-test.js` and registered by `apps/backend/src/jobs/index.js`.
 
-- The `restore-test` recurring queue + its cron
-- The expected Prometheus signal that the staging restore succeeded
-- Where to find the staging diff against production schema
+### 5.1 Schedule + scope
 
-Until then, run `test-backup-restore.sh` manually once a month.
+| Property   | Value                                                                                                                              |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Queue      | `restore-test`                                                                                                                     |
+| Scheduler  | `restore-test-weekly`                                                                                                              |
+| Cron (UTC) | `0 4 * * 0` (Sundays 04:00 — runs after the 02:00 daily dump and 02:30 uploads sync, with the alias roll-over already settled)     |
+| Source     | latest object under `${BACKUP_S3_PREFIX}/daily/` (newest by `LastModified`) — we test the freshest backup, not the weekly snapshot |
+| Target     | a throwaway database on the staging Postgres reachable via `RESTORE_TEST_DATABASE_URL` (admin role)                                |
+
+Per run, the worker:
+
+1. lists `${BACKUP_S3_PREFIX}/daily/` and picks the freshest dump,
+2. streams it to a tmp file,
+3. opens the admin URL and `CREATE DATABASE "vipos_restore_test_<ts>_<rand>"`,
+4. `pg_restore --clean --if-exists --no-owner --no-acl` into the sandbox,
+5. runs read-only sanity queries (`count(*)` on `users`, `tenants`, `audit_logs`, `_prisma_migrations` plus `MAX(audit_logs.created_at)`),
+6. `DROP DATABASE IF EXISTS` the sandbox + removes the tmp file in `finally`, regardless of outcome.
+
+The job is **off by default** so production workers never run it. Staging opts in with `BACKUP_RESTORE_TEST_ENABLED=1`. When the env is unset (or `S3_BUCKET` / `RESTORE_TEST_DATABASE_URL` is missing) the processor returns `{ skipped: ... }` without touching S3 or Postgres — those runs count as `skipped` in metrics, never as `failed`.
+
+### 5.2 Environment contract (staging worker)
+
+| Var                           | Required | Notes                                                                                                                                                       |
+| ----------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BACKUP_RESTORE_TEST_ENABLED` | yes      | Set to `1` on the staging worker host. Leave unset everywhere else.                                                                                         |
+| `RESTORE_TEST_DATABASE_URL`   | yes      | Admin connection string with `CREATEDB` privilege. The path component (database name) is replaced per-run, so point this at e.g. `postgres` or `template1`. |
+| `S3_BUCKET` + `S3_*` creds    | yes      | Same contract as the rest of P2-08; reused as-is.                                                                                                           |
+| `BACKUP_S3_PREFIX`            | optional | Defaults to `vipos-backups`. Must match the value on the producer host.                                                                                     |
+| `BACKUP_NOTIFY_EMAILS`        | optional | Same comma-separated list used by `db-backup` / `uploads-backup`.                                                                                           |
+
+The admin role only needs:
+
+```sql
+GRANT CREATEDB ON DATABASE postgres TO restore_test_admin;
+-- pg_restore inside the sandbox runs as the same role, so it also
+-- needs to be able to create / own arbitrary objects in any database
+-- it owns. CREATEDB is sufficient on most managed Postgres deploys.
+```
+
+### 5.3 Expected signals
+
+| Signal                                                                     | Means                                                                                                                                       |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vipos_backup_restore_test_total{status="passed"}` increments every Sunday | Auto-test ran end-to-end.                                                                                                                   |
+| `vipos_backup_restore_test_total{status="skipped"}` increments instead     | Job is gated off (env unset / no storage / no admin URL). Expected on production workers.                                                   |
+| `vipos_backup_restore_test_total{status="failed"}` increments              | Restore broke. Check Sentry (tags `component=backup`, `queue=restore-test`) and the `backup-failed` email. The original dump is unaffected. |
+| `vipos_backup_restore_test_duration_seconds` p95                           | Tracks how long a clean restore takes. Spikes hint at growing dump size or a slow sandbox host.                                             |
+
+The existing `attachBackupFailureNotifier(worker, 'restore-test')` hook re-uses the same Sentry + email pipeline as `db-backup` / `uploads-backup`, so on-call already gets paged on failure — no new alerting wiring is needed.
+
+### 5.4 Manual invocation (for triage)
+
+Re-running the auto-test on demand is useful when investigating a Sunday failure or after rotating R2 credentials. From the worker host:
+
+```
+node -e '
+  process.env.BACKUP_RESTORE_TEST_ENABLED = "1";
+  require("./apps/backend/src/jobs/restore-test")
+    .processRestoreTest({ data: {} })
+    .then((r) => console.log(JSON.stringify(r, null, 2)))
+    .catch((e) => { console.error(e); process.exit(1); });
+'
+```
+
+Or queue a one-shot job from a Node REPL with `restoreTestQueue.add('verify', {})` — the worker will pick it up the same way as the cron-driven run.
+
+### 5.5 Sandbox cleanup safety net
+
+The job drops its own sandbox in `finally`. If a worker crash or network blip ever leaves an orphan database behind, this cleanup query removes any `vipos_restore_test_*` databases older than 1 day:
+
+```sql
+DO $$
+DECLARE
+  r record;
+BEGIN
+  FOR r IN
+    SELECT datname FROM pg_database
+    WHERE datname LIKE 'vipos_restore_test_%'
+      AND (pg_stat_file('base/' || oid::text)).modification < now() - interval '1 day'
+  LOOP
+    EXECUTE format('DROP DATABASE IF EXISTS %I', r.datname);
+  END LOOP;
+END $$;
+```
+
+Run this monthly on the staging Postgres if you ever see lingering sandbox databases in `\l`.
+
+### 5.6 Manual smoke test (still useful)
+
+For a fully offline round-trip (no R2, no staging DB, no BullMQ) the original Docker-based smoke is still available:
+
+```
+./apps/backend/scripts/test-backup-restore.sh
+```
+
+Run that whenever you change the dump format flags or upgrade the Postgres major version, _in addition_ to the weekly auto-test.

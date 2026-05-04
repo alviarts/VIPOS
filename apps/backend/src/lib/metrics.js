@@ -60,6 +60,27 @@ const bullmqJobDurationSeconds = new promClient.Histogram({
   registers: [registry],
 });
 
+// P2-08 PR-B — restore-test specific signals. The generic
+// `bullmq_jobs_total` already counts every queue's completed/failed
+// events, but the restore-test outcome deserves its own counter +
+// histogram so an alert can fire on "no successful restore in N days"
+// without having to filter by queue label.
+const RESTORE_TEST_DURATION_BUCKETS = [1, 5, 15, 30, 60, 120, 300, 600, 1800, 3600];
+
+const backupRestoreTestTotal = new promClient.Counter({
+  name: `${METRIC_PREFIX}backup_restore_test_total`,
+  help: 'Total weekly restore-test outcomes, partitioned by status (passed/failed/skipped).',
+  labelNames: ['status'],
+  registers: [registry],
+});
+
+const backupRestoreTestDurationSeconds = new promClient.Histogram({
+  name: `${METRIC_PREFIX}backup_restore_test_duration_seconds`,
+  help: 'Wall-clock duration of the weekly restore-test job, in seconds.',
+  buckets: RESTORE_TEST_DURATION_BUCKETS,
+  registers: [registry],
+});
+
 /**
  * Resolve the route label for a request. Prefer the matched Express
  * route pattern (e.g. `/products/:id`) so high-cardinality dynamic
@@ -132,6 +153,25 @@ function observeBullJob(queue, status, durationSeconds) {
 }
 
 /**
+ * Record the outcome of a single weekly restore-test run. Increments
+ * the dedicated counter and (for completed runs) records the duration
+ * in the dedicated histogram so dashboards can answer "did the last
+ * restore succeed and how long did it take" without joining on the
+ * generic BullMQ metrics.
+ *
+ * @param {'passed' | 'failed' | 'skipped'} status
+ * @param {number} [durationSeconds] elapsed wall-clock time. Skipped
+ *   runs (env disabled, no storage, no admin url) pass `undefined`
+ *   because the histogram observation would be misleading.
+ */
+function observeRestoreTest(status, durationSeconds) {
+  backupRestoreTestTotal.inc({ status });
+  if (Number.isFinite(durationSeconds) && durationSeconds >= 0) {
+    backupRestoreTestDurationSeconds.observe(durationSeconds);
+  }
+}
+
+/**
  * Render the full Prometheus exposition format for the shared
  * registry. Returned string is suitable as the body of a `/metrics`
  * HTTP response (caller sets the content-type header).
@@ -151,6 +191,8 @@ function resetMetrics() {
   httpRequestDurationSeconds.reset();
   bullmqJobsTotal.reset();
   bullmqJobDurationSeconds.reset();
+  backupRestoreTestTotal.reset();
+  backupRestoreTestDurationSeconds.reset();
 }
 
 module.exports = {
@@ -159,12 +201,16 @@ module.exports = {
   METRIC_PREFIX,
   HTTP_DURATION_BUCKETS,
   BULL_DURATION_BUCKETS,
+  RESTORE_TEST_DURATION_BUCKETS,
   httpRequestsTotal,
   httpRequestDurationSeconds,
   bullmqJobsTotal,
   bullmqJobDurationSeconds,
+  backupRestoreTestTotal,
+  backupRestoreTestDurationSeconds,
   observeHttp,
   observeBullJob,
+  observeRestoreTest,
   renderMetrics,
   resetMetrics,
   resolveRoute,

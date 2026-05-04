@@ -36,6 +36,8 @@ const { processSettlement } = require('./settlement');
 const { processImportExport } = require('./import-export');
 const { processDbBackup } = require('./db-backup');
 const { processUploadsBackup } = require('./uploads-backup');
+const { processRestoreTest } = require('./restore-test');
+const { observeRestoreTest } = require('../lib/metrics');
 const { logger } = require('../lib/logger');
 const Sentry = require('@sentry/node');
 
@@ -51,6 +53,13 @@ const DB_BACKUP_SCHEDULER = 'db-backup-daily';
 const DB_BACKUP_CRON = '0 2 * * *'; // 02:00 UTC
 const UPLOADS_BACKUP_SCHEDULER = 'uploads-backup-daily';
 const UPLOADS_BACKUP_CRON = '30 2 * * *'; // 02:30 UTC
+
+// P2-08 PR-B — weekly restore-test schedule. Runs Sundays 04:00 UTC,
+// after the Sunday daily dump (02:00) + uploads sync (02:30) + alias
+// roll-over have settled. Off-by-default; staging worker enables via
+// `BACKUP_RESTORE_TEST_ENABLED=1`.
+const RESTORE_TEST_SCHEDULER = 'restore-test-weekly';
+const RESTORE_TEST_CRON = '0 4 * * 0'; // Sundays 04:00 UTC
 
 /**
  * Ensure the recurring audit-retention job exists. Safe to call repeatedly
@@ -108,6 +117,24 @@ async function scheduleBackups(queues) {
       }
     );
   }
+  // P2-08 PR-B — only register the weekly restore-test scheduler when
+  // the host explicitly opts in. Production workers leave the env unset
+  // so the job never fires there; staging exports the flag and supplies
+  // `RESTORE_TEST_DATABASE_URL` separately.
+  if (queues.restoreTest && process.env.BACKUP_RESTORE_TEST_ENABLED) {
+    await queues.restoreTest.upsertJobScheduler(
+      RESTORE_TEST_SCHEDULER,
+      { pattern: RESTORE_TEST_CRON },
+      {
+        name: 'verify',
+        data: {},
+        opts: {
+          removeOnComplete: { count: 100 },
+          removeOnFail: false,
+        },
+      }
+    );
+  }
 }
 
 /**
@@ -127,6 +154,7 @@ const WORKER_REGISTRY = Object.freeze([
   { name: QUEUE_NAMES.IMPORT_EXPORT, processor: processImportExport },
   { name: QUEUE_NAMES.DB_BACKUP, processor: processDbBackup },
   { name: QUEUE_NAMES.UPLOADS_BACKUP, processor: processUploadsBackup },
+  { name: QUEUE_NAMES.RESTORE_TEST, processor: processRestoreTest },
 ]);
 
 /**
@@ -215,6 +243,32 @@ function computeJobDurationSeconds(job) {
 }
 
 /**
+ * P2-08 PR-B — observe the restore-test outcome on the dedicated
+ * `vipos_backup_restore_test_*` metrics. Wired alongside the generic
+ * worker metrics so dashboards / alerts can fan out without filtering
+ * on the queue label.
+ *
+ * The `passed`/`failed` distinction comes from BullMQ's worker events;
+ * runs that hit a `{ skipped: ... }` early-return (env disabled, no
+ * storage, no admin url) emit `completed` with a non-throw return
+ * value — we still count those as `skipped` so the `passed` series
+ * doesn't get diluted by no-op runs in production.
+ *
+ * @param {import('bullmq').Worker} worker
+ */
+function attachRestoreTestMetrics(worker) {
+  worker.on('completed', (job, result) => {
+    const durationSeconds = computeJobDurationSeconds(job);
+    const status = result && typeof result === 'object' && result.skipped ? 'skipped' : 'passed';
+    observeRestoreTest(status, durationSeconds);
+  });
+  worker.on('failed', (job) => {
+    const durationSeconds = computeJobDurationSeconds(job);
+    observeRestoreTest('failed', durationSeconds);
+  });
+}
+
+/**
  * Start every registered worker. Returns a `stop()` callback that closes
  * everything cleanly, including the shared Redis connection.
  *
@@ -236,13 +290,20 @@ async function startWorkers(opts = {}) {
   // producer queues that might live in the same process during tests.
   const queues = [];
   const workers = [];
-  const BACKUP_QUEUES = new Set([QUEUE_NAMES.DB_BACKUP, QUEUE_NAMES.UPLOADS_BACKUP]);
+  const BACKUP_QUEUES = new Set([
+    QUEUE_NAMES.DB_BACKUP,
+    QUEUE_NAMES.UPLOADS_BACKUP,
+    QUEUE_NAMES.RESTORE_TEST,
+  ]);
   for (const { name, processor } of WORKER_REGISTRY) {
     const queue = createQueue(name);
     const worker = createWorker(name, processor);
     attachWorkerMetrics(worker, name);
     if (BACKUP_QUEUES.has(name)) {
       attachBackupFailureNotifier(worker, name);
+    }
+    if (name === QUEUE_NAMES.RESTORE_TEST) {
+      attachRestoreTestMetrics(worker);
     }
     queues.push(queue);
     workers.push(worker);
@@ -253,7 +314,8 @@ async function startWorkers(opts = {}) {
     if (auditQueue) await scheduleAuditRetention(auditQueue);
     const dbBackup = queues.find((q) => q.name === QUEUE_NAMES.DB_BACKUP);
     const uploadsBackup = queues.find((q) => q.name === QUEUE_NAMES.UPLOADS_BACKUP);
-    await scheduleBackups({ dbBackup, uploadsBackup });
+    const restoreTest = queues.find((q) => q.name === QUEUE_NAMES.RESTORE_TEST);
+    await scheduleBackups({ dbBackup, uploadsBackup, restoreTest });
   }
 
   return async function stop() {
@@ -282,11 +344,14 @@ module.exports = {
   scheduleBackups,
   attachWorkerMetrics,
   attachBackupFailureNotifier,
+  attachRestoreTestMetrics,
   AUDIT_RETENTION_SCHEDULER,
   AUDIT_RETENTION_CRON,
   DB_BACKUP_SCHEDULER,
   DB_BACKUP_CRON,
   UPLOADS_BACKUP_SCHEDULER,
   UPLOADS_BACKUP_CRON,
+  RESTORE_TEST_SCHEDULER,
+  RESTORE_TEST_CRON,
   WORKER_REGISTRY,
 };
