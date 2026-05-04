@@ -93,7 +93,7 @@ export default function SignupPage() {
         admin_email: adminEmail.trim(),
       });
       toast.success('Akun berhasil dibuat. Selamat datang di VIPOS!');
-      navigate('/dashboard');
+      navigate('/onboarding');
     } catch (err) {
       const message = err?.response?.data?.error || 'Gagal mendaftar. Coba lagi.';
       const status = err?.response?.status;

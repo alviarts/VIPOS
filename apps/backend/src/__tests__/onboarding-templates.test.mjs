@@ -116,6 +116,39 @@ describe('POST /api/v1/tenant/onboarding/seed-template', () => {
     expect(prods.rows.map((r) => r.sku)).toContain('FNB-001');
   });
 
+  it('POST /onboarding/complete — sets metadata.onboarding_completed_at, idempotent', async () => {
+    const reg = await request(app).post('/api/v1/tenant/register').send({
+      tenant_slug: 'merchant-onb-complete',
+      tenant_name: 'Onb Complete',
+      tier: 'lite',
+      admin_username: 'onb_complete_admin',
+      admin_password: 'rahasia123',
+      admin_name: 'Onb Complete Admin',
+    });
+    expect(reg.status).toBe(201);
+    expect(reg.body.tenant.metadata?.onboarding_completed_at).toBeUndefined();
+    const adminToken = reg.body.token;
+
+    const first = await request(app)
+      .post('/api/v1/tenant/onboarding/complete')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({});
+    expect(first.status).toBe(200);
+    expect(first.body.metadata).toBeTypeOf('object');
+    expect(first.body.metadata.onboarding_completed_at).toBeTypeOf('string');
+    const t1 = first.body.metadata.onboarding_completed_at;
+
+    // Idempotent: a second call updates the timestamp without error.
+    await new Promise((r) => setTimeout(r, 25));
+    const second = await request(app)
+      .post('/api/v1/tenant/onboarding/complete')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({});
+    expect(second.status).toBe(200);
+    expect(second.body.metadata.onboarding_completed_at).toBeTypeOf('string');
+    expect(second.body.metadata.onboarding_completed_at >= t1).toBe(true);
+  });
+
   it('201 — different presets seed different SKU prefixes into separate tenants', async () => {
     const reg = await request(app).post('/api/v1/tenant/register').send({
       tenant_slug: 'merchant-seed-retail',
