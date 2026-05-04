@@ -3,9 +3,10 @@
 // Composes Sidebar + Header + page outlet for all authenticated routes.
 // Stateful: sidebar collapsed (desktop) + sidebar drawer open (mobile).
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import ErrorBoundary from '../ErrorBoundary';
 
 const COLLAPSED_KEY = 'vipos_sidebar_collapsed';
 
@@ -22,6 +23,7 @@ function readInitialCollapsed() {
 export default function AppShell({ notificationCount = 3 }) {
   const [collapsed, setCollapsed] = useState(readInitialCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
 
   const handleToggleCollapsed = () => {
     setCollapsed((c) => {
@@ -51,7 +53,9 @@ export default function AppShell({ notificationCount = 3 }) {
           notificationCount={notificationCount}
         />
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          <Outlet />
+          <ErrorBoundary key={location.pathname} scope="route">
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </div>
