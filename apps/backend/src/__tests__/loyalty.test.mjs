@@ -18,7 +18,7 @@ async function login() {
 }
 
 beforeAll(async () => {
-  setupTestEnv();
+  await setupTestEnv();
   const { buildApp } = require('../app');
   app = buildApp({ morganEnabled: false });
   adminToken = await login();
@@ -29,8 +29,8 @@ beforeAll(async () => {
   customerId = cust.body.id;
 });
 
-afterAll(() => {
-  teardownTestEnv();
+afterAll(async () => {
+  await teardownTestEnv();
 });
 
 describe('POST /api/loyalty-rule', () => {

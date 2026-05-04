@@ -56,7 +56,7 @@ async function loadOpname(q, id) {
        FROM stock_opname_items oi
        LEFT JOIN products p ON p.id = oi.product_id
        WHERE oi.opname_id = $1
-       ORDER BY p.name COLLATE NOCASE`,
+       ORDER BY LOWER(p.name)`,
       [id]
     )
   ).rows;
@@ -121,7 +121,7 @@ router.post(
       } else {
         productList = (
           await query(
-            `SELECT id, stock FROM products WHERE is_active = 1 AND monitor_stok = 1 ORDER BY name COLLATE NOCASE`
+            `SELECT id, stock FROM products WHERE is_active = 1 AND monitor_stok = 1 ORDER BY LOWER(name)`
           )
         ).rows;
       }

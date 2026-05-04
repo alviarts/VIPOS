@@ -75,7 +75,7 @@ router.post(
         .rows[0];
       res.status(201).json({ ...row, saldo: await getAccountSaldo(query, row.id) });
     } catch (err) {
-      if (err.message.includes('UNIQUE')) {
+      if (err.code === '23505') {
         return res.status(400).json({ error: 'Kode akun sudah digunakan' });
       }
       res.status(500).json({ error: err.message });
@@ -112,7 +112,7 @@ router.put(
         .rows[0];
       res.json({ ...row, saldo: await getAccountSaldo(query, row.id) });
     } catch (err) {
-      if (err.message.includes('UNIQUE')) {
+      if (err.code === '23505') {
         return res.status(400).json({ error: 'Kode akun sudah digunakan' });
       }
       res.status(500).json({ error: err.message });

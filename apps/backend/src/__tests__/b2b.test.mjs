@@ -52,7 +52,7 @@ async function createCustomer(name = 'PT B2B') {
 }
 
 beforeAll(async () => {
-  setupTestEnv();
+  await setupTestEnv();
   const { buildApp } = require('../app');
   app = buildApp({ morganEnabled: false });
   adminToken = await login();
@@ -62,8 +62,8 @@ beforeAll(async () => {
   customerId = await createCustomer();
 });
 
-afterAll(() => {
-  teardownTestEnv();
+afterAll(async () => {
+  await teardownTestEnv();
 });
 
 describe('POST /api/quotation', () => {

@@ -16,6 +16,24 @@ jobs:
     name: build (web + backend)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: vipos_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d vipos_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/vipos_test
+      DIRECT_URL: postgresql://test:test@localhost:5432/vipos_test
+      DATABASE_DRIVER: postgres
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,6 +47,10 @@ jobs:
       - name: Install dependencies (root + workspaces)
         run: npm ci
 
+      - name: Apply Prisma migrations to CI Postgres
+        working-directory: apps/backend
+        run: npx prisma migrate deploy
+
       - name: Build all workspaces
         run: npm run build
 
@@ -37,11 +59,13 @@ jobs:
           NODE_ENV: production
           JWT_SECRET: ci-smoke-secret
           PORT: 3001
+          DATABASE_URL: postgresql://test:test@localhost:5432/vipos_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/vipos_test
+          DATABASE_DRIVER: postgres
         run: |
           # Boot the backend in the background, hit /api/health, then kill it.
           # Proves the production entry point still resolves the new monorepo
           # paths (e.g. ../../web/dist) without throwing.
-          mkdir -p apps/backend/data
           (cd apps/backend && node src/index.js &) >/tmp/backend.log 2>&1
           for i in $(seq 1 20); do
             if curl -fsS http://localhost:3001/api/health >/dev/null 2>&1; then
@@ -79,6 +103,25 @@ jobs:
     name: test (--if-present)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: vipos_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d vipos_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/vipos_test
+      DIRECT_URL: postgresql://test:test@localhost:5432/vipos_test
+      DATABASE_DRIVER: postgres
+      JWT_SECRET: test-secret-vipos
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -92,7 +135,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Apply Prisma migrations to CI Postgres
+        working-directory: apps/backend
+        run: npx prisma migrate deploy
+
       - name: Test
-        # No workspace defines a test script yet (P0-05 will add Vitest).
-        # `--if-present` makes this a no-op until then so CI stays green.
         run: npm test --if-present

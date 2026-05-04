@@ -24,7 +24,14 @@ let _pool;
 
 function getPool() {
   if (_pool) return _pool;
-  const { Pool } = require('pg');
+  const pg = require('pg');
+  // Coerce BIGINT (oid 20) and NUMERIC (oid 1700) results to JS Number so that
+  // COUNT(*) / SUM(...) return numerics in the same shape the legacy SQLite
+  // driver did. Values beyond 2^53 will lose precision — acceptable for the
+  // counts/aggregates this app actually runs.
+  pg.types.setTypeParser(20, (v) => (v == null ? null : Number(v)));
+  pg.types.setTypeParser(1700, (v) => (v == null ? null : Number(v)));
+  const { Pool } = pg;
   const url = process.env.DATABASE_URL;
   if (!url) {
     throw new Error(

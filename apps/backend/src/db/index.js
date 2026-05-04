@@ -1,58 +1,30 @@
 /**
- * Async query layer (P2-01b).
+ * Async query layer (P2-01b finalstep — Postgres-only).
  *
- * Single entry point for all DB access in route code. Goal: route handlers
- * use a uniform `await query(sql, params)` API regardless of underlying
- * driver, so we can migrate from better-sqlite3 → Postgres incrementally
- * without ripping out everything in one shot.
- *
- * DRIVER SELECTION (env `DATABASE_DRIVER`):
- *   - `sqlite` (default): backed by better-sqlite3. Sync internally,
- *     wrapped in resolved Promises so the call site can `await` cleanly.
- *     Used by tests + dev (no Postgres setup needed).
- *   - `postgres`: backed by `pg` Pool. Real async. Used in production
- *     against Supabase or any Postgres host. Driven by DATABASE_URL.
+ * Single entry point for all DB access in route code. After P2-01b cutover,
+ * the backend speaks Postgres natively via `pg` Pool — the legacy SQLite
+ * driver and `models/database.js` are gone.
  *
  * SQL STYLE:
  *   - Write queries with `$1, $2, ...` numbered placeholders (Postgres
- *     native). The sqlite driver auto-translates to `?`.
- *   - Write `RETURNING id` for INSERTs that need the new id. Both drivers
- *     support it (SQLite >= 3.35; better-sqlite3 wraps modern SQLite).
- *   - Avoid `LIKE` for case-insensitive search; use lowercase comparison
- *     via the helper `iLikePattern()` if both drivers must agree.
+ *     native).
+ *   - Use `RETURNING ...` to recover generated ids on INSERT.
+ *   - Use `ILIKE` (or `LOWER(col) LIKE LOWER($1)`) for case-insensitive
+ *     search; quote user-supplied patterns via `iLikePattern()`.
  *
- * RETURN SHAPE (uniform across drivers):
+ * RETURN SHAPE:
  *   query(sql, params) -> Promise<{ rows: object[], rowCount: number }>
  *
  *   - SELECT: rows = result rows, rowCount = rows.length
  *   - INSERT/UPDATE/DELETE without RETURNING: rows = [], rowCount = changes
- *   - INSERT/UPDATE/DELETE with RETURNING: rows = returned rows, rowCount = rows.length
+ *   - INSERT/UPDATE/DELETE with RETURNING: rows = returned rows
  *
  * TRANSACTIONS:
- *   tx(async (txQuery) => { ... }) wraps work in BEGIN/COMMIT (or sqlite
- *   transaction). The callback receives a tx-bound `query` function.
- *
- * MIGRATION PLAN (route cutover):
- *   1. (this PR step1) Build this module + migrate one route file as proof.
- *   2. (next PRs) Migrate remaining 48 files in domain batches.
- *   3. (final PR) Flip DATABASE_DRIVER=postgres in production. Drop
- *      better-sqlite3 dependency and `models/database.js` after all routes
- *      are off it.
+ *   tx(async (txQuery) => { ... }) wraps work in BEGIN/COMMIT and rolls
+ *   back on error. The callback receives a tx-bound `query` function.
  */
 
-const DRIVER = (process.env.DATABASE_DRIVER || 'sqlite').toLowerCase();
-
-let driverImpl;
-
-function getDriver() {
-  if (driverImpl) return driverImpl;
-  if (DRIVER === 'postgres') {
-    driverImpl = require('./driver-postgres');
-  } else {
-    driverImpl = require('./driver-sqlite');
-  }
-  return driverImpl;
-}
+const driverImpl = require('./driver-postgres');
 
 /**
  * Run a query and return `{ rows, rowCount }`.
@@ -62,41 +34,38 @@ function getDriver() {
  * @returns {Promise<{ rows: Record<string, unknown>[], rowCount: number }>}
  */
 async function query(sql, params = []) {
-  return getDriver().query(sql, params);
+  return driverImpl.query(sql, params);
 }
 
 /**
  * Run `fn` inside a transaction. The callback receives a tx-bound query
- * helper that uses the same connection / SQLite db handle.
+ * helper that uses the same client connection.
  *
  * @template T
  * @param {(txQuery: typeof query) => Promise<T>} fn
  * @returns {Promise<T>}
  */
 async function tx(fn) {
-  return getDriver().tx(fn);
+  return driverImpl.tx(fn);
 }
 
 /**
- * Quote a string for `LIKE`/`ILIKE` patterns: escape `%` and `_`. Use this
- * when interpolating user input into a search pattern.
+ * Quote a string for `LIKE`/`ILIKE` patterns: escape `%`, `_`, and `\`.
+ * Use this when interpolating user input into a search pattern.
  */
 function iLikePattern(value) {
   return String(value).replace(/[\\%_]/g, (ch) => `\\${ch}`);
 }
 
 /**
- * Reset internal driver state (test-only).
- *
- * For the sqlite driver this re-opens the DB against (possibly new)
- * VIPOS_DB_PATH. For postgres, ends the pool — call before tests that
- * intentionally tear down the pool.
+ * Reset internal driver state (test-only). Ends the pool so the next call
+ * re-opens it. Tests typically share the pool across files; only call
+ * this on full process exit.
  */
 function _resetForTests() {
   if (driverImpl && typeof driverImpl._resetForTests === 'function') {
     driverImpl._resetForTests();
   }
-  driverImpl = null;
 }
 
 module.exports = {
@@ -104,5 +73,5 @@ module.exports = {
   tx,
   iLikePattern,
   _resetForTests,
-  driverName: DRIVER,
+  driverName: 'postgres',
 };

@@ -466,7 +466,7 @@ router.get(
                 COUNT(t.id) AS transactions,
                 COALESCE(SUM(t.total_amount), 0) AS revenue,
                 CASE WHEN COUNT(t.id) = 0 THEN 0
-                     ELSE ROUND(SUM(t.total_amount) * 1.0 / COUNT(t.id), 2)
+                     ELSE ROUND((SUM(t.total_amount) * 1.0 / COUNT(t.id))::numeric, 2)
                 END AS avg_ticket
          FROM users u
          LEFT JOIN transactions t ON t.user_id = u.id
@@ -941,8 +941,8 @@ router.get(
                 CASE
                   WHEN p.stock + COALESCE(SUM(ti.quantity), 0) = 0 THEN 0
                   ELSE ROUND(
-                    (COALESCE(SUM(ti.quantity), 0) * 1.0) /
-                    NULLIF((p.stock + COALESCE(SUM(ti.quantity), 0)) / 2.0, 0),
+                    ((COALESCE(SUM(ti.quantity), 0) * 1.0) /
+                     NULLIF((p.stock + COALESCE(SUM(ti.quantity), 0)) / 2.0, 0))::numeric,
                     3
                   )
                 END AS turnover_ratio
@@ -1231,12 +1231,8 @@ router.get(
   validate({ query: ReportFilterQuerySchema }),
   async (req, res) => {
     const { from, to } = defaultRange(req.query);
-    const exists = (
-      await query(
-        `SELECT name FROM sqlite_master WHERE type='table' AND name='marketing_campaigns'`
-      )
-    ).rows[0];
-    if (!exists) {
+    const exists = (await query(`SELECT to_regclass('public.marketing_campaigns') AS reg`)).rows[0];
+    if (!exists || !exists.reg) {
       res.json({ period: { from, to }, rows: [], placeholder: true });
       return;
     }

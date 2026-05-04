@@ -707,7 +707,7 @@ vendorRouter.post(
       const row = (await query(`SELECT * FROM gl_vendors WHERE id = $1`, [ins.rows[0].id])).rows[0];
       res.status(201).json(row);
     } catch (err) {
-      if (err.message.includes('UNIQUE')) {
+      if (err.code === '23505') {
         return res.status(409).json({ error: 'Vendor code already exists' });
       }
       throw err;

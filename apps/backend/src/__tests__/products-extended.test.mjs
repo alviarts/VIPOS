@@ -13,7 +13,7 @@ let productId;
 let ingredientId;
 
 beforeAll(async () => {
-  setupTestEnv();
+  await setupTestEnv();
   const { buildApp } = require('../app');
   app = buildApp({ morganEnabled: false });
   const login = await request(app)
@@ -22,8 +22,8 @@ beforeAll(async () => {
   token = login.body.token;
 });
 
-afterAll(() => {
-  teardownTestEnv();
+afterAll(async () => {
+  await teardownTestEnv();
 });
 
 const auth = () => ({ Authorization: `Bearer ${token}` });
@@ -44,9 +44,7 @@ describe('POST /api/products with new fields', () => {
     expect(res.status).toBe(201);
     productId = res.body.id;
 
-    const single = await request(app)
-      .get(`/api/products/${productId}`)
-      .set(auth());
+    const single = await request(app).get(`/api/products/${productId}`).set(auth());
     expect(single.body.image_urls).toEqual([
       'https://cdn.example.com/a.jpg',
       'https://cdn.example.com/b.jpg',
@@ -71,9 +69,7 @@ describe('POST /api/products with new fields', () => {
 
 describe('GET /api/products with pagination', () => {
   it('returns { data, total, page, per_page, total_pages } when ?page=', async () => {
-    const res = await request(app)
-      .get('/api/products?page=1&per_page=2')
-      .set(auth());
+    const res = await request(app).get('/api/products?page=1&per_page=2').set(auth());
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('data');
     expect(res.body).toHaveProperty('total');

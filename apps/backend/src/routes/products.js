@@ -216,7 +216,7 @@ router.post(
         .rows[0];
       res.status(201).json(product);
     } catch (err) {
-      if (err.message.includes('UNIQUE')) {
+      if (err.code === '23505') {
         return res.status(400).json({ error: 'SKU sudah digunakan' });
       }
       res.status(500).json({ error: err.message });
@@ -309,7 +309,7 @@ router.put(
       const product = (await query(`${PRODUCT_SELECT} WHERE p.id = $1`, [req.params.id])).rows[0];
       res.json(product);
     } catch (err) {
-      if (err.message.includes('UNIQUE')) {
+      if (err.code === '23505') {
         return res.status(400).json({ error: 'SKU sudah digunakan' });
       }
       res.status(500).json({ error: err.message });

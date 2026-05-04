@@ -12,15 +12,15 @@ const require = createRequire(import.meta.url);
 let app;
 let LEGACY_SUNSET;
 
-beforeAll(() => {
-  setupTestEnv();
+beforeAll(async () => {
+  await setupTestEnv();
   ({ LEGACY_SUNSET } = require('../api-version'));
   const { buildApp } = require('../app');
   app = buildApp({ morganEnabled: false });
 });
 
-afterAll(() => {
-  teardownTestEnv();
+afterAll(async () => {
+  await teardownTestEnv();
 });
 
 async function loginAdmin(prefix) {

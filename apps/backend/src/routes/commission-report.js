@@ -50,7 +50,7 @@ router.get('/', authenticateToken, async (req, res) => {
          FROM commission_assignments a
          JOIN users u ON u.id = a.employee_id
          ${whereClause}
-        GROUP BY a.employee_id, period_key
+        GROUP BY a.employee_id, u.name, ${periodExpr}
         ORDER BY period_key DESC, total_commission DESC`,
       params
     );

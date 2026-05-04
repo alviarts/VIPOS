@@ -130,7 +130,7 @@ router.get('/batches', authenticateToken, async (req, res) => {
                 p.name AS promo_name,
                 COUNT(*) AS generated,
                 SUM(c.used_count) AS used,
-                SUM(MAX(c.max_uses, 0) - c.used_count) AS remaining,
+                SUM(GREATEST(c.max_uses, 0) - c.used_count) AS remaining,
                 MIN(c.created_at) AS created_at
            FROM coupons c
            LEFT JOIN promos p ON p.id = c.promo_id
@@ -229,7 +229,7 @@ router.post(
       const row = (await query('SELECT * FROM coupons WHERE id = $1', [ins.rows[0].id])).rows[0];
       res.status(201).json(row);
     } catch (err) {
-      if (err.message.includes('UNIQUE')) {
+      if (err.code === '23505') {
         return res.status(400).json({ error: 'Kode kupon sudah digunakan' });
       }
       res.status(500).json({ error: err.message });
@@ -274,7 +274,7 @@ router.post(
             );
             codes.push(code);
           } catch (err) {
-            if (!err.message.includes('UNIQUE')) throw err;
+            if (!err.code === '23505') throw err;
             // collision — try again.
           }
         }

@@ -36,7 +36,7 @@ async function newOrder(overrides = {}) {
 }
 
 beforeAll(async () => {
-  setupTestEnv();
+  await setupTestEnv();
   const { buildApp } = require('../app');
   app = buildApp({ morganEnabled: false });
   adminToken = await login();
@@ -58,8 +58,8 @@ beforeAll(async () => {
   productId = prod.body.id;
 });
 
-afterAll(() => {
-  teardownTestEnv();
+afterAll(async () => {
+  await teardownTestEnv();
 });
 
 describe('Online order CRUD + state machine', () => {

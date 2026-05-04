@@ -22,7 +22,7 @@ async function login() {
 }
 
 beforeAll(async () => {
-  setupTestEnv();
+  await setupTestEnv();
   const { buildApp } = require('../app');
   app = buildApp({ morganEnabled: false });
   adminToken = await login();
@@ -69,8 +69,8 @@ beforeAll(async () => {
   expect(customerNoPhoneId).toBeGreaterThan(0);
 });
 
-afterAll(() => {
-  teardownTestEnv();
+afterAll(async () => {
+  await teardownTestEnv();
 });
 
 beforeEach(async () => {

@@ -30,7 +30,7 @@ router.get('/', authenticateToken, async (req, res) => {
                 a.customer_name, a.staff_id, a.resource_id, a.total,
                 s.name AS staff_name, s.color AS staff_color,
                 r.name AS resource_name,
-                (SELECT GROUP_CONCAT(service_name, ', ')
+                (SELECT STRING_AGG(service_name, ', ')
                    FROM appointment_services WHERE appointment_id = a.id)
                   AS service_summary
            FROM appointments a

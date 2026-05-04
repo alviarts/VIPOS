@@ -17,15 +17,15 @@ async function login() {
 }
 
 beforeAll(async () => {
-  setupTestEnv();
+  await setupTestEnv();
   ({ buildApp: globalThis.__nope__ } = require('../app'));
   const { buildApp } = require('../app');
   app = buildApp();
   token = await login();
 });
 
-afterAll(() => {
-  teardownTestEnv();
+afterAll(async () => {
+  await teardownTestEnv();
 });
 
 describe('P1-14 Employee CRUD', () => {
