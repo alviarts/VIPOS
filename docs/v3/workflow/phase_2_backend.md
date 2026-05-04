@@ -179,7 +179,7 @@
 
 ---
 
-### P2-06: Rate limiting + security hardening `[pending]`
+### P2-06: Rate limiting + security hardening `[done]`
 
 **Goal**: Rate limit per IP + per user; helmet headers; input sanitization; CSRF; CORS strict.
 
@@ -197,11 +197,15 @@
 
 **Acceptance criteria**:
 
-- [ ] Login endpoint terbatas 5 attempt/min/IP
-- [ ] API endpoint default 100 req/min/user
-- [ ] OWASP Top 10 checked (XSS, SQL injection (Prisma protect), CSRF, broken auth, dst)
-- [ ] HTTPS enforced (HTTP redirect to HTTPS)
-- [ ] CSP header strict
+- [x] Login endpoint terbatas 5 attempt / 15 min / IP — `loginRateLimit()` di `lib/rate-limit.js`, mounted on `POST /auth/login` + `/auth/login/2fa` (15-minute window per OWASP guidance, slightly stricter than docs's `5/min`)
+- [x] API endpoint default 100 req/min/user — `apiRateLimit()` keyed by `req.user.user_id` when authenticated, falling back to `req.ip`. `/metrics` and every `/health` variant skipped so observability scrapes never burn budget. Redis store via `rate-limit-redis` when `REDIS_URL` set, in-memory fallback otherwise
+- [x] OWASP Top 10 checked — XSS guarded by Helmet CSP (production) + React auto-escape; broken auth covered by login rate limiter; SQL injection covered by Prisma + `$N` placeholders; CSRF intentionally skipped (JWT bearer auth, no cookie sessions); strict CORS allowlist closes the cross-origin attack surface
+- [x] HTTPS enforced — Helmet emits HSTS so browsers upgrade automatically after first visit. HTTP→HTTPS redirect itself is delegated to nginx / the reverse proxy at deploy time (per default decision documented in PR #59)
+- [x] CSP header strict — `helmetMiddleware()` emits an explicit production CSP (`default-src 'self'`, `script-src 'self'`, `style-src 'self' 'unsafe-inline'`, `img-src 'self' data: https:`). CSP is intentionally disabled outside production so Vite HMR continues to work in dev
+
+**Status breakdown**:
+
+- **PR-only** (`#59`, merged): single combined PR per default decisions. Adds `lib/security.js` (Helmet baseline + strict CORS + `configureTrustProxy()`), `lib/rate-limit.js` (login + API limiters with Redis store + in-mem fallback), wires `app.js` (trust proxy → helmet → request id → pino-http → metrics → cors strict → apiRateLimit), and applies `loginRateLimit()` before `validate()` on the credential entry points. New deps: `helmet@^8`, `express-rate-limit@^7`, `rate-limit-redis@^4`. Smoke check workflow updated to set `CORS_ALLOWLIST` so the production-mode boot test stays green.
 
 **Branch**: `devin/P2-06-security-hardening`
 **Estimasi**: 3 hari
