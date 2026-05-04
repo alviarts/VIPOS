@@ -40,6 +40,9 @@ const express = require('express');
 const { runAsSystem, query } = require('../db');
 const { QUEUE_NAMES, isQueueEnabled, getOrCreateQueue, safeEnqueue } = require('../lib/queue');
 const { fingerprint } = require('../jobs/marketplace-webhook');
+const { child } = require('../lib/logger');
+
+const log = child({ component: 'marketplace-webhook' });
 
 const router = express.Router();
 
@@ -105,11 +108,7 @@ router.post('/:tenant_slug/:provider', async (req, res) => {
     if (!isQueueEnabled()) {
       // Sync fallback: ack 202 but log the event was received without a
       // broker. Worker side-effect (audit row) is skipped in this mode.
-      console.log('[marketplace-webhook] sync fallback', {
-        tenantId,
-        provider,
-        event_id,
-      });
+      log.info({ tenantId, provider, event_id }, 'sync fallback');
       return res.status(202).json({ enqueued: false, sync: true });
     }
     const queue = getOrCreateQueue(QUEUE_NAMES.MARKETPLACE_WEBHOOK);

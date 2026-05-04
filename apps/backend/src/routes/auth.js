@@ -14,6 +14,9 @@ const { query, tx } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { logAuditWithTenant, ACTIONS } = require('../lib/audit');
+const { child: childLogger } = require('../lib/logger');
+
+const authLog = childLogger({ component: 'auth' });
 const {
   LoginRequestSchema,
   LoginVerify2FARequestSchema,
@@ -221,8 +224,9 @@ router.post(
         );
         const baseUrl = process.env.VIPOS_PUBLIC_URL || 'http://localhost:5173';
         const link = `${baseUrl}/reset-password?token=${encodeURIComponent(raw)}`;
-        // Mock "email" — log to console. Future: SendGrid integration.
-        console.log(`[mock email] reset link for user ${user.username}: ${link}`);
+        // Mock "email" — log to structured logger. Future: SendGrid
+        // integration via the email queue.
+        authLog.info({ username: user.username, link }, 'mock email reset link');
         if (process.env.NODE_ENV !== 'production') {
           return res.status(202).json({ ok: true, dev_reset_link: link });
         }

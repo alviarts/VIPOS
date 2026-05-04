@@ -20,6 +20,9 @@ const express = require('express');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { QUEUE_NAMES, isQueueEnabled, getOrCreateQueue, safeEnqueue } = require('../lib/queue');
 const { SUPPORTED_KINDS } = require('../jobs/notification');
+const { child } = require('../lib/logger');
+
+const log = child({ component: 'notifications' });
 
 const router = express.Router();
 
@@ -44,10 +47,7 @@ router.post('/', authenticateToken, requireAdmin, async (req, res) => {
     // Fallback: log + acknowledge. Keeps API contract stable when Redis
     // is offline. The worker will replay nothing — that is the cost of
     // running without the broker.
-    console.log('[notifications] sync fallback (REDIS_URL unset)', {
-      kind,
-      recipient,
-    });
+    log.info({ kind, recipient }, 'sync fallback (REDIS_URL unset)');
     return res.status(202).json({ enqueued: false, sync: true });
   }
   const queue = getOrCreateQueue(QUEUE_NAMES.NOTIFICATION);

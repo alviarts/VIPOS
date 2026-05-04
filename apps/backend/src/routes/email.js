@@ -21,6 +21,9 @@ const express = require('express');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { QUEUE_NAMES, isQueueEnabled, getOrCreateQueue, safeEnqueue } = require('../lib/queue');
 const { isPlausibleEmail } = require('../jobs/email');
+const { child } = require('../lib/logger');
+
+const log = child({ component: 'email' });
 
 const router = express.Router();
 
@@ -44,10 +47,7 @@ router.post('/send', authenticateToken, requireAdmin, async (req, res) => {
     metadata: metadata ?? null,
   };
   if (!isQueueEnabled()) {
-    console.log('[email] sync fallback (REDIS_URL unset)', {
-      to,
-      subject,
-    });
+    log.info({ to, subject }, 'sync fallback (REDIS_URL unset)');
     return res.status(202).json({ enqueued: false, sync: true });
   }
   const queue = getOrCreateQueue(QUEUE_NAMES.EMAIL);

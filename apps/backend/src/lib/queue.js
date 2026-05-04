@@ -25,6 +25,9 @@
  */
 const { Queue, Worker, QueueEvents } = require('bullmq');
 const IORedis = require('ioredis');
+const { child } = require('./logger');
+
+const log = child({ component: 'queue' });
 
 /**
  * Canonical queue names. Keep this enum 1:1 with the spec in
@@ -78,7 +81,7 @@ function getConnection() {
     // Surface connection errors loudly — callers should still keep working
     // because `safeEnqueue` wraps producers, but operators need to know.
     sharedConnection.on('error', (err) => {
-      console.error('[queue] redis connection error:', err.message);
+      log.error({ err: err.message }, 'redis connection error');
     });
   }
   return sharedConnection;
@@ -215,7 +218,7 @@ async function safeEnqueue(queue, jobName, payload, opts) {
   try {
     return await queue.add(jobName, payload, opts);
   } catch (err) {
-    console.error('[queue] enqueue failed', queue?.name, jobName, err.message);
+    log.error({ queue: queue?.name, job: jobName, err: err.message }, 'enqueue failed');
     return null;
   }
 }

@@ -17,6 +17,9 @@
 
 const bcrypt = require('bcryptjs');
 const { query, tx, runWithTenant, runAsSystem } = require('./index');
+const { child } = require('../lib/logger');
+
+const log = child({ component: 'db-init' });
 
 const DEFAULT_TENANT_ID = 1;
 
@@ -53,7 +56,7 @@ async function seedDefaultAdmin() {
      ON CONFLICT (tenant_id, user_id) DO NOTHING`,
     [DEFAULT_TENANT_ID, userId, 'admin']
   );
-  console.log('Default admin user created (admin / admin123)');
+  log.info('Default admin user created (admin / admin123)');
 }
 
 async function seedDefaultChartOfAccounts() {
@@ -141,7 +144,7 @@ async function seedDefaultChartOfAccounts() {
       );
     }
   });
-  console.log(`Seeded ${seedRows.length} default Chart of Accounts entries`);
+  log.info({ count: seedRows.length }, 'Seeded default Chart of Accounts entries');
 }
 
 async function seedDefaultSettings() {
@@ -678,7 +681,7 @@ async function initDatabase() {
     await seedDefaultSettings();
     await seedDefaultLainnya();
   });
-  console.log('Database initialized successfully');
+  log.info('Database initialized successfully');
 }
 
 module.exports = { initDatabase, DEFAULT_TENANT_ID };
