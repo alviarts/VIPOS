@@ -151,6 +151,11 @@ jobs:
       DATABASE_DRIVER: postgres
       REDIS_URL: redis://localhost:6379
       JWT_SECRET: test-secret-vipos
+      # P2-08: storage integration test wiring.
+      MINIO_ENDPOINT: http://localhost:9000
+      MINIO_ACCESS_KEY: miniouser
+      MINIO_SECRET_KEY: miniopass
+      MINIO_BUCKET: vipos-bk-it
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -177,5 +182,30 @@ jobs:
           sudo apt-get update && sudo apt-get install -y postgresql-client
           psql -h localhost -U test -d vipos_test -f apps/backend/scripts/setup-app-role.sql
 
+      - name: Start MinIO (S3-compatible) for storage integration test
+        # P2-08: GitHub Actions service blocks can't override image
+        # entrypoints with arguments, so we boot MinIO as a step.
+        # The storage-minio test skips automatically when MINIO_ENDPOINT
+        # is unset, so this step is purely additive.
+        run: |
+          docker run -d --rm --name vipos-minio \
+            -p 9000:9000 -p 9001:9001 \
+            -e MINIO_ROOT_USER=miniouser \
+            -e MINIO_ROOT_PASSWORD=miniopass \
+            minio/minio:latest server /data --console-address ":9001"
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:9000/minio/health/live >/dev/null 2>&1; then
+              echo "minio is healthy"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "minio failed to become healthy" >&2
+          docker logs vipos-minio
+          exit 1
+
       - name: Test
+        # MINIO_* env (used by storage-minio integration test) is set
+        # at the job level above so prior steps don't have to inherit
+        # storage credentials.
         run: npm test --if-present

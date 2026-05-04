@@ -34,11 +34,23 @@ const { processMarketplaceWebhook } = require('./marketplace-webhook');
 const { processReport } = require('./report');
 const { processSettlement } = require('./settlement');
 const { processImportExport } = require('./import-export');
+const { processDbBackup } = require('./db-backup');
+const { processUploadsBackup } = require('./uploads-backup');
+const { logger } = require('../lib/logger');
+const Sentry = require('@sentry/node');
 
 const AUDIT_RETENTION_SCHEDULER = 'audit-retention-nightly';
 // 03:15 every day. Pick an off-peak window; tenant clocks are TZ-naive
 // because BullMQ uses the worker process timezone.
 const AUDIT_RETENTION_CRON = '15 3 * * *';
+
+// P2-08 — daily backup schedules. Run before the audit-retention prune
+// (03:15) so the dumped data still includes anything the retention
+// pass would otherwise erase.
+const DB_BACKUP_SCHEDULER = 'db-backup-daily';
+const DB_BACKUP_CRON = '0 2 * * *'; // 02:00 UTC
+const UPLOADS_BACKUP_SCHEDULER = 'uploads-backup-daily';
+const UPLOADS_BACKUP_CRON = '30 2 * * *'; // 02:30 UTC
 
 /**
  * Ensure the recurring audit-retention job exists. Safe to call repeatedly
@@ -63,6 +75,42 @@ async function scheduleAuditRetention(queue) {
 }
 
 /**
+ * Ensure the recurring db-backup + uploads-backup jobs exist.
+ *
+ * @param {{ dbBackup: import('bullmq').Queue, uploadsBackup: import('bullmq').Queue }} queues
+ */
+async function scheduleBackups(queues) {
+  if (queues.dbBackup) {
+    await queues.dbBackup.upsertJobScheduler(
+      DB_BACKUP_SCHEDULER,
+      { pattern: DB_BACKUP_CRON },
+      {
+        name: 'dump',
+        data: {},
+        opts: {
+          removeOnComplete: { count: 100 },
+          removeOnFail: false,
+        },
+      }
+    );
+  }
+  if (queues.uploadsBackup) {
+    await queues.uploadsBackup.upsertJobScheduler(
+      UPLOADS_BACKUP_SCHEDULER,
+      { pattern: UPLOADS_BACKUP_CRON },
+      {
+        name: 'sync',
+        data: {},
+        opts: {
+          removeOnComplete: { count: 100 },
+          removeOnFail: false,
+        },
+      }
+    );
+  }
+}
+
+/**
  * Worker registry — every queue we run is declared here so the boot
  * order, lifecycle, and naming are obvious in one spot. Extend this
  * list when adding a new queue.
@@ -77,7 +125,64 @@ const WORKER_REGISTRY = Object.freeze([
   { name: QUEUE_NAMES.REPORT, processor: processReport },
   { name: QUEUE_NAMES.SETTLEMENT, processor: processSettlement },
   { name: QUEUE_NAMES.IMPORT_EXPORT, processor: processImportExport },
+  { name: QUEUE_NAMES.DB_BACKUP, processor: processDbBackup },
+  { name: QUEUE_NAMES.UPLOADS_BACKUP, processor: processUploadsBackup },
 ]);
+
+/**
+ * P2-08 — failure notification helper. Wired to the `failed` event of
+ * the backup workers. Forwards the error to Sentry and (when an
+ * admin notify list is configured) enqueues an email so on-call
+ * engineers get paged before the next dump cycle starts.
+ *
+ * Idempotent: the email queue lookup happens via `getOrCreateQueue`,
+ * which is no-op on subsequent calls.
+ *
+ * @param {import('bullmq').Worker} worker
+ * @param {string} queueName
+ */
+function attachBackupFailureNotifier(worker, queueName) {
+  worker.on('failed', async (job, err) => {
+    try {
+      Sentry.captureException(err, {
+        tags: { component: 'backup', queue: queueName },
+        extra: { jobId: job?.id, jobName: job?.name, attempts: job?.attemptsMade },
+      });
+    } catch {
+      /* swallow Sentry transport errors so the backup loop keeps moving */
+    }
+    const recipients = (process.env.BACKUP_NOTIFY_EMAILS || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (recipients.length === 0) {
+      logger.warn(
+        { queue: queueName, err: err?.message },
+        'backup failed and BACKUP_NOTIFY_EMAILS is unset, no email sent'
+      );
+      return;
+    }
+    try {
+      const { getOrCreateQueue } = require('../lib/queue');
+      const emailQueue = getOrCreateQueue(QUEUE_NAMES.EMAIL);
+      await emailQueue.add('backup-failed', {
+        to: recipients,
+        subject: `[VIPOS] Backup failed: ${queueName}`,
+        text: [
+          `Queue: ${queueName}`,
+          `Job:   ${job?.id ?? '(none)'} (${job?.name ?? '(unknown)'})`,
+          `Attempts: ${job?.attemptsMade ?? 0}`,
+          `Error: ${err?.stack || err?.message || String(err)}`,
+        ].join('\n'),
+      });
+    } catch (notifyErr) {
+      logger.error(
+        { err: notifyErr?.message, queue: queueName },
+        'failed to enqueue backup-failure email'
+      );
+    }
+  });
+}
 
 /**
  * Wire the Prometheus job counters/histograms to a worker. Records a
@@ -131,10 +236,14 @@ async function startWorkers(opts = {}) {
   // producer queues that might live in the same process during tests.
   const queues = [];
   const workers = [];
+  const BACKUP_QUEUES = new Set([QUEUE_NAMES.DB_BACKUP, QUEUE_NAMES.UPLOADS_BACKUP]);
   for (const { name, processor } of WORKER_REGISTRY) {
     const queue = createQueue(name);
     const worker = createWorker(name, processor);
     attachWorkerMetrics(worker, name);
+    if (BACKUP_QUEUES.has(name)) {
+      attachBackupFailureNotifier(worker, name);
+    }
     queues.push(queue);
     workers.push(worker);
   }
@@ -142,6 +251,9 @@ async function startWorkers(opts = {}) {
   if (scheduleRecurring) {
     const auditQueue = queues.find((q) => q.name === QUEUE_NAMES.AUDIT_RETENTION);
     if (auditQueue) await scheduleAuditRetention(auditQueue);
+    const dbBackup = queues.find((q) => q.name === QUEUE_NAMES.DB_BACKUP);
+    const uploadsBackup = queues.find((q) => q.name === QUEUE_NAMES.UPLOADS_BACKUP);
+    await scheduleBackups({ dbBackup, uploadsBackup });
   }
 
   return async function stop() {
@@ -167,8 +279,14 @@ async function startWorkers(opts = {}) {
 module.exports = {
   startWorkers,
   scheduleAuditRetention,
+  scheduleBackups,
   attachWorkerMetrics,
+  attachBackupFailureNotifier,
   AUDIT_RETENTION_SCHEDULER,
   AUDIT_RETENTION_CRON,
+  DB_BACKUP_SCHEDULER,
+  DB_BACKUP_CRON,
+  UPLOADS_BACKUP_SCHEDULER,
+  UPLOADS_BACKUP_CRON,
   WORKER_REGISTRY,
 };
