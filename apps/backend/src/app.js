@@ -57,6 +57,7 @@ function mountVersionedRoutes(parent) {
   parent.use('/invoice', advanceGate, require('./routes/invoice'));
   parent.use('/receipt', advanceGate, require('./routes/receipt'));
   parent.use('/aging-report', advanceGate, require('./routes/aging-report'));
+  parent.use('/audit-log', advanceGate, require('./routes/audit-log'));
 
   // P1-13 Appointment.
   parent.use('/staff', require('./routes/staff'));

@@ -2238,6 +2238,7 @@ model users {
   phone                                         String?
   tenant_id                                     Int                       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
   app_settings                                  app_settings[]
+  audit_logs                                    audit_logs[]
   b2b_delivery_orders                           b2b_delivery_orders[]
   b2b_invoices                                  b2b_invoices[]
   b2b_quotations                                b2b_quotations[]
@@ -2289,6 +2290,7 @@ model tenants {
   approval_chains               approval_chains[]
   attendance_geofences          attendance_geofences[]
   attendance_logs               attendance_logs[]
+  audit_logs                    audit_logs[]
   b2b_delivery_order_items      b2b_delivery_order_items[]
   b2b_delivery_orders           b2b_delivery_orders[]
   b2b_invoice_items             b2b_invoice_items[]
@@ -2392,4 +2394,25 @@ model tenant_users {
 
   @@unique([tenant_id, user_id], map: "tenant_users_tenant_user_key")
   @@index([user_id], map: "idx_tenant_users_user")
+}
+
+model audit_logs {
+  id          BigInt    @id @default(autoincrement())
+  tenant_id   Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  user_id     Int?
+  entity      String
+  entity_id   String?
+  action      String
+  before_json Json?     @db.JsonB
+  after_json  Json?     @db.JsonB
+  ip          String?   @db.Inet
+  user_agent  String?
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  tenants     tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "audit_logs_tenant_fk")
+  users       users?    @relation(fields: [user_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "audit_logs_user_fk")
+
+  @@index([tenant_id, created_at(sort: Desc)], map: "idx_audit_logs_tenant_created")
+  @@index([tenant_id, entity, entity_id], map: "idx_audit_logs_tenant_entity")
+  @@index([tenant_id, user_id, created_at(sort: Desc)], map: "idx_audit_logs_tenant_user")
+  @@index([tenant_id, action, created_at(sort: Desc)], map: "idx_audit_logs_tenant_action")
 }
