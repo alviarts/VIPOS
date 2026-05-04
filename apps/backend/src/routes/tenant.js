@@ -208,6 +208,33 @@ router.post('/onboarding/seed-template', authenticateToken, requireAdmin, async 
   }
 });
 
+// Flag the wizard finished. Stored as ISO-8601 timestamp on
+// `tenants.metadata.onboarding_completed_at` so the wizard route can
+// short-circuit to /dashboard for users who already saw it. Idempotent —
+// re-posting overwrites with the latest timestamp; never errors.
+router.post('/onboarding/complete', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const tenantId = req.user.tenant_id;
+    if (tenantId == null) {
+      return res.status(404).json({ error: 'Tenant tidak ditemukan di token' });
+    }
+    const r = await query(
+      `UPDATE tenants
+       SET metadata = COALESCE(metadata, '{}'::jsonb) ||
+                      jsonb_build_object('onboarding_completed_at', to_jsonb(NOW())),
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, slug, name, tier, status, metadata, created_at, updated_at`,
+      [tenantId]
+    );
+    const row = r.rows[0];
+    if (!row) return res.status(404).json({ error: 'Tenant tidak ditemukan' });
+    res.json(publicTenantShape(row));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 const adminRouter = express.Router();
 
 adminRouter.use(authenticateToken, requireSuperAdmin);

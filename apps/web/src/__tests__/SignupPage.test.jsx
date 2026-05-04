@@ -140,7 +140,7 @@ describe('SignupPage flow', () => {
       admin_password: 'Sandi123!',
       admin_email: 'budi@kopitegal.id',
     });
-    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/dashboard'));
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/onboarding'));
     expect(toastSuccessMock).toHaveBeenCalled();
   });
 
