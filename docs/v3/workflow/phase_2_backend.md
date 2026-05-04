@@ -51,7 +51,9 @@
 
 ---
 
-### P2-02: Multi-tenant architecture `[pending]`
+### P2-02: Multi-tenant architecture `[done]`
+
+**PR**: [#45](https://github.com/alviarts/VIPOS/pull/45) + [#46](https://github.com/alviarts/VIPOS/pull/46), session: https://app.devin.ai/sessions/240928c44aca4151ae91268e60dccc24
 
 **Goal**: Setiap merchant = tenant terpisah, data isolated. Pakai schema-per-tenant atau row-level (recommend row-level dengan `tenant_id`).
 
@@ -68,11 +70,11 @@
 
 **Acceptance criteria**:
 
-- [ ] User di tenant A tidak bisa lihat data tenant B (write tests)
-- [ ] Tenant signup endpoint `/api/v1/tenant/register`
-- [ ] Subscription tier stored di tenant record
-- [ ] Tier-based feature flag enforced di backend (block call ke endpoint Prime kalau tier Lite)
-- [ ] Admin endpoint untuk tenant management (`/api/admin/tenant/*`)
+- [x] User di tenant A tidak bisa lihat data tenant B (write tests)
+- [x] Tenant signup endpoint `/api/v1/tenant/register`
+- [x] Subscription tier stored di tenant record
+- [x] Tier-based feature flag enforced di backend (block call ke endpoint Prime kalau tier Lite)
+- [x] Admin endpoint untuk tenant management (`/api/admin/tenant/*`)
 
 **Reference**: `docs/v2/06_FEATURE_TIERS.md`
 
