@@ -83,7 +83,7 @@
 
 ---
 
-### P2-03: Audit logging `[pending]`
+### P2-03: Audit logging `[done]`
 
 **Goal**: Setiap CUD action ke entity penting tercatat (siapa, kapan, apa, before/after).
 
@@ -98,20 +98,22 @@
 
 **Acceptance criteria**:
 
-- [ ] Mutation di Products, Customers, Inventory, Finance, Employee, Settings ter-log
-- [ ] before/after JSON tersimpan dengan diff visible
-- [ ] Filter: user, entity, date, action
-- [ ] Retention 1 tahun (auto-prune)
-- [ ] Export CSV
+- [x] Mutation di Products, Customers, Inventory, Finance, Employee, Settings ter-log
+- [x] before/after JSON tersimpan dengan diff visible
+- [x] Filter: user, entity, date, action
+- [x] Retention 1 tahun (auto-prune) — dijalankan oleh BullMQ recurring job (P2-04 PR-A)
+- [x] Export CSV
 
 **Reference**: `docs/v2/menus/pengaturan/notifikasi.md` (deleted-transaction audit pattern)
+
+**Delivered in**: PR #48 (foundation: schema, helper, `/audit-log` API, login/logout hooks) + PR #49 (instrumentation: mutation endpoints + diff capture).
 
 **Branch**: `devin/P2-03-audit-logging`
 **Estimasi**: 3 hari
 
 ---
 
-### P2-04: Background jobs (BullMQ + Redis) `[pending]`
+### P2-04: Background jobs (BullMQ + Redis) `[in-progress]`
 
 **Goal**: Job queue untuk async work (notification, email, settlement reconcile, report generation, marketplace webhook processing).
 
@@ -127,12 +129,18 @@
 
 **Acceptance criteria**:
 
-- [ ] Send notification async via queue
-- [ ] Generate report async, notify user lewat email saat done
-- [ ] Marketplace webhook processed via queue (idempotent)
-- [ ] Retry logic dengan exponential backoff
-- [ ] DLQ untuk job yang fail > 3 kali
-- [ ] Bull Board dashboard accessible (admin only)
+- [x] Send notification async via queue — `POST /api/v1/notifications` (PR-B)
+- [ ] Generate report async, notify user lewat email saat done — deferred ke PR-C
+- [x] Marketplace webhook processed via queue (idempotent) — `POST /api/v1/marketplace-webhook/:tenant_slug/:provider` (PR-B)
+- [x] Retry logic dengan exponential backoff — `lib/queue.js` default backoff (PR-A)
+- [x] DLQ untuk job yang fail > 3 kali — built into `createWorker()` (PR-A)
+- [x] Bull Board dashboard accessible (admin only) — `/api/admin/queues` (PR-B)
+
+**Status breakdown**:
+
+- **PR-A** (`#51`, merged): foundation — `lib/queue.js`, recurring `audit-retention` job, standalone worker entry point, CI Redis service.
+- **PR-B** (`#52`, merged): producers + workers untuk `notification`, `email`, `marketplace-webhook` + Bull Board UI.
+- **PR-C** (pending): producers + workers untuk `report`, `settlement`, `import-export`. Lihat `WORKER_REGISTRY` di `apps/backend/src/jobs/index.js` — tinggal append 3 entry.
 
 **Branch**: `devin/P2-04-background-jobs`
 **Estimasi**: 3-4 hari
