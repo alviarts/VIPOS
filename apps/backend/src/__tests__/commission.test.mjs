@@ -53,7 +53,8 @@ async function createEmployeeUser() {
   const bcrypt = require('bcryptjs');
   const hashed = bcrypt.hashSync('test123', 10);
   const r = await query(
-    'INSERT INTO users (username, password, name, role) VALUES ($1, $2, $3, $4) RETURNING id',
+    `INSERT INTO users (username, password, name, role, tenant_id)
+     VALUES ($1, $2, $3, $4, 1) RETURNING id`,
     ['staff_test', hashed, 'Staff Test', 'cashier']
   );
   return r.rows[0].id;

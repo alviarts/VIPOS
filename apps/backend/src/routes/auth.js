@@ -10,7 +10,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { authenticator } = require('otplib');
-const { query } = require('../db');
+const { query, tx } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const {
@@ -328,15 +328,26 @@ router.post(
       if (existing) {
         return res.status(400).json({ error: 'Username sudah digunakan' });
       }
+      const tenantId = req.user.tenant_id;
       const hashedPassword = bcrypt.hashSync(password, 10);
-      const result = await query(
-        `INSERT INTO users (username, password, name, role)
-         VALUES ($1, $2, $3, $4) RETURNING id`,
-        [username, hashedPassword, name, role]
-      );
+      const result = await tx(async (txQuery) => {
+        const insertedUser = await txQuery(
+          `INSERT INTO users (username, password, name, role, tenant_id)
+           VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+          [username, hashedPassword, name, role, tenantId]
+        );
+        const userId = insertedUser.rows[0].id;
+        await txQuery(
+          `INSERT INTO tenant_users (tenant_id, user_id, role, is_default)
+           VALUES ($1, $2, $3, TRUE)
+           ON CONFLICT (tenant_id, user_id) DO NOTHING`,
+          [tenantId, userId, role]
+        );
+        return { id: userId };
+      });
       res.status(201).json({
         message: 'User berhasil dibuat',
-        user: { id: result.rows[0].id, username, name, role },
+        user: { id: result.id, username, name, role, tenant_id: tenantId },
       });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -348,8 +359,9 @@ router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const users = (
       await query(
-        `SELECT id, username, name, role, email, totp_enabled, last_login_at, created_at
-         FROM users`
+        `SELECT id, username, name, role, email, totp_enabled, last_login_at, created_at, tenant_id
+         FROM users WHERE tenant_id = $1`,
+        [req.user.tenant_id]
       )
     ).rows;
     res.json(users);

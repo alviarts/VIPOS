@@ -13,6 +13,9 @@ function authenticateToken(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
+    if (decoded.tenant_id != null) {
+      req.tenantId = decoded.tenant_id;
+    }
     next();
   } catch (err) {
     return res.status(403).json({ error: 'Token tidak valid' });
@@ -20,10 +23,17 @@ function authenticateToken(req, res, next) {
 }
 
 function requireAdmin(req, res, next) {
-  if (req.user.role !== 'admin') {
+  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
     return res.status(403).json({ error: 'Akses ditolak. Hanya admin yang diizinkan.' });
   }
   next();
 }
 
-module.exports = { authenticateToken, requireAdmin, JWT_SECRET };
+function requireSuperAdmin(req, res, next) {
+  if (req.user.role !== 'super_admin') {
+    return res.status(403).json({ error: 'Akses ditolak. Hanya super-admin yang diizinkan.' });
+  }
+  next();
+}
+
+module.exports = { authenticateToken, requireAdmin, requireSuperAdmin, JWT_SECRET };
