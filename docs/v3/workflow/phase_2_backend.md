@@ -183,7 +183,9 @@
 
 ---
 
-### P2-07: API versioning + docs `[pending]`
+### P2-07: API versioning + docs `[done]`
+
+> PR: [#39](https://github.com/alviarts/VIPOS/pull/39) (merged 2026-05-04), session: https://app.devin.ai/sessions/b8f03d6f55d34ed1acb3242d3fb8f910
 
 **Goal**: API versioning strategy (v1/v2) + auto-generated docs (Swagger UI).
 
@@ -198,12 +200,18 @@
 
 **Acceptance criteria**:
 
-- [ ] Semua endpoint pakai prefix `/api/v1/`
-- [ ] Swagger UI mature, client (web + Android nanti) bisa pakai sebagai reference
-- [ ] CHANGELOG.md di repo per version
+- [x] Semua endpoint pakai prefix `/api/v1/`
+- [x] Swagger UI mature, client (web + Android nanti) bisa pakai sebagai reference
+- [x] CHANGELOG.md di repo per version
 
-**Branch**: `devin/P2-07-api-docs`
+**Branch**: `devin/P2-07-api-versioning`
 **Estimasi**: 2-3 hari
+
+**Catatan eksekusi**:
+
+- P2-07 dieksekusi sebelum P2-01 karena tidak butuh credential Postgres — cukup di SQLite. Dependency formal P2-01 di-bypass dengan asumsi schema endpoint tidak berubah saat migrate; saat P2-01 migrate, contract `/api/v1/*` sudah stabil dan hanya storage backend yang berubah.
+- Legacy alias `/api/*` akan di-remove pada commit terpisah setelah sunset **2026-11-04** dan semua client confirm migrasi (web sudah migrate; Android di P3 akan langsung pin `/api/v1`).
+- Stoplight / hosted public doc TIDAK dilakukan di scope ini — Swagger UI di `/api/docs` dianggap cukup untuk Phase 2. Hosted public doc bisa di-revisit di P5 GTM kalau perlu developer portal.
 
 ---
 
