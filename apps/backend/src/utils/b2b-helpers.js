@@ -16,15 +16,15 @@ function pad(n, len) {
   return String(n).padStart(len, '0');
 }
 
-function generateNumber(db, table, dateRef) {
+async function generateNumber(q, table, dateRef) {
   const prefix = PREFIX_BY_TABLE[table];
   if (!prefix) throw new Error(`No prefix configured for ${table}`);
   const date = dateRef ? new Date(dateRef) : new Date();
   const ym = `${date.getFullYear()}${pad(date.getMonth() + 1, 2)}`;
   const like = `${prefix}-${ym}-%`;
-  const last = db
-    .prepare(`SELECT number FROM ${table} WHERE number LIKE ? ORDER BY id DESC LIMIT 1`)
-    .get(like);
+  const last = (
+    await q(`SELECT number FROM ${table} WHERE number LIKE $1 ORDER BY id DESC LIMIT 1`, [like])
+  ).rows[0];
   let next = 1;
   if (last) {
     const m = String(last.number).match(/-(\d+)$/);
@@ -53,12 +53,12 @@ function recomputeTotals({ items, tax_percent = 0, discount_amount = 0 }) {
   return { items: safeItems, subtotal, tax_amount, total };
 }
 
-function loadItems(db, table, fkColumn, fkValue) {
-  return db.prepare(`SELECT * FROM ${table} WHERE ${fkColumn} = ? ORDER BY id ASC`).all(fkValue);
+async function loadItems(q, table, fkColumn, fkValue) {
+  return (await q(`SELECT * FROM ${table} WHERE ${fkColumn} = $1 ORDER BY id ASC`, [fkValue])).rows;
 }
 
-function deleteItems(db, table, fkColumn, fkValue) {
-  db.prepare(`DELETE FROM ${table} WHERE ${fkColumn} = ?`).run(fkValue);
+async function deleteItems(q, table, fkColumn, fkValue) {
+  await q(`DELETE FROM ${table} WHERE ${fkColumn} = $1`, [fkValue]);
 }
 
 module.exports = {
