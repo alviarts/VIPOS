@@ -1,5 +1,6 @@
+// /api/categories — CRUD kategori (P2-01b cutover).
 const express = require('express');
-const { getDb } = require('../models/database');
+const { query, tx, iLikePattern } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const {
@@ -17,27 +18,26 @@ router.post(
   authenticateToken,
   requireAdmin,
   validate({ body: CategoryReorderSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
       const { ids, department_id } = req.body;
-      const db = getDb();
-
       const moveDept = department_id !== undefined;
-      const updateOrder = db.prepare('UPDATE categories SET urutan = ? WHERE id = ?');
-      const updateOrderAndDept = db.prepare(
-        'UPDATE categories SET urutan = ?, department_id = ? WHERE id = ?'
-      );
-      const tx = db.transaction((items) => {
-        let updated = 0;
-        items.forEach((id, idx) => {
-          const result = moveDept
-            ? updateOrderAndDept.run(idx, department_id ?? null, id)
-            : updateOrder.run(idx, id);
-          updated += result.changes;
-        });
-        return updated;
+
+      const updated = await tx(async (txQuery) => {
+        let count = 0;
+        for (let idx = 0; idx < ids.length; idx++) {
+          const id = ids[idx];
+          const r = moveDept
+            ? await txQuery('UPDATE categories SET urutan = $1, department_id = $2 WHERE id = $3', [
+                idx,
+                department_id ?? null,
+                id,
+              ])
+            : await txQuery('UPDATE categories SET urutan = $1 WHERE id = $2', [idx, id]);
+          count += r.rowCount;
+        }
+        return count;
       });
-      const updated = tx(ids);
 
       res.json({ message: 'Urutan kategori tersimpan', updated });
     } catch (err) {
@@ -47,40 +47,39 @@ router.post(
 );
 
 // Get all categories (with department + product count)
-router.get('/', authenticateToken, (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
     const { is_tampil_di_menu, search } = req.query;
 
     const conditions = [];
     const params = [];
+    let p = 1;
 
     if (is_tampil_di_menu === '0' || is_tampil_di_menu === '1') {
-      conditions.push('c.is_tampil_di_menu = ?');
+      conditions.push(`c.is_tampil_di_menu = $${p++}`);
       params.push(parseInt(is_tampil_di_menu, 10));
     }
 
     if (search) {
-      conditions.push('c.name LIKE ?');
-      params.push(`%${search}%`);
+      conditions.push(`c.name LIKE $${p++}`);
+      params.push(`%${iLikePattern(search)}%`);
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const rows = db
-      .prepare(
-        `
-      SELECT
-        c.*,
-        d.name AS department_name,
-        (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id AND p.is_active = 1) AS product_count
-      FROM categories c
-      LEFT JOIN departments d ON d.id = c.department_id
-      ${where}
-      ORDER BY c.urutan ASC, c.name ASC
-    `
+    const rows = (
+      await query(
+        `SELECT
+           c.*,
+           d.name AS department_name,
+           (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id AND p.is_active = 1) AS product_count
+         FROM categories c
+         LEFT JOIN departments d ON d.id = c.department_id
+         ${where}
+         ORDER BY c.urutan ASC, c.name ASC`,
+        params
       )
-      .all(...params);
+    ).rows;
 
     res.json(rows);
   } catch (err) {
@@ -89,19 +88,17 @@ router.get('/', authenticateToken, (req, res) => {
 });
 
 // Get single category
-router.get('/:id', authenticateToken, (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
-    const row = db
-      .prepare(
-        `
-      SELECT c.*, d.name AS department_name
-      FROM categories c
-      LEFT JOIN departments d ON d.id = c.department_id
-      WHERE c.id = ?
-    `
+    const row = (
+      await query(
+        `SELECT c.*, d.name AS department_name
+           FROM categories c
+           LEFT JOIN departments d ON d.id = c.department_id
+          WHERE c.id = $1`,
+        [req.params.id]
       )
-      .get(req.params.id);
+    ).rows[0];
     if (!row) return res.status(404).json({ error: 'Kategori tidak ditemukan' });
     res.json(row);
   } catch (err) {
@@ -115,39 +112,33 @@ router.post(
   authenticateToken,
   requireAdmin,
   validate({ body: CategoryCreateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
       const { name, description, urutan, department_id, color, icon_url, is_tampil_di_menu } =
         req.body;
-
-      const db = getDb();
-      const result = db
-        .prepare(
-          `
-      INSERT INTO categories (name, description, urutan, department_id, color, icon_url, is_tampil_di_menu)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `
-        )
-        .run(
+      const ins = await query(
+        `INSERT INTO categories (name, description, urutan, department_id, color, icon_url, is_tampil_di_menu)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+        [
           name.trim(),
           description ? description.trim() : null,
           urutan ?? 0,
           department_id ?? null,
           color ?? null,
           icon_url ?? null,
-          is_tampil_di_menu ?? 1
-        );
+          is_tampil_di_menu ?? 1,
+        ]
+      );
 
-      const row = db
-        .prepare(
-          `
-      SELECT c.*, d.name AS department_name
-      FROM categories c
-      LEFT JOIN departments d ON d.id = c.department_id
-      WHERE c.id = ?
-    `
+      const row = (
+        await query(
+          `SELECT c.*, d.name AS department_name
+             FROM categories c
+             LEFT JOIN departments d ON d.id = c.department_id
+            WHERE c.id = $1`,
+          [ins.rows[0].id]
         )
-        .get(result.lastInsertRowid);
+      ).rows[0];
       res.status(201).json(row);
     } catch (err) {
       if (err.message.includes('UNIQUE')) {
@@ -164,10 +155,10 @@ router.put(
   authenticateToken,
   requireAdmin,
   validate({ body: CategoryUpdateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
-      const existing = db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id);
+      const existing = (await query('SELECT * FROM categories WHERE id = $1', [req.params.id]))
+        .rows[0];
       if (!existing) {
         return res.status(404).json({ error: 'Kategori tidak ditemukan' });
       }
@@ -191,39 +182,37 @@ router.put(
         return res.status(400).json({ error: 'Nama kategori wajib diisi' });
       }
 
-      db.prepare(
-        `
-      UPDATE categories
-         SET name = ?,
-             description = ?,
-             urutan = ?,
-             department_id = ?,
-             color = ?,
-             icon_url = ?,
-             is_tampil_di_menu = ?
-       WHERE id = ?
-    `
-      ).run(
-        merged.name.trim(),
-        merged.description ? merged.description.trim() : null,
-        merged.urutan,
-        merged.department_id ?? null,
-        merged.color ?? null,
-        merged.icon_url ?? null,
-        merged.is_tampil_di_menu,
-        req.params.id
+      await query(
+        `UPDATE categories
+            SET name = $1,
+                description = $2,
+                urutan = $3,
+                department_id = $4,
+                color = $5,
+                icon_url = $6,
+                is_tampil_di_menu = $7
+          WHERE id = $8`,
+        [
+          merged.name.trim(),
+          merged.description ? merged.description.trim() : null,
+          merged.urutan,
+          merged.department_id ?? null,
+          merged.color ?? null,
+          merged.icon_url ?? null,
+          merged.is_tampil_di_menu,
+          req.params.id,
+        ]
       );
 
-      const row = db
-        .prepare(
-          `
-      SELECT c.*, d.name AS department_name
-      FROM categories c
-      LEFT JOIN departments d ON d.id = c.department_id
-      WHERE c.id = ?
-    `
+      const row = (
+        await query(
+          `SELECT c.*, d.name AS department_name
+             FROM categories c
+             LEFT JOIN departments d ON d.id = c.department_id
+            WHERE c.id = $1`,
+          [req.params.id]
         )
-        .get(req.params.id);
+      ).rows[0];
       res.json(row);
     } catch (err) {
       if (err.message.includes('UNIQUE')) {
@@ -235,18 +224,17 @@ router.put(
 );
 
 // Delete category
-router.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
+router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const db = getDb();
-    const products = db
-      .prepare('SELECT COUNT(*) as count FROM products WHERE category_id = ?')
-      .get(req.params.id);
+    const products = (
+      await query('SELECT COUNT(*) as count FROM products WHERE category_id = $1', [req.params.id])
+    ).rows[0];
     if (products.count > 0) {
       return res.status(400).json({
         error: 'Kategori masih memiliki produk. Hapus atau pindahkan produk terlebih dahulu.',
       });
     }
-    db.prepare('DELETE FROM categories WHERE id = ?').run(req.params.id);
+    await query('DELETE FROM categories WHERE id = $1', [req.params.id]);
     res.json({ message: 'Kategori berhasil dihapus' });
   } catch (err) {
     res.status(500).json({ error: err.message });
