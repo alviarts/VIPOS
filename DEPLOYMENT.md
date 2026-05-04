@@ -63,6 +63,12 @@ Dev mode (`npm run dev`) tetap di `localhost:5173/` (tanpa prefix) supaya nyaman
 
 ## 3. Quick Deploy (One-Shot Script)
 
+> **Pre-deploy gate:** sebelum cut-over traffic ke release baru, jalankan
+> checklist di [`docs/runbook/deploy-checklist.md`](docs/runbook/deploy-checklist.md).
+> Wajib verify DB role bukan superuser/BYPASSRLS (RLS guard), Sentry DSN
+> ter-set, backups jalan, dan smoke test post-deploy hijau. Jangan skip
+> meski deploy keliatannya kecil.
+
 Jalankan di VPS sebagai `root`:
 
 ```bash
@@ -178,11 +184,11 @@ Script akan:
 1. `git fetch + checkout main + reset --hard` ke `origin/main`
 2. `npm install` untuk semua workspaces
 3. `npm run build:web` (output di `apps/web/dist/`)
-4a. Migrasi legacy `backend/.env` → `apps/backend/.env` kalau ada (preserve JWT_SECRET supaya session user tidak invalid)
-4b. Bootstrap `apps/backend/.env` baru kalau belum ada legacy + belum ada new (auto-generate JWT_SECRET)
-4c-d. Stop pm2 dulu, lalu migrasi legacy SQLite (`backend/data/vipos.db` + WAL/SHM) → `apps/backend/data/`
-5. Re-create pm2 process kalau cwd masih ke layout lama; kalau sudah benar tinggal `pm2 restart`
-6. Patch path `/frontend/dist` → `/apps/web/dist` di nginx config + `nginx -t && systemctl reload nginx`
+   4a. Migrasi legacy `backend/.env` → `apps/backend/.env` kalau ada (preserve JWT_SECRET supaya session user tidak invalid)
+   4b. Bootstrap `apps/backend/.env` baru kalau belum ada legacy + belum ada new (auto-generate JWT_SECRET)
+   4c-d. Stop pm2 dulu, lalu migrasi legacy SQLite (`backend/data/vipos.db` + WAL/SHM) → `apps/backend/data/`
+4. Re-create pm2 process kalau cwd masih ke layout lama; kalau sudah benar tinggal `pm2 restart`
+5. Patch path `/frontend/dist` → `/apps/web/dist` di nginx config + `nginx -t && systemctl reload nginx`
 
 Idempotent — aman re-run.
 
@@ -201,14 +207,15 @@ pm2 restart vipos-backend
 
 Workflow deploy butuh empat repo secret yang sudah di-set lewat GitHub UI atau API:
 
-| Secret | Nilai | Kegunaan |
-|---|---|---|
-| `VPS_HOST` | `103.74.5.44` | Target SSH |
-| `VPS_USER` | `root` | User SSH |
-| `VPS_DEPLOY_PATH` | `/var/www/vipos` | Working dir di VPS |
-| `VPS_SSH_KEY` | Private key (ed25519) untuk akses root@103.74.5.44 | SSH auth tanpa password |
+| Secret            | Nilai                                              | Kegunaan                |
+| ----------------- | -------------------------------------------------- | ----------------------- |
+| `VPS_HOST`        | `103.74.5.44`                                      | Target SSH              |
+| `VPS_USER`        | `root`                                             | User SSH                |
+| `VPS_DEPLOY_PATH` | `/var/www/vipos`                                   | Working dir di VPS      |
+| `VPS_SSH_KEY`     | Private key (ed25519) untuk akses root@103.74.5.44 | SSH auth tanpa password |
 
 Key-pair di-generate di session Devin P0-02 dengan `ssh-keygen -t ed25519 -f ~/.ssh/vipos_deploy -N ""`. Public key di-append ke `/root/.ssh/authorized_keys` di VPS via `sshpass`. Private key disimpan sebagai:
+
 - GitHub repo secret `VPS_SSH_KEY` (untuk Actions runner)
 - Devin org secret `VPS_SSH_KEY` (untuk Devin sessions ke depan supaya bisa SSH key-based ke VPS tanpa password prompt overhead)
 

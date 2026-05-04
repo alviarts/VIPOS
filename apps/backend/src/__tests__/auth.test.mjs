@@ -26,6 +26,8 @@ describe('POST /api/auth/login', () => {
     expect(res.status).toBe(200);
     expect(res.body.token).toBeTypeOf('string');
     expect(res.body.user).toMatchObject({ username: 'admin', role: 'admin' });
+    expect(res.body.user).toHaveProperty('tenant_id');
+    expect(res.body.user.tenant_id).not.toBeUndefined();
   });
 
   it('401 dengan password salah', async () => {
@@ -75,6 +77,8 @@ describe('GET /api/auth/me', () => {
     const res = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(res.body.user.username).toBe('admin');
+    expect(res.body.user).toHaveProperty('tenant_id');
+    expect(res.body.user.tenant_id).not.toBeUndefined();
   });
 
   it('401 tanpa Authorization header', async () => {
