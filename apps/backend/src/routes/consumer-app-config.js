@@ -1,6 +1,6 @@
-// Consumer App (Prime+ white-label) config — single-row id=1.
+// Consumer App (Prime+ white-label) config — single-row id=1 (P2-01b cutover).
 const express = require('express');
-const { getDb } = require('../models/database');
+const { query } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { ConsumerAppConfigUpdateSchema } = require('@vipos/shared');
@@ -25,19 +25,23 @@ function rowToConfig(row) {
   return out;
 }
 
-function ensureRow(db) {
-  const row = db.prepare('SELECT * FROM consumer_app_config WHERE id = 1').get();
-  if (row) return row;
-  db.prepare(
+async function ensureRow() {
+  const r = await query('SELECT * FROM consumer_app_config WHERE id = 1');
+  if (r.rows.length) return r.rows[0];
+  await query(
     `INSERT INTO consumer_app_config (id, app_name, primary_color, status)
      VALUES (1, 'Toko Saya App', '#04C99E', 'draft')`
-  ).run();
-  return db.prepare('SELECT * FROM consumer_app_config WHERE id = 1').get();
+  );
+  return (await query('SELECT * FROM consumer_app_config WHERE id = 1')).rows[0];
 }
 
-router.get('/', authenticateToken, (_req, res) => {
-  const row = ensureRow(getDb());
-  res.json(rowToConfig(row));
+router.get('/', authenticateToken, async (_req, res) => {
+  try {
+    const row = await ensureRow();
+    res.json(rowToConfig(row));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.put(
@@ -45,40 +49,44 @@ router.put(
   authenticateToken,
   requireAdmin,
   validate({ body: ConsumerAppConfigUpdateSchema }),
-  (req, res) => {
-    const db = getDb();
-    ensureRow(db);
-    const allowed = [
-      'app_name',
-      'app_icon_url',
-      'splash_image_url',
-      'primary_color',
-      'bundle_id_android',
-      'bundle_id_ios',
-      'play_store_url',
-      'app_store_url',
-      'status',
-    ];
-    const fields = [];
-    const params = [];
-    for (const k of allowed) {
-      if (k in req.body) {
-        fields.push(`${k} = ?`);
-        params.push(req.body[k] ?? null);
+  async (req, res) => {
+    try {
+      await ensureRow();
+      const allowed = [
+        'app_name',
+        'app_icon_url',
+        'splash_image_url',
+        'primary_color',
+        'bundle_id_android',
+        'bundle_id_ios',
+        'play_store_url',
+        'app_store_url',
+        'status',
+      ];
+      const fields = [];
+      const params = [];
+      let p = 1;
+      for (const k of allowed) {
+        if (k in req.body) {
+          fields.push(`${k} = $${p++}`);
+          params.push(req.body[k] ?? null);
+        }
       }
-    }
-    for (const k of JSON_FIELDS) {
-      if (k in req.body) {
-        fields.push(`${k} = ?`);
-        params.push(req.body[k] == null ? null : JSON.stringify(req.body[k]));
+      for (const k of JSON_FIELDS) {
+        if (k in req.body) {
+          fields.push(`${k} = $${p++}`);
+          params.push(req.body[k] == null ? null : JSON.stringify(req.body[k]));
+        }
       }
+      if (fields.length) {
+        fields.push('updated_at = CURRENT_TIMESTAMP');
+        await query(`UPDATE consumer_app_config SET ${fields.join(', ')} WHERE id = 1`, params);
+      }
+      const row = (await query('SELECT * FROM consumer_app_config WHERE id = 1')).rows[0];
+      res.json(rowToConfig(row));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-    if (fields.length) {
-      fields.push('updated_at = CURRENT_TIMESTAMP');
-      db.prepare(`UPDATE consumer_app_config SET ${fields.join(', ')} WHERE id = 1`).run(...params);
-    }
-    const row = db.prepare('SELECT * FROM consumer_app_config WHERE id = 1').get();
-    res.json(rowToConfig(row));
   }
 );
 

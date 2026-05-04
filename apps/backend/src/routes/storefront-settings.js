@@ -1,9 +1,9 @@
-// Storefront (e-menu) config — single-row table id=1.
+// Storefront (e-menu) config — single-row table id=1 (P2-01b cutover).
 //
 //   GET /api/storefront-settings
 //   PUT /api/storefront-settings
 const express = require('express');
-const { getDb } = require('../models/database');
+const { query } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { StorefrontSettingsUpdateSchema } = require('@vipos/shared');
@@ -37,19 +37,23 @@ function rowToSettings(row) {
   return out;
 }
 
-function ensureRow(db) {
-  const row = db.prepare('SELECT * FROM storefront_settings WHERE id = 1').get();
-  if (row) return row;
-  db.prepare(
+async function ensureRow() {
+  const r = await query('SELECT * FROM storefront_settings WHERE id = 1');
+  if (r.rows.length) return r.rows[0];
+  await query(
     `INSERT INTO storefront_settings (id, slug, brand_name, primary_color)
      VALUES (1, 'toko', 'Toko Saya', '#04C99E')`
-  ).run();
-  return db.prepare('SELECT * FROM storefront_settings WHERE id = 1').get();
+  );
+  return (await query('SELECT * FROM storefront_settings WHERE id = 1')).rows[0];
 }
 
-router.get('/', authenticateToken, (_req, res) => {
-  const row = ensureRow(getDb());
-  res.json(rowToSettings(row));
+router.get('/', authenticateToken, async (_req, res) => {
+  try {
+    const row = await ensureRow();
+    res.json(rowToSettings(row));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.put(
@@ -57,62 +61,66 @@ router.put(
   authenticateToken,
   requireAdmin,
   validate({ body: StorefrontSettingsUpdateSchema }),
-  (req, res) => {
-    const db = getDb();
-    ensureRow(db);
-    const allowed = [
-      'slug',
-      'custom_domain',
-      'is_active',
-      'brand_name',
-      'logo_url',
-      'cover_image_url',
-      'primary_color',
-      'accent_color',
-      'theme',
-      'language',
-      'currency',
-      'tagline',
-      'about_text',
-      'contact_phone',
-      'contact_whatsapp',
-      'contact_email',
-      'contact_instagram',
-      'tos_text',
-      'privacy_text',
-      'faq_text',
-      'seo_title',
-      'seo_description',
-      'seo_og_image_url',
-      'ga_id',
-      'fb_pixel_id',
-      'min_order_amount',
-      'service_charge_percent',
-      'tax_percent',
-      'supports_dine_in',
-      'supports_takeaway',
-      'supports_delivery',
-    ];
-    const fields = [];
-    const params = [];
-    for (const k of allowed) {
-      if (k in req.body) {
-        fields.push(`${k} = ?`);
-        params.push(req.body[k] ?? null);
+  async (req, res) => {
+    try {
+      await ensureRow();
+      const allowed = [
+        'slug',
+        'custom_domain',
+        'is_active',
+        'brand_name',
+        'logo_url',
+        'cover_image_url',
+        'primary_color',
+        'accent_color',
+        'theme',
+        'language',
+        'currency',
+        'tagline',
+        'about_text',
+        'contact_phone',
+        'contact_whatsapp',
+        'contact_email',
+        'contact_instagram',
+        'tos_text',
+        'privacy_text',
+        'faq_text',
+        'seo_title',
+        'seo_description',
+        'seo_og_image_url',
+        'ga_id',
+        'fb_pixel_id',
+        'min_order_amount',
+        'service_charge_percent',
+        'tax_percent',
+        'supports_dine_in',
+        'supports_takeaway',
+        'supports_delivery',
+      ];
+      const fields = [];
+      const params = [];
+      let p = 1;
+      for (const k of allowed) {
+        if (k in req.body) {
+          fields.push(`${k} = $${p++}`);
+          params.push(req.body[k] ?? null);
+        }
       }
-    }
-    for (const k of JSON_FIELDS) {
-      if (k in req.body) {
-        fields.push(`${k} = ?`);
-        params.push(req.body[k] == null ? null : JSON.stringify(req.body[k]));
+      for (const k of JSON_FIELDS) {
+        if (k in req.body) {
+          fields.push(`${k} = $${p++}`);
+          params.push(req.body[k] == null ? null : JSON.stringify(req.body[k]));
+        }
       }
+      if (fields.length) {
+        fields.push('updated_at = CURRENT_TIMESTAMP');
+        await query(`UPDATE storefront_settings SET ${fields.join(', ')} WHERE id = 1`, params);
+      }
+      const row = (await query('SELECT * FROM storefront_settings WHERE id = 1')).rows[0];
+      res.json(rowToSettings(row));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-    if (fields.length) {
-      fields.push('updated_at = CURRENT_TIMESTAMP');
-      db.prepare(`UPDATE storefront_settings SET ${fields.join(', ')} WHERE id = 1`).run(...params);
-    }
-    const row = db.prepare('SELECT * FROM storefront_settings WHERE id = 1').get();
-    res.json(rowToSettings(row));
   }
 );
 
