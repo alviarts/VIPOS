@@ -243,7 +243,7 @@ inspirasiRouter.get('/events', async (req, res) => {
          (SELECT COUNT(*) FROM inspirasi_event_rsvps r WHERE r.event_id = e.id AND r.status != 'cancelled') AS rsvp_count,
          (SELECT status FROM inspirasi_event_rsvps r WHERE r.event_id = e.id AND r.user_id = $1) AS user_rsvp_status
        FROM inspirasi_events e
-       WHERE event_date >= datetime('now')
+       WHERE event_date >= NOW()
        ORDER BY event_date ASC`
     : `SELECT e.*,
          (SELECT COUNT(*) FROM inspirasi_event_rsvps r WHERE r.event_id = e.id AND r.status != 'cancelled') AS rsvp_count,

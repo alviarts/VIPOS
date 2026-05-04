@@ -264,7 +264,7 @@ router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
       await query(`DELETE FROM employees WHERE id = $1`, [id]);
     } else {
       await query(
-        `UPDATE employees SET status = 'resigned', date_resigned = COALESCE(date_resigned, date('now')), updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        `UPDATE employees SET status = 'resigned', date_resigned = COALESCE(date_resigned, CURRENT_DATE), updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
         [id]
       );
     }

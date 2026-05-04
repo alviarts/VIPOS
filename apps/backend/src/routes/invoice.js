@@ -52,7 +52,7 @@ router.get('/', async (req, res) => {
     `UPDATE b2b_invoices SET status = 'OVERDUE'
        WHERE status IN ('ISSUED', 'PARTIAL')
          AND due_date IS NOT NULL
-         AND date(due_date) < date('now')
+         AND due_date::date < CURRENT_DATE
          AND outstanding > 0`
   );
   const where = [];

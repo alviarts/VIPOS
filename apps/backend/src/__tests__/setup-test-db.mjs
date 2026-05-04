@@ -1,42 +1,67 @@
 /**
- * Helper to spin up a fresh per-test SQLite DB.
+ * Helper to spin up a fresh per-test Postgres state (P2-01b finalstep).
  *
- * Sets process.env.VIPOS_DB_PATH to a temp file and forces the database
- * singleton to open against it. Each test file gets its own DB so tests don't
- * cross-contaminate.
+ * Strategy:
+ *   - One shared test DB (DATABASE_URL_TEST or DATABASE_URL).
+ *   - Schema is applied once (via global setup `setup-test-global.mjs`).
+ *   - Before each test file (`setupTestEnv` in beforeAll), we TRUNCATE all
+ *     tables with RESTART IDENTITY CASCADE, then re-seed defaults.
+ *   - Tests run serially (vitest singleFork=true).
  */
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { _resetDbForTests } = require('../models/database');
 
-const created = [];
+let _query;
+let _initDatabase;
+let _resetForTests;
+let _cachedTables;
 
-export function setupTestEnv() {
-  process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-vipos';
-  process.env.DISABLE_API_DOCS = '1';
+function getDeps() {
+  if (!_query) {
+    process.env.DATABASE_DRIVER = 'postgres';
+    process.env.DATABASE_URL =
+      process.env.DATABASE_URL ||
+      process.env.DATABASE_URL_TEST ||
+      'postgresql://test:test@localhost:5432/vipos_test';
+    process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-vipos';
+    process.env.DISABLE_API_DOCS = '1';
 
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vipos-test-'));
-  const dbFile = path.join(dir, 'vipos.db');
-  process.env.VIPOS_DB_PATH = dbFile;
-  created.push({ dir, dbFile });
-
-  _resetDbForTests();
-  return { dbFile, dir };
+    ({ query: _query, _resetForTests } = require('../db'));
+    ({ initDatabase: _initDatabase } = require('../db/init'));
+  }
+  return { query: _query, initDatabase: _initDatabase };
 }
 
-export function teardownTestEnv() {
-  _resetDbForTests();
-  while (created.length) {
-    const { dir } = created.pop();
-    try {
-      fs.rmSync(dir, { recursive: true, force: true });
-    } catch {
-      /* ignore */
-    }
-  }
-  delete process.env.VIPOS_DB_PATH;
+async function listAppTables(query) {
+  if (_cachedTables) return _cachedTables;
+  const r = await query(
+    `SELECT tablename FROM pg_tables
+       WHERE schemaname = 'public'
+         AND tablename NOT IN ('_prisma_migrations')
+       ORDER BY tablename`
+  );
+  _cachedTables = r.rows.map((row) => `"${row.tablename}"`);
+  return _cachedTables;
+}
+
+async function resetDb(query) {
+  const tables = await listAppTables(query);
+  if (!tables.length) return;
+  await query(`TRUNCATE TABLE ${tables.join(', ')} RESTART IDENTITY CASCADE`);
+}
+
+export async function setupTestEnv() {
+  const { query, initDatabase } = getDeps();
+  await resetDb(query);
+  await initDatabase();
+}
+
+export async function teardownTestEnv() {
+  // Pool stays alive across files (faster). Only end on full process exit
+  // — vitest will tear down the process when all suites are done.
+}
+
+export async function closeTestPool() {
+  if (_resetForTests) _resetForTests();
 }

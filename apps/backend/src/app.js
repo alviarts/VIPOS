@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const path = require('path');
-const { initDatabase } = require('./models/database');
 const { legacyDeprecationMiddleware } = require('./api-version');
 
 /**
@@ -168,8 +167,6 @@ function mountVersionedRoutes(parent) {
  */
 function buildApp(opts = {}) {
   const { morganEnabled = true } = opts;
-
-  initDatabase();
 
   const app = express();
   app.use(cors());

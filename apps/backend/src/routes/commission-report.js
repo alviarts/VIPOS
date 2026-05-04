@@ -31,13 +31,12 @@ router.get('/', authenticateToken, async (req, res) => {
 
     // Group by employee + period_key. period_key sudah pre-computed di assignment.
     // Optional override: kalau client kirim group_by, re-derive period_key
-    // dari created_at dengan format yang requested. NOTE: strftime is SQLite-
-    // specific; Postgres equivalent will be to_char(a.created_at::date, ...).
+    // dari created_at dengan format yang requested.
     const groupBy = req.query.group_by;
     const periodExpr = (() => {
-      if (groupBy === 'DAY') return "strftime('%Y-%m-%d', a.created_at)";
-      if (groupBy === 'WEEK') return "strftime('%Y-W%W', a.created_at)";
-      if (groupBy === 'MONTH') return "strftime('%Y-%m', a.created_at)";
+      if (groupBy === 'DAY') return "to_char(a.created_at, 'YYYY-MM-DD')";
+      if (groupBy === 'WEEK') return 'to_char(a.created_at, \'IYYY-"W"IW\')';
+      if (groupBy === 'MONTH') return "to_char(a.created_at, 'YYYY-MM')";
       return 'a.period_key';
     })();
 
