@@ -97,4 +97,24 @@ async function logAuditWithTenant(entry) {
   });
 }
 
-module.exports = { logAudit, logAuditWithTenant, ACTIONS };
+// Fire-and-await wrapper that swallows any audit-write failure so the
+// surrounding mutation handler does not 500 just because the audit
+// pipeline is down. The call still awaits in order to keep the error
+// visible in tests (which assert on the inserted row), so failures land
+// in the request log, not in the user-facing response.
+async function safeLogAudit(req, entry) {
+  try {
+    return await logAudit(req, entry);
+  } catch (err) {
+    console.error(
+      '[audit] failed to log',
+      entry?.entity,
+      entry?.action,
+      entry?.entity_id,
+      err?.message
+    );
+    return null;
+  }
+}
+
+module.exports = { logAudit, logAuditWithTenant, safeLogAudit, ACTIONS };
