@@ -16,6 +16,7 @@ const { legacyDeprecationMiddleware } = require('./api-version');
  */
 function mountVersionedRoutes(parent) {
   parent.use('/auth', require('./routes/auth'));
+  parent.use('/tenant', require('./routes/tenant').router);
   parent.use('/products', require('./routes/products'));
   // product-variants/product-recipe declare their own `/products/:id/...`
   // sub-paths, so they mount at the resource root.
@@ -188,6 +189,10 @@ function buildApp(opts = {}) {
   const v1Router = express.Router();
   mountVersionedRoutes(v1Router);
   app.use('/api/v1', v1Router);
+
+  // Cross-tenant admin surface (super_admin only — never exposed via
+  // legacy `/api` alias on purpose).
+  app.use('/api/admin/tenant', require('./routes/tenant').adminRouter);
 
   // Legacy alias: /api/* delegates to the same handlers but adds Deprecation
   // / Sunset / Link response headers per RFC 8594. Will be removed once the

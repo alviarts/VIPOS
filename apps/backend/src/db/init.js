@@ -18,16 +18,41 @@
 const bcrypt = require('bcryptjs');
 const { query, tx } = require('./index');
 
+const DEFAULT_TENANT_ID = 1;
+
+async function seedDefaultTenant() {
+  // The Prisma migration `add_multi_tenant_foundation` already inserts the
+  // default tenant (id=1) on schema apply. This is a safety net for installs
+  // where the tenants table got truncated (e.g. test resets).
+  const exists = (await query('SELECT id FROM tenants WHERE id = $1', [DEFAULT_TENANT_ID])).rows[0];
+  if (exists) return;
+  await query(
+    `INSERT INTO tenants (id, slug, name, tier, status)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [DEFAULT_TENANT_ID, 'default', 'Default Tenant', 'advance', 'active']
+  );
+  await query(
+    `SELECT setval(pg_get_serial_sequence('tenants', 'id'), GREATEST(1, (SELECT MAX(id) FROM tenants)), true)`
+  );
+}
+
 async function seedDefaultAdmin() {
   const adminExists = (await query('SELECT id FROM users WHERE username = $1', ['admin'])).rows[0];
   if (adminExists) return;
   const hashedPassword = bcrypt.hashSync('admin123', 10);
-  await query('INSERT INTO users (username, password, name, role) VALUES ($1, $2, $3, $4)', [
-    'admin',
-    hashedPassword,
-    'Administrator',
-    'admin',
-  ]);
+  const inserted = await query(
+    `INSERT INTO users (username, password, name, role, tenant_id)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING id`,
+    ['admin', hashedPassword, 'Administrator', 'admin', DEFAULT_TENANT_ID]
+  );
+  const userId = inserted.rows[0].id;
+  await query(
+    `INSERT INTO tenant_users (tenant_id, user_id, role, is_default)
+     VALUES ($1, $2, $3, TRUE)
+     ON CONFLICT (tenant_id, user_id) DO NOTHING`,
+    [DEFAULT_TENANT_ID, userId, 'admin']
+  );
   console.log('Default admin user created (admin / admin123)');
 }
 
@@ -641,6 +666,7 @@ async function seedDefaultLainnya() {
  * in CI / startup script before booting the backend).
  */
 async function initDatabase() {
+  await seedDefaultTenant();
   await seedDefaultAdmin();
   await seedDefaultChartOfAccounts();
   await seedDefaultSettings();
@@ -648,4 +674,4 @@ async function initDatabase() {
   console.log('Database initialized successfully');
 }
 
-module.exports = { initDatabase };
+module.exports = { initDatabase, DEFAULT_TENANT_ID };

@@ -27,20 +27,19 @@ function signAccessToken(user) {
       username: user.username,
       name: user.name,
       role: user.role,
+      tenant_id: user.tenant_id,
     },
     JWT_SECRET,
-    { expiresIn: ACCESS_TOKEN_TTL_SECONDS },
+    { expiresIn: ACCESS_TOKEN_TTL_SECONDS }
   );
 }
 
 function signLogin2faToken(user) {
   // Short-lived intermediate token used to prove the user passed username +
   // password but still needs to enter their 2FA code.
-  return jwt.sign(
-    { id: user.id, username: user.username, scope: 'login_2fa' },
-    JWT_SECRET,
-    { expiresIn: LOGIN_2FA_TTL_SECONDS },
-  );
+  return jwt.sign({ id: user.id, username: user.username, scope: 'login_2fa' }, JWT_SECRET, {
+    expiresIn: LOGIN_2FA_TTL_SECONDS,
+  });
 }
 
 function verifyLogin2faToken(token) {
