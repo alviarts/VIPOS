@@ -33,6 +33,24 @@ Source of truth contract: [Swagger UI](http://localhost:3001/api/docs) +
 
 ### Added
 
+- **P2-01a**: Postgres infrastructure (Prisma + Supabase). Schema mirror
+  SQLite di `apps/backend/prisma/schema.prisma` (97 model). Initial migration
+  `20260504113041_init` apply lewat `prisma migrate deploy`. Routes belum
+  cutover ke Prisma — masih pakai better-sqlite3; itu scope P2-01b.
+- **P2-01a**: Migration tool `apps/backend/scripts/migrate-sqlite-to-postgres.mjs`.
+  Snapshot SQLite → bulk insert ke Postgres dengan FK enforcement disable
+  selama transfer + reset SERIAL sequence + zero-data-loss verifier (row
+  count parity per table). Idempoten (TRUNCATE RESTART IDENTITY CASCADE),
+  bisa di-rerun tanpa side effect.
+- **P2-01a**: Daily backup script `apps/backend/scripts/backup-postgres.sh`
+  (pg_dump + gzip → local dir, opsional S3 offload via S3_BUCKET env). Cron
+  template di README. Restore drill: `gunzip < dump.sql.gz | psql $URL`.
+- **P2-01a**: `.env.example` di repo root dengan `DATABASE_URL` (pooler 6543)
+  - `DIRECT_URL` (pooler 5432) + warning soal `db.<ref>.supabase.co`
+    IPv6-only di Supabase free tier.
+- **P2-01a**: Prisma client singleton `apps/backend/src/db/prisma.js`
+  disiapkan supaya P2-01b cutover tinggal pakai. Lazy throw kalau Prisma
+  belum di-generate, jadi tidak crash test suite SQLite.
 - **P2-07**: API versioning. Semua endpoint sekarang canonically tersedia di
   `/api/v1/*` (sebelumnya unversioned `/api/*`). Web client + tests sudah
   pakai `/api/v1`.
