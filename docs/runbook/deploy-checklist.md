@@ -1,7 +1,8 @@
 # VIPOS — Pre-Deploy & Post-Deploy Checklist
 
 > Owner: Backend on-call
-> Last reviewed: 2026-05-04 (PR-5 polish)
+> Last reviewed: 2026-05-04 (production cutover incident — see
+> [`../handoff/2026-05-04-production-postgres-migration.md`](../handoff/2026-05-04-production-postgres-migration.md))
 > Scope: production deploy (VPS + Postgres) and any environment that runs
 > against a real Postgres instance with multi-tenant data.
 
@@ -135,20 +136,89 @@ unacceptable for merchant pilot.
 - `RATE_LIMIT_LOGIN_DISABLED=1` is **NOT** set in production env
 - `apps/backend/.env` is `chmod 600` and owned by the app user
 
+### 2.8 `CORS_ALLOWLIST` (hard production gate)
+
+`apps/backend/src/lib/security.js` throws at boot when `NODE_ENV=production`
+and `CORS_ALLOWLIST` is empty. The backend will crash-loop until this is set.
+
+Format: comma-separated origins.
+
+```
+# bare-IP HTTP (early VPS staging)
+CORS_ALLOWLIST=http://103.74.5.44
+
+# production with custom domain
+CORS_ALLOWLIST=https://app.vipos.id,https://www.vipos.id
+
+# explicit wildcard (only for fully-public APIs — logs a warning)
+CORS_ALLOWLIST=*
+```
+
+Same-origin requests (no `Origin` header — typical curl, server-to-server, the
+browser hitting the SPA at the same hostname) are always allowed regardless
+of the allowlist; this var only affects cross-origin browsers (e.g. mobile
+apps, native clients, third-party embeds).
+
+### 2.9 Data migration from a Phase 1 SQLite source
+
+Applies only when cutting a server over from the pre-Phase-2 SQLite stack to
+Postgres for the first time.
+
+The script [`apps/backend/scripts/migrate-sqlite-to-postgres.mjs`](../../apps/backend/scripts/migrate-sqlite-to-postgres.mjs)
+copies tables column-by-column using SQLite's schema. A Phase 1 SQLite source
+has no `tenant_id` column on data tables, so the INSERT into Phase 2 Postgres
+(where `tenant_id` is `NOT NULL`) fails with `null value in column "tenant_id"`.
+
+Workaround until the script is patched: backfill `tenant_id` on the SQLite
+side before running the migration.
+
+```bash
+# 1. Back up SQLite first (sqlite3 ".backup" produces a clean WAL-checkpointed copy)
+sqlite3 /var/www/vipos/apps/backend/data/vipos.db \
+  ".backup '/var/www/vipos/apps/backend/data/vipos.db.pre-pg-migrate-$(date +%s)'"
+
+# 2. Backfill tenant_id=1 on every SQLite table whose Postgres counterpart
+#    has tenant_id NOT NULL (idempotent — skips tables that already have it).
+PGPASSWORD="$POSTGRES_PWD" psql -h 127.0.0.1 -U postgres -d vipos -tA -c \
+  "SELECT table_name FROM information_schema.columns \
+   WHERE column_name='tenant_id' AND is_nullable='NO' AND table_schema='public'" \
+  | while read t; do
+      [ -z "$t" ] && continue
+      sqlite3 /var/www/vipos/apps/backend/data/vipos.db \
+        "ALTER TABLE \"$t\" ADD COLUMN tenant_id INTEGER NOT NULL DEFAULT 1" \
+        2>/dev/null || true
+    done
+
+# 3. Run the migration with a SUPERUSER DATABASE_URL (the script needs to
+#    SET session_replication_role = 'replica' to disable FK enforcement).
+cd /var/www/vipos/apps/backend
+npm install --no-save better-sqlite3   # dropped from package.json in P2-01b
+DATABASE_URL="postgresql://postgres:$POSTGRES_PWD@127.0.0.1:5432/vipos" \
+  node scripts/migrate-sqlite-to-postgres.mjs --dry-run    # verify counts
+DATABASE_URL="postgresql://postgres:$POSTGRES_PWD@127.0.0.1:5432/vipos" \
+  node scripts/migrate-sqlite-to-postgres.mjs              # real run
+```
+
+The default value `1` attributes Phase 1 data to the default tenant created by
+the `add_multi_tenant_foundation` migration. After cutover, all SQLite-era
+records belong to tenant id `1` and are visible only with `app.current_tenant`
+set to `'1'` or `'0'` (system bypass).
+
 ---
 
 ## 3. Post-deploy smoke test
 
 Run within 5 minutes of cut-over. Block rollout to merchants until all pass.
 
-| #   | Check                                                                                                                  | How                                                                                                                              |
-| --- | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Health endpoint                                                                                                        | `curl -fsS https://<host>/api/health` → `{"status":"ok"}`                                                                        |
-| 2   | Login default admin returns `user.tenant_id`                                                                           | `curl -s -X POST .../api/auth/login -d '{"username":"admin","password":"admin123"}'` → `.user.tenant_id` is a number, not `null` |
-| 3   | `GET /api/auth/me` returns `user.tenant_id`                                                                            | With Bearer token from #2 → same `tenant_id`                                                                                     |
-| 4   | Public signup works (`POST /api/v1/tenant/register`) and onboarding wizard at `/vipos/onboarding` loads 3 preset cards | Manual browser flow (see `docs/handoff/2026-05-04-pra-beta-v0.0.1-smoke-test.md`)                                                |
-| 5   | Cross-tenant isolation                                                                                                 | Two tenant accounts cannot read each other's products via `/api/v1/products` (signed-in JWT scoped to one tenant)                |
-| 6   | Sentry receives a test event                                                                                           | `curl -fsS https://<host>/api/__sentry-test` (if endpoint exists) or trigger a known 500; confirm in Sentry UI                   |
+| #   | Check                                                                                                                  | How                                                                                                                                                                                  |
+| --- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Health endpoint                                                                                                        | `curl -fsS https://<host>/api/health` → `{"status":"ok"}`                                                                                                                            |
+| 2   | Login default admin returns `user.tenant_id`                                                                           | `curl -s -X POST .../api/auth/login -d '{"username":"admin","password":"admin123"}'` → `.user.tenant_id` is a number, not `null`                                                     |
+| 3   | `GET /api/auth/me` returns `user.tenant_id`                                                                            | With Bearer token from #2 → same `tenant_id`                                                                                                                                         |
+| 4   | Public signup works (`POST /api/v1/tenant/register`) and onboarding wizard at `/vipos/onboarding` loads 3 preset cards | Manual browser flow (see `docs/handoff/2026-05-04-pra-beta-v0.0.1-smoke-test.md`)                                                                                                    |
+| 5   | Cross-tenant isolation (DB-level RLS)                                                                                  | `psql -U vipos_app -c "SET app.current_tenant='2'; SELECT COUNT(*) FROM products;"` returns `0` when tenant 2 has no products. Repeat with tenant 1 to confirm its rows ARE visible. |
+| 5b  | Cross-tenant isolation (HTTP)                                                                                          | Two tenant accounts cannot read each other's products via `/api/v1/products` (signed-in JWT scoped to one tenant)                                                                    |
+| 6   | Sentry receives a test event                                                                                           | `curl -fsS https://<host>/api/__sentry-test` (if endpoint exists) or trigger a known 500; confirm in Sentry UI                                                                       |
 
 If #5 fails, **rollback immediately** — RLS is not active. Re-run §2.1.
 
