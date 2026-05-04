@@ -3,6 +3,8 @@ const cors = require('cors');
 const morgan = require('morgan');
 const path = require('path');
 const { legacyDeprecationMiddleware } = require('./api-version');
+const { authenticateToken } = require('./middleware/auth');
+const { requireTier } = require('./middleware/tier');
 
 /**
  * Mount every API resource onto the supplied router/app. The function is
@@ -39,17 +41,22 @@ function mountVersionedRoutes(parent) {
     ruleRouter: loyaltyRuleRouter,
     ledgerRouter: loyaltyLedgerRouter,
   } = require('./routes/loyalty');
-  parent.use('/loyalty-rule', loyaltyRuleRouter);
-  parent.use('/loyalty', loyaltyLedgerRouter);
-  parent.use('/commission-group', require('./routes/commission-group'));
-  parent.use('/commission-assignment', require('./routes/commission-assignment'));
-  parent.use('/commission-report', require('./routes/commission-report'));
-  parent.use('/quotation', require('./routes/quotation'));
-  parent.use('/sales-order', require('./routes/sales-order'));
-  parent.use('/delivery-order', require('./routes/delivery-order'));
-  parent.use('/invoice', require('./routes/invoice'));
-  parent.use('/receipt', require('./routes/receipt'));
-  parent.use('/aging-report', require('./routes/aging-report'));
+  // P2-02 tier gating — Advance+ features per docs/v2/06_FEATURE_TIERS.md.
+  // We attach `authenticateToken` first so `requireTier` has `req.tenantId`
+  // available; downstream routes can still call `authenticateToken` again
+  // (Express middlewares are idempotent for our purposes here).
+  const advanceGate = [authenticateToken, requireTier('advance')];
+  parent.use('/loyalty-rule', advanceGate, loyaltyRuleRouter);
+  parent.use('/loyalty', advanceGate, loyaltyLedgerRouter);
+  parent.use('/commission-group', advanceGate, require('./routes/commission-group'));
+  parent.use('/commission-assignment', advanceGate, require('./routes/commission-assignment'));
+  parent.use('/commission-report', advanceGate, require('./routes/commission-report'));
+  parent.use('/quotation', advanceGate, require('./routes/quotation'));
+  parent.use('/sales-order', advanceGate, require('./routes/sales-order'));
+  parent.use('/delivery-order', advanceGate, require('./routes/delivery-order'));
+  parent.use('/invoice', advanceGate, require('./routes/invoice'));
+  parent.use('/receipt', advanceGate, require('./routes/receipt'));
+  parent.use('/aging-report', advanceGate, require('./routes/aging-report'));
 
   // P1-13 Appointment.
   parent.use('/staff', require('./routes/staff'));
@@ -59,12 +66,13 @@ function mountVersionedRoutes(parent) {
 
   // P1-12 Order Online.
   parent.use('/online-order', require('./routes/order-online'));
-  parent.use('/marketplace', require('./routes/marketplace'));
+  // P2-02: marketplace integration is Advance+.
+  parent.use('/marketplace', advanceGate, require('./routes/marketplace'));
   parent.use('/storefront-settings', require('./routes/storefront-settings'));
   parent.use('/consumer-app-config', require('./routes/consumer-app-config'));
 
-  // P1-11 Marketing.
-  parent.use('/marketing', require('./routes/marketing'));
+  // P1-11 Marketing — P2-02: marketing campaigns are Advance+.
+  parent.use('/marketing', advanceGate, require('./routes/marketing'));
 
   // P1-14 Karyawan + Payroll + Absensi + Schedule + Approval.
   parent.use('/employee', require('./routes/employee'));

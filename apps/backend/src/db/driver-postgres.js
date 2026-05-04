@@ -1,26 +1,39 @@
 /**
- * Postgres driver for the async query layer (P2-01b).
+ * Postgres driver for the async query layer (P2-01b base + P2-02 multi-tenant
+ * RLS support).
  *
- * Uses `pg` (node-postgres) Pool. Activated when env DATABASE_DRIVER=postgres
- * (default is `sqlite` so tests + local dev don't need a Postgres host).
+ * Uses `pg` (node-postgres) Pool. The driver is hardcoded to Postgres after
+ * the P2-01b cutover; SQLite is gone.
+ *
+ * MULTI-TENANT (P2-02):
+ *   Every `query()` and `tx()` runs inside a per-call BEGIN ... COMMIT so we
+ *   can `SET LOCAL app.current_tenant = $tenant` and let Postgres RLS policies
+ *   filter rows automatically. The tenant id is read from an
+ *   AsyncLocalStorage store, populated by the auth middleware
+ *   (`authenticateToken` -> `runWithTenant`). When there is no store on the
+ *   current async context, we default to tenant id `0` which the RLS policy
+ *   treats as a "system" bypass (used by init.js seeders, login lookups, and
+ *   the public `/tenant/register` endpoint).
  *
  * CONNECTION:
  *   - Pool created lazily on first query.
  *   - Connection string from DATABASE_URL (Supabase pooler 6543 transaction
- *     mode in production).
- *   - Pool size capped at PG_POOL_MAX env (default 10) — conservative for
- *     PgBouncer transaction-mode hosts.
+ *     mode in production — `SET LOCAL` is the only safe pattern there).
+ *   - Pool size capped at PG_POOL_MAX env (default 10).
  *
  * QUERY API:
- *   query(sql, params) → { rows, rowCount } — same shape as the sqlite
- *   driver. SQL uses native $1, $2 placeholders; no translation needed.
- *
- * TRANSACTIONS:
- *   tx(fn) acquires a dedicated client, BEGIN, runs fn with a tx-bound
- *   query helper, then COMMIT or ROLLBACK on error.
+ *   query(sql, params) → { rows, rowCount }
+ *   tx(fn)            → wraps multi-statement work in a single tx.
+ *   runWithTenant(id, fn), runAsSystem(fn) → set tenant context for fn.
  */
 
+const { AsyncLocalStorage } = require('node:async_hooks');
+
 let _pool;
+
+const tenantStore = new AsyncLocalStorage();
+
+const SYSTEM_TENANT_SENTINEL = 0;
 
 function getPool() {
   if (_pool) return _pool;
@@ -53,14 +66,47 @@ function getPool() {
   return _pool;
 }
 
+function currentTenantId() {
+  const store = tenantStore.getStore();
+  if (!store || store.tenantId == null) return SYSTEM_TENANT_SENTINEL;
+  const id = Number(store.tenantId);
+  if (!Number.isFinite(id)) return SYSTEM_TENANT_SENTINEL;
+  return id;
+}
+
+async function setTenantOnClient(client, tenantId) {
+  // Embed tenantId directly in the SQL string. SET LOCAL does not accept
+  // parameter placeholders, but we always pass an integer (validated by
+  // currentTenantId / runWithTenant) so this is safe from injection.
+  const safe = Number(tenantId) | 0;
+  await client.query(`SET LOCAL app.current_tenant = '${safe}'`);
+}
+
 async function query(sql, params = []) {
   const pool = getPool();
-  const result = await pool.query(sql, params);
-  return { rows: result.rows, rowCount: result.rowCount ?? 0 };
+  const tenantId = currentTenantId();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await setTenantOnClient(client, tenantId);
+    const result = await client.query(sql, params);
+    await client.query('COMMIT');
+    return { rows: result.rows, rowCount: result.rowCount ?? 0 };
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      /* ignore rollback failure */
+    }
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 async function tx(fn) {
   const pool = getPool();
+  const tenantId = currentTenantId();
   const client = await pool.connect();
   const txQuery = async (sql, params = []) => {
     const result = await client.query(sql, params);
@@ -68,6 +114,7 @@ async function tx(fn) {
   };
   try {
     await client.query('BEGIN');
+    await setTenantOnClient(client, tenantId);
     const result = await fn(txQuery);
     await client.query('COMMIT');
     return result;
@@ -83,6 +130,18 @@ async function tx(fn) {
   }
 }
 
+function runWithTenant(tenantId, fn) {
+  const id = Number(tenantId);
+  if (!Number.isFinite(id) || id <= 0) {
+    throw new Error(`runWithTenant: invalid tenantId ${tenantId}`);
+  }
+  return tenantStore.run({ tenantId: id }, fn);
+}
+
+function runAsSystem(fn) {
+  return tenantStore.run({ tenantId: SYSTEM_TENANT_SENTINEL }, fn);
+}
+
 function _resetForTests() {
   if (_pool) {
     _pool.end().catch(() => {
@@ -92,4 +151,11 @@ function _resetForTests() {
   }
 }
 
-module.exports = { query, tx, _resetForTests };
+module.exports = {
+  query,
+  tx,
+  runWithTenant,
+  runAsSystem,
+  _resetForTests,
+  SYSTEM_TENANT_SENTINEL,
+};
