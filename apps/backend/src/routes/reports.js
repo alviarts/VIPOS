@@ -11,12 +11,14 @@
 const express = require('express');
 const { query } = require('../db');
 const { authenticateToken } = require('../middleware/auth');
+const { requireTier } = require('../middleware/tier');
 const { validate } = require('../middleware/validate');
 const {
   ReportFilterQuerySchema,
   ReportScheduleCreateSchema,
   ReportScheduleUpdateSchema,
 } = require('@vipos/shared');
+const { QUEUE_NAMES, isQueueEnabled, getOrCreateQueue, safeEnqueue } = require('../lib/queue');
 
 const router = express.Router();
 
@@ -1342,15 +1344,54 @@ router.delete('/schedule/:id', authenticateToken, async (req, res) => {
   res.status(204).send();
 });
 
-router.post('/schedule/:id/run', authenticateToken, async (req, res) => {
+// P2-04 PR-C: enqueue the schedule onto the `report` queue. The processor
+// (`apps/backend/src/jobs/report.js`) generates the report and chains a
+// downstream `email` job per recipient. Tier-gated: Prime+ only.
+router.post('/schedule/:id/run', authenticateToken, requireTier('prime'), async (req, res) => {
   const existing = (await query(`SELECT * FROM report_schedules WHERE id = $1`, [req.params.id]))
     .rows[0];
   if (!existing) return res.status(404).json({ error: 'Schedule tidak ditemukan' });
   const now = new Date().toISOString();
   await query(`UPDATE report_schedules SET last_run_at = $1 WHERE id = $2`, [now, req.params.id]);
-  res.json({
-    message: 'Scheduled report queued (stub).',
+
+  const data = {
+    tenant_id: req.tenantId ?? null,
+    user_id: req.user?.id ?? null,
+    schedule_id: existing.id,
+    report_key: existing.report_key,
+    name: existing.name,
+    params_json: existing.params_json ?? null,
+    recipients: existing.recipients ?? null,
+    format: existing.format ?? 'pdf',
+  };
+
+  if (!isQueueEnabled()) {
+    // Sync fallback: keep the legacy "stub" contract — the schedule's
+    // last_run_at has been updated, but no actual generation/delivery
+    // happens. Surfaces that the worker is offline.
+    return res.json({
+      message: 'Scheduled report queued (sync fallback — REDIS_URL unset).',
+      last_run_at: now,
+      enqueued: false,
+      sync: true,
+    });
+  }
+  const queue = getOrCreateQueue(QUEUE_NAMES.REPORT);
+  const job = await safeEnqueue(queue, 'generate', data);
+  if (!job) {
+    return res.json({
+      message: 'Scheduled report queued (sync fallback).',
+      last_run_at: now,
+      enqueued: false,
+      sync: true,
+    });
+  }
+  return res.status(202).json({
+    message: 'Scheduled report queued.',
     last_run_at: now,
+    enqueued: true,
+    job_id: job.id,
+    queue: queue.name,
   });
 });
 

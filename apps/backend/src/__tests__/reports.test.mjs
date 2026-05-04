@@ -21,6 +21,14 @@ beforeAll(async () => {
     .post('/api/auth/login')
     .send({ username: 'admin', password: 'admin123' });
   token = res.body.token;
+
+  // Bump the bootstrap tenant to Prime so the
+  // `POST /reports/schedule/:id/run` enqueue path (P2-04 PR-C) is
+  // reachable under requireTier('prime'). The schedule CRUD tests are
+  // Prime+ feature endpoints regardless, per the file header in
+  // routes/reports.js.
+  const { runAsSystem, query } = require('../db');
+  await runAsSystem(() => query(`UPDATE tenants SET tier = 'prime' WHERE id = 1`));
 });
 
 afterAll(async () => {
@@ -137,9 +145,11 @@ describe('Report schedule CRUD (Prime+ feature)', () => {
     expect(res.body.is_active).toBe(0);
   });
 
-  it('triggers manual run (stub)', async () => {
+  it('triggers manual run', async () => {
+    // P2-04 PR-C: enqueue path returns 202 when REDIS_URL is configured,
+    // 200 sync-fallback otherwise. Either way `last_run_at` is updated.
     const res = await request(app).post(`/api/reports/schedule/${createdId}/run`).set(auth());
-    expect(res.status).toBe(200);
+    expect([200, 202]).toContain(res.status);
     expect(res.body.last_run_at).toBeDefined();
   });
 
