@@ -83,26 +83,31 @@
 
 ---
 
-### P2-03: Audit logging `[pending]`
+### P2-03: Audit logging `[done]`
 
 **Goal**: Setiap CUD action ke entity penting tercatat (siapa, kapan, apa, before/after).
 
 **Dependencies**: P2-02
 
+**PR**: [#48] (PR-A foundation) + [#49] (PR-B instrumentation), session: https://app.devin.ai/sessions/240928c44aca4151ae91268e60dccc24
+
 **Outputs**:
 
 - Tabel `audit_logs` (tenant_id, user_id, entity, entity_id, action, before_json, after_json, ip, user_agent, timestamp)
-- Middleware/decorator untuk auto-log mutation endpoint
-- API: `/api/v1/audit-log` dengan filter
-- UI: di P1-16 Pengaturan / Audit (Settings group)
+- Helper `logAudit(req, entry)` + `logAuditWithTenant(...)` + `safeLogAudit()` wrapper di `apps/backend/src/lib/audit.js`
+- API: `GET /api/v1/audit-log` (admin + Advance+ tier) + filter user/entity/entity_id/action/from/to + pagination
+- API: `GET /api/v1/audit-log/export.csv` (CSV streaming)
+- Hook login + logout di `routes/auth.js` (entity=`session`)
+- Retention script `scripts/prune-audit-logs.mjs` (default 365 hari) untuk VPS cron — akan dipindah ke BullMQ job di P2-04
+- UI: ditangani di P1-16 Pengaturan / Audit (Settings group) — out of scope phase 2 backend
 
 **Acceptance criteria**:
 
-- [ ] Mutation di Products, Customers, Inventory, Finance, Employee, Settings ter-log
-- [ ] before/after JSON tersimpan dengan diff visible
-- [ ] Filter: user, entity, date, action
-- [ ] Retention 1 tahun (auto-prune)
-- [ ] Export CSV
+- [x] Mutation di Products, Customers, Inventory, Finance, Employee, Settings ter-log (PR-B)
+- [x] before/after JSON tersimpan raw (rendering diff client-side)
+- [x] Filter: user, entity, date, action (PR-A)
+- [x] Retention 1 tahun (auto-prune via VPS cron script; P2-04 nanti pindah ke BullMQ)
+- [x] Export CSV (PR-A)
 
 **Reference**: `docs/v2/menus/pengaturan/notifikasi.md` (deleted-transaction audit pattern)
 
