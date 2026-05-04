@@ -26,6 +26,7 @@ const {
   closeConnection,
   isQueueEnabled,
 } = require('../lib/queue');
+const { observeBullJob } = require('../lib/metrics');
 const { processAuditRetention, DEFAULT_RETENTION_DAYS } = require('./audit-retention');
 const { processNotification } = require('./notification');
 const { processEmail } = require('./email');
@@ -79,6 +80,36 @@ const WORKER_REGISTRY = Object.freeze([
 ]);
 
 /**
+ * Wire the Prometheus job counters/histograms to a worker. Records a
+ * `vipos_bullmq_jobs_total` increment + a duration observation for
+ * every `completed` and `failed` event.
+ *
+ * Duration is taken from the BullMQ job timestamps when available
+ * (`processedOn` → `finishedOn`); jobs that fail before processing
+ * starts are recorded with duration 0 so the counter still moves.
+ *
+ * @param {import('bullmq').Worker} worker
+ * @param {string} queueName
+ */
+function attachWorkerMetrics(worker, queueName) {
+  worker.on('completed', (job) => {
+    const durationSeconds = computeJobDurationSeconds(job);
+    observeBullJob(queueName, 'completed', durationSeconds);
+  });
+  worker.on('failed', (job) => {
+    const durationSeconds = computeJobDurationSeconds(job);
+    observeBullJob(queueName, 'failed', durationSeconds);
+  });
+}
+
+function computeJobDurationSeconds(job) {
+  const finishedOn = job?.finishedOn ?? Date.now();
+  const processedOn = job?.processedOn;
+  if (!processedOn || !finishedOn) return 0;
+  return Math.max(0, (finishedOn - processedOn) / 1000);
+}
+
+/**
  * Start every registered worker. Returns a `stop()` callback that closes
  * everything cleanly, including the shared Redis connection.
  *
@@ -103,6 +134,7 @@ async function startWorkers(opts = {}) {
   for (const { name, processor } of WORKER_REGISTRY) {
     const queue = createQueue(name);
     const worker = createWorker(name, processor);
+    attachWorkerMetrics(worker, name);
     queues.push(queue);
     workers.push(worker);
   }
@@ -135,6 +167,7 @@ async function startWorkers(opts = {}) {
 module.exports = {
   startWorkers,
   scheduleAuditRetention,
+  attachWorkerMetrics,
   AUDIT_RETENTION_SCHEDULER,
   AUDIT_RETENTION_CRON,
   WORKER_REGISTRY,

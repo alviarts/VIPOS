@@ -8,6 +8,12 @@ const {
 } = require('./lib/sentry');
 initSentry();
 
+// P2-05 PR-B: OpenTelemetry init also runs before `require('express')`
+// so the auto-instrumentations can patch the framework prototype. The
+// call is a no-op when no OTLP exporter is configured.
+const { initOtel, currentTraceId } = require('./lib/otel');
+initOtel();
+
 const express = require('express');
 const cors = require('cors');
 const pinoHttp = require('pino-http');
@@ -17,8 +23,10 @@ const { authenticateToken } = require('./middleware/auth');
 const { requireTier } = require('./middleware/tier');
 const { requestIdMiddleware } = require('./middleware/request-id');
 const { globalErrorHandler } = require('./middleware/error-handler');
+const { metricsMiddleware } = require('./middleware/metrics');
 const { logger } = require('./lib/logger');
 const { router: healthRouter } = require('./routes/health');
+const { router: metricsRouter } = require('./routes/metrics');
 
 /**
  * Mount every API resource onto the supplied router/app. The function is
@@ -215,6 +223,14 @@ function buildApp(opts = {}) {
       pinoHttp({
         logger,
         genReqId: (req) => req.id,
+        // P2-05 PR-B: stamp the active OTel trace id onto every log
+        // line so Sentry → log → trace correlation is one click in
+        // dashboards. The mixin is a no-op when OTel is disabled
+        // (currentTraceId returns undefined and pino drops the key).
+        mixin() {
+          const traceId = currentTraceId();
+          return traceId ? { trace_id: traceId } : {};
+        },
         // Silence noisy default request/response binding; keep just the
         // useful fields. Pino-http's default already covers method/url/
         // status; this keeps the JSON payload small.
@@ -241,6 +257,11 @@ function buildApp(opts = {}) {
     );
   }
 
+  // P2-05 PR-B: Prometheus RED metrics. Mounted before routes so
+  // `res.on('finish')` sees every request — including 404s served by
+  // the route fallthrough.
+  app.use(metricsMiddleware());
+
   app.use(cors());
   app.use(express.json());
 
@@ -257,6 +278,11 @@ function buildApp(opts = {}) {
       maxAge: '7d',
     })
   );
+
+  // P2-05 PR-B: Prometheus scrape endpoint. Mounted at the root,
+  // outside the /api/v1 versioning umbrella, per the convention
+  // documented at https://prometheus.io/docs/instrumenting/writing_exporters/.
+  app.use('/metrics', metricsRouter);
 
   // Canonical API surface: /api/v1/*.
   const v1Router = express.Router();
