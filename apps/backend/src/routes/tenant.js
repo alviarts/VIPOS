@@ -15,7 +15,13 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { query, tx } = require('../db');
-const { authenticateToken, requireSuperAdmin } = require('../middleware/auth');
+const { authenticateToken, requireSuperAdmin, requireAdmin } = require('../middleware/auth');
+const {
+  KNOWN_TEMPLATES,
+  isKnownTemplate,
+  listTemplates,
+  seedTemplate,
+} = require('../lib/onboarding-templates');
 const {
   signAccessToken,
   generateOpaqueToken,
@@ -167,6 +173,37 @@ router.get('/me', authenticateToken, async (req, res) => {
     if (!tenant) return res.status(404).json({ error: 'Tenant tidak ditemukan' });
     res.json(publicTenantShape(tenant));
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Onboarding sample-data templates (PR-4). Lists the bundled F&B / Retail /
+// Salon presets so the wizard can show preview cards, and seeds the chosen
+// preset's categories + products into the caller's tenant. Seeding is
+// idempotent: re-running for the same tenant skips rows that already exist
+// (UNIQUE on (tenant_id, name) for categories, (tenant_id, sku) for products).
+router.get('/onboarding/templates', authenticateToken, (_req, res) => {
+  try {
+    res.json({ templates: listTemplates() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/onboarding/seed-template', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { template } = req.body || {};
+    if (!isKnownTemplate(template)) {
+      return res.status(400).json({
+        error: `template tidak dikenali. Pilihan: ${KNOWN_TEMPLATES.join(', ')}`,
+      });
+    }
+    const summary = await tx(async (txQuery) => seedTemplate(template, txQuery));
+    res.status(201).json(summary);
+  } catch (err) {
+    if (err && err.code === 'UNKNOWN_TEMPLATE') {
+      return res.status(400).json({ error: err.message });
+    }
     res.status(500).json({ error: err.message });
   }
 });

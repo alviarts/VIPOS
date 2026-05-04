@@ -1,0 +1,103 @@
+{
+  "id": "fnb",
+  "name": "Food & Beverage",
+  "tagline": "Cocok untuk warung makan, kafe, kedai kopi, food court",
+  "categories": [
+    { "name": "Makanan", "color": "#FB923C", "urutan": 1 },
+    { "name": "Minuman", "color": "#06B6D4", "urutan": 2 },
+    { "name": "Snack", "color": "#A78BFA", "urutan": 3 },
+    { "name": "Paket Hemat", "color": "#10B981", "urutan": 4 }
+  ],
+  "products": [
+    {
+      "sku": "FNB-001",
+      "name": "Nasi Goreng Spesial",
+      "category": "Makanan",
+      "price": 18000,
+      "harga_modal": 8000,
+      "satuan": "porsi",
+      "description": "Nasi goreng dengan telur, ayam suwir, dan kerupuk",
+      "stock": 0,
+      "monitor_stok": 0
+    },
+    {
+      "sku": "FNB-002",
+      "name": "Mie Ayam Bakso",
+      "category": "Makanan",
+      "price": 15000,
+      "harga_modal": 6500,
+      "satuan": "porsi",
+      "description": "Mie ayam dengan bakso sapi dan pangsit",
+      "stock": 0,
+      "monitor_stok": 0
+    },
+    {
+      "sku": "FNB-003",
+      "name": "Ayam Goreng Crispy",
+      "category": "Makanan",
+      "price": 22000,
+      "harga_modal": 10000,
+      "satuan": "potong",
+      "description": "Ayam goreng tepung crispy + nasi + sambal",
+      "stock": 0,
+      "monitor_stok": 0
+    },
+    {
+      "sku": "FNB-004",
+      "name": "Es Teh Manis",
+      "category": "Minuman",
+      "price": 5000,
+      "harga_modal": 1500,
+      "satuan": "gelas",
+      "description": "Teh manis dingin standar warung",
+      "stock": 0,
+      "monitor_stok": 0
+    },
+    {
+      "sku": "FNB-005",
+      "name": "Kopi Susu Gula Aren",
+      "category": "Minuman",
+      "price": 18000,
+      "harga_modal": 7000,
+      "satuan": "gelas",
+      "description": "Kopi espresso + susu segar + gula aren",
+      "stock": 0,
+      "monitor_stok": 0
+    },
+    {
+      "sku": "FNB-006",
+      "name": "Air Mineral 600ml",
+      "category": "Minuman",
+      "price": 4000,
+      "harga_modal": 2000,
+      "satuan": "botol",
+      "description": "Air mineral kemasan botol",
+      "stock": 24,
+      "monitor_stok": 1,
+      "stok_minimum": 6
+    },
+    {
+      "sku": "FNB-007",
+      "name": "Kerupuk Udang",
+      "category": "Snack",
+      "price": 5000,
+      "harga_modal": 2000,
+      "satuan": "bungkus",
+      "description": "Kerupuk udang renyah",
+      "stock": 30,
+      "monitor_stok": 1,
+      "stok_minimum": 5
+    },
+    {
+      "sku": "FNB-008",
+      "name": "Pisang Goreng (5pcs)",
+      "category": "Snack",
+      "price": 12000,
+      "harga_modal": 5000,
+      "satuan": "porsi",
+      "description": "5 potong pisang goreng krispi + topping",
+      "stock": 0,
+      "monitor_stok": 0
+    }
+  ]
+}
