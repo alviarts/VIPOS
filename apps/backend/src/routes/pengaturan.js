@@ -4,7 +4,7 @@
 // Implementasi monolith satu file: 9 router. Auto-mounted di app.js.
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { getDb } = require('../models/database');
+const { query, tx } = require('../db');
 const { authenticateToken } = require('../middleware/auth');
 
 // ============================================================
@@ -12,60 +12,56 @@ const { authenticateToken } = require('../middleware/auth');
 // ============================================================
 const outletRouter = express.Router();
 
-outletRouter.get('/', authenticateToken, (req, res) => {
-  const db = getDb();
-  const rows = db.prepare(`SELECT * FROM outlets ORDER BY is_main DESC, name ASC`).all();
+outletRouter.get('/', authenticateToken, async (req, res) => {
+  const rows = (await query(`SELECT * FROM outlets ORDER BY is_main DESC, name ASC`)).rows;
   res.json(rows);
 });
 
-outletRouter.get('/:id', authenticateToken, (req, res) => {
-  const db = getDb();
-  const row = db.prepare(`SELECT * FROM outlets WHERE id = ?`).get(req.params.id);
+outletRouter.get('/:id', authenticateToken, async (req, res) => {
+  const row = (await query(`SELECT * FROM outlets WHERE id = $1`, [req.params.id])).rows[0];
   if (!row) return res.status(404).json({ error: 'Not found' });
   res.json(row);
 });
 
-outletRouter.post('/', authenticateToken, (req, res) => {
-  const db = getDb();
+outletRouter.post('/', authenticateToken, async (req, res) => {
   const data = req.body || {};
   if (!data.name) return res.status(400).json({ error: 'name wajib' });
   if (!data.code) {
-    const last = db.prepare(`SELECT code FROM outlets ORDER BY id DESC LIMIT 1`).get();
+    const last = (await query(`SELECT code FROM outlets ORDER BY id DESC LIMIT 1`)).rows[0];
     const next = last ? Number(String(last.code).replace(/\D/g, '') || 0) + 1 : 1;
     data.code = `OUT-${String(next).padStart(3, '0')}`;
   }
-  const stmt = db.prepare(
+  const ins = await query(
     `INSERT INTO outlets (code, name, type, address, city, province, phone, email,
       logo_url, tax_npwp, timezone, currency, is_main, is_active)
-     VALUES (@code, @name, @type, @address, @city, @province, @phone, @email,
-       @logo_url, @tax_npwp, @timezone, @currency, @is_main, @is_active)`
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
+    [
+      data.code,
+      data.name,
+      data.type || null,
+      data.address || null,
+      data.city || null,
+      data.province || null,
+      data.phone || null,
+      data.email || null,
+      data.logo_url || null,
+      data.tax_npwp || null,
+      data.timezone || 'Asia/Jakarta',
+      data.currency || 'IDR',
+      data.is_main ? 1 : 0,
+      data.is_active === false ? 0 : 1,
+    ]
   );
-  const result = stmt.run({
-    code: data.code,
-    name: data.name,
-    type: data.type || null,
-    address: data.address || null,
-    city: data.city || null,
-    province: data.province || null,
-    phone: data.phone || null,
-    email: data.email || null,
-    logo_url: data.logo_url || null,
-    tax_npwp: data.tax_npwp || null,
-    timezone: data.timezone || 'Asia/Jakarta',
-    currency: data.currency || 'IDR',
-    is_main: data.is_main ? 1 : 0,
-    is_active: data.is_active === false ? 0 : 1,
-  });
+  const newId = ins.rows[0].id;
   if (data.is_main) {
-    db.prepare(`UPDATE outlets SET is_main = 0 WHERE id != ?`).run(result.lastInsertRowid);
+    await query(`UPDATE outlets SET is_main = 0 WHERE id != $1`, [newId]);
   }
-  res.status(201).json({ id: result.lastInsertRowid });
+  res.status(201).json({ id: newId });
 });
 
-outletRouter.put('/:id', authenticateToken, (req, res) => {
-  const db = getDb();
+outletRouter.put('/:id', authenticateToken, async (req, res) => {
   const data = req.body || {};
-  const exists = db.prepare(`SELECT id FROM outlets WHERE id = ?`).get(req.params.id);
+  const exists = (await query(`SELECT id FROM outlets WHERE id = $1`, [req.params.id])).rows[0];
   if (!exists) return res.status(404).json({ error: 'Not found' });
   const fields = [
     'code',
@@ -83,33 +79,33 @@ outletRouter.put('/:id', authenticateToken, (req, res) => {
   ];
   const sets = [];
   const params = [];
+  let p = 1;
   for (const f of fields) {
     if (data[f] !== undefined) {
-      sets.push(`${f} = ?`);
+      sets.push(`${f} = $${p++}`);
       params.push(data[f]);
     }
   }
   if (data.is_main !== undefined) {
-    sets.push('is_main = ?');
+    sets.push(`is_main = $${p++}`);
     params.push(data.is_main ? 1 : 0);
   }
   if (data.is_active !== undefined) {
-    sets.push('is_active = ?');
+    sets.push(`is_active = $${p++}`);
     params.push(data.is_active ? 1 : 0);
   }
   sets.push(`updated_at = CURRENT_TIMESTAMP`);
   params.push(req.params.id);
-  db.prepare(`UPDATE outlets SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+  await query(`UPDATE outlets SET ${sets.join(', ')} WHERE id = $${p}`, params);
   if (data.is_main) {
-    db.prepare(`UPDATE outlets SET is_main = 0 WHERE id != ?`).run(req.params.id);
+    await query(`UPDATE outlets SET is_main = 0 WHERE id != $1`, [req.params.id]);
   }
   res.json({ ok: true });
 });
 
-outletRouter.delete('/:id', authenticateToken, (req, res) => {
-  const db = getDb();
+outletRouter.delete('/:id', authenticateToken, async (req, res) => {
   try {
-    db.prepare(`DELETE FROM outlets WHERE id = ?`).run(req.params.id);
+    await query(`DELETE FROM outlets WHERE id = $1`, [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -117,14 +113,15 @@ outletRouter.delete('/:id', authenticateToken, (req, res) => {
 });
 
 // Floor plan: ambil/edit per outlet (auto-create default kalau belum ada).
-outletRouter.get('/:id/floor-plan', authenticateToken, (req, res) => {
-  const db = getDb();
-  let row = db.prepare(`SELECT * FROM outlet_floor_plans WHERE outlet_id = ?`).get(req.params.id);
+outletRouter.get('/:id/floor-plan', authenticateToken, async (req, res) => {
+  let row = (await query(`SELECT * FROM outlet_floor_plans WHERE outlet_id = $1`, [req.params.id]))
+    .rows[0];
   if (!row) {
-    const result = db
-      .prepare(`INSERT INTO outlet_floor_plans (outlet_id, name, tables_json) VALUES (?, ?, ?)`)
-      .run(req.params.id, 'Lantai 1', '[]');
-    row = db.prepare(`SELECT * FROM outlet_floor_plans WHERE id = ?`).get(result.lastInsertRowid);
+    const ins = await query(
+      `INSERT INTO outlet_floor_plans (outlet_id, name, tables_json) VALUES ($1, $2, $3) RETURNING id`,
+      [req.params.id, 'Lantai 1', '[]']
+    );
+    row = (await query(`SELECT * FROM outlet_floor_plans WHERE id = $1`, [ins.rows[0].id])).rows[0];
   }
   res.json({
     ...row,
@@ -132,35 +129,24 @@ outletRouter.get('/:id/floor-plan', authenticateToken, (req, res) => {
   });
 });
 
-outletRouter.put('/:id/floor-plan', authenticateToken, (req, res) => {
-  const db = getDb();
+outletRouter.put('/:id/floor-plan', authenticateToken, async (req, res) => {
   const { name, width, height, tables } = req.body || {};
-  const existing = db
-    .prepare(`SELECT id FROM outlet_floor_plans WHERE outlet_id = ?`)
-    .get(req.params.id);
+  const existing = (
+    await query(`SELECT id FROM outlet_floor_plans WHERE outlet_id = $1`, [req.params.id])
+  ).rows[0];
   const tablesJson = JSON.stringify(Array.isArray(tables) ? tables : []);
   if (existing) {
-    db.prepare(
+    await query(
       `UPDATE outlet_floor_plans
-       SET name = ?, width = ?, height = ?, tables_json = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`
-    ).run(
-      name || 'Lantai 1',
-      Number(width) || 1000,
-      Number(height) || 700,
-      tablesJson,
-      existing.id
+         SET name = $1, width = $2, height = $3, tables_json = $4, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $5`,
+      [name || 'Lantai 1', Number(width) || 1000, Number(height) || 700, tablesJson, existing.id]
     );
   } else {
-    db.prepare(
+    await query(
       `INSERT INTO outlet_floor_plans (outlet_id, name, width, height, tables_json)
-       VALUES (?, ?, ?, ?, ?)`
-    ).run(
-      req.params.id,
-      name || 'Lantai 1',
-      Number(width) || 1000,
-      Number(height) || 700,
-      tablesJson
+       VALUES ($1, $2, $3, $4, $5)`,
+      [req.params.id, name || 'Lantai 1', Number(width) || 1000, Number(height) || 700, tablesJson]
     );
   }
   res.json({ ok: true });
@@ -171,36 +157,32 @@ outletRouter.put('/:id/floor-plan', authenticateToken, (req, res) => {
 // ============================================================
 const terminalRouter = express.Router();
 
-terminalRouter.get('/', authenticateToken, (req, res) => {
-  const db = getDb();
-  const rows = db
-    .prepare(
+terminalRouter.get('/', authenticateToken, async (req, res) => {
+  const rows = (
+    await query(
       `SELECT t.*, o.name AS outlet_name, u.name AS paired_user_name
-     FROM terminals t
-     LEFT JOIN outlets o ON o.id = t.outlet_id
-     LEFT JOIN users u ON u.id = t.paired_user_id
-     ORDER BY t.outlet_id, t.type, t.name`
+         FROM terminals t
+         LEFT JOIN outlets o ON o.id = t.outlet_id
+         LEFT JOIN users u ON u.id = t.paired_user_id
+         ORDER BY t.outlet_id, t.type, t.name`
     )
-    .all();
+  ).rows;
   res.json(rows);
 });
 
-terminalRouter.post('/', authenticateToken, (req, res) => {
-  const db = getDb();
+terminalRouter.post('/', authenticateToken, async (req, res) => {
   const d = req.body || {};
   if (!d.name || !d.type) return res.status(400).json({ error: 'name & type wajib' });
   if (!d.code) {
-    const last = db.prepare(`SELECT code FROM terminals ORDER BY id DESC LIMIT 1`).get();
+    const last = (await query(`SELECT code FROM terminals ORDER BY id DESC LIMIT 1`)).rows[0];
     const next = last ? Number(String(last.code).replace(/\D/g, '') || 0) + 1 : 1;
     d.code = `TRM-${String(next).padStart(4, '0')}`;
   }
-  const result = db
-    .prepare(
-      `INSERT INTO terminals (code, name, type, outlet_id, model, serial_no, ip_address,
+  const ins = await query(
+    `INSERT INTO terminals (code, name, type, outlet_id, model, serial_no, ip_address,
       mac_address, paired_user_id, config_json, is_active)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+    [
       d.code,
       d.name,
       d.type,
@@ -211,13 +193,13 @@ terminalRouter.post('/', authenticateToken, (req, res) => {
       d.mac_address || null,
       d.paired_user_id || null,
       d.config_json ? JSON.stringify(d.config_json) : null,
-      d.is_active === false ? 0 : 1
-    );
-  res.status(201).json({ id: result.lastInsertRowid });
+      d.is_active === false ? 0 : 1,
+    ]
+  );
+  res.status(201).json({ id: ins.rows[0].id });
 });
 
-terminalRouter.put('/:id', authenticateToken, (req, res) => {
-  const db = getDb();
+terminalRouter.put('/:id', authenticateToken, async (req, res) => {
   const d = req.body || {};
   const fields = [
     'code',
@@ -232,37 +214,36 @@ terminalRouter.put('/:id', authenticateToken, (req, res) => {
   ];
   const sets = [];
   const params = [];
+  let p = 1;
   for (const f of fields) {
     if (d[f] !== undefined) {
-      sets.push(`${f} = ?`);
+      sets.push(`${f} = $${p++}`);
       params.push(d[f]);
     }
   }
   if (d.config_json !== undefined) {
-    sets.push('config_json = ?');
+    sets.push(`config_json = $${p++}`);
     params.push(d.config_json ? JSON.stringify(d.config_json) : null);
   }
   if (d.is_active !== undefined) {
-    sets.push('is_active = ?');
+    sets.push(`is_active = $${p++}`);
     params.push(d.is_active ? 1 : 0);
   }
   if (sets.length === 0) return res.json({ ok: true });
   params.push(req.params.id);
-  db.prepare(`UPDATE terminals SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+  await query(`UPDATE terminals SET ${sets.join(', ')} WHERE id = $${p}`, params);
   res.json({ ok: true });
 });
 
-terminalRouter.delete('/:id', authenticateToken, (req, res) => {
-  const db = getDb();
-  db.prepare(`DELETE FROM terminals WHERE id = ?`).run(req.params.id);
+terminalRouter.delete('/:id', authenticateToken, async (req, res) => {
+  await query(`DELETE FROM terminals WHERE id = $1`, [req.params.id]);
   res.json({ ok: true });
 });
 
-terminalRouter.post('/:id/heartbeat', authenticateToken, (req, res) => {
-  const db = getDb();
-  db.prepare(`UPDATE terminals SET last_seen_at = CURRENT_TIMESTAMP WHERE id = ?`).run(
-    req.params.id
-  );
+terminalRouter.post('/:id/heartbeat', authenticateToken, async (req, res) => {
+  await query(`UPDATE terminals SET last_seen_at = CURRENT_TIMESTAMP WHERE id = $1`, [
+    req.params.id,
+  ]);
   res.json({ ok: true });
 });
 
@@ -271,58 +252,57 @@ terminalRouter.post('/:id/heartbeat', authenticateToken, (req, res) => {
 // ============================================================
 const settingRouter = express.Router();
 
-settingRouter.get('/', authenticateToken, (req, res) => {
-  const db = getDb();
+settingRouter.get('/', authenticateToken, async (req, res) => {
   const { category, outlet_id } = req.query;
   let sql = `SELECT * FROM app_settings WHERE 1=1`;
   const params = [];
+  let p = 1;
   if (category) {
-    sql += ` AND category = ?`;
+    sql += ` AND category = $${p++}`;
     params.push(category);
   }
   if (outlet_id !== undefined) {
     if (outlet_id === '' || outlet_id === 'null') {
       sql += ` AND outlet_id IS NULL`;
     } else {
-      sql += ` AND outlet_id = ?`;
+      sql += ` AND outlet_id = $${p++}`;
       params.push(Number(outlet_id));
     }
   }
   sql += ` ORDER BY category, key`;
-  const rows = db.prepare(sql).all(...params);
+  const rows = (await query(sql, params)).rows;
   res.json(rows.map((r) => ({ ...r, value: safeJsonParse(r.value_json) })));
 });
 
-settingRouter.put('/', authenticateToken, (req, res) => {
+settingRouter.put('/', authenticateToken, async (req, res) => {
   // Upsert by (outlet_id, category, key). Body: {category, key, value, outlet_id?}
-  const db = getDb();
   const { category, key, value, outlet_id } = req.body || {};
   if (!category || !key) return res.status(400).json({ error: 'category & key wajib' });
   const valueJson = JSON.stringify(value === undefined ? null : value);
   const oid = outlet_id || null;
-  const existing = db
-    .prepare(
-      `SELECT id FROM app_settings WHERE category = ? AND key = ? AND ${oid === null ? 'outlet_id IS NULL' : 'outlet_id = ?'}`
-    )
-    .get(...[category, key, ...(oid === null ? [] : [oid])]);
+  const existingSql =
+    oid === null
+      ? `SELECT id FROM app_settings WHERE category = $1 AND key = $2 AND outlet_id IS NULL`
+      : `SELECT id FROM app_settings WHERE category = $1 AND key = $2 AND outlet_id = $3`;
+  const existingParams = oid === null ? [category, key] : [category, key, oid];
+  const existing = (await query(existingSql, existingParams)).rows[0];
   if (existing) {
-    db.prepare(
-      `UPDATE app_settings SET value_json = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-    ).run(valueJson, req.user?.id || null, existing.id);
+    await query(
+      `UPDATE app_settings SET value_json = $1, updated_by = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`,
+      [valueJson, req.user?.id || null, existing.id]
+    );
     res.json({ id: existing.id, updated: true });
   } else {
-    const result = db
-      .prepare(
-        `INSERT INTO app_settings (outlet_id, category, key, value_json, updated_by) VALUES (?, ?, ?, ?, ?)`
-      )
-      .run(oid, category, key, valueJson, req.user?.id || null);
-    res.status(201).json({ id: result.lastInsertRowid, created: true });
+    const ins = await query(
+      `INSERT INTO app_settings (outlet_id, category, key, value_json, updated_by) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [oid, category, key, valueJson, req.user?.id || null]
+    );
+    res.status(201).json({ id: ins.rows[0].id, created: true });
   }
 });
 
-settingRouter.delete('/:id', authenticateToken, (req, res) => {
-  const db = getDb();
-  db.prepare(`DELETE FROM app_settings WHERE id = ?`).run(req.params.id);
+settingRouter.delete('/:id', authenticateToken, async (req, res) => {
+  await query(`DELETE FROM app_settings WHERE id = $1`, [req.params.id]);
   res.json({ ok: true });
 });
 
@@ -339,30 +319,32 @@ function safeJsonParse(s) {
 // ============================================================
 const notifRouter = express.Router();
 
-notifRouter.get('/', authenticateToken, (req, res) => {
-  const db = getDb();
+notifRouter.get('/', authenticateToken, async (req, res) => {
   const userId = req.user?.id;
-  const rows = db.prepare(`SELECT * FROM notification_prefs WHERE user_id = ?`).all(userId);
+  const rows = (await query(`SELECT * FROM notification_prefs WHERE user_id = $1`, [userId])).rows;
   res.json(rows);
 });
 
-notifRouter.put('/', authenticateToken, (req, res) => {
-  // body: {event_key, via_push, via_wa, via_sms, via_email}
-  const db = getDb();
+notifRouter.put('/', authenticateToken, async (req, res) => {
   const { event_key, via_push, via_wa, via_sms, via_email } = req.body || {};
   if (!event_key) return res.status(400).json({ error: 'event_key wajib' });
   const userId = req.user?.id;
-  const existing = db
-    .prepare(`SELECT id FROM notification_prefs WHERE user_id = ? AND event_key = ?`)
-    .get(userId, event_key);
+  const existing = (
+    await query(`SELECT id FROM notification_prefs WHERE user_id = $1 AND event_key = $2`, [
+      userId,
+      event_key,
+    ])
+  ).rows[0];
   if (existing) {
-    db.prepare(
-      `UPDATE notification_prefs SET via_push = ?, via_wa = ?, via_sms = ?, via_email = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-    ).run(via_push ? 1 : 0, via_wa ? 1 : 0, via_sms ? 1 : 0, via_email ? 1 : 0, existing.id);
+    await query(
+      `UPDATE notification_prefs SET via_push = $1, via_wa = $2, via_sms = $3, via_email = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5`,
+      [via_push ? 1 : 0, via_wa ? 1 : 0, via_sms ? 1 : 0, via_email ? 1 : 0, existing.id]
+    );
   } else {
-    db.prepare(
-      `INSERT INTO notification_prefs (user_id, event_key, via_push, via_wa, via_sms, via_email) VALUES (?, ?, ?, ?, ?, ?)`
-    ).run(userId, event_key, via_push ? 1 : 0, via_wa ? 1 : 0, via_sms ? 1 : 0, via_email ? 1 : 0);
+    await query(
+      `INSERT INTO notification_prefs (user_id, event_key, via_push, via_wa, via_sms, via_email) VALUES ($1, $2, $3, $4, $5, $6)`,
+      [userId, event_key, via_push ? 1 : 0, via_wa ? 1 : 0, via_sms ? 1 : 0, via_email ? 1 : 0]
+    );
   }
   res.json({ ok: true });
 });
@@ -372,37 +354,34 @@ notifRouter.put('/', authenticateToken, (req, res) => {
 // ============================================================
 const supportAccessRouter = express.Router();
 
-supportAccessRouter.get('/', authenticateToken, (req, res) => {
-  const db = getDb();
-  const rows = db
-    .prepare(
+supportAccessRouter.get('/', authenticateToken, async (req, res) => {
+  const rows = (
+    await query(
       `SELECT g.*, u.name AS granted_by_name FROM support_access_grants g
-     LEFT JOIN users u ON u.id = g.granted_by
-     ORDER BY g.created_at DESC`
+         LEFT JOIN users u ON u.id = g.granted_by
+         ORDER BY g.created_at DESC`
     )
-    .all();
+  ).rows;
   res.json(rows);
 });
 
-supportAccessRouter.post('/', authenticateToken, (req, res) => {
-  const db = getDb();
+supportAccessRouter.post('/', authenticateToken, async (req, res) => {
   const { grantee_email, reason, expires_at } = req.body || {};
   if (!grantee_email || !expires_at)
     return res.status(400).json({ error: 'grantee_email & expires_at wajib' });
-  const result = db
-    .prepare(
-      `INSERT INTO support_access_grants (grantee_email, reason, granted_by, expires_at)
-     VALUES (?, ?, ?, ?)`
-    )
-    .run(grantee_email, reason || null, req.user?.id || null, expires_at);
-  res.status(201).json({ id: result.lastInsertRowid });
+  const ins = await query(
+    `INSERT INTO support_access_grants (grantee_email, reason, granted_by, expires_at)
+     VALUES ($1, $2, $3, $4) RETURNING id`,
+    [grantee_email, reason || null, req.user?.id || null, expires_at]
+  );
+  res.status(201).json({ id: ins.rows[0].id });
 });
 
-supportAccessRouter.post('/:id/revoke', authenticateToken, (req, res) => {
-  const db = getDb();
-  db.prepare(
-    `UPDATE support_access_grants SET revoked_at = CURRENT_TIMESTAMP WHERE id = ? AND revoked_at IS NULL`
-  ).run(req.params.id);
+supportAccessRouter.post('/:id/revoke', authenticateToken, async (req, res) => {
+  await query(
+    `UPDATE support_access_grants SET revoked_at = CURRENT_TIMESTAMP WHERE id = $1 AND revoked_at IS NULL`,
+    [req.params.id]
+  );
   res.json({ ok: true });
 });
 
@@ -411,29 +390,25 @@ supportAccessRouter.post('/:id/revoke', authenticateToken, (req, res) => {
 // ============================================================
 const paymentMethodRouter = express.Router();
 
-paymentMethodRouter.get('/', authenticateToken, (req, res) => {
-  const db = getDb();
-  const rows = db
-    .prepare(
+paymentMethodRouter.get('/', authenticateToken, async (req, res) => {
+  const rows = (
+    await query(
       `SELECT pm.*, a.code AS account_code, a.name AS account_name
-     FROM payment_methods pm
-     LEFT JOIN gl_accounts a ON a.id = pm.account_id
-     ORDER BY sort_order ASC, name ASC`
+         FROM payment_methods pm
+         LEFT JOIN gl_accounts a ON a.id = pm.account_id
+         ORDER BY sort_order ASC, name ASC`
     )
-    .all();
+  ).rows;
   res.json(rows);
 });
 
-paymentMethodRouter.post('/', authenticateToken, (req, res) => {
-  const db = getDb();
+paymentMethodRouter.post('/', authenticateToken, async (req, res) => {
   const d = req.body || {};
   if (!d.name || !d.type) return res.status(400).json({ error: 'name & type wajib' });
-  const result = db
-    .prepare(
-      `INSERT INTO payment_methods (code, name, type, provider, fee_percent, fee_flat, account_id, is_active, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
+  const ins = await query(
+    `INSERT INTO payment_methods (code, name, type, provider, fee_percent, fee_flat, account_id, is_active, sort_order)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+    [
       d.code || null,
       d.name,
       d.type,
@@ -442,13 +417,13 @@ paymentMethodRouter.post('/', authenticateToken, (req, res) => {
       Number(d.fee_flat) || 0,
       d.account_id || null,
       d.is_active === false ? 0 : 1,
-      Number(d.sort_order) || 0
-    );
-  res.status(201).json({ id: result.lastInsertRowid });
+      Number(d.sort_order) || 0,
+    ]
+  );
+  res.status(201).json({ id: ins.rows[0].id });
 });
 
-paymentMethodRouter.put('/:id', authenticateToken, (req, res) => {
-  const db = getDb();
+paymentMethodRouter.put('/:id', authenticateToken, async (req, res) => {
   const d = req.body || {};
   const fields = [
     'code',
@@ -462,25 +437,25 @@ paymentMethodRouter.put('/:id', authenticateToken, (req, res) => {
   ];
   const sets = [];
   const params = [];
+  let p = 1;
   for (const f of fields) {
     if (d[f] !== undefined) {
-      sets.push(`${f} = ?`);
+      sets.push(`${f} = $${p++}`);
       params.push(d[f]);
     }
   }
   if (d.is_active !== undefined) {
-    sets.push('is_active = ?');
+    sets.push(`is_active = $${p++}`);
     params.push(d.is_active ? 1 : 0);
   }
   if (sets.length === 0) return res.json({ ok: true });
   params.push(req.params.id);
-  db.prepare(`UPDATE payment_methods SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+  await query(`UPDATE payment_methods SET ${sets.join(', ')} WHERE id = $${p}`, params);
   res.json({ ok: true });
 });
 
-paymentMethodRouter.delete('/:id', authenticateToken, (req, res) => {
-  const db = getDb();
-  db.prepare(`DELETE FROM payment_methods WHERE id = ?`).run(req.params.id);
+paymentMethodRouter.delete('/:id', authenticateToken, async (req, res) => {
+  await query(`DELETE FROM payment_methods WHERE id = $1`, [req.params.id]);
   res.json({ ok: true });
 });
 
@@ -489,59 +464,55 @@ paymentMethodRouter.delete('/:id', authenticateToken, (req, res) => {
 // ============================================================
 const taxRateRouter = express.Router();
 
-taxRateRouter.get('/', authenticateToken, (req, res) => {
-  const db = getDb();
-  const rows = db.prepare(`SELECT * FROM tax_rates ORDER BY name ASC`).all();
+taxRateRouter.get('/', authenticateToken, async (req, res) => {
+  const rows = (await query(`SELECT * FROM tax_rates ORDER BY name ASC`)).rows;
   res.json(rows);
 });
 
-taxRateRouter.post('/', authenticateToken, (req, res) => {
-  const db = getDb();
+taxRateRouter.post('/', authenticateToken, async (req, res) => {
   const d = req.body || {};
   if (!d.name) return res.status(400).json({ error: 'name wajib' });
-  const result = db
-    .prepare(
-      `INSERT INTO tax_rates (code, name, rate, is_inclusive, is_active) VALUES (?, ?, ?, ?, ?)`
-    )
-    .run(
+  const ins = await query(
+    `INSERT INTO tax_rates (code, name, rate, is_inclusive, is_active) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+    [
       d.code || null,
       d.name,
       Number(d.rate) || 0,
       d.is_inclusive ? 1 : 0,
-      d.is_active === false ? 0 : 1
-    );
-  res.status(201).json({ id: result.lastInsertRowid });
+      d.is_active === false ? 0 : 1,
+    ]
+  );
+  res.status(201).json({ id: ins.rows[0].id });
 });
 
-taxRateRouter.put('/:id', authenticateToken, (req, res) => {
-  const db = getDb();
+taxRateRouter.put('/:id', authenticateToken, async (req, res) => {
   const d = req.body || {};
   const fields = ['code', 'name', 'rate'];
   const sets = [];
   const params = [];
+  let p = 1;
   for (const f of fields) {
     if (d[f] !== undefined) {
-      sets.push(`${f} = ?`);
+      sets.push(`${f} = $${p++}`);
       params.push(d[f]);
     }
   }
   if (d.is_inclusive !== undefined) {
-    sets.push('is_inclusive = ?');
+    sets.push(`is_inclusive = $${p++}`);
     params.push(d.is_inclusive ? 1 : 0);
   }
   if (d.is_active !== undefined) {
-    sets.push('is_active = ?');
+    sets.push(`is_active = $${p++}`);
     params.push(d.is_active ? 1 : 0);
   }
   if (sets.length === 0) return res.json({ ok: true });
   params.push(req.params.id);
-  db.prepare(`UPDATE tax_rates SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+  await query(`UPDATE tax_rates SET ${sets.join(', ')} WHERE id = $${p}`, params);
   res.json({ ok: true });
 });
 
-taxRateRouter.delete('/:id', authenticateToken, (req, res) => {
-  const db = getDb();
-  db.prepare(`DELETE FROM tax_rates WHERE id = ?`).run(req.params.id);
+taxRateRouter.delete('/:id', authenticateToken, async (req, res) => {
+  await query(`DELETE FROM tax_rates WHERE id = $1`, [req.params.id]);
   res.json({ ok: true });
 });
 
@@ -550,62 +521,58 @@ taxRateRouter.delete('/:id', authenticateToken, (req, res) => {
 // ============================================================
 const uomRouter = express.Router();
 
-uomRouter.get('/', authenticateToken, (req, res) => {
-  const db = getDb();
-  const rows = db
-    .prepare(
+uomRouter.get('/', authenticateToken, async (req, res) => {
+  const rows = (
+    await query(
       `SELECT u.*, b.code AS base_code, b.name AS base_name
-     FROM uoms u LEFT JOIN uoms b ON b.id = u.base_uom_id
-     ORDER BY u.name ASC`
+         FROM uoms u LEFT JOIN uoms b ON b.id = u.base_uom_id
+         ORDER BY u.name ASC`
     )
-    .all();
+  ).rows;
   res.json(rows);
 });
 
-uomRouter.post('/', authenticateToken, (req, res) => {
-  const db = getDb();
+uomRouter.post('/', authenticateToken, async (req, res) => {
   const d = req.body || {};
   if (!d.name) return res.status(400).json({ error: 'name wajib' });
-  const result = db
-    .prepare(
-      `INSERT INTO uoms (code, name, symbol, base_uom_id, conversion_factor, is_active) VALUES (?, ?, ?, ?, ?, ?)`
-    )
-    .run(
+  const ins = await query(
+    `INSERT INTO uoms (code, name, symbol, base_uom_id, conversion_factor, is_active) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+    [
       d.code || null,
       d.name,
       d.symbol || null,
       d.base_uom_id || null,
       Number(d.conversion_factor) || 1,
-      d.is_active === false ? 0 : 1
-    );
-  res.status(201).json({ id: result.lastInsertRowid });
+      d.is_active === false ? 0 : 1,
+    ]
+  );
+  res.status(201).json({ id: ins.rows[0].id });
 });
 
-uomRouter.put('/:id', authenticateToken, (req, res) => {
-  const db = getDb();
+uomRouter.put('/:id', authenticateToken, async (req, res) => {
   const d = req.body || {};
   const fields = ['code', 'name', 'symbol', 'base_uom_id', 'conversion_factor'];
   const sets = [];
   const params = [];
+  let p = 1;
   for (const f of fields) {
     if (d[f] !== undefined) {
-      sets.push(`${f} = ?`);
+      sets.push(`${f} = $${p++}`);
       params.push(d[f]);
     }
   }
   if (d.is_active !== undefined) {
-    sets.push('is_active = ?');
+    sets.push(`is_active = $${p++}`);
     params.push(d.is_active ? 1 : 0);
   }
   if (sets.length === 0) return res.json({ ok: true });
   params.push(req.params.id);
-  db.prepare(`UPDATE uoms SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+  await query(`UPDATE uoms SET ${sets.join(', ')} WHERE id = $${p}`, params);
   res.json({ ok: true });
 });
 
-uomRouter.delete('/:id', authenticateToken, (req, res) => {
-  const db = getDb();
-  db.prepare(`DELETE FROM uoms WHERE id = ?`).run(req.params.id);
+uomRouter.delete('/:id', authenticateToken, async (req, res) => {
+  await query(`DELETE FROM uoms WHERE id = $1`, [req.params.id]);
   res.json({ ok: true });
 });
 
@@ -614,33 +581,33 @@ uomRouter.delete('/:id', authenticateToken, (req, res) => {
 // ============================================================
 const profileRouter = express.Router();
 
-profileRouter.get('/', authenticateToken, (req, res) => {
-  const db = getDb();
-  const row = db
-    .prepare(
+profileRouter.get('/', authenticateToken, async (req, res) => {
+  const row = (
+    await query(
       `SELECT id, username, name, email, phone, role, photo_url, totp_enabled, last_login_at, created_at
-     FROM users WHERE id = ?`
+         FROM users WHERE id = $1`,
+      [req.user?.id]
     )
-    .get(req.user?.id);
+  ).rows[0];
   if (!row) return res.status(404).json({ error: 'Not found' });
   res.json(row);
 });
 
-profileRouter.put('/', authenticateToken, (req, res) => {
-  const db = getDb();
+profileRouter.put('/', authenticateToken, async (req, res) => {
   const d = req.body || {};
   const fields = ['name', 'email', 'phone', 'photo_url'];
   const sets = [];
   const params = [];
+  let p = 1;
   for (const f of fields) {
     if (d[f] !== undefined) {
-      sets.push(`${f} = ?`);
+      sets.push(`${f} = $${p++}`);
       params.push(d[f]);
     }
   }
   if (sets.length === 0) return res.json({ ok: true });
   params.push(req.user?.id);
-  db.prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+  await query(`UPDATE users SET ${sets.join(', ')} WHERE id = $${p}`, params);
   res.json({ ok: true });
 });
 
@@ -650,13 +617,13 @@ profileRouter.post('/change-password', authenticateToken, async (req, res) => {
     return res.status(400).json({ error: 'Kedua password wajib' });
   if (new_password.length < 6)
     return res.status(400).json({ error: 'Password baru minimal 6 karakter' });
-  const db = getDb();
-  const user = db.prepare(`SELECT id, password FROM users WHERE id = ?`).get(req.user?.id);
+  const user = (await query(`SELECT id, password FROM users WHERE id = $1`, [req.user?.id]))
+    .rows[0];
   if (!user) return res.status(404).json({ error: 'User tidak ditemukan' });
   const ok = await bcrypt.compare(current_password, user.password);
   if (!ok) return res.status(400).json({ error: 'Password lama salah' });
   const hash = await bcrypt.hash(new_password, 10);
-  db.prepare(`UPDATE users SET password = ? WHERE id = ?`).run(hash, user.id);
+  await query(`UPDATE users SET password = $1 WHERE id = $2`, [hash, user.id]);
   res.json({ ok: true });
 });
 
@@ -671,11 +638,10 @@ importExportRouter.get('/entities', authenticateToken, (req, res) => {
   res.json(ENTITIES.map((e) => ({ entity: e, label: e })));
 });
 
-importExportRouter.get('/export/:entity', authenticateToken, (req, res) => {
-  const db = getDb();
+importExportRouter.get('/export/:entity', authenticateToken, async (req, res) => {
   const entity = req.params.entity;
   if (!ENTITIES.includes(entity)) return res.status(400).json({ error: 'Entity tidak didukung' });
-  const rows = db.prepare(`SELECT * FROM ${entity} LIMIT 5000`).all();
+  const rows = (await query(`SELECT * FROM ${entity} LIMIT 5000`)).rows;
   if (req.query.format === 'csv' || req.query.format === undefined) {
     if (rows.length === 0) {
       res.setHeader('Content-Type', 'text/csv');
@@ -699,9 +665,8 @@ importExportRouter.get('/export/:entity', authenticateToken, (req, res) => {
   }
 });
 
-importExportRouter.post('/import/:entity', authenticateToken, (req, res) => {
+importExportRouter.post('/import/:entity', authenticateToken, async (req, res) => {
   // Body: {rows: [{...}]}.
-  const db = getDb();
   const entity = req.params.entity;
   if (!ENTITIES.includes(entity)) return res.status(400).json({ error: 'Entity tidak didukung' });
   const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
@@ -709,21 +674,19 @@ importExportRouter.post('/import/:entity', authenticateToken, (req, res) => {
   const sampleCols = Object.keys(rows[0]);
   const errors = [];
   let inserted = 0;
-  db.transaction(() => {
+  await tx(async (txQuery) => {
     for (const r of rows) {
       try {
         const cols = sampleCols.filter((c) => c in r && c !== 'id');
-        const placeholders = cols.map(() => '?').join(',');
+        const placeholders = cols.map((_, i) => `$${i + 1}`).join(',');
         const values = cols.map((c) => r[c]);
-        db.prepare(`INSERT INTO ${entity} (${cols.join(',')}) VALUES (${placeholders})`).run(
-          ...values
-        );
+        await txQuery(`INSERT INTO ${entity} (${cols.join(',')}) VALUES (${placeholders})`, values);
         inserted++;
       } catch (err) {
         errors.push({ row: r, error: err.message });
       }
     }
-  })();
+  });
   res.json({ inserted, errors });
 });
 
