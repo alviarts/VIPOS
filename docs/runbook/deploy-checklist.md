@@ -165,31 +165,18 @@ Applies only when cutting a server over from the pre-Phase-2 SQLite stack to
 Postgres for the first time.
 
 The script [`apps/backend/scripts/migrate-sqlite-to-postgres.mjs`](../../apps/backend/scripts/migrate-sqlite-to-postgres.mjs)
-copies tables column-by-column using SQLite's schema. A Phase 1 SQLite source
-has no `tenant_id` column on data tables, so the INSERT into Phase 2 Postgres
-(where `tenant_id` is `NOT NULL`) fails with `null value in column "tenant_id"`.
-
-Workaround until the script is patched: backfill `tenant_id` on the SQLite
-side before running the migration.
+auto-handles the Phase 1 → Phase 2 schema gap: at runtime it queries
+`information_schema.columns` for every table, finds Postgres NOT NULL columns
+that have no default and are missing from the SQLite source (typically
+`tenant_id`), and injects a sensible value into each INSERT (default
+`tenant_id = 1`). No manual `ALTER TABLE` prep is required.
 
 ```bash
 # 1. Back up SQLite first (sqlite3 ".backup" produces a clean WAL-checkpointed copy)
 sqlite3 /var/www/vipos/apps/backend/data/vipos.db \
   ".backup '/var/www/vipos/apps/backend/data/vipos.db.pre-pg-migrate-$(date +%s)'"
 
-# 2. Backfill tenant_id=1 on every SQLite table whose Postgres counterpart
-#    has tenant_id NOT NULL (idempotent — skips tables that already have it).
-PGPASSWORD="$POSTGRES_PWD" psql -h 127.0.0.1 -U postgres -d vipos -tA -c \
-  "SELECT table_name FROM information_schema.columns \
-   WHERE column_name='tenant_id' AND is_nullable='NO' AND table_schema='public'" \
-  | while read t; do
-      [ -z "$t" ] && continue
-      sqlite3 /var/www/vipos/apps/backend/data/vipos.db \
-        "ALTER TABLE \"$t\" ADD COLUMN tenant_id INTEGER NOT NULL DEFAULT 1" \
-        2>/dev/null || true
-    done
-
-# 3. Run the migration with a SUPERUSER DATABASE_URL (the script needs to
+# 2. Run the migration with a SUPERUSER DATABASE_URL (the script needs to
 #    SET session_replication_role = 'replica' to disable FK enforcement).
 cd /var/www/vipos/apps/backend
 npm install --no-save better-sqlite3   # dropped from package.json in P2-01b
@@ -199,10 +186,15 @@ DATABASE_URL="postgresql://postgres:$POSTGRES_PWD@127.0.0.1:5432/vipos" \
   node scripts/migrate-sqlite-to-postgres.mjs              # real run
 ```
 
-The default value `1` attributes Phase 1 data to the default tenant created by
-the `add_multi_tenant_foundation` migration. After cutover, all SQLite-era
-records belong to tenant id `1` and are visible only with `app.current_tenant`
-set to `'1'` or `'0'` (system bypass).
+To attribute legacy data to a tenant other than the default (id `1`), pass
+`MIGRATION_DEFAULT_TENANT_ID=<id>` as an env var. The script aborts before
+inserting into a table if a NOT NULL Postgres column has no SQLite source
+column AND no entry in the script's `INJECTION_RULES` map — extend that map
+in code if a future Phase introduces new required columns.
+
+After cutover, all SQLite-era records belong to the chosen tenant and are
+visible only with `app.current_tenant` set to that tenant id or `'0'`
+(system bypass).
 
 ---
 

@@ -9,22 +9,30 @@
  *   # Real migration (truncates Postgres tables first):
  *   node scripts/migrate-sqlite-to-postgres.mjs
  *
- *   # Custom paths:
- *   VIPOS_DB_PATH=/path/to/vipos.db DATABASE_URL=postgresql://... \
+ *   # Custom paths + override default tenant for legacy Phase 1 sources:
+ *   VIPOS_DB_PATH=/path/to/vipos.db \
+ *     DATABASE_URL=postgresql://... \
+ *     MIGRATION_DEFAULT_TENANT_ID=1 \
  *     node scripts/migrate-sqlite-to-postgres.mjs
  *
  * STRATEGY:
  *   1. Open SQLite read-only, snapshot all table names from sqlite_master.
- *   2. Connect to Postgres via Prisma. Disable FK enforcement for the session
- *      via `SET session_replication_role = 'replica'`.
- *   3. For each table: TRUNCATE Postgres → batch INSERT from SQLite (1000 rows
- *      at a time) → reset SERIAL sequence to MAX(id).
+ *   2. Connect to Postgres directly via `pg`. Disable FK enforcement for the
+ *      session via `SET session_replication_role = 'replica'` (requires
+ *      SUPERUSER or REPLICATION role).
+ *   3. For each table: TRUNCATE Postgres → batch INSERT from SQLite (500 rows
+ *      at a time) → reset SERIAL sequence to MAX(id). When the Postgres
+ *      target has NOT NULL columns missing from the SQLite source (typically
+ *      `tenant_id` after the Phase 2 multi-tenant cutover), the script
+ *      auto-injects sensible defaults so legacy Phase 1 SQLite databases
+ *      migrate cleanly without manual ALTER TABLE prep.
  *   4. Re-enable FK enforcement.
  *   5. Verify row count parity per table (zero data loss criteria).
  *
  * EXIT CODES:
  *   0 - success, all tables migrated, row count parity verified.
- *   1 - one or more tables mismatched. STDERR shows the diff.
+ *   1 - one or more tables mismatched, OR a required Postgres column is
+ *       missing from SQLite and no auto-injection rule applies.
  *   2 - environment error (missing DATABASE_URL, SQLite not found, etc.).
  */
 
@@ -43,6 +51,18 @@ const VERBOSE = process.argv.includes('--verbose') || process.env.VERBOSE === '1
 const SQLITE_PATH = process.env.VIPOS_DB_PATH || path.join(__dirname, '..', 'data', 'vipos.db');
 
 const PG_URL = process.env.DATABASE_URL;
+
+// Default tenant id assigned to legacy Phase 1 rows that have no tenant_id
+// in the SQLite source. Override with MIGRATION_DEFAULT_TENANT_ID=2 etc. if
+// you need to attribute the data to a non-default tenant.
+const DEFAULT_TENANT_ID = parseInt(process.env.MIGRATION_DEFAULT_TENANT_ID || '1', 10);
+
+// Auto-injection rules for Postgres NOT NULL columns missing from SQLite.
+// Each entry: column name → () => value. Add new rules here when Phase N
+// migrations introduce more required columns without backfill defaults.
+const INJECTION_RULES = {
+  tenant_id: () => DEFAULT_TENANT_ID,
+};
 
 if (!PG_URL) {
   console.error('ERROR: DATABASE_URL env var not set.');
@@ -129,14 +149,51 @@ for (const table of tables) {
     .all()
     .map((c) => c.name);
 
-  const colList = cols.map((c) => `"${c}"`).join(', ');
+  // Cross-check against Postgres: any NOT NULL column with no default that's
+  // not in the SQLite source needs to be supplied by the migration script.
+  // The classic case is `tenant_id` after the Phase 2 multi-tenant cutover.
+  const pgRequired = (
+    await pgClient.query(
+      `SELECT column_name FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = $1
+           AND is_nullable = 'NO'
+           AND column_default IS NULL`,
+      [table]
+    )
+  ).rows.map((r) => r.column_name);
+
+  const missing = pgRequired.filter((c) => !cols.includes(c));
+  const unhandled = missing.filter((c) => !INJECTION_RULES[c]);
+  if (unhandled.length > 0) {
+    console.error(
+      `  FAIL ${table}: required Postgres column(s) [${unhandled.join(', ')}] ` +
+        `missing from SQLite source and no INJECTION_RULES entry. Add the column ` +
+        `to SQLite or extend INJECTION_RULES in this script.`
+    );
+    summary.push({ table, sqliteCount, pgCount: 0, status: 'mismatch' });
+    hadError = true;
+    continue;
+  }
+
+  // Build the augmented column list: SQLite cols first, then injected cols.
+  const injected = missing.map((c) => ({ name: c, value: INJECTION_RULES[c]() }));
+  if (injected.length > 0) {
+    console.log(
+      `  ${table}: injecting ${injected.map((i) => `${i.name}=${i.value}`).join(', ')} ` +
+        `(legacy SQLite source missing Phase 2 columns)`
+    );
+  }
+  const allCols = cols.concat(injected.map((i) => i.name));
+  const colList = allCols.map((c) => `"${c}"`).join(', ');
+  const sqliteSelectList = cols.map((c) => `"${c}"`).join(', ');
   const BATCH = 500;
 
   let inserted = 0;
   let offset = 0;
   while (offset < sqliteCount) {
     const rows = sqlite
-      .prepare(`SELECT ${colList} FROM "${table}" LIMIT ${BATCH} OFFSET ${offset}`)
+      .prepare(`SELECT ${sqliteSelectList} FROM "${table}" LIMIT ${BATCH} OFFSET ${offset}`)
       .all();
     if (rows.length === 0) break;
 
@@ -149,6 +206,10 @@ for (const table of tables) {
         ph.push(`$${idx++}`);
         values.push(coerceValue(row[c]));
       }
+      for (const inj of injected) {
+        ph.push(`$${idx++}`);
+        values.push(inj.value);
+      }
       placeholders.push(`(${ph.join(', ')})`);
     }
     const sql = `INSERT INTO "${table}" (${colList}) VALUES ${placeholders.join(', ')}`;
@@ -159,7 +220,7 @@ for (const table of tables) {
   }
 
   // Reset sequence to MAX(id) so future inserts don't collide.
-  if (cols.includes('id')) {
+  if (allCols.includes('id')) {
     await pgClient.query(
       `SELECT setval(pg_get_serial_sequence('"${table}"', 'id'),
          GREATEST(COALESCE((SELECT MAX(id) FROM "${table}"), 1), 1),
