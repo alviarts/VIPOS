@@ -72,6 +72,10 @@ jobs:
           DATABASE_URL: postgresql://vipos_app:apppass@localhost:5432/vipos_test
           DIRECT_URL: postgresql://test:test@localhost:5432/vipos_test
           DATABASE_DRIVER: postgres
+          # P2-06: CORS allowlist is fail-closed in production. Smoke
+          # check just needs a valid value so the app can boot — the
+          # actual deploy supplies the real production allowlist.
+          CORS_ALLOWLIST: http://localhost:3001
         run: |
           # Boot the backend in the background, hit /api/health, then kill it.
           # Proves the production entry point still resolves the new monorepo
