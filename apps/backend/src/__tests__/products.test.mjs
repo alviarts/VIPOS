@@ -10,7 +10,7 @@ let app;
 let token;
 
 beforeAll(async () => {
-  setupTestEnv();
+  await setupTestEnv();
   const { buildApp } = require('../app');
   app = buildApp({ morganEnabled: false });
 
@@ -20,8 +20,8 @@ beforeAll(async () => {
   token = res.body.token;
 });
 
-afterAll(() => {
-  teardownTestEnv();
+afterAll(async () => {
+  await teardownTestEnv();
 });
 
 const auth = () => ({ Authorization: `Bearer ${token}` });
@@ -41,10 +41,7 @@ describe('GET /api/products', () => {
 
 describe('POST /api/products (validation + happy path)', () => {
   it('400 kalau name+price missing', async () => {
-    const res = await request(app)
-      .post('/api/products')
-      .set(auth())
-      .send({ sku: 'NOPE-1' });
+    const res = await request(app).post('/api/products').set(auth()).send({ sku: 'NOPE-1' });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('Validation failed');
     const paths = res.body.details.map((d) => d.path);
@@ -60,17 +57,14 @@ describe('POST /api/products (validation + happy path)', () => {
   });
 
   it('201 + coerce string ke number', async () => {
-    const res = await request(app)
-      .post('/api/products')
-      .set(auth())
-      .send({
-        name: 'Coerced product',
-        sku: 'COE-1',
-        price: '15000',
-        harga_modal: '8000',
-        stock: '5',
-        is_favorit: 'true',
-      });
+    const res = await request(app).post('/api/products').set(auth()).send({
+      name: 'Coerced product',
+      sku: 'COE-1',
+      price: '15000',
+      harga_modal: '8000',
+      stock: '5',
+      is_favorit: 'true',
+    });
     expect(res.status).toBe(201);
     expect(res.body.id).toBeTypeOf('number');
     expect(res.body.price).toBe(15000);

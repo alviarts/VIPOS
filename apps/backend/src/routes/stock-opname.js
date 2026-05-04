@@ -1,5 +1,5 @@
 const express = require('express');
-const { getDb } = require('../models/database');
+const { query, tx } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const {
@@ -10,13 +10,15 @@ const {
 
 const router = express.Router();
 
-function generateKode(db) {
+async function generateKode(q) {
   const today = new Date();
   const yyyymmdd = today.toISOString().slice(0, 10).replace(/-/g, '');
   const prefix = `OP-${yyyymmdd}-`;
-  const last = db
-    .prepare(`SELECT kode FROM stock_opname WHERE kode LIKE ? ORDER BY id DESC LIMIT 1`)
-    .get(`${prefix}%`);
+  const last = (
+    await q(`SELECT kode FROM stock_opname WHERE kode LIKE $1 ORDER BY id DESC LIMIT 1`, [
+      `${prefix}%`,
+    ])
+  ).rows[0];
   let n = 1;
   if (last && last.kode) {
     const tail = parseInt(last.kode.slice(prefix.length), 10);
@@ -25,74 +27,71 @@ function generateKode(db) {
   return `${prefix}${String(n).padStart(3, '0')}`;
 }
 
-function loadOpname(db, id) {
-  const opname = db
-    .prepare(
-      `
-      SELECT
-        o.*,
-        uc.name AS created_by_name,
-        uf.name AS finalized_by_name,
-        (SELECT COUNT(*) FROM stock_opname_items oi WHERE oi.opname_id = o.id) AS item_count,
-        (SELECT COUNT(*) FROM stock_opname_items oi WHERE oi.opname_id = o.id AND oi.qty_fisik IS NOT NULL) AS counted_count,
-        (SELECT COUNT(*) FROM stock_opname_items oi WHERE oi.opname_id = o.id AND oi.qty_fisik IS NOT NULL AND oi.qty_fisik <> oi.qty_sistem) AS variance_count
-      FROM stock_opname o
-      LEFT JOIN users uc ON uc.id = o.created_by
-      LEFT JOIN users uf ON uf.id = o.finalized_by
-      WHERE o.id = ?
-    `
+async function loadOpname(q, id) {
+  const opname = (
+    await q(
+      `SELECT
+         o.*,
+         uc.name AS created_by_name,
+         uf.name AS finalized_by_name,
+         (SELECT COUNT(*) FROM stock_opname_items oi WHERE oi.opname_id = o.id) AS item_count,
+         (SELECT COUNT(*) FROM stock_opname_items oi WHERE oi.opname_id = o.id AND oi.qty_fisik IS NOT NULL) AS counted_count,
+         (SELECT COUNT(*) FROM stock_opname_items oi WHERE oi.opname_id = o.id AND oi.qty_fisik IS NOT NULL AND oi.qty_fisik <> oi.qty_sistem) AS variance_count
+       FROM stock_opname o
+       LEFT JOIN users uc ON uc.id = o.created_by
+       LEFT JOIN users uf ON uf.id = o.finalized_by
+       WHERE o.id = $1`,
+      [id]
     )
-    .get(id);
+  ).rows[0];
   if (!opname) return null;
-  const items = db
-    .prepare(
-      `
-      SELECT
-        oi.*,
-        p.name AS product_name,
-        p.sku AS product_sku,
-        p.satuan AS product_satuan,
-        CASE WHEN oi.qty_fisik IS NOT NULL THEN oi.qty_fisik - oi.qty_sistem ELSE NULL END AS selisih
-      FROM stock_opname_items oi
-      LEFT JOIN products p ON p.id = oi.product_id
-      WHERE oi.opname_id = ?
-      ORDER BY p.name COLLATE NOCASE
-    `
+  const items = (
+    await q(
+      `SELECT
+         oi.*,
+         p.name AS product_name,
+         p.sku AS product_sku,
+         p.satuan AS product_satuan,
+         CASE WHEN oi.qty_fisik IS NOT NULL THEN oi.qty_fisik - oi.qty_sistem ELSE NULL END AS selisih
+       FROM stock_opname_items oi
+       LEFT JOIN products p ON p.id = oi.product_id
+       WHERE oi.opname_id = $1
+       ORDER BY LOWER(p.name)`,
+      [id]
     )
-    .all(id);
+  ).rows;
   return { ...opname, items };
 }
 
 // GET /api/stock-opname?status=
-router.get('/', authenticateToken, (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
     const { status } = req.query;
     const conditions = [];
     const params = [];
+    let p = 1;
     if (status) {
-      conditions.push('o.status = ?');
+      conditions.push(`o.status = $${p++}`);
       params.push(status);
     }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    const rows = db
-      .prepare(
-        `
-      SELECT
-        o.*,
-        uc.name AS created_by_name,
-        uf.name AS finalized_by_name,
-        (SELECT COUNT(*) FROM stock_opname_items oi WHERE oi.opname_id = o.id) AS item_count,
-        (SELECT COUNT(*) FROM stock_opname_items oi WHERE oi.opname_id = o.id AND oi.qty_fisik IS NOT NULL) AS counted_count,
-        (SELECT COUNT(*) FROM stock_opname_items oi WHERE oi.opname_id = o.id AND oi.qty_fisik IS NOT NULL AND oi.qty_fisik <> oi.qty_sistem) AS variance_count
-      FROM stock_opname o
-      LEFT JOIN users uc ON uc.id = o.created_by
-      LEFT JOIN users uf ON uf.id = o.finalized_by
-      ${where}
-      ORDER BY o.tanggal DESC, o.id DESC
-    `
+    const rows = (
+      await query(
+        `SELECT
+           o.*,
+           uc.name AS created_by_name,
+           uf.name AS finalized_by_name,
+           (SELECT COUNT(*) FROM stock_opname_items oi WHERE oi.opname_id = o.id) AS item_count,
+           (SELECT COUNT(*) FROM stock_opname_items oi WHERE oi.opname_id = o.id AND oi.qty_fisik IS NOT NULL) AS counted_count,
+           (SELECT COUNT(*) FROM stock_opname_items oi WHERE oi.opname_id = o.id AND oi.qty_fisik IS NOT NULL AND oi.qty_fisik <> oi.qty_sistem) AS variance_count
+         FROM stock_opname o
+         LEFT JOIN users uc ON uc.id = o.created_by
+         LEFT JOIN users uf ON uf.id = o.finalized_by
+         ${where}
+         ORDER BY o.tanggal DESC, o.id DESC`,
+        params
       )
-      .all(...params);
+    ).rows;
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -105,24 +104,26 @@ router.post(
   authenticateToken,
   requireAdmin,
   validate({ body: StockOpnameCreateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
       const { tanggal, catatan, product_ids } = req.body;
 
       // Resolve which products to include.
       let productList;
       if (product_ids && product_ids.length > 0) {
-        const placeholders = product_ids.map(() => '?').join(',');
-        productList = db
-          .prepare(`SELECT id, stock FROM products WHERE id IN (${placeholders}) AND is_active = 1`)
-          .all(...product_ids);
-      } else {
-        productList = db
-          .prepare(
-            `SELECT id, stock FROM products WHERE is_active = 1 AND monitor_stok = 1 ORDER BY name COLLATE NOCASE`
+        const placeholders = product_ids.map((_, i) => `$${i + 1}`).join(',');
+        productList = (
+          await query(
+            `SELECT id, stock FROM products WHERE id IN (${placeholders}) AND is_active = 1`,
+            product_ids
           )
-          .all();
+        ).rows;
+      } else {
+        productList = (
+          await query(
+            `SELECT id, stock FROM products WHERE is_active = 1 AND monitor_stok = 1 ORDER BY LOWER(name)`
+          )
+        ).rows;
       }
 
       if (productList.length === 0) {
@@ -132,31 +133,29 @@ router.post(
         });
       }
 
-      const trx = db.transaction(() => {
-        const kode = generateKode(db);
-        const result = db
-          .prepare(
-            `INSERT INTO stock_opname (kode, tanggal, status, catatan, created_by) VALUES (?, ?, 'draft', ?, ?)`
-          )
-          .run(
+      const opnameId = await tx(async (txQuery) => {
+        const kode = await generateKode(txQuery);
+        const ins = await txQuery(
+          `INSERT INTO stock_opname (kode, tanggal, status, catatan, created_by) VALUES ($1, $2, 'draft', $3, $4) RETURNING id`,
+          [
             kode,
             tanggal || new Date().toISOString().slice(0, 10),
             catatan ? catatan.trim() : null,
-            req.user.id
-          );
-        const opnameId = result.lastInsertRowid;
-
-        const insertItem = db.prepare(
-          `INSERT INTO stock_opname_items (opname_id, product_id, qty_sistem, qty_fisik) VALUES (?, ?, ?, NULL)`
+            req.user.id,
+          ]
         );
+        const newId = ins.rows[0].id;
+
         for (const p of productList) {
-          insertItem.run(opnameId, p.id, p.stock || 0);
+          await txQuery(
+            `INSERT INTO stock_opname_items (opname_id, product_id, qty_sistem, qty_fisik) VALUES ($1, $2, $3, NULL)`,
+            [newId, p.id, p.stock || 0]
+          );
         }
-        return opnameId;
+        return newId;
       });
 
-      const opnameId = trx();
-      res.status(201).json(loadOpname(db, opnameId));
+      res.status(201).json(await loadOpname(query, opnameId));
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -164,10 +163,9 @@ router.post(
 );
 
 // GET /api/stock-opname/:id
-router.get('/:id', authenticateToken, (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
-    const opname = loadOpname(db, req.params.id);
+    const opname = await loadOpname(query, req.params.id);
     if (!opname) return res.status(404).json({ error: 'Opname tidak ditemukan' });
     res.json(opname);
   } catch (err) {
@@ -181,38 +179,38 @@ router.put(
   authenticateToken,
   requireAdmin,
   validate({ body: StockOpnameUpdateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
       const id = parseInt(req.params.id, 10);
-      const opname = db.prepare('SELECT id, status FROM stock_opname WHERE id = ?').get(id);
+      const opname = (await query('SELECT id, status FROM stock_opname WHERE id = $1', [id]))
+        .rows[0];
       if (!opname) return res.status(404).json({ error: 'Opname tidak ditemukan' });
       if (opname.status !== 'draft')
         return res.status(400).json({ error: 'Opname hanya bisa diubah saat status draft' });
 
       const { catatan, items } = req.body;
-      const trx = db.transaction(() => {
+      await tx(async (txQuery) => {
         if (catatan !== undefined) {
-          db.prepare(
-            `UPDATE stock_opname SET catatan = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-          ).run(catatan == null ? null : catatan.trim(), id);
+          await txQuery(
+            `UPDATE stock_opname SET catatan = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+            [catatan == null ? null : catatan.trim(), id]
+          );
         }
         if (items && items.length > 0) {
-          const upsert = db.prepare(
-            `UPDATE stock_opname_items SET qty_fisik = ?, catatan = ? WHERE opname_id = ? AND product_id = ?`
-          );
           for (const it of items) {
-            upsert.run(
-              it.qty_fisik == null ? null : it.qty_fisik,
-              it.catatan ? it.catatan.trim() : null,
-              id,
-              it.product_id
+            await txQuery(
+              `UPDATE stock_opname_items SET qty_fisik = $1, catatan = $2 WHERE opname_id = $3 AND product_id = $4`,
+              [
+                it.qty_fisik == null ? null : it.qty_fisik,
+                it.catatan ? it.catatan.trim() : null,
+                id,
+                it.product_id,
+              ]
             );
           }
         }
       });
-      trx();
-      res.json(loadOpname(db, id));
+      res.json(await loadOpname(query, id));
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -225,59 +223,57 @@ router.post(
   authenticateToken,
   requireAdmin,
   validate({ body: StockOpnameFinalizeSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
       const id = parseInt(req.params.id, 10);
-      const opname = db.prepare('SELECT * FROM stock_opname WHERE id = ?').get(id);
+      const opname = (await query('SELECT * FROM stock_opname WHERE id = $1', [id])).rows[0];
       if (!opname) return res.status(404).json({ error: 'Opname tidak ditemukan' });
       if (opname.status !== 'draft')
         return res.status(400).json({ error: `Opname sudah ${opname.status}` });
 
-      const items = db
-        .prepare(`SELECT * FROM stock_opname_items WHERE opname_id = ? AND qty_fisik IS NOT NULL`)
-        .all(id);
+      const items = (
+        await query(
+          `SELECT * FROM stock_opname_items WHERE opname_id = $1 AND qty_fisik IS NOT NULL`,
+          [id]
+        )
+      ).rows;
       if (items.length === 0)
         return res.status(400).json({ error: 'Belum ada item yang dihitung (qty_fisik kosong)' });
 
-      const trx = db.transaction(() => {
-        const insertMov = db.prepare(`
-          INSERT INTO inventory_movements
-            (tanggal, product_id, tipe, qty, stok_sebelum, stok_sesudah, keterangan, user_id, ref_type, ref_id)
-          VALUES (?, ?, 'opname', ?, ?, ?, ?, ?, 'stock_opname', ?)
-        `);
-        const updateStock = db.prepare(
-          `UPDATE products SET stock = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-        );
-
+      await tx(async (txQuery) => {
         const tanggal = opname.tanggal || new Date().toISOString().slice(0, 10);
-        let postedCount = 0;
         for (const it of items) {
           const stokSebelum = it.qty_sistem;
           const stokSesudah = it.qty_fisik;
           if (stokSebelum === stokSesudah) continue;
-          insertMov.run(
-            tanggal,
-            it.product_id,
-            stokSesudah,
-            stokSebelum,
-            stokSesudah,
-            `Opname ${opname.kode}`,
-            req.user.id,
-            id
+          await txQuery(
+            `INSERT INTO inventory_movements
+               (tanggal, product_id, tipe, qty, stok_sebelum, stok_sesudah, keterangan, user_id, ref_type, ref_id)
+             VALUES ($1, $2, 'opname', $3, $4, $5, $6, $7, 'stock_opname', $8)`,
+            [
+              tanggal,
+              it.product_id,
+              stokSesudah,
+              stokSebelum,
+              stokSesudah,
+              `Opname ${opname.kode}`,
+              req.user.id,
+              id,
+            ]
           );
-          updateStock.run(stokSesudah, it.product_id);
-          postedCount++;
+          await txQuery(
+            `UPDATE products SET stock = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+            [stokSesudah, it.product_id]
+          );
         }
 
-        db.prepare(
-          `UPDATE stock_opname SET status = 'final', finalized_by = ?, finalized_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-        ).run(req.user.id, id);
-        return postedCount;
+        await txQuery(
+          `UPDATE stock_opname SET status = 'final', finalized_by = $1, finalized_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+          [req.user.id, id]
+        );
       });
 
-      trx();
-      res.json(loadOpname(db, id));
+      res.json(await loadOpname(query, id));
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -285,15 +281,14 @@ router.post(
 );
 
 // DELETE /api/stock-opname/:id - cancel draft
-router.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
+router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const db = getDb();
     const id = parseInt(req.params.id, 10);
-    const opname = db.prepare('SELECT id, status FROM stock_opname WHERE id = ?').get(id);
+    const opname = (await query('SELECT id, status FROM stock_opname WHERE id = $1', [id])).rows[0];
     if (!opname) return res.status(404).json({ error: 'Tidak ditemukan' });
     if (opname.status === 'final')
       return res.status(400).json({ error: 'Opname final tidak bisa dihapus' });
-    db.prepare(`DELETE FROM stock_opname WHERE id = ?`).run(id);
+    await query(`DELETE FROM stock_opname WHERE id = $1`, [id]);
     res.status(204).send();
   } catch (err) {
     res.status(500).json({ error: err.message });

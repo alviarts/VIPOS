@@ -11,20 +11,18 @@ const require = createRequire(import.meta.url);
 
 let app;
 
-beforeAll(() => {
-  setupTestEnv();
+beforeAll(async () => {
+  await setupTestEnv();
   const { buildApp } = require('../app');
   app = buildApp({ morganEnabled: false });
 });
 
-afterAll(() => {
-  teardownTestEnv();
+afterAll(async () => {
+  await teardownTestEnv();
 });
 
 async function login(username = 'admin', password = 'admin123') {
-  const res = await request(app)
-    .post('/api/auth/login')
-    .send({ username, password });
+  const res = await request(app).post('/api/auth/login').send({ username, password });
   return res;
 }
 
@@ -52,9 +50,7 @@ describe('POST /api/auth/refresh', () => {
     expect(refreshed.body.refresh_token).not.toBe(oldRefresh);
 
     // Old refresh token must now be rejected.
-    const replay = await request(app)
-      .post('/api/auth/refresh')
-      .send({ refresh_token: oldRefresh });
+    const replay = await request(app).post('/api/auth/refresh').send({ refresh_token: oldRefresh });
     expect(replay.status).toBe(401);
   });
 
@@ -70,13 +66,9 @@ describe('POST /api/auth/logout', () => {
   it('revokes the refresh token', async () => {
     const loginRes = await login();
     const refresh = loginRes.body.refresh_token;
-    const out = await request(app)
-      .post('/api/auth/logout')
-      .send({ refresh_token: refresh });
+    const out = await request(app).post('/api/auth/logout').send({ refresh_token: refresh });
     expect(out.status).toBe(204);
-    const after = await request(app)
-      .post('/api/auth/refresh')
-      .send({ refresh_token: refresh });
+    const after = await request(app).post('/api/auth/refresh').send({ refresh_token: refresh });
     expect(after.status).toBe(401);
   });
 });

@@ -1,6 +1,6 @@
-// Approval chain config (P1-14): purchase, finance, leave, etc.
+// Approval chain config (P1-14, P2-01b cutover): purchase, finance, leave, etc.
 const express = require('express');
-const { getDb } = require('../models/database');
+const { query } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { ApprovalChainCreateSchema, ApprovalChainUpdateSchema } = require('@vipos/shared');
@@ -21,18 +21,22 @@ function rowToChain(row) {
   return { ...row, steps: parseJson(row.steps, []) };
 }
 
-router.get('/', authenticateToken, (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const conds = [];
     const params = [];
+    let p = 1;
     if (req.query.domain) {
-      conds.push('domain = ?');
+      conds.push(`domain = $${p++}`);
       params.push(req.query.domain);
     }
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
-    const rows = getDb()
-      .prepare(`SELECT * FROM approval_chains ${where} ORDER BY domain ASC, threshold_amount ASC`)
-      .all(...params);
+    const rows = (
+      await query(
+        `SELECT * FROM approval_chains ${where} ORDER BY domain ASC, threshold_amount ASC`,
+        params
+      )
+    ).rows;
     res.json(rows.map(rowToChain));
   } catch (err) {
     res.status(500).json({ error: 'Failed', details: err.message });
@@ -44,28 +48,23 @@ router.post(
   authenticateToken,
   requireAdmin,
   validate({ body: ApprovalChainCreateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
       const data = req.body;
-      const result = db
-        .prepare(
-          `INSERT INTO approval_chains (domain, name, threshold_amount, steps, is_active) VALUES (?, ?, ?, ?, ?)`
-        )
-        .run(
+      const ins = await query(
+        `INSERT INTO approval_chains (domain, name, threshold_amount, steps, is_active)
+         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+        [
           data.domain,
           data.name,
           data.threshold_amount || 0,
           JSON.stringify(data.steps || []),
-          data.is_active ?? 1
-        );
-      res
-        .status(201)
-        .json(
-          rowToChain(
-            db.prepare(`SELECT * FROM approval_chains WHERE id = ?`).get(result.lastInsertRowid)
-          )
-        );
+          data.is_active ?? 1,
+        ]
+      );
+      const row = (await query('SELECT * FROM approval_chains WHERE id = $1', [ins.rows[0].id]))
+        .rows[0];
+      res.status(201).json(rowToChain(row));
     } catch (err) {
       res.status(500).json({ error: 'Failed', details: err.message });
     }
@@ -77,42 +76,42 @@ router.put(
   authenticateToken,
   requireAdmin,
   validate({ body: ApprovalChainUpdateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
       const id = parseInt(req.params.id, 10);
-      const exists = db.prepare(`SELECT id FROM approval_chains WHERE id = ?`).get(id);
+      const exists = (await query('SELECT id FROM approval_chains WHERE id = $1', [id])).rows[0];
       if (!exists) return res.status(404).json({ error: 'Not found' });
       const allowed = ['domain', 'name', 'threshold_amount', 'is_active'];
       const fields = [];
       const values = [];
+      let p = 1;
       for (const key of allowed) {
         if (key in req.body) {
-          fields.push(`${key} = ?`);
+          fields.push(`${key} = $${p++}`);
           values.push(req.body[key]);
         }
       }
       if ('steps' in req.body) {
-        fields.push('steps = ?');
+        fields.push(`steps = $${p++}`);
         values.push(JSON.stringify(req.body.steps || []));
       }
       if (fields.length > 0) {
         fields.push('updated_at = CURRENT_TIMESTAMP');
         values.push(id);
-        db.prepare(`UPDATE approval_chains SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+        await query(`UPDATE approval_chains SET ${fields.join(', ')} WHERE id = $${p}`, values);
       }
-      res.json(rowToChain(db.prepare(`SELECT * FROM approval_chains WHERE id = ?`).get(id)));
+      const row = (await query('SELECT * FROM approval_chains WHERE id = $1', [id])).rows[0];
+      res.json(rowToChain(row));
     } catch (err) {
       res.status(500).json({ error: 'Failed', details: err.message });
     }
   }
 );
 
-router.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
+router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const db = getDb();
     const id = parseInt(req.params.id, 10);
-    db.prepare(`DELETE FROM approval_chains WHERE id = ?`).run(id);
+    await query('DELETE FROM approval_chains WHERE id = $1', [id]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed', details: err.message });

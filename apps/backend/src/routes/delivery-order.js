@@ -1,5 +1,5 @@
 const express = require('express');
-const { getDb } = require('../models/database');
+const { query, tx } = require('../db');
 const { authenticateToken } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { DeliveryOrderCreateSchema, DeliveryOrderUpdateSchema } = require('@vipos/shared');
@@ -9,103 +9,99 @@ const { refreshFulfillmentStatus } = require('./sales-order');
 const router = express.Router();
 router.use(authenticateToken);
 
-function loadFull(db, id) {
-  const row = db.prepare('SELECT * FROM b2b_delivery_orders WHERE id = ?').get(id);
+async function loadFull(q, id) {
+  const row = (await q('SELECT * FROM b2b_delivery_orders WHERE id = $1', [id])).rows[0];
   if (!row) return null;
-  row.items = db
-    .prepare('SELECT * FROM b2b_delivery_order_items WHERE delivery_order_id = ? ORDER BY id ASC')
-    .all(id);
+  row.items = (
+    await q('SELECT * FROM b2b_delivery_order_items WHERE delivery_order_id = $1 ORDER BY id ASC', [
+      id,
+    ])
+  ).rows;
   return row;
 }
 
-function postStockMovements(db, doid, items, refDate, userId) {
-  const insMov = db.prepare(
-    `INSERT INTO inventory_movements
-      (tanggal, product_id, tipe, qty, stok_sebelum, stok_sesudah, ref_type, ref_id, reason, keterangan, user_id)
-     VALUES (?, ?, 'stok_out', ?, ?, ?, 'B2B_DELIVERY', ?, 'b2b_delivery', ?, ?)`
-  );
-  const getStock = db.prepare('SELECT stock FROM products WHERE id = ?');
-  const updProd = db.prepare('UPDATE products SET stock = stock - ? WHERE id = ?');
+async function postStockMovements(q, doid, items, refDate, userId) {
   for (const it of items) {
     if (!it.product_id) continue;
-    const before = getStock.get(it.product_id)?.stock ?? 0;
-    const after = before - Number(it.qty);
-    insMov.run(
-      refDate,
-      it.product_id,
-      Number(it.qty),
-      before,
-      after,
-      doid,
-      `DO-${doid}`,
-      userId ?? null
+    const before =
+      (await q('SELECT stock FROM products WHERE id = $1', [it.product_id])).rows[0]?.stock ?? 0;
+    const after = Number(before) - Number(it.qty);
+    await q(
+      `INSERT INTO inventory_movements
+        (tanggal, product_id, tipe, qty, stok_sebelum, stok_sesudah, ref_type, ref_id, reason, keterangan, user_id)
+       VALUES ($1, $2, 'stok_out', $3, $4, $5, 'B2B_DELIVERY', $6, 'b2b_delivery', $7, $8)`,
+      [refDate, it.product_id, Number(it.qty), before, after, doid, `DO-${doid}`, userId ?? null]
     );
-    updProd.run(Number(it.qty), it.product_id);
+    await q('UPDATE products SET stock = stock - $1 WHERE id = $2', [
+      Number(it.qty),
+      it.product_id,
+    ]);
   }
 }
 
-function applyQtyDelivered(db, soid) {
-  const aggregated = db
-    .prepare(
+async function applyQtyDelivered(q, soid) {
+  const aggregated = (
+    await q(
       `SELECT soi.id AS so_item_id, COALESCE(SUM(doi.qty), 0) AS delivered
          FROM b2b_sales_order_items soi
          LEFT JOIN b2b_delivery_order_items doi ON doi.sales_order_item_id = soi.id
          LEFT JOIN b2b_delivery_orders dod ON dod.id = doi.delivery_order_id
-        WHERE soi.sales_order_id = ?
+        WHERE soi.sales_order_id = $1
           AND (dod.status IS NULL OR dod.status IN ('DELIVERED', 'IN_TRANSIT', 'PREPARING'))
-        GROUP BY soi.id`
+        GROUP BY soi.id`,
+      [soid]
     )
-    .all(soid);
-  const upd = db.prepare('UPDATE b2b_sales_order_items SET qty_delivered = ? WHERE id = ?');
+  ).rows;
   for (const row of aggregated) {
-    upd.run(Number(row.delivered) || 0, row.so_item_id);
+    await q('UPDATE b2b_sales_order_items SET qty_delivered = $1 WHERE id = $2', [
+      Number(row.delivered) || 0,
+      row.so_item_id,
+    ]);
   }
 }
 
-router.get('/', (req, res) => {
-  const db = getDb();
+router.get('/', async (req, res) => {
   const { status, sales_order_id, customer_id } = req.query;
   const where = [];
   const params = [];
+  let p = 1;
   if (status) {
-    where.push('status = ?');
+    where.push(`status = $${p++}`);
     params.push(status);
   }
   if (sales_order_id) {
-    where.push('sales_order_id = ?');
+    where.push(`sales_order_id = $${p++}`);
     params.push(Number(sales_order_id));
   }
   if (customer_id) {
-    where.push('customer_id = ?');
+    where.push(`customer_id = $${p++}`);
     params.push(Number(customer_id));
   }
   const sql = `SELECT * FROM b2b_delivery_orders${where.length ? ' WHERE ' + where.join(' AND ') : ''} ORDER BY id DESC LIMIT 200`;
-  res.json(db.prepare(sql).all(...params));
+  res.json((await query(sql, params)).rows);
 });
 
-router.get('/:id', (req, res) => {
-  const row = loadFull(getDb(), Number(req.params.id));
+router.get('/:id', async (req, res) => {
+  const row = await loadFull(query, Number(req.params.id));
   if (!row) return res.status(404).json({ error: 'Not found' });
   res.json(row);
 });
 
-router.post('/', validate({ body: DeliveryOrderCreateSchema }), (req, res) => {
-  const db = getDb();
+router.post('/', validate({ body: DeliveryOrderCreateSchema }), async (req, res) => {
   const body = req.body;
-  const so = db.prepare('SELECT * FROM b2b_sales_orders WHERE id = ?').get(body.sales_order_id);
+  const so = (await query('SELECT * FROM b2b_sales_orders WHERE id = $1', [body.sales_order_id]))
+    .rows[0];
   if (!so) return res.status(400).json({ error: 'Sales order tidak ditemukan' });
-  const number = generateNumber(db, 'b2b_delivery_orders', body.delivery_date);
   const status = body.status || 'PREPARING';
 
-  const tx = db.transaction(() => {
-    const r = db
-      .prepare(
-        `INSERT INTO b2b_delivery_orders
+  const id = await tx(async (txQuery) => {
+    const number = await generateNumber(txQuery, 'b2b_delivery_orders', body.delivery_date);
+    const ins = await txQuery(
+      `INSERT INTO b2b_delivery_orders
           (number, sales_order_id, customer_id, customer_name, delivery_date, expected_arrival,
            carrier, driver, status, notes, signature_url, stock_posted, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`
-      )
-      .run(
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 0, $12) RETURNING id`,
+      [
         number,
         body.sales_order_id,
         so.customer_id,
@@ -117,85 +113,82 @@ router.post('/', validate({ body: DeliveryOrderCreateSchema }), (req, res) => {
         status,
         body.notes ?? null,
         body.signature_url ?? null,
-        req.user?.id ?? null
-      );
-    const doid = r.lastInsertRowid;
-    const insItem = db.prepare(
-      `INSERT INTO b2b_delivery_order_items
-        (delivery_order_id, sales_order_item_id, product_id, product_name, qty)
-       VALUES (?, ?, ?, ?, ?)`
+        req.user?.id ?? null,
+      ]
     );
+    const doid = ins.rows[0].id;
     for (const it of body.items) {
-      insItem.run(
-        doid,
-        it.sales_order_item_id ?? null,
-        it.product_id ?? null,
-        it.product_name,
-        Number(it.qty)
+      await txQuery(
+        `INSERT INTO b2b_delivery_order_items
+          (delivery_order_id, sales_order_item_id, product_id, product_name, qty)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          doid,
+          it.sales_order_item_id ?? null,
+          it.product_id ?? null,
+          it.product_name,
+          Number(it.qty),
+        ]
       );
     }
     if (status === 'DELIVERED') {
-      postStockMovements(db, doid, body.items, body.delivery_date, req.user?.id);
-      db.prepare('UPDATE b2b_delivery_orders SET stock_posted = 1 WHERE id = ?').run(doid);
+      await postStockMovements(txQuery, doid, body.items, body.delivery_date, req.user?.id);
+      await txQuery('UPDATE b2b_delivery_orders SET stock_posted = 1 WHERE id = $1', [doid]);
     }
-    applyQtyDelivered(db, body.sales_order_id);
-    refreshFulfillmentStatus(db, body.sales_order_id);
+    await applyQtyDelivered(txQuery, body.sales_order_id);
+    await refreshFulfillmentStatus(txQuery, body.sales_order_id);
     return doid;
   });
-  const id = tx();
-  res.status(201).json(loadFull(db, id));
+  res.status(201).json(await loadFull(query, id));
 });
 
-router.put('/:id', validate({ body: DeliveryOrderUpdateSchema }), (req, res) => {
-  const db = getDb();
+router.put('/:id', validate({ body: DeliveryOrderUpdateSchema }), async (req, res) => {
   const id = Number(req.params.id);
-  const existing = loadFull(db, id);
+  const existing = await loadFull(query, id);
   if (!existing) return res.status(404).json({ error: 'Not found' });
   const body = req.body;
   const newStatus = body.status ?? existing.status;
   const wasDelivered = existing.status === 'DELIVERED';
   const isDelivered = newStatus === 'DELIVERED';
 
-  const tx = db.transaction(() => {
-    db.prepare(
+  await tx(async (txQuery) => {
+    await txQuery(
       `UPDATE b2b_delivery_orders SET
-         delivery_date = ?, expected_arrival = ?, carrier = ?, driver = ?,
-         status = ?, notes = ?, signature_url = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`
-    ).run(
-      body.delivery_date ?? existing.delivery_date,
-      body.expected_arrival ?? existing.expected_arrival,
-      body.carrier ?? existing.carrier,
-      body.driver ?? existing.driver,
-      newStatus,
-      body.notes ?? existing.notes,
-      body.signature_url ?? existing.signature_url,
-      id
+         delivery_date = $1, expected_arrival = $2, carrier = $3, driver = $4,
+         status = $5, notes = $6, signature_url = $7, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $8`,
+      [
+        body.delivery_date ?? existing.delivery_date,
+        body.expected_arrival ?? existing.expected_arrival,
+        body.carrier ?? existing.carrier,
+        body.driver ?? existing.driver,
+        newStatus,
+        body.notes ?? existing.notes,
+        body.signature_url ?? existing.signature_url,
+        id,
+      ]
     );
     if (!wasDelivered && isDelivered && !existing.stock_posted) {
-      postStockMovements(db, id, existing.items, existing.delivery_date, req.user?.id);
-      db.prepare('UPDATE b2b_delivery_orders SET stock_posted = 1 WHERE id = ?').run(id);
+      await postStockMovements(txQuery, id, existing.items, existing.delivery_date, req.user?.id);
+      await txQuery('UPDATE b2b_delivery_orders SET stock_posted = 1 WHERE id = $1', [id]);
     }
-    applyQtyDelivered(db, existing.sales_order_id);
-    refreshFulfillmentStatus(db, existing.sales_order_id);
+    await applyQtyDelivered(txQuery, existing.sales_order_id);
+    await refreshFulfillmentStatus(txQuery, existing.sales_order_id);
   });
-  tx();
-  res.json(loadFull(db, id));
+  res.json(await loadFull(query, id));
 });
 
-router.delete('/:id', (req, res) => {
-  const db = getDb();
+router.delete('/:id', async (req, res) => {
   const id = Number(req.params.id);
-  const existing = loadFull(db, id);
+  const existing = await loadFull(query, id);
   if (!existing) return res.status(404).json({ error: 'Not found' });
-  const tx = db.transaction(() => {
-    db.prepare('DELETE FROM b2b_delivery_orders WHERE id = ?').run(id);
+  await tx(async (txQuery) => {
+    await txQuery('DELETE FROM b2b_delivery_orders WHERE id = $1', [id]);
     if (existing.sales_order_id) {
-      applyQtyDelivered(db, existing.sales_order_id);
-      refreshFulfillmentStatus(db, existing.sales_order_id);
+      await applyQtyDelivered(txQuery, existing.sales_order_id);
+      await refreshFulfillmentStatus(txQuery, existing.sales_order_id);
     }
   });
-  tx();
   res.json({ success: true });
 });
 

@@ -1,5 +1,6 @@
+// /api/departments — CRUD departemen (P2-01b cutover).
 const express = require('express');
-const { getDb } = require('../models/database');
+const { query, tx } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const {
@@ -11,20 +12,17 @@ const {
 const router = express.Router();
 
 // List semua departemen, dengan jumlah kategori. Urut by `urutan` lalu name.
-router.get('/', authenticateToken, (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
-    const rows = db
-      .prepare(
-        `
-      SELECT
-        d.*,
-        (SELECT COUNT(*) FROM categories c WHERE c.department_id = d.id) AS category_count
-      FROM departments d
-      ORDER BY d.urutan ASC, d.name ASC
-    `
+    const rows = (
+      await query(
+        `SELECT
+           d.*,
+           (SELECT COUNT(*) FROM categories c WHERE c.department_id = d.id) AS category_count
+         FROM departments d
+         ORDER BY d.urutan ASC, d.name ASC`
       )
-      .all();
+    ).rows;
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -38,22 +36,20 @@ router.post(
   authenticateToken,
   requireAdmin,
   validate({ body: DepartmentReorderSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
       const { ids } = req.body;
-      const db = getDb();
-
-      const update = db.prepare('UPDATE departments SET urutan = ? WHERE id = ?');
-      const tx = db.transaction((items) => {
-        let updated = 0;
-        items.forEach((id, idx) => {
-          const result = update.run(idx, id);
-          updated += result.changes;
-        });
-        return updated;
+      const updated = await tx(async (txQuery) => {
+        let count = 0;
+        for (let idx = 0; idx < ids.length; idx++) {
+          const r = await txQuery('UPDATE departments SET urutan = $1 WHERE id = $2', [
+            idx,
+            ids[idx],
+          ]);
+          count += r.rowCount;
+        }
+        return count;
       });
-      const updated = tx(ids);
-
       res.json({ message: 'Urutan departemen tersimpan', updated });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -61,10 +57,9 @@ router.post(
   }
 );
 
-router.get('/:id', authenticateToken, (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
-    const row = db.prepare('SELECT * FROM departments WHERE id = ?').get(req.params.id);
+    const row = (await query('SELECT * FROM departments WHERE id = $1', [req.params.id])).rows[0];
     if (!row) return res.status(404).json({ error: 'Departemen tidak ditemukan' });
     res.json(row);
   } catch (err) {
@@ -77,20 +72,19 @@ router.post(
   authenticateToken,
   requireAdmin,
   validate({ body: DepartmentCreateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
       const { name, description, urutan, is_active } = req.body;
-      const db = getDb();
-      const result = db
-        .prepare(
-          `INSERT INTO departments (name, description, urutan, is_active)
-           VALUES (?, ?, ?, ?)`
-        )
-        .run(name.trim(), description ? description.trim() : null, urutan ?? 0, is_active ?? 1);
-      const row = db.prepare('SELECT * FROM departments WHERE id = ?').get(result.lastInsertRowid);
+      const ins = await query(
+        `INSERT INTO departments (name, description, urutan, is_active)
+         VALUES ($1, $2, $3, $4) RETURNING id`,
+        [name.trim(), description ? description.trim() : null, urutan ?? 0, is_active ?? 1]
+      );
+      const row = (await query('SELECT * FROM departments WHERE id = $1', [ins.rows[0].id]))
+        .rows[0];
       res.status(201).json(row);
     } catch (err) {
-      if (err.message.includes('UNIQUE')) {
+      if (err.code === '23505') {
         return res.status(400).json({ error: 'Departemen sudah ada' });
       }
       res.status(500).json({ error: err.message });
@@ -103,10 +97,10 @@ router.put(
   authenticateToken,
   requireAdmin,
   validate({ body: DepartmentUpdateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
-      const existing = db.prepare('SELECT * FROM departments WHERE id = ?').get(req.params.id);
+      const existing = (await query('SELECT * FROM departments WHERE id = $1', [req.params.id]))
+        .rows[0];
       if (!existing) {
         return res.status(404).json({ error: 'Departemen tidak ditemukan' });
       }
@@ -119,21 +113,22 @@ router.put(
         is_active: req.body.is_active !== undefined ? req.body.is_active : existing.is_active,
       };
 
-      db.prepare(
+      await query(
         `UPDATE departments
-            SET name = ?, description = ?, urutan = ?, is_active = ?
-          WHERE id = ?`
-      ).run(
-        merged.name.trim(),
-        merged.description ? merged.description.trim() : null,
-        merged.urutan,
-        merged.is_active,
-        req.params.id
+            SET name = $1, description = $2, urutan = $3, is_active = $4
+          WHERE id = $5`,
+        [
+          merged.name.trim(),
+          merged.description ? merged.description.trim() : null,
+          merged.urutan,
+          merged.is_active,
+          req.params.id,
+        ]
       );
-      const row = db.prepare('SELECT * FROM departments WHERE id = ?').get(req.params.id);
+      const row = (await query('SELECT * FROM departments WHERE id = $1', [req.params.id])).rows[0];
       res.json(row);
     } catch (err) {
-      if (err.message.includes('UNIQUE')) {
+      if (err.code === '23505') {
         return res.status(400).json({ error: 'Departemen sudah ada' });
       }
       res.status(500).json({ error: err.message });
@@ -141,18 +136,19 @@ router.put(
   }
 );
 
-router.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
+router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const db = getDb();
-    const used = db
-      .prepare('SELECT COUNT(*) as count FROM categories WHERE department_id = ?')
-      .get(req.params.id);
+    const used = (
+      await query('SELECT COUNT(*) as count FROM categories WHERE department_id = $1', [
+        req.params.id,
+      ])
+    ).rows[0];
     if (used.count > 0) {
       return res.status(400).json({
         error: 'Departemen masih dipakai oleh kategori. Pindahkan kategori dulu.',
       });
     }
-    db.prepare('DELETE FROM departments WHERE id = ?').run(req.params.id);
+    await query('DELETE FROM departments WHERE id = $1', [req.params.id]);
     res.json({ message: 'Departemen berhasil dihapus' });
   } catch (err) {
     res.status(500).json({ error: err.message });

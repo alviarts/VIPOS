@@ -11,7 +11,7 @@
 //   total_deductions = sum(structure.deductions) + bpjs + pph21
 //   net = gross - total_deductions
 const express = require('express');
-const { getDb } = require('../models/database');
+const { query, tx } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const {
@@ -43,41 +43,40 @@ function rowToStructure(row) {
   };
 }
 
-function rowToRun(db, row, withPayslips = false) {
+async function rowToRun(q, row, withPayslips = false) {
   if (!row) return null;
   if (!withPayslips) return row;
-  const payslips = db
-    .prepare(`SELECT * FROM payslips WHERE payroll_run_id = ? ORDER BY employee_name ASC`)
-    .all(row.id)
-    .map((p) => ({
-      ...p,
-      breakdown: parseJson(p.breakdown, null),
-    }));
+  const payslips = (
+    await q(`SELECT * FROM payslips WHERE payroll_run_id = $1 ORDER BY employee_name ASC`, [row.id])
+  ).rows.map((p) => ({
+    ...p,
+    breakdown: parseJson(p.breakdown, null),
+  }));
   return { ...row, payslips };
 }
 
-function generateRefNo(db) {
-  const last = db
-    .prepare(`SELECT ref_no FROM payroll_runs WHERE ref_no LIKE 'PR%' ORDER BY id DESC LIMIT 1`)
-    .get();
+async function generateRefNo(q) {
+  const last = (
+    await q(`SELECT ref_no FROM payroll_runs WHERE ref_no LIKE 'PR%' ORDER BY id DESC LIMIT 1`)
+  ).rows[0];
   if (!last) return 'PR0001';
   const num = parseInt((last.ref_no || '').replace(/\D/g, ''), 10) || 0;
   return 'PR' + String(num + 1).padStart(4, '0');
 }
 
-function getOrCreateSettings(db) {
-  let row = db.prepare(`SELECT * FROM payroll_settings WHERE id = 1`).get();
+async function getOrCreateSettings(q) {
+  let row = (await q(`SELECT * FROM payroll_settings WHERE id = 1`)).rows[0];
   if (!row) {
-    db.prepare(`INSERT INTO payroll_settings (id) VALUES (1)`).run();
-    row = db.prepare(`SELECT * FROM payroll_settings WHERE id = 1`).get();
+    await q(`INSERT INTO payroll_settings (id) VALUES (1)`);
+    row = (await q(`SELECT * FROM payroll_settings WHERE id = 1`)).rows[0];
   }
   return row;
 }
 
 // ============== SETTINGS ==============
-settingsRouter.get('/', authenticateToken, (req, res) => {
+settingsRouter.get('/', authenticateToken, async (req, res) => {
   try {
-    res.json(getOrCreateSettings(getDb()));
+    res.json(await getOrCreateSettings(query));
   } catch (err) {
     res.status(500).json({ error: 'Failed', details: err.message });
   }
@@ -88,10 +87,9 @@ settingsRouter.put(
   authenticateToken,
   requireAdmin,
   validate({ body: PayrollSettingsUpdateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
-      getOrCreateSettings(db);
+      await getOrCreateSettings(query);
       const allowed = [
         'period',
         'cutoff_day',
@@ -105,17 +103,18 @@ settingsRouter.put(
       ];
       const fields = [];
       const values = [];
+      let p = 1;
       for (const key of allowed) {
         if (key in req.body) {
-          fields.push(`${key} = ?`);
+          fields.push(`${key} = $${p++}`);
           values.push(req.body[key]);
         }
       }
       if (fields.length > 0) {
         fields.push('updated_at = CURRENT_TIMESTAMP');
-        db.prepare(`UPDATE payroll_settings SET ${fields.join(', ')} WHERE id = 1`).run(...values);
+        await query(`UPDATE payroll_settings SET ${fields.join(', ')} WHERE id = 1`, values);
       }
-      res.json(getOrCreateSettings(db));
+      res.json(await getOrCreateSettings(query));
     } catch (err) {
       res.status(500).json({ error: 'Failed', details: err.message });
     }
@@ -123,9 +122,9 @@ settingsRouter.put(
 );
 
 // ============== STRUCTURE ==============
-structureRouter.get('/', authenticateToken, (req, res) => {
+structureRouter.get('/', authenticateToken, async (req, res) => {
   try {
-    const rows = getDb().prepare(`SELECT * FROM payroll_structures ORDER BY name ASC`).all();
+    const rows = (await query(`SELECT * FROM payroll_structures ORDER BY name ASC`)).rows;
     res.json(rows.map(rowToStructure));
   } catch (err) {
     res.status(500).json({ error: 'Failed', details: err.message });
@@ -137,18 +136,15 @@ structureRouter.post(
   authenticateToken,
   requireAdmin,
   validate({ body: PayrollStructureCreateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
       const data = req.body;
-      const result = db
-        .prepare(
-          `INSERT INTO payroll_structures (
-             name, description, basic_salary, allowances, deductions,
-             overtime_rate, include_bpjs, include_pph21, is_active
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        )
-        .run(
+      const ins = await query(
+        `INSERT INTO payroll_structures (
+            name, description, basic_salary, allowances, deductions,
+            overtime_rate, include_bpjs, include_pph21, is_active
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+        [
           data.name,
           data.description || null,
           data.basic_salary || 0,
@@ -157,11 +153,11 @@ structureRouter.post(
           data.overtime_rate || 0,
           data.include_bpjs ?? 1,
           data.include_pph21 ?? 1,
-          data.is_active ?? 1
-        );
-      const row = db
-        .prepare(`SELECT * FROM payroll_structures WHERE id = ?`)
-        .get(result.lastInsertRowid);
+          data.is_active ?? 1,
+        ]
+      );
+      const row = (await query(`SELECT * FROM payroll_structures WHERE id = $1`, [ins.rows[0].id]))
+        .rows[0];
       res.status(201).json(rowToStructure(row));
     } catch (err) {
       res.status(500).json({ error: 'Failed', details: err.message });
@@ -174,11 +170,10 @@ structureRouter.put(
   authenticateToken,
   requireAdmin,
   validate({ body: PayrollStructureUpdateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
       const id = parseInt(req.params.id, 10);
-      const exists = db.prepare(`SELECT id FROM payroll_structures WHERE id = ?`).get(id);
+      const exists = (await query(`SELECT id FROM payroll_structures WHERE id = $1`, [id])).rows[0];
       if (!exists) return res.status(404).json({ error: 'Not found' });
       const allowed = [
         'name',
@@ -191,28 +186,27 @@ structureRouter.put(
       ];
       const fields = [];
       const values = [];
+      let p = 1;
       for (const key of allowed) {
         if (key in req.body) {
-          fields.push(`${key} = ?`);
+          fields.push(`${key} = $${p++}`);
           values.push(req.body[key] ?? null);
         }
       }
       if ('allowances' in req.body) {
-        fields.push('allowances = ?');
+        fields.push(`allowances = $${p++}`);
         values.push(JSON.stringify(req.body.allowances || []));
       }
       if ('deductions' in req.body) {
-        fields.push('deductions = ?');
+        fields.push(`deductions = $${p++}`);
         values.push(JSON.stringify(req.body.deductions || []));
       }
       if (fields.length > 0) {
         fields.push('updated_at = CURRENT_TIMESTAMP');
         values.push(id);
-        db.prepare(`UPDATE payroll_structures SET ${fields.join(', ')} WHERE id = ?`).run(
-          ...values
-        );
+        await query(`UPDATE payroll_structures SET ${fields.join(', ')} WHERE id = $${p}`, values);
       }
-      const row = db.prepare(`SELECT * FROM payroll_structures WHERE id = ?`).get(id);
+      const row = (await query(`SELECT * FROM payroll_structures WHERE id = $1`, [id])).rows[0];
       res.json(rowToStructure(row));
     } catch (err) {
       res.status(500).json({ error: 'Failed', details: err.message });
@@ -220,11 +214,10 @@ structureRouter.put(
   }
 );
 
-structureRouter.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
+structureRouter.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const db = getDb();
     const id = parseInt(req.params.id, 10);
-    db.prepare(`DELETE FROM payroll_structures WHERE id = ?`).run(id);
+    await query(`DELETE FROM payroll_structures WHERE id = $1`, [id]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed', details: err.message });
@@ -232,24 +225,22 @@ structureRouter.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
 });
 
 // ============== RUN ==============
-runRouter.get('/', authenticateToken, (req, res) => {
+runRouter.get('/', authenticateToken, async (req, res) => {
   try {
-    const rows = getDb()
-      .prepare(`SELECT * FROM payroll_runs ORDER BY period_start DESC, id DESC`)
-      .all();
+    const rows = (await query(`SELECT * FROM payroll_runs ORDER BY period_start DESC, id DESC`))
+      .rows;
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: 'Failed', details: err.message });
   }
 });
 
-runRouter.get('/:id', authenticateToken, (req, res) => {
+runRouter.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
     const id = parseInt(req.params.id, 10);
-    const row = db.prepare(`SELECT * FROM payroll_runs WHERE id = ?`).get(id);
+    const row = (await query(`SELECT * FROM payroll_runs WHERE id = $1`, [id])).rows[0];
     if (!row) return res.status(404).json({ error: 'Not found' });
-    res.json(rowToRun(db, row, true));
+    res.json(await rowToRun(query, row, true));
   } catch (err) {
     res.status(500).json({ error: 'Failed', details: err.message });
   }
@@ -260,24 +251,23 @@ runRouter.post(
   authenticateToken,
   requireAdmin,
   validate({ body: PayrollRunCreateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
-      const refNo = generateRefNo(db);
-      const result = db
-        .prepare(
-          `INSERT INTO payroll_runs (ref_no, period_start, period_end, payment_date, status, notes)
-           VALUES (?, ?, ?, ?, 'DRAFT', ?)`
-        )
-        .run(
+      const refNo = await generateRefNo(query);
+      const ins = await query(
+        `INSERT INTO payroll_runs (ref_no, period_start, period_end, payment_date, status, notes)
+         VALUES ($1, $2, $3, $4, 'DRAFT', $5) RETURNING id`,
+        [
           refNo,
           req.body.period_start,
           req.body.period_end,
           req.body.payment_date || null,
-          req.body.notes || null
-        );
-      const row = db.prepare(`SELECT * FROM payroll_runs WHERE id = ?`).get(result.lastInsertRowid);
-      res.status(201).json(rowToRun(db, row, true));
+          req.body.notes || null,
+        ]
+      );
+      const row = (await query(`SELECT * FROM payroll_runs WHERE id = $1`, [ins.rows[0].id]))
+        .rows[0];
+      res.status(201).json(await rowToRun(query, row, true));
     } catch (err) {
       res.status(500).json({ error: 'Failed', details: err.message });
     }
@@ -342,36 +332,26 @@ function calculatePayslip(employee, structure, settings) {
   };
 }
 
-runRouter.post('/:id/calculate', authenticateToken, requireAdmin, (req, res) => {
+runRouter.post('/:id/calculate', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const db = getDb();
     const id = parseInt(req.params.id, 10);
-    const run = db.prepare(`SELECT * FROM payroll_runs WHERE id = ?`).get(id);
+    const run = (await query(`SELECT * FROM payroll_runs WHERE id = $1`, [id])).rows[0];
     if (!run) return res.status(404).json({ error: 'Not found' });
     if (run.status !== 'DRAFT' && run.status !== 'CALCULATED') {
       return res.status(400).json({ error: 'Hanya run DRAFT/CALCULATED yang bisa di-recalculate' });
     }
-    const settings = getOrCreateSettings(db);
-    const employees = db
-      .prepare(`SELECT * FROM employees WHERE status = 'active' ORDER BY name ASC`)
-      .all();
+    const settings = await getOrCreateSettings(query);
+    const employees = (
+      await query(`SELECT * FROM employees WHERE status = 'active' ORDER BY name ASC`)
+    ).rows;
     const structureMap = new Map();
-    for (const s of db.prepare(`SELECT * FROM payroll_structures`).all()) {
+    const structures = (await query(`SELECT * FROM payroll_structures`)).rows;
+    for (const s of structures) {
       structureMap.set(s.id, rowToStructure(s));
     }
 
-    const tx = db.transaction(() => {
-      db.prepare(`DELETE FROM payslips WHERE payroll_run_id = ?`).run(id);
-      const insert = db.prepare(
-        `INSERT INTO payslips (
-           payroll_run_id, employee_id, employee_no, employee_name,
-           structure_id, basic_salary, total_allowances, total_deductions,
-           overtime_hours, overtime_amount,
-           bpjs_kesehatan, bpjs_jht, bpjs_jp, pph21,
-           gross_salary, net_salary, breakdown,
-           bank_name, bank_account_no
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      );
+    await tx(async (txQuery) => {
+      await txQuery(`DELETE FROM payslips WHERE payroll_run_id = $1`, [id]);
       let totalGross = 0;
       let totalDed = 0;
       let totalNet = 0;
@@ -380,90 +360,105 @@ runRouter.post('/:id/calculate', authenticateToken, requireAdmin, (req, res) => 
           ? structureMap.get(emp.payroll_structure_id)
           : null;
         const calc = calculatePayslip(emp, structure, settings);
-        insert.run(
-          id,
-          emp.id,
-          emp.employee_no,
-          emp.name,
-          structure?.id || null,
-          calc.basic_salary,
-          calc.total_allowances,
-          calc.total_deductions,
-          calc.overtime_hours,
-          calc.overtime_amount,
-          calc.bpjs_kesehatan,
-          calc.bpjs_jht,
-          calc.bpjs_jp,
-          calc.pph21,
-          calc.gross_salary,
-          calc.net_salary,
-          JSON.stringify(calc.breakdown),
-          emp.bank_name || null,
-          emp.bank_account_no || null
+        await txQuery(
+          `INSERT INTO payslips (
+              payroll_run_id, employee_id, employee_no, employee_name,
+              structure_id, basic_salary, total_allowances, total_deductions,
+              overtime_hours, overtime_amount,
+              bpjs_kesehatan, bpjs_jht, bpjs_jp, pph21,
+              gross_salary, net_salary, breakdown,
+              bank_name, bank_account_no
+            ) VALUES (
+              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+              $11, $12, $13, $14, $15, $16, $17, $18, $19
+            )`,
+          [
+            id,
+            emp.id,
+            emp.employee_no,
+            emp.name,
+            structure?.id || null,
+            calc.basic_salary,
+            calc.total_allowances,
+            calc.total_deductions,
+            calc.overtime_hours,
+            calc.overtime_amount,
+            calc.bpjs_kesehatan,
+            calc.bpjs_jht,
+            calc.bpjs_jp,
+            calc.pph21,
+            calc.gross_salary,
+            calc.net_salary,
+            JSON.stringify(calc.breakdown),
+            emp.bank_name || null,
+            emp.bank_account_no || null,
+          ]
         );
         totalGross += calc.gross_salary;
         totalDed += calc.total_deductions;
         totalNet += calc.net_salary;
       }
-      db.prepare(
-        `UPDATE payroll_runs SET status = 'CALCULATED', total_gross = ?, total_deductions = ?, total_net = ?, employee_count = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-      ).run(totalGross, totalDed, totalNet, employees.length, id);
+      await txQuery(
+        `UPDATE payroll_runs SET status = 'CALCULATED', total_gross = $1, total_deductions = $2, total_net = $3, employee_count = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5`,
+        [totalGross, totalDed, totalNet, employees.length, id]
+      );
     });
-    tx();
-    const row = db.prepare(`SELECT * FROM payroll_runs WHERE id = ?`).get(id);
-    res.json(rowToRun(db, row, true));
+    const row = (await query(`SELECT * FROM payroll_runs WHERE id = $1`, [id])).rows[0];
+    res.json(await rowToRun(query, row, true));
   } catch (err) {
     res.status(500).json({ error: 'Failed', details: err.message });
   }
 });
 
-runRouter.post('/:id/approve', authenticateToken, requireAdmin, (req, res) => {
+runRouter.post('/:id/approve', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const db = getDb();
     const id = parseInt(req.params.id, 10);
-    const run = db.prepare(`SELECT * FROM payroll_runs WHERE id = ?`).get(id);
+    const run = (await query(`SELECT * FROM payroll_runs WHERE id = $1`, [id])).rows[0];
     if (!run) return res.status(404).json({ error: 'Not found' });
     if (run.status !== 'CALCULATED') {
       return res.status(400).json({ error: 'Hanya CALCULATED yang bisa di-approve' });
     }
-    db.prepare(
-      `UPDATE payroll_runs SET status = 'APPROVED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-    ).run(id);
-    res.json(rowToRun(db, db.prepare(`SELECT * FROM payroll_runs WHERE id = ?`).get(id), true));
+    await query(
+      `UPDATE payroll_runs SET status = 'APPROVED', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [id]
+    );
+    const row = (await query(`SELECT * FROM payroll_runs WHERE id = $1`, [id])).rows[0];
+    res.json(await rowToRun(query, row, true));
   } catch (err) {
     res.status(500).json({ error: 'Failed', details: err.message });
   }
 });
 
-runRouter.post('/:id/paid', authenticateToken, requireAdmin, (req, res) => {
+runRouter.post('/:id/paid', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const db = getDb();
     const id = parseInt(req.params.id, 10);
-    const run = db.prepare(`SELECT * FROM payroll_runs WHERE id = ?`).get(id);
+    const run = (await query(`SELECT * FROM payroll_runs WHERE id = $1`, [id])).rows[0];
     if (!run) return res.status(404).json({ error: 'Not found' });
     if (run.status !== 'APPROVED') {
       return res.status(400).json({ error: 'Hanya APPROVED yang bisa ditandai paid' });
     }
-    db.prepare(
-      `UPDATE payroll_runs SET status = 'PAID', updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-    ).run(id);
-    res.json(rowToRun(db, db.prepare(`SELECT * FROM payroll_runs WHERE id = ?`).get(id), true));
+    await query(
+      `UPDATE payroll_runs SET status = 'PAID', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [id]
+    );
+    const row = (await query(`SELECT * FROM payroll_runs WHERE id = $1`, [id])).rows[0];
+    res.json(await rowToRun(query, row, true));
   } catch (err) {
     res.status(500).json({ error: 'Failed', details: err.message });
   }
 });
 
-runRouter.get('/:id/bank-file', authenticateToken, requireAdmin, (req, res) => {
+runRouter.get('/:id/bank-file', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const db = getDb();
     const id = parseInt(req.params.id, 10);
-    const run = db.prepare(`SELECT * FROM payroll_runs WHERE id = ?`).get(id);
+    const run = (await query(`SELECT * FROM payroll_runs WHERE id = $1`, [id])).rows[0];
     if (!run) return res.status(404).json({ error: 'Not found' });
-    const payslips = db
-      .prepare(
-        `SELECT employee_no, employee_name, bank_name, bank_account_no, net_salary FROM payslips WHERE payroll_run_id = ? ORDER BY employee_name ASC`
+    const payslips = (
+      await query(
+        `SELECT employee_no, employee_name, bank_name, bank_account_no, net_salary FROM payslips WHERE payroll_run_id = $1 ORDER BY employee_name ASC`,
+        [id]
       )
-      .all(id);
+    ).rows;
     const lines = ['employee_no,employee_name,bank_name,bank_account_no,net_salary'];
     for (const p of payslips) {
       lines.push(

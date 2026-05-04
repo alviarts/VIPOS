@@ -4,7 +4,7 @@
 // MEMBER_PRICE). Daftar produk/kategori/grup customer disimpan sebagai
 // JSON array string supaya tidak butuh tabel join tambahan untuk MVP.
 const express = require('express');
-const { getDb } = require('../models/database');
+const { query } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { PromoCreateSchema, PromoUpdateSchema } = require('@vipos/shared');
@@ -133,48 +133,50 @@ function validateTypeSpecific(body) {
   return errors;
 }
 
-router.get('/', authenticateToken, (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
     const conditions = [];
     const params = [];
+    let p = 1;
     if (req.query.is_active === '0' || req.query.is_active === '1') {
-      conditions.push('p.is_active = ?');
+      conditions.push(`p.is_active = $${p++}`);
       params.push(parseInt(req.query.is_active, 10));
     }
     if (req.query.promo_type) {
-      conditions.push('p.promo_type = ?');
+      conditions.push(`p.promo_type = $${p++}`);
       params.push(req.query.promo_type);
     }
     if (req.query.search) {
-      conditions.push('(p.name LIKE ? OR p.description LIKE ?)');
+      conditions.push(`(p.name LIKE $${p} OR p.description LIKE $${p + 1})`);
       params.push(`%${req.query.search}%`, `%${req.query.search}%`);
+      p += 2;
     }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    const rows = db
-      .prepare(
+    const rows = (
+      await query(
         `SELECT p.*, (SELECT COUNT(*) FROM coupons c WHERE c.promo_id = p.id) AS coupon_count
            FROM promos p
            ${where}
-          ORDER BY p.created_at DESC, p.id DESC`
+          ORDER BY p.created_at DESC, p.id DESC`,
+        params
       )
-      .all(...params);
+    ).rows;
     res.json(rows.map(rowToPromo));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/:id', authenticateToken, (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
-    const row = db
-      .prepare(
+    const row = (
+      await query(
         `SELECT p.*, (SELECT COUNT(*) FROM coupons c WHERE c.promo_id = p.id) AS coupon_count
            FROM promos p
-          WHERE p.id = ?`
+          WHERE p.id = $1`,
+        [req.params.id]
       )
-      .get(req.params.id);
+    ).rows[0];
     if (!row) return res.status(404).json({ error: 'Promo tidak ditemukan' });
     res.json(rowToPromo(row));
   } catch (err) {
@@ -187,13 +189,12 @@ router.post(
   authenticateToken,
   requireAdmin,
   validate({ body: PromoCreateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
       const errors = validateTypeSpecific(req.body);
       if (errors.length) {
         return res.status(400).json({ error: errors[0], details: errors });
       }
-      const db = getDb();
       const body = normalizeBody({
         target_product_ids: [],
         target_category_ids: [],
@@ -201,17 +202,19 @@ router.post(
         step_tiers: [],
         ...req.body,
       });
-      const placeholders = COLUMNS.map(() => '?').join(', ');
+      const placeholders = COLUMNS.map((_, i) => `$${i + 1}`).join(', ');
       const values = COLUMNS.map((c) => body[c] ?? null);
-      const result = db
-        .prepare(`INSERT INTO promos (${COLUMNS.join(', ')}) VALUES (${placeholders})`)
-        .run(...values);
-      const created = db
-        .prepare(
+      const ins = await query(
+        `INSERT INTO promos (${COLUMNS.join(', ')}) VALUES (${placeholders}) RETURNING id`,
+        values
+      );
+      const created = (
+        await query(
           `SELECT p.*, (SELECT COUNT(*) FROM coupons c WHERE c.promo_id = p.id) AS coupon_count
-             FROM promos p WHERE p.id = ?`
+             FROM promos p WHERE p.id = $1`,
+          [ins.rows[0].id]
         )
-        .get(result.lastInsertRowid);
+      ).rows[0];
       res.status(201).json(rowToPromo(created));
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -224,10 +227,9 @@ router.put(
   authenticateToken,
   requireAdmin,
   validate({ body: PromoUpdateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
-      const existing = db.prepare('SELECT * FROM promos WHERE id = ?').get(req.params.id);
+      const existing = (await query('SELECT * FROM promos WHERE id = $1', [req.params.id])).rows[0];
       if (!existing) return res.status(404).json({ error: 'Promo tidak ditemukan' });
 
       const merged = {
@@ -239,17 +241,19 @@ router.put(
         return res.status(400).json({ error: errors[0], details: errors });
       }
       const body = normalizeBody(merged);
-      const setClauses = COLUMNS.map((c) => `${c} = ?`).join(', ');
+      const setClauses = COLUMNS.map((c, i) => `${c} = $${i + 1}`).join(', ');
       const values = COLUMNS.map((c) => body[c] ?? null);
-      db.prepare(
-        `UPDATE promos SET ${setClauses}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-      ).run(...values, req.params.id);
-      const updated = db
-        .prepare(
+      await query(
+        `UPDATE promos SET ${setClauses}, updated_at = CURRENT_TIMESTAMP WHERE id = $${COLUMNS.length + 1}`,
+        [...values, req.params.id]
+      );
+      const updated = (
+        await query(
           `SELECT p.*, (SELECT COUNT(*) FROM coupons c WHERE c.promo_id = p.id) AS coupon_count
-             FROM promos p WHERE p.id = ?`
+             FROM promos p WHERE p.id = $1`,
+          [req.params.id]
         )
-        .get(req.params.id);
+      ).rows[0];
       res.json(rowToPromo(updated));
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -257,12 +261,11 @@ router.put(
   }
 );
 
-router.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
+router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const db = getDb();
-    const existing = db.prepare('SELECT id FROM promos WHERE id = ?').get(req.params.id);
+    const existing = (await query('SELECT id FROM promos WHERE id = $1', [req.params.id])).rows[0];
     if (!existing) return res.status(404).json({ error: 'Promo tidak ditemukan' });
-    db.prepare('DELETE FROM promos WHERE id = ?').run(req.params.id);
+    await query('DELETE FROM promos WHERE id = $1', [req.params.id]);
     res.json({ message: 'Promo berhasil dihapus' });
   } catch (err) {
     res.status(500).json({ error: err.message });

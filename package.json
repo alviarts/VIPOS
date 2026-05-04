@@ -18,7 +18,6 @@
     "build:web": "npm run build --workspace=apps/web",
     "build:backend": "npm run build --workspace=apps/backend --if-present",
     "start": "npm run start --workspace=apps/backend",
-    "seed": "npm run seed --workspace=apps/backend",
     "test": "npm run test --workspaces --if-present",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

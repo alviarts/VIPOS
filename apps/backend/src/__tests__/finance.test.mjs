@@ -10,7 +10,7 @@ let app;
 let token;
 
 beforeAll(async () => {
-  setupTestEnv();
+  await setupTestEnv();
   const { buildApp } = require('../app');
   app = buildApp({ morganEnabled: false });
   const res = await request(app)
@@ -19,18 +19,15 @@ beforeAll(async () => {
   token = res.body.token;
 });
 
-afterAll(() => {
-  teardownTestEnv();
+afterAll(async () => {
+  await teardownTestEnv();
 });
 
 const auth = () => ({ Authorization: `Bearer ${token}` });
 
 describe('POST /api/finance/accounts', () => {
   it('400 kalau kode/nama missing', async () => {
-    const res = await request(app)
-      .post('/api/finance/accounts')
-      .set(auth())
-      .send({ kode: '' });
+    const res = await request(app).post('/api/finance/accounts').set(auth()).send({ kode: '' });
     expect(res.status).toBe(400);
   });
 
@@ -81,15 +78,12 @@ describe('POST /api/finance/transactions', () => {
   });
 
   it('201 transfer between accounts', async () => {
-    const res = await request(app)
-      .post('/api/finance/transactions')
-      .set(auth())
-      .send({
-        tipe: 'transfer',
-        account_id: accountAId,
-        account_to_id: accountBId,
-        jumlah: 250,
-      });
+    const res = await request(app).post('/api/finance/transactions').set(auth()).send({
+      tipe: 'transfer',
+      account_id: accountAId,
+      account_to_id: accountBId,
+      jumlah: 250,
+    });
     expect(res.status).toBe(201);
     expect(res.body.tipe).toBe('transfer');
     expect(res.body.jumlah).toBe(250);

@@ -10,7 +10,7 @@ let app;
 let token;
 
 beforeAll(async () => {
-  setupTestEnv();
+  await setupTestEnv();
   const { buildApp } = require('../app');
   app = buildApp({ morganEnabled: false });
 
@@ -20,8 +20,8 @@ beforeAll(async () => {
   token = res.body.token;
 });
 
-afterAll(() => {
-  teardownTestEnv();
+afterAll(async () => {
+  await teardownTestEnv();
 });
 
 const auth = () => ({ Authorization: `Bearer ${token}` });

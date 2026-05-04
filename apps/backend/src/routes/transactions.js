@@ -1,121 +1,101 @@
-const express = require("express");
-const { getDb } = require("../models/database");
-const { authenticateToken } = require("../middleware/auth");
+const express = require('express');
+const { query, tx } = require('../db');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
 function generateInvoiceNumber() {
   const now = new Date();
   const y = now.getFullYear().toString().slice(-2);
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  const h = String(now.getHours()).padStart(2, "0");
-  const min = String(now.getMinutes()).padStart(2, "0");
-  const s = String(now.getSeconds()).padStart(2, "0");
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  const h = String(now.getHours()).padStart(2, '0');
+  const min = String(now.getMinutes()).padStart(2, '0');
+  const s = String(now.getSeconds()).padStart(2, '0');
   const rand = Math.floor(Math.random() * 1000)
     .toString()
-    .padStart(3, "0");
+    .padStart(3, '0');
   return `INV${y}${m}${d}${h}${min}${s}${rand}`;
 }
 
 // Create transaction
-router.post("/", authenticateToken, (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
     const { items, payment_amount, payment_method, notes } = req.body;
 
     if (!items || items.length === 0) {
-      return res
-        .status(400)
-        .json({ error: "Minimal satu produk harus dipilih" });
+      return res.status(400).json({ error: 'Minimal satu produk harus dipilih' });
     }
 
-    const db = getDb();
-    const total_amount = items.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0,
-    );
+    const total_amount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
     if (payment_amount < total_amount) {
-      return res
-        .status(400)
-        .json({ error: "Pembayaran kurang dari total belanja" });
+      return res.status(400).json({ error: 'Pembayaran kurang dari total belanja' });
     }
 
     const change_amount = payment_amount - total_amount;
     const invoice_number = generateInvoiceNumber();
 
-    const insertTransaction = db.prepare(`
-      INSERT INTO transactions (invoice_number, user_id, total_amount, payment_amount, change_amount, payment_method, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const insertItem = db.prepare(`
-      INSERT INTO transaction_items (transaction_id, product_id, product_name, price, quantity, subtotal)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
-    const updateStock = db.prepare(
-      "UPDATE products SET stock = stock - ? WHERE id = ?",
-    );
-
-    const transact = db.transaction(() => {
-      const result = insertTransaction.run(
-        invoice_number,
-        req.user.id,
-        total_amount,
-        payment_amount,
-        change_amount,
-        payment_method || "cash",
-        notes || null,
+    const transactionId = await tx(async (txQuery) => {
+      const ins = await txQuery(
+        `INSERT INTO transactions (invoice_number, user_id, total_amount, payment_amount, change_amount, payment_method, notes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+        [
+          invoice_number,
+          req.user.id,
+          total_amount,
+          payment_amount,
+          change_amount,
+          payment_method || 'cash',
+          notes || null,
+        ]
       );
-
-      const transactionId = result.lastInsertRowid;
+      const newId = ins.rows[0].id;
 
       for (const item of items) {
-        const product = db
-          .prepare("SELECT * FROM products WHERE id = ?")
-          .get(item.product_id);
+        const product = (await txQuery('SELECT * FROM products WHERE id = $1', [item.product_id]))
+          .rows[0];
         if (!product) {
-          throw new Error(
-            `Produk dengan ID ${item.product_id} tidak ditemukan`,
-          );
+          throw new Error(`Produk dengan ID ${item.product_id} tidak ditemukan`);
         }
         if (product.stock < item.quantity) {
-          throw new Error(
-            `Stok ${product.name} tidak mencukupi (tersedia: ${product.stock})`,
-          );
+          throw new Error(`Stok ${product.name} tidak mencukupi (tersedia: ${product.stock})`);
         }
 
-        insertItem.run(
-          transactionId,
-          item.product_id,
-          product.name,
-          item.price,
-          item.quantity,
-          item.price * item.quantity,
+        await txQuery(
+          `INSERT INTO transaction_items (transaction_id, product_id, product_name, price, quantity, subtotal)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            newId,
+            item.product_id,
+            product.name,
+            item.price,
+            item.quantity,
+            item.price * item.quantity,
+          ]
         );
-        updateStock.run(item.quantity, item.product_id);
+        await txQuery('UPDATE products SET stock = stock - $1 WHERE id = $2', [
+          item.quantity,
+          item.product_id,
+        ]);
       }
 
-      return transactionId;
+      return newId;
     });
 
-    const transactionId = transact();
-
-    const transaction = db
-      .prepare(
-        `
-      SELECT t.*, u.name as cashier_name
-      FROM transactions t
-      JOIN users u ON t.user_id = u.id
-      WHERE t.id = ?
-    `,
+    const transaction = (
+      await query(
+        `SELECT t.*, u.name as cashier_name
+         FROM transactions t
+         JOIN users u ON t.user_id = u.id
+         WHERE t.id = $1`,
+        [transactionId]
       )
-      .get(transactionId);
+    ).rows[0];
 
-    const transactionItems = db
-      .prepare("SELECT * FROM transaction_items WHERE transaction_id = ?")
-      .all(transactionId);
+    const transactionItems = (
+      await query('SELECT * FROM transaction_items WHERE transaction_id = $1', [transactionId])
+    ).rows;
 
     res.status(201).json({ ...transaction, items: transactionItems });
   } catch (err) {
@@ -124,63 +104,56 @@ router.post("/", authenticateToken, (req, res) => {
 });
 
 // Get transactions list
-router.get("/", authenticateToken, (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
-    const {
-      date,
-      start_date,
-      end_date,
-      status,
-      page = 1,
-      limit = 20,
-    } = req.query;
+    const { date, start_date, end_date, status, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
 
-    let query = `
+    let baseSelect = `
       SELECT t.*, u.name as cashier_name
       FROM transactions t
       JOIN users u ON t.user_id = u.id
     `;
-    let countQuery = "SELECT COUNT(*) as total FROM transactions t";
+    let countQuery = 'SELECT COUNT(*) as total FROM transactions t';
     const conditions = [];
     const params = [];
+    let p = 1;
 
     if (date) {
-      conditions.push('DATE(t.created_at) = ?');
+      conditions.push(`DATE(t.created_at) = $${p++}`);
       params.push(date);
     }
 
     if (start_date && end_date) {
-      conditions.push('DATE(t.created_at) BETWEEN ? AND ?');
+      conditions.push(`DATE(t.created_at) BETWEEN $${p++} AND $${p++}`);
       params.push(start_date, end_date);
     }
 
     if (status) {
-      conditions.push('t.status = ?');
+      conditions.push(`t.status = $${p++}`);
       params.push(status);
     }
 
     if (conditions.length > 0) {
-      const where = " WHERE " + conditions.join(" AND ");
-      query += where;
+      const where = ' WHERE ' + conditions.join(' AND ');
+      baseSelect += where;
       countQuery += where;
     }
 
-    const totalResult = db.prepare(countQuery).get(...params);
-    query += " ORDER BY t.created_at DESC LIMIT ? OFFSET ?";
+    const totalRow = (await query(countQuery, params)).rows[0];
+    const totalCount = Number(totalRow.total);
 
-    const transactions = db
-      .prepare(query)
-      .all(...params, parseInt(limit), parseInt(offset));
+    baseSelect += ` ORDER BY t.created_at DESC LIMIT $${p} OFFSET $${p + 1}`;
+    const transactions = (await query(baseSelect, [...params, parseInt(limit), parseInt(offset)]))
+      .rows;
 
     res.json({
       data: transactions,
       pagination: {
-        total: totalResult.total,
+        total: totalCount,
         page: parseInt(page),
         limit: parseInt(limit),
-        total_pages: Math.ceil(totalResult.total / limit),
+        total_pages: Math.ceil(totalCount / limit),
       },
     });
   } catch (err) {
@@ -189,27 +162,25 @@ router.get("/", authenticateToken, (req, res) => {
 });
 
 // Get single transaction with items
-router.get("/:id", authenticateToken, (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
-    const transaction = db
-      .prepare(
-        `
-      SELECT t.*, u.name as cashier_name
-      FROM transactions t
-      JOIN users u ON t.user_id = u.id
-      WHERE t.id = ?
-    `,
+    const transaction = (
+      await query(
+        `SELECT t.*, u.name as cashier_name
+         FROM transactions t
+         JOIN users u ON t.user_id = u.id
+         WHERE t.id = $1`,
+        [req.params.id]
       )
-      .get(req.params.id);
+    ).rows[0];
 
     if (!transaction) {
-      return res.status(404).json({ error: "Transaksi tidak ditemukan" });
+      return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
     }
 
-    const items = db
-      .prepare("SELECT * FROM transaction_items WHERE transaction_id = ?")
-      .all(req.params.id);
+    const items = (
+      await query('SELECT * FROM transaction_items WHERE transaction_id = $1', [req.params.id])
+    ).rows;
     res.json({ ...transaction, items });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -217,39 +188,34 @@ router.get("/:id", authenticateToken, (req, res) => {
 });
 
 // Void transaction
-router.post("/:id/void", authenticateToken, (req, res) => {
+router.post('/:id/void', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
-    const transaction = db
-      .prepare("SELECT * FROM transactions WHERE id = ?")
-      .get(req.params.id);
+    const transaction = (await query('SELECT * FROM transactions WHERE id = $1', [req.params.id]))
+      .rows[0];
 
     if (!transaction) {
-      return res.status(404).json({ error: "Transaksi tidak ditemukan" });
+      return res.status(404).json({ error: 'Transaksi tidak ditemukan' });
     }
 
-    if (transaction.status === "voided") {
-      return res.status(400).json({ error: "Transaksi sudah dibatalkan" });
+    if (transaction.status === 'voided') {
+      return res.status(400).json({ error: 'Transaksi sudah dibatalkan' });
     }
 
-    const items = db
-      .prepare("SELECT * FROM transaction_items WHERE transaction_id = ?")
-      .all(req.params.id);
+    const items = (
+      await query('SELECT * FROM transaction_items WHERE transaction_id = $1', [req.params.id])
+    ).rows;
 
-    const voidTransaction = db.transaction(() => {
-      db.prepare("UPDATE transactions SET status = 'voided' WHERE id = ?").run(
-        req.params.id,
-      );
+    await tx(async (txQuery) => {
+      await txQuery("UPDATE transactions SET status = 'voided' WHERE id = $1", [req.params.id]);
       for (const item of items) {
-        db.prepare("UPDATE products SET stock = stock + ? WHERE id = ?").run(
+        await txQuery('UPDATE products SET stock = stock + $1 WHERE id = $2', [
           item.quantity,
           item.product_id,
-        );
+        ]);
       }
     });
 
-    voidTransaction();
-    res.json({ message: "Transaksi berhasil dibatalkan" });
+    res.json({ message: 'Transaksi berhasil dibatalkan' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

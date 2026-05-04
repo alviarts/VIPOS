@@ -8,14 +8,14 @@ const require = createRequire(import.meta.url);
 
 let app;
 
-beforeAll(() => {
-  setupTestEnv();
+beforeAll(async () => {
+  await setupTestEnv();
   const { buildApp } = require('../app');
   app = buildApp({ morganEnabled: false });
 });
 
-afterAll(() => {
-  teardownTestEnv();
+afterAll(async () => {
+  await teardownTestEnv();
 });
 
 describe('POST /api/auth/login', () => {

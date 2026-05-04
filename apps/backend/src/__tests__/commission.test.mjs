@@ -49,46 +49,45 @@ async function createProduct(name, price, options = {}) {
 
 async function createEmployeeUser() {
   // Seed an employee user via direct DB insert for tests (no admin endpoint for users yet).
-  const { getDb } = require('../models/database');
+  const { query } = require('../db');
   const bcrypt = require('bcryptjs');
-  const db = getDb();
   const hashed = bcrypt.hashSync('test123', 10);
-  const result = db
-    .prepare('INSERT INTO users (username, password, name, role) VALUES (?, ?, ?, ?)')
-    .run('staff_test', hashed, 'Staff Test', 'cashier');
-  return result.lastInsertRowid;
+  const r = await query(
+    'INSERT INTO users (username, password, name, role) VALUES ($1, $2, $3, $4) RETURNING id',
+    ['staff_test', hashed, 'Staff Test', 'cashier']
+  );
+  return r.rows[0].id;
 }
 
 async function createTransaction(items) {
   // Insert transaction directly to control items.
-  const { getDb } = require('../models/database');
-  const db = getDb();
+  const { query } = require('../db');
   const total = items.reduce((acc, i) => acc + i.price * i.quantity, 0);
-  const txnRes = db
-    .prepare(
-      `INSERT INTO transactions (invoice_number, user_id, total_amount, payment_amount, change_amount)
-       VALUES (?, 1, ?, ?, 0)`
-    )
-    .run(`TEST-${Date.now()}`, total, total);
-  const id = txnRes.lastInsertRowid;
+  const txnRes = await query(
+    `INSERT INTO transactions (invoice_number, user_id, total_amount, payment_amount, change_amount)
+     VALUES ($1, 1, $2, $3, 0) RETURNING id`,
+    [`TEST-${Date.now()}`, total, total]
+  );
+  const id = txnRes.rows[0].id;
   for (const item of items) {
-    db.prepare(
+    await query(
       `INSERT INTO transaction_items (transaction_id, product_id, product_name, price, quantity, subtotal)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    ).run(
-      id,
-      item.product_id,
-      item.product_name,
-      item.price,
-      item.quantity,
-      item.price * item.quantity
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        id,
+        item.product_id,
+        item.product_name,
+        item.price,
+        item.quantity,
+        item.price * item.quantity,
+      ]
     );
   }
   return id;
 }
 
 beforeAll(async () => {
-  setupTestEnv();
+  await setupTestEnv();
   const { buildApp } = require('../app');
   app = buildApp({ morganEnabled: false });
   adminToken = await login();
@@ -102,8 +101,8 @@ beforeAll(async () => {
   ]);
 });
 
-afterAll(() => {
-  teardownTestEnv();
+afterAll(async () => {
+  await teardownTestEnv();
 });
 
 describe('POST /api/commission-group', () => {
@@ -265,8 +264,8 @@ describe('POST /api/commission-assignment — auto-compute', () => {
 
   it('seed groups untuk testing', async () => {
     // Reset: delete semua group existing supaya kalkulasi deterministic.
-    const { getDb } = require('../models/database');
-    getDb().prepare('DELETE FROM commission_groups').run();
+    const { query } = require('../db');
+    await query('DELETE FROM commission_groups');
 
     const a = await request(app)
       .post('/api/commission-group')

@@ -11,7 +11,7 @@ let token;
 let productId;
 
 beforeAll(async () => {
-  setupTestEnv();
+  await setupTestEnv();
   const { buildApp } = require('../app');
   app = buildApp({ morganEnabled: false });
 
@@ -27,8 +27,8 @@ beforeAll(async () => {
   productId = prod.body.id;
 });
 
-afterAll(() => {
-  teardownTestEnv();
+afterAll(async () => {
+  await teardownTestEnv();
 });
 
 const auth = () => ({ Authorization: `Bearer ${token}` });

@@ -9,6 +9,7 @@
 //
 // Spec ref: docs/v2/menus/lainnya/*.md, docs/v3/workflow/phase_1_web_dashboard.md §P1-18.
 const express = require('express');
+const { query, tx, iLikePattern } = require('../db');
 const { authenticateToken } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const {
@@ -20,11 +21,6 @@ const {
   SupplyCheckoutSchema,
 } = require('@vipos/shared');
 
-// Database accessor harus deferred — di test setupTestEnv() membuka DB baru.
-function getDb() {
-  return require('../models/database').getDb();
-}
-
 // -----------------------------------------------------------------------------
 // HELP
 // -----------------------------------------------------------------------------
@@ -32,66 +28,67 @@ function getDb() {
 const helpRouter = express.Router();
 helpRouter.use(authenticateToken);
 
-helpRouter.get('/topics', (req, res) => {
+helpRouter.get('/topics', async (req, res) => {
   const q = (req.query.q || '').trim();
   const category = (req.query.category || '').trim();
   const where = ['is_active = 1'];
   const params = [];
+  let p = 1;
   if (q) {
-    where.push('(title LIKE ? OR excerpt LIKE ? OR content LIKE ?)');
-    const like = `%${q}%`;
+    const like = `%${iLikePattern(q)}%`;
+    where.push(`(title LIKE $${p} OR excerpt LIKE $${p + 1} OR content LIKE $${p + 2})`);
     params.push(like, like, like);
+    p += 3;
   }
   if (category) {
-    where.push('category = ?');
+    where.push(`category = $${p++}`);
     params.push(category);
   }
-  const rows = getDb()
-    .prepare(
+  const rows = (
+    await query(
       `SELECT id, slug, title, category, excerpt, sort_order
        FROM help_topics WHERE ${where.join(' AND ')}
-       ORDER BY sort_order, title`
+       ORDER BY sort_order, title`,
+      params
     )
-    .all(...params);
+  ).rows;
   res.json(rows);
 });
 
-helpRouter.get('/topics/:slug', (req, res) => {
-  const row = getDb()
-    .prepare(`SELECT * FROM help_topics WHERE slug = ? AND is_active = 1`)
-    .get(req.params.slug);
+helpRouter.get('/topics/:slug', async (req, res) => {
+  const row = (
+    await query(`SELECT * FROM help_topics WHERE slug = $1 AND is_active = 1`, [req.params.slug])
+  ).rows[0];
   if (!row) return res.status(404).json({ error: 'Topic tidak ditemukan' });
   res.json(row);
 });
 
-helpRouter.post('/feedback', validate({ body: HelpFeedbackCreateSchema }), (req, res) => {
+helpRouter.post('/feedback', validate({ body: HelpFeedbackCreateSchema }), async (req, res) => {
   const { type, title, description, screenshot_url, app_version, device_info } = req.body;
-  const result = getDb()
-    .prepare(
-      `INSERT INTO help_feedback (type, title, description, screenshot_url, app_version, device_info, status, submitted_by)
-         VALUES (?, ?, ?, ?, ?, ?, 'open', ?)`
-    )
-    .run(
+  const ins = await query(
+    `INSERT INTO help_feedback (type, title, description, screenshot_url, app_version, device_info, status, submitted_by)
+       VALUES ($1, $2, $3, $4, $5, $6, 'open', $7) RETURNING id`,
+    [
       type,
       title,
       description,
       screenshot_url || null,
       app_version || null,
       device_info || null,
-      req.user.id
-    );
-  const row = getDb()
-    .prepare('SELECT * FROM help_feedback WHERE id = ?')
-    .get(result.lastInsertRowid);
+      req.user.id,
+    ]
+  );
+  const row = (await query('SELECT * FROM help_feedback WHERE id = $1', [ins.rows[0].id])).rows[0];
   res.status(201).json(row);
 });
 
-helpRouter.get('/feedback', (req, res) => {
-  const rows = getDb()
-    .prepare(
-      `SELECT * FROM help_feedback WHERE submitted_by = ? ORDER BY created_at DESC LIMIT 100`
+helpRouter.get('/feedback', async (req, res) => {
+  const rows = (
+    await query(
+      `SELECT * FROM help_feedback WHERE submitted_by = $1 ORDER BY created_at DESC LIMIT 100`,
+      [req.user.id]
     )
-    .all(req.user.id);
+  ).rows;
   res.json(rows);
 });
 
@@ -137,13 +134,14 @@ const SERVICE_CATALOG = [
   },
 ];
 
-servicesRouter.get('/catalog', (req, res) => {
-  const userApplications = getDb()
-    .prepare(
+servicesRouter.get('/catalog', async (req, res) => {
+  const userApplications = (
+    await query(
       `SELECT service_key, status, submitted_at FROM service_applications
-       WHERE submitted_by = ? ORDER BY submitted_at DESC`
+       WHERE submitted_by = $1 ORDER BY submitted_at DESC`,
+      [req.user.id]
     )
-    .all(req.user.id);
+  ).rows;
   const byKey = {};
   for (const app of userApplications) {
     if (!byKey[app.service_key]) byKey[app.service_key] = app;
@@ -158,37 +156,39 @@ servicesRouter.get('/catalog', (req, res) => {
 servicesRouter.post(
   '/applications',
   validate({ body: ServiceApplicationCreateSchema }),
-  (req, res) => {
+  async (req, res) => {
     const { service_key, payload } = req.body;
-    const existing = getDb()
-      .prepare(
+    const existing = (
+      await query(
         `SELECT id FROM service_applications
-         WHERE submitted_by = ? AND service_key = ? AND status IN ('submitted','review')`
+         WHERE submitted_by = $1 AND service_key = $2 AND status IN ('submitted','review')`,
+        [req.user.id, service_key]
       )
-      .get(req.user.id, service_key);
+    ).rows[0];
     if (existing) {
       return res.status(409).json({
         error: 'Sudah ada aplikasi aktif untuk layanan ini',
         application_id: existing.id,
       });
     }
-    const result = getDb()
-      .prepare(
-        `INSERT INTO service_applications (service_key, status, payload_json, submitted_by)
-         VALUES (?, 'submitted', ?, ?)`
-      )
-      .run(service_key, payload ? JSON.stringify(payload) : null, req.user.id);
-    const row = getDb()
-      .prepare('SELECT * FROM service_applications WHERE id = ?')
-      .get(result.lastInsertRowid);
+    const ins = await query(
+      `INSERT INTO service_applications (service_key, status, payload_json, submitted_by)
+         VALUES ($1, 'submitted', $2, $3) RETURNING id`,
+      [service_key, payload ? JSON.stringify(payload) : null, req.user.id]
+    );
+    const row = (await query('SELECT * FROM service_applications WHERE id = $1', [ins.rows[0].id]))
+      .rows[0];
     res.status(201).json(row);
   }
 );
 
-servicesRouter.get('/applications', (req, res) => {
-  const rows = getDb()
-    .prepare(`SELECT * FROM service_applications WHERE submitted_by = ? ORDER BY submitted_at DESC`)
-    .all(req.user.id);
+servicesRouter.get('/applications', async (req, res) => {
+  const rows = (
+    await query(
+      `SELECT * FROM service_applications WHERE submitted_by = $1 ORDER BY submitted_at DESC`,
+      [req.user.id]
+    )
+  ).rows;
   res.json(rows);
 });
 
@@ -199,86 +199,93 @@ servicesRouter.get('/applications', (req, res) => {
 const inspirasiRouter = express.Router();
 inspirasiRouter.use(authenticateToken);
 
-inspirasiRouter.get('/articles', (req, res) => {
+inspirasiRouter.get('/articles', async (req, res) => {
   const category = (req.query.category || '').trim();
   const q = (req.query.q || '').trim();
   const where = ['is_active = 1'];
   const params = [];
+  let p = 1;
   if (category && category !== 'home') {
-    where.push('category = ?');
+    where.push(`category = $${p++}`);
     params.push(category);
   }
   if (q) {
-    where.push('(title LIKE ? OR excerpt LIKE ?)');
-    const like = `%${q}%`;
+    const like = `%${iLikePattern(q)}%`;
+    where.push(`(title LIKE $${p} OR excerpt LIKE $${p + 1})`);
     params.push(like, like);
+    p += 2;
   }
-  const rows = getDb()
-    .prepare(
+  const rows = (
+    await query(
       `SELECT id, slug, category, title, excerpt, cover_url, author, reading_minutes, published_at
        FROM inspirasi_articles WHERE ${where.join(' AND ')}
-       ORDER BY published_at DESC LIMIT 100`
+       ORDER BY published_at DESC LIMIT 100`,
+      params
     )
-    .all(...params);
+  ).rows;
   res.json(rows);
 });
 
-inspirasiRouter.get('/articles/:slug', (req, res) => {
-  const row = getDb()
-    .prepare(`SELECT * FROM inspirasi_articles WHERE slug = ? AND is_active = 1`)
-    .get(req.params.slug);
+inspirasiRouter.get('/articles/:slug', async (req, res) => {
+  const row = (
+    await query(`SELECT * FROM inspirasi_articles WHERE slug = $1 AND is_active = 1`, [
+      req.params.slug,
+    ])
+  ).rows[0];
   if (!row) return res.status(404).json({ error: 'Article tidak ditemukan' });
   res.json(row);
 });
 
-inspirasiRouter.get('/events', (req, res) => {
+inspirasiRouter.get('/events', async (req, res) => {
   const upcoming = String(req.query.upcoming || 'true') === 'true';
-  const rows = getDb()
-    .prepare(
-      upcoming
-        ? `SELECT e.*,
-             (SELECT COUNT(*) FROM inspirasi_event_rsvps r WHERE r.event_id = e.id AND r.status != 'cancelled') AS rsvp_count,
-             (SELECT status FROM inspirasi_event_rsvps r WHERE r.event_id = e.id AND r.user_id = ?) AS user_rsvp_status
-           FROM inspirasi_events e
-           WHERE event_date >= datetime('now')
-           ORDER BY event_date ASC`
-        : `SELECT e.*,
-             (SELECT COUNT(*) FROM inspirasi_event_rsvps r WHERE r.event_id = e.id AND r.status != 'cancelled') AS rsvp_count,
-             (SELECT status FROM inspirasi_event_rsvps r WHERE r.event_id = e.id AND r.user_id = ?) AS user_rsvp_status
-           FROM inspirasi_events e
-           ORDER BY event_date DESC`
-    )
-    .all(req.user.id);
+  const sql = upcoming
+    ? `SELECT e.*,
+         (SELECT COUNT(*) FROM inspirasi_event_rsvps r WHERE r.event_id = e.id AND r.status != 'cancelled') AS rsvp_count,
+         (SELECT status FROM inspirasi_event_rsvps r WHERE r.event_id = e.id AND r.user_id = $1) AS user_rsvp_status
+       FROM inspirasi_events e
+       WHERE event_date >= NOW()
+       ORDER BY event_date ASC`
+    : `SELECT e.*,
+         (SELECT COUNT(*) FROM inspirasi_event_rsvps r WHERE r.event_id = e.id AND r.status != 'cancelled') AS rsvp_count,
+         (SELECT status FROM inspirasi_event_rsvps r WHERE r.event_id = e.id AND r.user_id = $1) AS user_rsvp_status
+       FROM inspirasi_events e
+       ORDER BY event_date DESC`;
+  const rows = (await query(sql, [req.user.id])).rows;
   res.json(rows);
 });
 
-inspirasiRouter.post('/events/:id/rsvp', validate({ body: RsvpRequestSchema }), (req, res) => {
-  const eventId = Number(req.params.id);
-  const event = getDb().prepare('SELECT id FROM inspirasi_events WHERE id = ?').get(eventId);
-  if (!event) return res.status(404).json({ error: 'Event tidak ditemukan' });
-  const { status } = req.body;
-  getDb()
-    .prepare(
-      `INSERT INTO inspirasi_event_rsvps (event_id, user_id, status) VALUES (?, ?, ?)
-         ON CONFLICT(event_id, user_id) DO UPDATE SET status = excluded.status`
-    )
-    .run(eventId, req.user.id, status);
-  res.json({ ok: true, status });
-});
+inspirasiRouter.post(
+  '/events/:id/rsvp',
+  validate({ body: RsvpRequestSchema }),
+  async (req, res) => {
+    const eventId = Number(req.params.id);
+    const event = (await query('SELECT id FROM inspirasi_events WHERE id = $1', [eventId])).rows[0];
+    if (!event) return res.status(404).json({ error: 'Event tidak ditemukan' });
+    const { status } = req.body;
+    await query(
+      `INSERT INTO inspirasi_event_rsvps (event_id, user_id, status) VALUES ($1, $2, $3)
+         ON CONFLICT(event_id, user_id) DO UPDATE SET status = excluded.status`,
+      [eventId, req.user.id, status]
+    );
+    res.json({ ok: true, status });
+  }
+);
 
-inspirasiRouter.get('/magazines', (req, res) => {
+inspirasiRouter.get('/magazines', async (req, res) => {
   const year = req.query.year ? Number(req.query.year) : null;
-  const where = year ? 'WHERE year = ?' : '';
-  const rows = getDb()
-    .prepare(`SELECT * FROM inspirasi_magazines ${where} ORDER BY year DESC, month DESC LIMIT 100`)
-    .all(...(year ? [year] : []));
+  const where = year ? 'WHERE year = $1' : '';
+  const rows = (
+    await query(
+      `SELECT * FROM inspirasi_magazines ${where} ORDER BY year DESC, month DESC LIMIT 100`,
+      year ? [year] : []
+    )
+  ).rows;
   res.json(rows);
 });
 
-inspirasiRouter.get('/changelog', (req, res) => {
-  const rows = getDb()
-    .prepare(`SELECT * FROM informasi_updates ORDER BY published_at DESC LIMIT 50`)
-    .all();
+inspirasiRouter.get('/changelog', async (req, res) => {
+  const rows = (await query(`SELECT * FROM informasi_updates ORDER BY published_at DESC LIMIT 50`))
+    .rows;
   res.json(rows);
 });
 
@@ -289,17 +296,17 @@ inspirasiRouter.get('/changelog', (req, res) => {
 const capitalRouter = express.Router();
 capitalRouter.use(authenticateToken);
 
-function calculatePreQualification(database, _userId) {
-  // Approximate: average of last 90 days transactions revenue + months active.
+async function calculatePreQualification(_userId) {
   const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const txSummary = database
-    .prepare(
+  const txSummary = (
+    await query(
       `SELECT COUNT(*) AS tx_count,
               COALESCE(SUM(total_amount),0) AS total_revenue,
               MIN(DATE(created_at)) AS first_tx
-       FROM transactions WHERE status='completed' AND DATE(created_at) >= ?`
+       FROM transactions WHERE status='completed' AND DATE(created_at) >= $1`,
+      [sixMonthsAgo]
     )
-    .get(sixMonthsAgo);
+  ).rows[0];
   const monthsActive = txSummary?.first_tx
     ? Math.max(
         1,
@@ -312,7 +319,6 @@ function calculatePreQualification(database, _userId) {
     monthsActive > 0
       ? Math.round((Number(txSummary.total_revenue) || 0) / Math.min(monthsActive, 6))
       : 0;
-  // Pre-approved limit = 1.5x avg monthly revenue, max 50jt; 0 if not eligible.
   const isEligible = monthsActive >= 3 && avgMonthly >= 5_000_000;
   const preApprovedLimit = isEligible ? Math.min(Math.round(avgMonthly * 1.5), 50_000_000) : 0;
   const score = Math.min(
@@ -342,8 +348,8 @@ function calculatePreQualification(database, _userId) {
       {
         key: 'tx_volume',
         label: 'Volume transaksi 90 hari ≥ 50',
-        passed: (txSummary?.tx_count || 0) >= 50,
-        message: `${txSummary?.tx_count || 0} transaksi`,
+        passed: (Number(txSummary?.tx_count) || 0) >= 50,
+        message: `${Number(txSummary?.tx_count) || 0} transaksi`,
       },
     ],
     avg_monthly_revenue: avgMonthly,
@@ -355,17 +361,17 @@ function formatRupiah(n) {
   return `Rp ${Math.round(Number(n) || 0).toLocaleString('id-ID')}`;
 }
 
-capitalRouter.get('/pre-qualification', (req, res) => {
-  const result = calculatePreQualification(getDb(), req.user.id);
+capitalRouter.get('/pre-qualification', async (req, res) => {
+  const result = await calculatePreQualification(req.user.id);
   res.json(result);
 });
 
 capitalRouter.post(
   '/applications',
   validate({ body: CapitalApplicationCreateSchema }),
-  (req, res) => {
+  async (req, res) => {
     const { amount, tenure_months, purpose, collateral, monthly_revenue, payload } = req.body;
-    const preq = calculatePreQualification(getDb(), req.user.id);
+    const preq = await calculatePreQualification(req.user.id);
     if (!preq.is_eligible) {
       return res.status(403).json({
         error: 'Belum eligible untuk pengajuan Capital',
@@ -377,13 +383,11 @@ capitalRouter.post(
         error: `Jumlah pinjaman melebihi limit (${formatRupiah(preq.pre_approved_limit)})`,
       });
     }
-    const result = getDb()
-      .prepare(
-        `INSERT INTO capital_applications
+    const ins = await query(
+      `INSERT INTO capital_applications
            (amount, tenure_months, purpose, collateral, monthly_revenue, status, pre_qualification_score, payload_json, submitted_by)
-         VALUES (?, ?, ?, ?, ?, 'submitted', ?, ?, ?)`
-      )
-      .run(
+         VALUES ($1, $2, $3, $4, $5, 'submitted', $6, $7, $8) RETURNING id`,
+      [
         amount,
         tenure_months,
         purpose,
@@ -391,26 +395,32 @@ capitalRouter.post(
         monthly_revenue || preq.avg_monthly_revenue,
         preq.score,
         payload ? JSON.stringify(payload) : null,
-        req.user.id
-      );
-    const row = getDb()
-      .prepare('SELECT * FROM capital_applications WHERE id = ?')
-      .get(result.lastInsertRowid);
+        req.user.id,
+      ]
+    );
+    const row = (await query('SELECT * FROM capital_applications WHERE id = $1', [ins.rows[0].id]))
+      .rows[0];
     res.status(201).json(row);
   }
 );
 
-capitalRouter.get('/applications', (req, res) => {
-  const rows = getDb()
-    .prepare(`SELECT * FROM capital_applications WHERE submitted_by = ? ORDER BY submitted_at DESC`)
-    .all(req.user.id);
+capitalRouter.get('/applications', async (req, res) => {
+  const rows = (
+    await query(
+      `SELECT * FROM capital_applications WHERE submitted_by = $1 ORDER BY submitted_at DESC`,
+      [req.user.id]
+    )
+  ).rows;
   res.json(rows);
 });
 
-capitalRouter.get('/applications/:id', (req, res) => {
-  const row = getDb()
-    .prepare(`SELECT * FROM capital_applications WHERE id = ? AND submitted_by = ?`)
-    .get(Number(req.params.id), req.user.id);
+capitalRouter.get('/applications/:id', async (req, res) => {
+  const row = (
+    await query(`SELECT * FROM capital_applications WHERE id = $1 AND submitted_by = $2`, [
+      Number(req.params.id),
+      req.user.id,
+    ])
+  ).rows[0];
   if (!row) return res.status(404).json({ error: 'Application tidak ditemukan' });
   res.json(row);
 });
@@ -422,85 +432,95 @@ capitalRouter.get('/applications/:id', (req, res) => {
 const suppliesRouter = express.Router();
 suppliesRouter.use(authenticateToken);
 
-suppliesRouter.get('/categories', (req, res) => {
-  const rows = getDb().prepare(`SELECT * FROM supplies_categories ORDER BY sort_order, name`).all();
+suppliesRouter.get('/categories', async (req, res) => {
+  const rows = (await query(`SELECT * FROM supplies_categories ORDER BY sort_order, name`)).rows;
   res.json(rows);
 });
 
-suppliesRouter.get('/products', (req, res) => {
+suppliesRouter.get('/products', async (req, res) => {
   const q = (req.query.q || '').trim();
   const categorySlug = (req.query.category || '').trim();
   const where = ['p.is_active = 1'];
   const params = [];
+  let p = 1;
   if (q) {
-    where.push('(p.name LIKE ? OR p.description LIKE ? OR p.sku LIKE ?)');
-    const like = `%${q}%`;
+    const like = `%${iLikePattern(q)}%`;
+    where.push(`(p.name LIKE $${p} OR p.description LIKE $${p + 1} OR p.sku LIKE $${p + 2})`);
     params.push(like, like, like);
+    p += 3;
   }
   if (categorySlug) {
-    where.push('c.slug = ?');
+    where.push(`c.slug = $${p++}`);
     params.push(categorySlug);
   }
-  const rows = getDb()
-    .prepare(
+  const rows = (
+    await query(
       `SELECT p.*, c.slug AS category_slug, c.name AS category_name
        FROM supplies_products p
        LEFT JOIN supplies_categories c ON p.category_id = c.id
        WHERE ${where.join(' AND ')}
-       ORDER BY p.name ASC LIMIT 200`
+       ORDER BY p.name ASC LIMIT 200`,
+      params
     )
-    .all(...params);
+  ).rows;
   res.json(rows);
 });
 
-suppliesRouter.get('/products/:id', (req, res) => {
-  const row = getDb()
-    .prepare(
+suppliesRouter.get('/products/:id', async (req, res) => {
+  const row = (
+    await query(
       `SELECT p.*, c.slug AS category_slug, c.name AS category_name
        FROM supplies_products p
        LEFT JOIN supplies_categories c ON p.category_id = c.id
-       WHERE p.id = ?`
+       WHERE p.id = $1`,
+      [Number(req.params.id)]
     )
-    .get(Number(req.params.id));
+  ).rows[0];
   if (!row) return res.status(404).json({ error: 'Produk tidak ditemukan' });
   res.json(row);
 });
 
-function ensureCart(database, userId) {
-  let cart = database.prepare('SELECT * FROM supplies_carts WHERE user_id = ?').get(userId);
+async function ensureCart(q, userId) {
+  let cart = (await q('SELECT * FROM supplies_carts WHERE user_id = $1', [userId])).rows[0];
   if (!cart) {
-    const result = database.prepare('INSERT INTO supplies_carts (user_id) VALUES (?)').run(userId);
-    cart = database
-      .prepare('SELECT * FROM supplies_carts WHERE id = ?')
-      .get(result.lastInsertRowid);
+    const ins = await q('INSERT INTO supplies_carts (user_id) VALUES ($1) RETURNING id', [userId]);
+    cart = (await q('SELECT * FROM supplies_carts WHERE id = $1', [ins.rows[0].id])).rows[0];
   }
   return cart;
 }
 
-function loadCart(database, userId) {
-  const cart = ensureCart(database, userId);
-  const items = database
-    .prepare(
-      `SELECT ci.*,
-         json_object('id', p.id, 'sku', p.sku, 'name', p.name, 'price', p.price,
-           'image_url', p.image_url, 'moq', p.moq, 'stock_status', p.stock_status,
-           'supplier_name', p.supplier_name) AS product_json
-       FROM supplies_cart_items ci
-       JOIN supplies_products p ON ci.product_id = p.id
-       WHERE ci.cart_id = ?
-       ORDER BY ci.id ASC`
+async function loadCart(q, userId) {
+  const cart = await ensureCart(q, userId);
+  const rows = (
+    await q(
+      `SELECT ci.id AS ci_id, ci.product_id, ci.qty,
+              p.id AS p_id, p.sku, p.name, p.price, p.image_url, p.moq, p.stock_status, p.supplier_name
+         FROM supplies_cart_items ci
+         JOIN supplies_products p ON ci.product_id = p.id
+         WHERE ci.cart_id = $1
+         ORDER BY ci.id ASC`,
+      [cart.id]
     )
-    .all(cart.id)
-    .map((row) => {
-      const product = JSON.parse(row.product_json);
-      return {
-        id: row.id,
-        product_id: row.product_id,
-        qty: row.qty,
-        product,
-        subtotal: product.price * row.qty,
-      };
-    });
+  ).rows;
+  const items = rows.map((row) => {
+    const product = {
+      id: row.p_id,
+      sku: row.sku,
+      name: row.name,
+      price: row.price,
+      image_url: row.image_url,
+      moq: row.moq,
+      stock_status: row.stock_status,
+      supplier_name: row.supplier_name,
+    };
+    return {
+      id: row.ci_id,
+      product_id: row.product_id,
+      qty: row.qty,
+      product,
+      subtotal: product.price * row.qty,
+    };
+  });
   const totalAmount = items.reduce((acc, it) => acc + it.subtotal, 0);
   return {
     id: cart.id,
@@ -510,124 +530,128 @@ function loadCart(database, userId) {
   };
 }
 
-suppliesRouter.get('/cart', (req, res) => {
-  res.json(loadCart(getDb(), req.user.id));
+suppliesRouter.get('/cart', async (req, res) => {
+  res.json(await loadCart(query, req.user.id));
 });
 
-suppliesRouter.post('/cart/add', validate({ body: SupplyCartItemCreateSchema }), (req, res) => {
-  const database = getDb();
-  const cart = ensureCart(database, req.user.id);
-  const product = database
-    .prepare('SELECT * FROM supplies_products WHERE id = ? AND is_active = 1')
-    .get(req.body.product_id);
-  if (!product) return res.status(404).json({ error: 'Produk tidak ditemukan' });
-  if (req.body.qty < (product.moq || 1)) {
-    return res.status(400).json({ error: `Quantity minimum (MOQ) ${product.moq}` });
+suppliesRouter.post(
+  '/cart/add',
+  validate({ body: SupplyCartItemCreateSchema }),
+  async (req, res) => {
+    const cart = await ensureCart(query, req.user.id);
+    const product = (
+      await query('SELECT * FROM supplies_products WHERE id = $1 AND is_active = 1', [
+        req.body.product_id,
+      ])
+    ).rows[0];
+    if (!product) return res.status(404).json({ error: 'Produk tidak ditemukan' });
+    if (req.body.qty < (product.moq || 1)) {
+      return res.status(400).json({ error: `Quantity minimum (MOQ) ${product.moq}` });
+    }
+    await query(
+      `INSERT INTO supplies_cart_items (cart_id, product_id, qty) VALUES ($1, $2, $3)
+         ON CONFLICT(cart_id, product_id) DO UPDATE SET qty = excluded.qty`,
+      [cart.id, req.body.product_id, req.body.qty]
+    );
+    res.json(await loadCart(query, req.user.id));
   }
-  database
-    .prepare(
-      `INSERT INTO supplies_cart_items (cart_id, product_id, qty) VALUES (?, ?, ?)
-         ON CONFLICT(cart_id, product_id) DO UPDATE SET qty = excluded.qty`
-    )
-    .run(cart.id, req.body.product_id, req.body.qty);
-  res.json(loadCart(database, req.user.id));
+);
+
+suppliesRouter.delete('/cart/items/:id', async (req, res) => {
+  const cart = await ensureCart(query, req.user.id);
+  await query('DELETE FROM supplies_cart_items WHERE id = $1 AND cart_id = $2', [
+    Number(req.params.id),
+    cart.id,
+  ]);
+  res.json(await loadCart(query, req.user.id));
 });
 
-suppliesRouter.delete('/cart/items/:id', (req, res) => {
-  const database = getDb();
-  const cart = ensureCart(database, req.user.id);
-  database
-    .prepare('DELETE FROM supplies_cart_items WHERE id = ? AND cart_id = ?')
-    .run(Number(req.params.id), cart.id);
-  res.json(loadCart(database, req.user.id));
-});
-
-suppliesRouter.post('/checkout', validate({ body: SupplyCheckoutSchema }), (req, res) => {
-  const database = getDb();
-  const cart = loadCart(database, req.user.id);
+suppliesRouter.post('/checkout', validate({ body: SupplyCheckoutSchema }), async (req, res) => {
+  const cart = await loadCart(query, req.user.id);
   if (cart.items.length === 0) {
     return res.status(400).json({ error: 'Cart kosong' });
   }
   const { payment_method, delivery_address, delivery_date } = req.body;
   const orderNo = `SUP-${Date.now()}-${req.user.id}`;
-  const tx = database.transaction(() => {
-    const orderResult = database
-      .prepare(
-        `INSERT INTO supplies_orders
-             (order_no, user_id, total_amount, payment_method, delivery_address, delivery_date, status)
-           VALUES (?, ?, ?, ?, ?, ?, 'ordered')`
-      )
-      .run(
+  const orderId = await tx(async (txQuery) => {
+    const ord = await txQuery(
+      `INSERT INTO supplies_orders
+           (order_no, user_id, total_amount, payment_method, delivery_address, delivery_date, status)
+         VALUES ($1, $2, $3, $4, $5, $6, 'ordered') RETURNING id`,
+      [
         orderNo,
         req.user.id,
         cart.total_amount,
         payment_method,
         delivery_address,
-        delivery_date || null
-      );
-    const orderId = orderResult.lastInsertRowid;
-    const itemInsert = database.prepare(
-      `INSERT INTO supplies_order_items (order_id, product_id, qty, price, subtotal)
-         VALUES (?, ?, ?, ?, ?)`
+        delivery_date || null,
+      ]
     );
+    const newOrderId = ord.rows[0].id;
     for (const item of cart.items) {
-      itemInsert.run(orderId, item.product_id, item.qty, item.product.price, item.subtotal);
+      await txQuery(
+        `INSERT INTO supplies_order_items (order_id, product_id, qty, price, subtotal)
+           VALUES ($1, $2, $3, $4, $5)`,
+        [newOrderId, item.product_id, item.qty, item.product.price, item.subtotal]
+      );
     }
-    database.prepare('DELETE FROM supplies_cart_items WHERE cart_id = ?').run(cart.id);
-    return orderId;
+    await txQuery('DELETE FROM supplies_cart_items WHERE cart_id = $1', [cart.id]);
+    return newOrderId;
   });
-  const orderId = tx();
-  const order = database.prepare('SELECT * FROM supplies_orders WHERE id = ?').get(orderId);
+  const order = (await query('SELECT * FROM supplies_orders WHERE id = $1', [orderId])).rows[0];
   res.status(201).json(order);
 });
 
-suppliesRouter.get('/orders', (req, res) => {
-  const rows = getDb()
-    .prepare(
+suppliesRouter.get('/orders', async (req, res) => {
+  const rows = (
+    await query(
       `SELECT o.*,
          (SELECT COUNT(*) FROM supplies_order_items i WHERE i.order_id = o.id) AS item_count
        FROM supplies_orders o
-       WHERE o.user_id = ?
-       ORDER BY o.ordered_at DESC LIMIT 100`
+       WHERE o.user_id = $1
+       ORDER BY o.ordered_at DESC LIMIT 100`,
+      [req.user.id]
     )
-    .all(req.user.id);
+  ).rows;
   res.json(rows);
 });
 
-suppliesRouter.get('/orders/:id', (req, res) => {
-  const order = getDb()
-    .prepare(`SELECT * FROM supplies_orders WHERE id = ? AND user_id = ?`)
-    .get(Number(req.params.id), req.user.id);
+suppliesRouter.get('/orders/:id', async (req, res) => {
+  const order = (
+    await query(`SELECT * FROM supplies_orders WHERE id = $1 AND user_id = $2`, [
+      Number(req.params.id),
+      req.user.id,
+    ])
+  ).rows[0];
   if (!order) return res.status(404).json({ error: 'Order tidak ditemukan' });
-  const items = getDb()
-    .prepare(
+  const items = (
+    await query(
       `SELECT oi.*, p.name AS product_name, p.sku
        FROM supplies_order_items oi
        JOIN supplies_products p ON oi.product_id = p.id
-       WHERE oi.order_id = ?`
+       WHERE oi.order_id = $1`,
+      [order.id]
     )
-    .all(order.id);
+  ).rows;
   res.json({ ...order, items });
 });
 
-suppliesRouter.post('/orders/:id/receive', (req, res) => {
+suppliesRouter.post('/orders/:id/receive', async (req, res) => {
   const id = Number(req.params.id);
-  const order = getDb()
-    .prepare(`SELECT * FROM supplies_orders WHERE id = ? AND user_id = ?`)
-    .get(id, req.user.id);
+  const order = (
+    await query(`SELECT * FROM supplies_orders WHERE id = $1 AND user_id = $2`, [id, req.user.id])
+  ).rows[0];
   if (!order) return res.status(404).json({ error: 'Order tidak ditemukan' });
   if (!['shipped', 'delivered'].includes(order.status) && order.status !== 'ordered') {
-    // Allow receiving from any non-completed/non-cancelled to be lenient.
     if (['completed', 'cancelled'].includes(order.status)) {
       return res.status(400).json({ error: 'Order sudah final, tidak bisa di-receive' });
     }
   }
-  getDb()
-    .prepare(
-      `UPDATE supplies_orders SET status = 'delivered', delivered_at = CURRENT_TIMESTAMP WHERE id = ?`
-    )
-    .run(id);
-  const updated = getDb().prepare('SELECT * FROM supplies_orders WHERE id = ?').get(id);
+  await query(
+    `UPDATE supplies_orders SET status = 'delivered', delivered_at = CURRENT_TIMESTAMP WHERE id = $1`,
+    [id]
+  );
+  const updated = (await query('SELECT * FROM supplies_orders WHERE id = $1', [id])).rows[0];
   res.json(updated);
 });
 

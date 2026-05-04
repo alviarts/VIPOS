@@ -1,7 +1,7 @@
-// Appointment resource CRUD (P1-13). Resources = ruangan/treatment-room/meja
-// untuk dipakai di appointment & kalender.
+// Appointment resource CRUD (P1-13, P2-01b cutover). Resources =
+// ruangan/treatment-room/meja untuk dipakai di appointment & kalender.
 const express = require('express');
-const { getDb } = require('../models/database');
+const { query } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const {
@@ -11,16 +11,15 @@ const {
 
 const router = express.Router();
 
-router.get('/', authenticateToken, (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
-    const rows = db
-      .prepare(
+    const rows = (
+      await query(
         `SELECT id, name, resource_type, capacity, is_active,
                 created_at, updated_at
            FROM appointment_resources ORDER BY name ASC`
       )
-      .all();
+    ).rows;
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: 'Failed to load resources', details: err.message });
@@ -32,19 +31,17 @@ router.post(
   authenticateToken,
   requireAdmin,
   validate({ body: AppointmentResourceCreateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
       const { name, resource_type = 'room', capacity = 1, is_active = 1 } = req.body;
-      const result = db
-        .prepare(
-          `INSERT INTO appointment_resources (name, resource_type, capacity, is_active)
-           VALUES (?, ?, ?, ?)`
-        )
-        .run(name, resource_type, capacity, is_active);
-      const row = db
-        .prepare(`SELECT * FROM appointment_resources WHERE id = ?`)
-        .get(result.lastInsertRowid);
+      const ins = await query(
+        `INSERT INTO appointment_resources (name, resource_type, capacity, is_active)
+         VALUES ($1, $2, $3, $4) RETURNING id`,
+        [name, resource_type, capacity, is_active]
+      );
+      const row = (
+        await query('SELECT * FROM appointment_resources WHERE id = $1', [ins.rows[0].id])
+      ).rows[0];
       res.status(201).json(row);
     } catch (err) {
       res.status(500).json({ error: 'Failed to create resource', details: err.message });
@@ -57,31 +54,31 @@ router.put(
   authenticateToken,
   requireAdmin,
   validate({ body: AppointmentResourceUpdateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
       const id = parseInt(req.params.id, 10);
-      const exists = db.prepare(`SELECT id FROM appointment_resources WHERE id = ?`).get(id);
+      const exists = (await query('SELECT id FROM appointment_resources WHERE id = $1', [id]))
+        .rows[0];
       if (!exists) return res.status(404).json({ error: 'Resource not found' });
       const allowed = ['name', 'resource_type', 'capacity', 'is_active'];
       const fields = [];
       const values = [];
+      let p = 1;
       for (const key of allowed) {
         if (key in req.body) {
-          fields.push(`${key} = ?`);
+          fields.push(`${key} = $${p++}`);
           values.push(req.body[key]);
         }
       }
       if (fields.length === 0) {
-        const row = db.prepare(`SELECT * FROM appointment_resources WHERE id = ?`).get(id);
+        const row = (await query('SELECT * FROM appointment_resources WHERE id = $1', [id]))
+          .rows[0];
         return res.json(row);
       }
       fields.push('updated_at = CURRENT_TIMESTAMP');
       values.push(id);
-      db.prepare(`UPDATE appointment_resources SET ${fields.join(', ')} WHERE id = ?`).run(
-        ...values
-      );
-      const row = db.prepare(`SELECT * FROM appointment_resources WHERE id = ?`).get(id);
+      await query(`UPDATE appointment_resources SET ${fields.join(', ')} WHERE id = $${p}`, values);
+      const row = (await query('SELECT * FROM appointment_resources WHERE id = $1', [id])).rows[0];
       res.json(row);
     } catch (err) {
       res.status(500).json({ error: 'Failed to update resource', details: err.message });
@@ -89,13 +86,13 @@ router.put(
   }
 );
 
-router.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
+router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const db = getDb();
     const id = parseInt(req.params.id, 10);
-    const exists = db.prepare(`SELECT id FROM appointment_resources WHERE id = ?`).get(id);
+    const exists = (await query('SELECT id FROM appointment_resources WHERE id = $1', [id]))
+      .rows[0];
     if (!exists) return res.status(404).json({ error: 'Resource not found' });
-    db.prepare(`DELETE FROM appointment_resources WHERE id = ?`).run(id);
+    await query('DELETE FROM appointment_resources WHERE id = $1', [id]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete resource', details: err.message });

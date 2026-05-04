@@ -14,7 +14,6 @@ module.exports = defineConfig({
         'src/**/*.spec.js',
         'src/**/*.test.mjs',
         'src/**/*.spec.mjs',
-        'src/utils/seed.js',
         'src/__tests__/**',
       ],
     },

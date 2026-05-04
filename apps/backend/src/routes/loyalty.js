@@ -12,7 +12,7 @@
 // task itu di P3-16 (POS cart loyalty). Server menyediakan adjust API untuk
 // koreksi manual + pencatatan audit.
 const express = require('express');
-const { getDb } = require('../models/database');
+const { query, tx } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const {
@@ -105,33 +105,32 @@ function validateRuleSpecific(body) {
   return errors;
 }
 
-ruleRouter.get('/', authenticateToken, (req, res) => {
+ruleRouter.get('/', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
     const conditions = [];
     const params = [];
+    let p = 1;
     if (req.query.rule_type) {
-      conditions.push('rule_type = ?');
+      conditions.push(`rule_type = $${p++}`);
       params.push(req.query.rule_type);
     }
     if (req.query.is_active === '0' || req.query.is_active === '1') {
-      conditions.push('is_active = ?');
+      conditions.push(`is_active = $${p++}`);
       params.push(parseInt(req.query.is_active, 10));
     }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    const rows = db
-      .prepare(`SELECT * FROM loyalty_rules ${where} ORDER BY created_at DESC, id DESC`)
-      .all(...params);
+    const rows = (
+      await query(`SELECT * FROM loyalty_rules ${where} ORDER BY created_at DESC, id DESC`, params)
+    ).rows;
     res.json(rows.map(rowToRule));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-ruleRouter.get('/:id', authenticateToken, (req, res) => {
+ruleRouter.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
-    const row = db.prepare('SELECT * FROM loyalty_rules WHERE id = ?').get(req.params.id);
+    const row = (await query('SELECT * FROM loyalty_rules WHERE id = $1', [req.params.id])).rows[0];
     if (!row) return res.status(404).json({ error: 'Rule tidak ditemukan' });
     res.json(rowToRule(row));
   } catch (err) {
@@ -144,11 +143,10 @@ ruleRouter.post(
   authenticateToken,
   requireAdmin,
   validate({ body: LoyaltyRuleCreateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
       const errors = validateRuleSpecific(req.body);
       if (errors.length) return res.status(400).json({ error: errors[0], details: errors });
-      const db = getDb();
       const body = normalizeRule({
         target_product_ids: [],
         multiplier_per_group: {},
@@ -156,14 +154,14 @@ ruleRouter.post(
         excluded_categories: [],
         ...req.body,
       });
-      const placeholders = RULE_COLUMNS.map(() => '?').join(', ');
+      const placeholders = RULE_COLUMNS.map((_, i) => `$${i + 1}`).join(', ');
       const values = RULE_COLUMNS.map((c) => body[c] ?? null);
-      const result = db
-        .prepare(`INSERT INTO loyalty_rules (${RULE_COLUMNS.join(', ')}) VALUES (${placeholders})`)
-        .run(...values);
-      const created = db
-        .prepare('SELECT * FROM loyalty_rules WHERE id = ?')
-        .get(result.lastInsertRowid);
+      const ins = await query(
+        `INSERT INTO loyalty_rules (${RULE_COLUMNS.join(', ')}) VALUES (${placeholders}) RETURNING id`,
+        values
+      );
+      const created = (await query('SELECT * FROM loyalty_rules WHERE id = $1', [ins.rows[0].id]))
+        .rows[0];
       res.status(201).json(rowToRule(created));
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -176,21 +174,23 @@ ruleRouter.put(
   authenticateToken,
   requireAdmin,
   validate({ body: LoyaltyRuleUpdateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
-      const existing = db.prepare('SELECT * FROM loyalty_rules WHERE id = ?').get(req.params.id);
+      const existing = (await query('SELECT * FROM loyalty_rules WHERE id = $1', [req.params.id]))
+        .rows[0];
       if (!existing) return res.status(404).json({ error: 'Rule tidak ditemukan' });
       const merged = { ...rowToRule(existing), ...req.body };
       const errors = validateRuleSpecific(merged);
       if (errors.length) return res.status(400).json({ error: errors[0], details: errors });
       const body = normalizeRule(merged);
-      const setClauses = RULE_COLUMNS.map((c) => `${c} = ?`).join(', ');
+      const setClauses = RULE_COLUMNS.map((c, i) => `${c} = $${i + 1}`).join(', ');
       const values = RULE_COLUMNS.map((c) => body[c] ?? null);
-      db.prepare(
-        `UPDATE loyalty_rules SET ${setClauses}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-      ).run(...values, req.params.id);
-      const updated = db.prepare('SELECT * FROM loyalty_rules WHERE id = ?').get(req.params.id);
+      await query(
+        `UPDATE loyalty_rules SET ${setClauses}, updated_at = CURRENT_TIMESTAMP WHERE id = $${RULE_COLUMNS.length + 1}`,
+        [...values, req.params.id]
+      );
+      const updated = (await query('SELECT * FROM loyalty_rules WHERE id = $1', [req.params.id]))
+        .rows[0];
       res.json(rowToRule(updated));
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -198,12 +198,12 @@ ruleRouter.put(
   }
 );
 
-ruleRouter.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
+ruleRouter.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const db = getDb();
-    const existing = db.prepare('SELECT id FROM loyalty_rules WHERE id = ?').get(req.params.id);
+    const existing = (await query('SELECT id FROM loyalty_rules WHERE id = $1', [req.params.id]))
+      .rows[0];
     if (!existing) return res.status(404).json({ error: 'Rule tidak ditemukan' });
-    db.prepare('DELETE FROM loyalty_rules WHERE id = ?').run(req.params.id);
+    await query('DELETE FROM loyalty_rules WHERE id = $1', [req.params.id]);
     res.json({ message: 'Rule dihapus' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -212,35 +212,36 @@ ruleRouter.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
 
 // --- Ledger / adjust endpoints -------------------------------------------
 
-ledgerRouter.get('/transactions', authenticateToken, (req, res) => {
+ledgerRouter.get('/transactions', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
     const conditions = [];
     const params = [];
+    let p = 1;
     if (req.query.customer_id) {
-      conditions.push('lt.customer_id = ?');
+      conditions.push(`lt.customer_id = $${p++}`);
       params.push(parseInt(req.query.customer_id, 10));
     }
     if (req.query.type) {
-      conditions.push('lt.type = ?');
+      conditions.push(`lt.type = $${p++}`);
       params.push(req.query.type);
     }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const limit = Math.min(parseInt(req.query.limit ?? '100', 10) || 100, 500);
     const offset = Math.max(parseInt(req.query.offset ?? '0', 10) || 0, 0);
-    const total = db
-      .prepare(`SELECT COUNT(*) AS n FROM loyalty_transactions lt ${where}`)
-      .get(...params).n;
-    const items = db
-      .prepare(
+    const total = Number(
+      (await query(`SELECT COUNT(*) AS n FROM loyalty_transactions lt ${where}`, params)).rows[0].n
+    );
+    const items = (
+      await query(
         `SELECT lt.*, c.name AS customer_name
            FROM loyalty_transactions lt
            LEFT JOIN customers c ON c.id = lt.customer_id
            ${where}
           ORDER BY lt.created_at DESC, lt.id DESC
-          LIMIT ? OFFSET ?`
+          LIMIT $${p} OFFSET $${p + 1}`,
+        [...params, limit, offset]
       )
-      .all(...params, limit, offset);
+    ).rows;
     res.json({ items, total });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -252,37 +253,35 @@ ledgerRouter.post(
   authenticateToken,
   requireAdmin,
   validate({ body: LoyaltyAdjustSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
-      const cust = db
-        .prepare('SELECT id, points FROM customers WHERE id = ?')
-        .get(req.body.customer_id);
+      const cust = (
+        await query('SELECT id, points FROM customers WHERE id = $1', [req.body.customer_id])
+      ).rows[0];
       if (!cust) return res.status(404).json({ error: 'Customer tidak ditemukan' });
       const next = (cust.points || 0) + req.body.points;
       if (next < 0) {
         return res.status(400).json({ error: 'Saldo poin tidak boleh negatif' });
       }
-      const tx = db.transaction(() => {
-        db.prepare('UPDATE customers SET points = ? WHERE id = ?').run(next, cust.id);
-        const result = db
-          .prepare(
-            `INSERT INTO loyalty_transactions
-               (customer_id, type, points, balance_after, notes)
-             VALUES (?, 'adjust', ?, ?, ?)`
-          )
-          .run(cust.id, req.body.points, next, req.body.notes || null);
-        return result.lastInsertRowid;
+      const insertId = await tx(async (txQuery) => {
+        await txQuery('UPDATE customers SET points = $1 WHERE id = $2', [next, cust.id]);
+        const result = await txQuery(
+          `INSERT INTO loyalty_transactions
+             (customer_id, type, points, balance_after, notes)
+           VALUES ($1, 'adjust', $2, $3, $4) RETURNING id`,
+          [cust.id, req.body.points, next, req.body.notes || null]
+        );
+        return result.rows[0].id;
       });
-      const insertId = tx();
-      const transaction = db
-        .prepare(
+      const transaction = (
+        await query(
           `SELECT lt.*, c.name AS customer_name
              FROM loyalty_transactions lt
              LEFT JOIN customers c ON c.id = lt.customer_id
-            WHERE lt.id = ?`
+            WHERE lt.id = $1`,
+          [insertId]
         )
-        .get(insertId);
+      ).rows[0];
       res.json({
         customer_id: cust.id,
         balance: next,

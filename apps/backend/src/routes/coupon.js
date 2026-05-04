@@ -7,7 +7,7 @@
 const crypto = require('node:crypto');
 const express = require('express');
 const { z } = require('zod');
-const { getDb } = require('../models/database');
+const { query, tx } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const {
@@ -121,17 +121,16 @@ function estimateDiscount(promo, subtotal) {
   return 0;
 }
 
-router.get('/batches', authenticateToken, (req, res) => {
+router.get('/batches', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
-    const rows = db
-      .prepare(
+    const rows = (
+      await query(
         `SELECT c.batch_id,
                 MIN(c.promo_id) AS promo_id,
                 p.name AS promo_name,
                 COUNT(*) AS generated,
                 SUM(c.used_count) AS used,
-                SUM(MAX(c.max_uses, 0) - c.used_count) AS remaining,
+                SUM(GREATEST(c.max_uses, 0) - c.used_count) AS remaining,
                 MIN(c.created_at) AS created_at
            FROM coupons c
            LEFT JOIN promos p ON p.id = c.promo_id
@@ -139,7 +138,7 @@ router.get('/batches', authenticateToken, (req, res) => {
           GROUP BY c.batch_id, p.name
           ORDER BY MIN(c.created_at) DESC`
       )
-      .all();
+    ).rows;
     res.json(
       rows.map((r) => ({
         batch_id: r.batch_id,
@@ -156,42 +155,45 @@ router.get('/batches', authenticateToken, (req, res) => {
   }
 });
 
-router.get('/', authenticateToken, (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const db = getDb();
     const conditions = [];
     const params = [];
+    let p = 1;
     if (req.query.promo_id) {
-      conditions.push('c.promo_id = ?');
+      conditions.push(`c.promo_id = $${p++}`);
       params.push(parseInt(req.query.promo_id, 10));
     }
     if (req.query.batch_id) {
-      conditions.push('c.batch_id = ?');
+      conditions.push(`c.batch_id = $${p++}`);
       params.push(req.query.batch_id);
     }
     if (req.query.is_active === '0' || req.query.is_active === '1') {
-      conditions.push('c.is_active = ?');
+      conditions.push(`c.is_active = $${p++}`);
       params.push(parseInt(req.query.is_active, 10));
     }
     if (req.query.search) {
-      conditions.push('c.code LIKE ?');
+      conditions.push(`c.code LIKE $${p++}`);
       params.push(`%${req.query.search.toUpperCase()}%`);
     }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const limit = Math.min(parseInt(req.query.limit ?? '100', 10) || 100, 500);
     const offset = Math.max(parseInt(req.query.offset ?? '0', 10) || 0, 0);
-    const total = db.prepare(`SELECT COUNT(*) AS n FROM coupons c ${where}`).get(...params).n;
-    const items = db
-      .prepare(
+    const total = Number(
+      (await query(`SELECT COUNT(*) AS n FROM coupons c ${where}`, params)).rows[0].n
+    );
+    const items = (
+      await query(
         `SELECT c.*, p.name AS promo_name, p.promo_type AS promo_type, cust.name AS customer_name
            FROM coupons c
            LEFT JOIN promos p ON p.id = c.promo_id
            LEFT JOIN customers cust ON cust.id = c.assigned_customer_id
            ${where}
           ORDER BY c.created_at DESC, c.id DESC
-          LIMIT ? OFFSET ?`
+          LIMIT $${p} OFFSET $${p + 1}`,
+        [...params, limit, offset]
       )
-      .all(...params, limit, offset);
+    ).rows;
     res.json({ items, total });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -203,32 +205,31 @@ router.post(
   authenticateToken,
   requireAdmin,
   validate({ body: CouponCreateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
-      const promo = db.prepare('SELECT id FROM promos WHERE id = ?').get(req.body.promo_id);
+      const promo = (await query('SELECT id FROM promos WHERE id = $1', [req.body.promo_id]))
+        .rows[0];
       if (!promo) return res.status(400).json({ error: 'Promo tidak ditemukan' });
       const code = req.body.code.toUpperCase();
-      const result = db
-        .prepare(
-          `INSERT INTO coupons (
+      const ins = await query(
+        `INSERT INTO coupons (
              promo_id, code, max_uses, assigned_customer_id,
              valid_from, valid_until, is_active
-           ) VALUES (?, ?, ?, ?, ?, ?, ?)`
-        )
-        .run(
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+        [
           req.body.promo_id,
           code,
           req.body.max_uses,
           req.body.assigned_customer_id ?? null,
           req.body.valid_from ?? null,
           req.body.valid_until ?? null,
-          req.body.is_active ? 1 : 0
-        );
-      const row = db.prepare('SELECT * FROM coupons WHERE id = ?').get(result.lastInsertRowid);
+          req.body.is_active ? 1 : 0,
+        ]
+      );
+      const row = (await query('SELECT * FROM coupons WHERE id = $1', [ins.rows[0].id])).rows[0];
       res.status(201).json(row);
     } catch (err) {
-      if (err.message.includes('UNIQUE')) {
+      if (err.code === '23505') {
         return res.status(400).json({ error: 'Kode kupon sudah digunakan' });
       }
       res.status(500).json({ error: err.message });
@@ -241,19 +242,15 @@ router.post(
   authenticateToken,
   requireAdmin,
   validate({ body: CouponBulkCreateSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
-      const promo = db.prepare('SELECT id FROM promos WHERE id = ?').get(req.body.promo_id);
+      const promo = (await query('SELECT id FROM promos WHERE id = $1', [req.body.promo_id]))
+        .rows[0];
       if (!promo) return res.status(400).json({ error: 'Promo tidak ditemukan' });
 
       const batchId = `BATCH-${Date.now()}-${randomCode(6)}`;
-      const insert = db.prepare(
-        `INSERT INTO coupons (promo_id, code, batch_id, max_uses, valid_from, valid_until, is_active)
-         VALUES (?, ?, ?, ?, ?, ?, 1)`
-      );
       const codes = [];
-      const tx = db.transaction(() => {
+      await tx(async (txQuery) => {
         let attempts = 0;
         while (codes.length < req.body.count) {
           if (attempts > req.body.count * 5) {
@@ -263,22 +260,25 @@ router.post(
           const suffix = randomCode(req.body.code_length);
           const code = `${req.body.prefix || ''}${suffix}`.toUpperCase();
           try {
-            insert.run(
-              req.body.promo_id,
-              code,
-              batchId,
-              req.body.max_uses,
-              req.body.valid_from ?? null,
-              req.body.valid_until ?? null
+            await txQuery(
+              `INSERT INTO coupons (promo_id, code, batch_id, max_uses, valid_from, valid_until, is_active)
+               VALUES ($1, $2, $3, $4, $5, $6, 1)`,
+              [
+                req.body.promo_id,
+                code,
+                batchId,
+                req.body.max_uses,
+                req.body.valid_from ?? null,
+                req.body.valid_until ?? null,
+              ]
             );
             codes.push(code);
           } catch (err) {
-            if (!err.message.includes('UNIQUE')) throw err;
+            if (!err.code === '23505') throw err;
             // collision — try again.
           }
         }
       });
-      tx();
       res.status(201).json({ batch_id: batchId, count: codes.length, codes });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -286,10 +286,10 @@ router.post(
   }
 );
 
-function loadCouponWithPromo(db, code) {
-  const coupon = db.prepare('SELECT * FROM coupons WHERE code = ?').get(code.toUpperCase());
+async function loadCouponWithPromo(q, code) {
+  const coupon = (await q('SELECT * FROM coupons WHERE code = $1', [code.toUpperCase()])).rows[0];
   if (!coupon) return { coupon: null, promo: null };
-  const promoRow = db.prepare('SELECT * FROM promos WHERE id = ?').get(coupon.promo_id);
+  const promoRow = (await q('SELECT * FROM promos WHERE id = $1', [coupon.promo_id])).rows[0];
   return { coupon, promo: promoRow ? rowToPromo(promoRow) : null };
 }
 
@@ -297,10 +297,9 @@ router.post(
   '/validate',
   authenticateToken,
   validate({ body: CouponValidateRequestSchema }),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const db = getDb();
-      const { coupon, promo } = loadCouponWithPromo(db, req.body.code);
+      const { coupon, promo } = await loadCouponWithPromo(query, req.body.code);
       if (!coupon) {
         return res.status(200).json({ valid: false, reason: 'Kode kupon tidak ditemukan' });
       }
@@ -311,9 +310,11 @@ router.post(
       }
       // Optional check: customer group membership.
       if (promo.customer_group_ids && promo.customer_group_ids.length > 0 && req.body.customer_id) {
-        const cust = db
-          .prepare('SELECT customer_group_id FROM customers WHERE id = ?')
-          .get(req.body.customer_id);
+        const cust = (
+          await query('SELECT customer_group_id FROM customers WHERE id = $1', [
+            req.body.customer_id,
+          ])
+        ).rows[0];
         if (
           !cust ||
           !cust.customer_group_id ||
@@ -343,71 +344,73 @@ router.post(
   }
 );
 
-router.post('/redeem', authenticateToken, validate({ body: CouponRedeemSchema }), (req, res) => {
+router.post(
+  '/redeem',
+  authenticateToken,
+  validate({ body: CouponRedeemSchema }),
+  async (req, res) => {
+    try {
+      const parsed = { data: req.body };
+      const { coupon, promo } = await loadCouponWithPromo(query, parsed.data.code);
+      if (!coupon) {
+        return res.status(400).json({ valid: false, reason: 'Kode kupon tidak ditemukan' });
+      }
+      const now = new Date();
+      const result = eligibilityCheck(coupon, promo, now, parsed.data);
+      if (!result.valid) {
+        return res.status(400).json({ valid: false, reason: result.reason });
+      }
+      await tx(async (txQuery) => {
+        await txQuery('UPDATE coupons SET used_count = used_count + 1 WHERE id = $1', [coupon.id]);
+        await txQuery('UPDATE promos SET current_use_count = current_use_count + 1 WHERE id = $1', [
+          promo.id,
+        ]);
+        await txQuery(
+          `INSERT INTO coupon_redemptions (coupon_id, transaction_id, customer_id, amount)
+         VALUES ($1, $2, $3, $4)`,
+          [
+            coupon.id,
+            parsed.data.transaction_id ?? null,
+            parsed.data.customer_id ?? null,
+            parsed.data.amount ?? 0,
+          ]
+        );
+      });
+      const refreshed = (await query('SELECT * FROM coupons WHERE id = $1', [coupon.id])).rows[0];
+      res.json({
+        valid: true,
+        coupon: refreshed,
+        promo: {
+          id: promo.id,
+          name: promo.name,
+          promo_type: promo.promo_type,
+          discount_value: promo.discount_value,
+          max_discount: promo.max_discount,
+          min_purchase: promo.min_purchase,
+        },
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+router.delete('/batch/:batch_id', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const parsed = { data: req.body };
-    const db = getDb();
-    const { coupon, promo } = loadCouponWithPromo(db, parsed.data.code);
-    if (!coupon) {
-      return res.status(400).json({ valid: false, reason: 'Kode kupon tidak ditemukan' });
-    }
-    const now = new Date();
-    const result = eligibilityCheck(coupon, promo, now, parsed.data);
-    if (!result.valid) {
-      return res.status(400).json({ valid: false, reason: result.reason });
-    }
-    const tx = db.transaction(() => {
-      db.prepare('UPDATE coupons SET used_count = used_count + 1 WHERE id = ?').run(coupon.id);
-      db.prepare('UPDATE promos SET current_use_count = current_use_count + 1 WHERE id = ?').run(
-        promo.id
-      );
-      db.prepare(
-        `INSERT INTO coupon_redemptions (coupon_id, transaction_id, customer_id, amount)
-         VALUES (?, ?, ?, ?)`
-      ).run(
-        coupon.id,
-        parsed.data.transaction_id ?? null,
-        parsed.data.customer_id ?? null,
-        parsed.data.amount ?? 0
-      );
-    });
-    tx();
-    const refreshed = db.prepare('SELECT * FROM coupons WHERE id = ?').get(coupon.id);
-    res.json({
-      valid: true,
-      coupon: refreshed,
-      promo: {
-        id: promo.id,
-        name: promo.name,
-        promo_type: promo.promo_type,
-        discount_value: promo.discount_value,
-        max_discount: promo.max_discount,
-        min_purchase: promo.min_purchase,
-      },
-    });
+    const result = await query('UPDATE coupons SET is_active = 0 WHERE batch_id = $1', [
+      req.params.batch_id,
+    ]);
+    res.json({ message: 'Batch dinonaktifkan', updated: result.rowCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.delete('/batch/:batch_id', authenticateToken, requireAdmin, (req, res) => {
+router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const db = getDb();
-    const result = db
-      .prepare('UPDATE coupons SET is_active = 0 WHERE batch_id = ?')
-      .run(req.params.batch_id);
-    res.json({ message: 'Batch dinonaktifkan', updated: result.changes });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
-  try {
-    const db = getDb();
-    const existing = db.prepare('SELECT id FROM coupons WHERE id = ?').get(req.params.id);
+    const existing = (await query('SELECT id FROM coupons WHERE id = $1', [req.params.id])).rows[0];
     if (!existing) return res.status(404).json({ error: 'Kupon tidak ditemukan' });
-    db.prepare('DELETE FROM coupons WHERE id = ?').run(req.params.id);
+    await query('DELETE FROM coupons WHERE id = $1', [req.params.id]);
     res.json({ message: 'Kupon dihapus' });
   } catch (err) {
     res.status(500).json({ error: err.message });
