@@ -61,6 +61,7 @@ function userSummary(user) {
     username: user.username,
     name: user.name,
     role: user.role,
+    tenant_id: user.tenant_id ?? null,
   };
 }
 
@@ -360,9 +361,10 @@ router.post(
 router.get('/me', authenticateToken, async (req, res) => {
   try {
     const user = (
-      await query('SELECT id, username, name, role, email, totp_enabled FROM users WHERE id = $1', [
-        req.user.id,
-      ])
+      await query(
+        'SELECT id, username, name, role, email, totp_enabled, tenant_id FROM users WHERE id = $1',
+        [req.user.id]
+      )
     ).rows[0];
     res.json({ user: user || req.user });
   } catch (err) {
