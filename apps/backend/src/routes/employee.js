@@ -3,6 +3,7 @@ const express = require('express');
 const { query, tx, iLikePattern } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
+const { safeLogAudit, ACTIONS } = require('../lib/audit');
 const {
   EmployeeCreateSchema,
   EmployeeUpdateSchema,
@@ -174,7 +175,14 @@ router.post(
       );
       const created = (await query(`SELECT * FROM employees WHERE id = $1`, [ins.rows[0].id]))
         .rows[0];
-      res.status(201).json(rowToEmployee(created));
+      const created_view = rowToEmployee(created);
+      await safeLogAudit(req, {
+        entity: 'employee',
+        entity_id: created.id,
+        action: ACTIONS.CREATE,
+        after: created_view,
+      });
+      res.status(201).json(created_view);
     } catch (err) {
       res.status(500).json({ error: 'Failed to create employee', details: err.message });
     }
@@ -191,6 +199,7 @@ router.put(
       const id = parseInt(req.params.id, 10);
       const exists = (await query(`SELECT id FROM employees WHERE id = $1`, [id])).rows[0];
       if (!exists) return res.status(404).json({ error: 'Employee not found' });
+      const before = (await query(`SELECT * FROM employees WHERE id = $1`, [id])).rows[0];
       const data = req.body;
       const allowed = [
         'name',
@@ -248,6 +257,13 @@ router.put(
       values.push(id);
       await query(`UPDATE employees SET ${fields.join(', ')} WHERE id = $${p}`, values);
       const row = (await query(`SELECT * FROM employees WHERE id = $1`, [id])).rows[0];
+      await safeLogAudit(req, {
+        entity: 'employee',
+        entity_id: id,
+        action: ACTIONS.UPDATE,
+        before: rowToEmployee(before),
+        after: rowToEmployee(row),
+      });
       res.json(rowToEmployee(row));
     } catch (err) {
       res.status(500).json({ error: 'Failed to update employee', details: err.message });
@@ -258,15 +274,31 @@ router.put(
 router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
-    const exists = (await query(`SELECT id FROM employees WHERE id = $1`, [id])).rows[0];
-    if (!exists) return res.status(404).json({ error: 'Employee not found' });
+    const before = (await query(`SELECT * FROM employees WHERE id = $1`, [id])).rows[0];
+    if (!before) return res.status(404).json({ error: 'Employee not found' });
     if (req.query.hard === '1') {
       await query(`DELETE FROM employees WHERE id = $1`, [id]);
+      await safeLogAudit(req, {
+        entity: 'employee',
+        entity_id: id,
+        action: ACTIONS.DELETE,
+        before: rowToEmployee(before),
+      });
     } else {
       await query(
         `UPDATE employees SET status = 'resigned', date_resigned = COALESCE(date_resigned, CURRENT_DATE), updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
         [id]
       );
+      const after = (await query(`SELECT * FROM employees WHERE id = $1`, [id])).rows[0];
+      // Soft delete keeps the row, log as UPDATE so consumers can tell
+      // it apart from a hard delete.
+      await safeLogAudit(req, {
+        entity: 'employee',
+        entity_id: id,
+        action: ACTIONS.UPDATE,
+        before: rowToEmployee(before),
+        after: rowToEmployee(after),
+      });
     }
     res.json({ success: true });
   } catch (err) {
@@ -340,6 +372,12 @@ router.put(
       const id = parseInt(req.params.id, 10);
       const exists = (await query(`SELECT id FROM employees WHERE id = $1`, [id])).rows[0];
       if (!exists) return res.status(404).json({ error: 'Employee not found' });
+      const before = (
+        await query(
+          `SELECT * FROM permission_overrides WHERE employee_id = $1 ORDER BY permission_key ASC`,
+          [id]
+        )
+      ).rows;
       await tx(async (txQuery) => {
         for (const p of req.body.permissions) {
           await txQuery(
@@ -357,6 +395,13 @@ router.put(
           [id]
         )
       ).rows;
+      await safeLogAudit(req, {
+        entity: 'employee_permission',
+        entity_id: id,
+        action: ACTIONS.PERMISSION_CHANGE,
+        before,
+        after: rows,
+      });
       res.json(rows);
     } catch (err) {
       res.status(500).json({ error: 'Failed to update permissions', details: err.message });

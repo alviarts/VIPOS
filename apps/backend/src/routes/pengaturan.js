@@ -6,6 +6,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { query, tx } = require('../db');
 const { authenticateToken } = require('../middleware/auth');
+const { safeLogAudit, ACTIONS } = require('../lib/audit');
 
 // ============================================================
 // 1. /api/outlet
@@ -56,13 +57,20 @@ outletRouter.post('/', authenticateToken, async (req, res) => {
   if (data.is_main) {
     await query(`UPDATE outlets SET is_main = 0 WHERE id != $1`, [newId]);
   }
+  const created = (await query(`SELECT * FROM outlets WHERE id = $1`, [newId])).rows[0];
+  await safeLogAudit(req, {
+    entity: 'outlet',
+    entity_id: newId,
+    action: ACTIONS.CREATE,
+    after: created,
+  });
   res.status(201).json({ id: newId });
 });
 
 outletRouter.put('/:id', authenticateToken, async (req, res) => {
   const data = req.body || {};
-  const exists = (await query(`SELECT id FROM outlets WHERE id = $1`, [req.params.id])).rows[0];
-  if (!exists) return res.status(404).json({ error: 'Not found' });
+  const before = (await query(`SELECT * FROM outlets WHERE id = $1`, [req.params.id])).rows[0];
+  if (!before) return res.status(404).json({ error: 'Not found' });
   const fields = [
     'code',
     'name',
@@ -100,12 +108,27 @@ outletRouter.put('/:id', authenticateToken, async (req, res) => {
   if (data.is_main) {
     await query(`UPDATE outlets SET is_main = 0 WHERE id != $1`, [req.params.id]);
   }
+  const after = (await query(`SELECT * FROM outlets WHERE id = $1`, [req.params.id])).rows[0];
+  await safeLogAudit(req, {
+    entity: 'outlet',
+    entity_id: req.params.id,
+    action: ACTIONS.UPDATE,
+    before,
+    after,
+  });
   res.json({ ok: true });
 });
 
 outletRouter.delete('/:id', authenticateToken, async (req, res) => {
   try {
+    const before = (await query(`SELECT * FROM outlets WHERE id = $1`, [req.params.id])).rows[0];
     await query(`DELETE FROM outlets WHERE id = $1`, [req.params.id]);
+    await safeLogAudit(req, {
+      entity: 'outlet',
+      entity_id: req.params.id,
+      action: ACTIONS.DELETE,
+      before,
+    });
     res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -420,11 +443,21 @@ paymentMethodRouter.post('/', authenticateToken, async (req, res) => {
       Number(d.sort_order) || 0,
     ]
   );
+  const created = (await query(`SELECT * FROM payment_methods WHERE id = $1`, [ins.rows[0].id]))
+    .rows[0];
+  await safeLogAudit(req, {
+    entity: 'payment_method',
+    entity_id: created.id,
+    action: ACTIONS.CREATE,
+    after: created,
+  });
   res.status(201).json({ id: ins.rows[0].id });
 });
 
 paymentMethodRouter.put('/:id', authenticateToken, async (req, res) => {
   const d = req.body || {};
+  const before = (await query(`SELECT * FROM payment_methods WHERE id = $1`, [req.params.id]))
+    .rows[0];
   const fields = [
     'code',
     'name',
@@ -451,11 +484,28 @@ paymentMethodRouter.put('/:id', authenticateToken, async (req, res) => {
   if (sets.length === 0) return res.json({ ok: true });
   params.push(req.params.id);
   await query(`UPDATE payment_methods SET ${sets.join(', ')} WHERE id = $${p}`, params);
+  const after = (await query(`SELECT * FROM payment_methods WHERE id = $1`, [req.params.id]))
+    .rows[0];
+  await safeLogAudit(req, {
+    entity: 'payment_method',
+    entity_id: req.params.id,
+    action: ACTIONS.UPDATE,
+    before,
+    after,
+  });
   res.json({ ok: true });
 });
 
 paymentMethodRouter.delete('/:id', authenticateToken, async (req, res) => {
+  const before = (await query(`SELECT * FROM payment_methods WHERE id = $1`, [req.params.id]))
+    .rows[0];
   await query(`DELETE FROM payment_methods WHERE id = $1`, [req.params.id]);
+  await safeLogAudit(req, {
+    entity: 'payment_method',
+    entity_id: req.params.id,
+    action: ACTIONS.DELETE,
+    before,
+  });
   res.json({ ok: true });
 });
 
@@ -482,11 +532,20 @@ taxRateRouter.post('/', authenticateToken, async (req, res) => {
       d.is_active === false ? 0 : 1,
     ]
   );
+  const created = (await query(`SELECT * FROM tax_rates WHERE id = $1`, [ins.rows[0].id]))
+    .rows[0];
+  await safeLogAudit(req, {
+    entity: 'tax_rate',
+    entity_id: created.id,
+    action: ACTIONS.CREATE,
+    after: created,
+  });
   res.status(201).json({ id: ins.rows[0].id });
 });
 
 taxRateRouter.put('/:id', authenticateToken, async (req, res) => {
   const d = req.body || {};
+  const before = (await query(`SELECT * FROM tax_rates WHERE id = $1`, [req.params.id])).rows[0];
   const fields = ['code', 'name', 'rate'];
   const sets = [];
   const params = [];
@@ -508,11 +567,26 @@ taxRateRouter.put('/:id', authenticateToken, async (req, res) => {
   if (sets.length === 0) return res.json({ ok: true });
   params.push(req.params.id);
   await query(`UPDATE tax_rates SET ${sets.join(', ')} WHERE id = $${p}`, params);
+  const after = (await query(`SELECT * FROM tax_rates WHERE id = $1`, [req.params.id])).rows[0];
+  await safeLogAudit(req, {
+    entity: 'tax_rate',
+    entity_id: req.params.id,
+    action: ACTIONS.UPDATE,
+    before,
+    after,
+  });
   res.json({ ok: true });
 });
 
 taxRateRouter.delete('/:id', authenticateToken, async (req, res) => {
+  const before = (await query(`SELECT * FROM tax_rates WHERE id = $1`, [req.params.id])).rows[0];
   await query(`DELETE FROM tax_rates WHERE id = $1`, [req.params.id]);
+  await safeLogAudit(req, {
+    entity: 'tax_rate',
+    entity_id: req.params.id,
+    action: ACTIONS.DELETE,
+    before,
+  });
   res.json({ ok: true });
 });
 

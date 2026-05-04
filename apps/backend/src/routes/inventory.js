@@ -3,6 +3,7 @@ const express = require('express');
 const { query, tx } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
+const { safeLogAudit, ACTIONS } = require('../lib/audit');
 const { InventoryMovementCreateSchema } = require('@vipos/shared');
 
 const router = express.Router();
@@ -152,6 +153,16 @@ router.post(
           [id]
         )
       ).rows[0];
+      // Inventory movements are immutable inserts that mutate product
+      // stock as a side effect, so we record the create + the resulting
+      // stock delta on the product row.
+      await safeLogAudit(req, {
+        entity: 'inventory_movement',
+        entity_id: id,
+        action: ACTIONS.CREATE,
+        before: { product_id, stock: stokSebelum },
+        after: { ...row, stock_after: stokSesudah },
+      });
       res.status(201).json(row);
     } catch (err) {
       res.status(500).json({ error: err.message });

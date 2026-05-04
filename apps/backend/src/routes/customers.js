@@ -2,6 +2,7 @@ const express = require('express');
 const { query, tx, iLikePattern } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
+const { safeLogAudit, ACTIONS } = require('../lib/audit');
 const {
   CustomerCreateSchema,
   CustomerUpdateSchema,
@@ -395,6 +396,12 @@ router.post('/', authenticateToken, validate({ body: CustomerCreateSchema }), as
       await applyTagsTransaction(newId, tag_ids);
     }
     const row = (await query('SELECT * FROM customers WHERE id = $1', [newId])).rows[0];
+    await safeLogAudit(req, {
+      entity: 'customer',
+      entity_id: newId,
+      action: ACTIONS.CREATE,
+      after: row,
+    });
     res.status(201).json(row);
   } catch (err) {
     if (err.code === '23505') {
@@ -466,6 +473,13 @@ router.put(
       }
 
       const row = (await query('SELECT * FROM customers WHERE id = $1', [req.params.id])).rows[0];
+      await safeLogAudit(req, {
+        entity: 'customer',
+        entity_id: req.params.id,
+        action: ACTIONS.UPDATE,
+        before: existing,
+        after: row,
+      });
       res.json(row);
     } catch (err) {
       if (err.code === '23505') {
@@ -478,6 +492,8 @@ router.put(
 
 router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
+    const before = (await query('SELECT * FROM customers WHERE id = $1', [req.params.id]))
+      .rows[0];
     const used = (
       await query('SELECT COUNT(*) as count FROM transactions WHERE customer_id = $1', [
         req.params.id,
@@ -485,11 +501,26 @@ router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
     ).rows[0];
     if (Number(used.count) > 0) {
       await query('UPDATE customers SET is_active = 0 WHERE id = $1', [req.params.id]);
+      const after = (await query('SELECT * FROM customers WHERE id = $1', [req.params.id]))
+        .rows[0];
+      await safeLogAudit(req, {
+        entity: 'customer',
+        entity_id: req.params.id,
+        action: ACTIONS.UPDATE,
+        before,
+        after,
+      });
       return res.json({
         message: 'Pelanggan dinonaktifkan karena sudah memiliki riwayat transaksi',
       });
     }
     await query('DELETE FROM customers WHERE id = $1', [req.params.id]);
+    await safeLogAudit(req, {
+      entity: 'customer',
+      entity_id: req.params.id,
+      action: ACTIONS.DELETE,
+      before,
+    });
     res.json({ message: 'Pelanggan berhasil dihapus' });
   } catch (err) {
     res.status(500).json({ error: err.message });

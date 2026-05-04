@@ -1,6 +1,7 @@
 const express = require('express');
 const { query, tx } = require('../db');
 const { authenticateToken } = require('../middleware/auth');
+const { safeLogAudit, ACTIONS } = require('../lib/audit');
 
 const router = express.Router();
 
@@ -213,6 +214,16 @@ router.post('/:id/void', authenticateToken, async (req, res) => {
           item.product_id,
         ]);
       }
+    });
+
+    const after = (await query('SELECT * FROM transactions WHERE id = $1', [req.params.id]))
+      .rows[0];
+    await safeLogAudit(req, {
+      entity: 'transaction',
+      entity_id: req.params.id,
+      action: ACTIONS.VOID,
+      before: { ...transaction, items },
+      after,
     });
 
     res.json({ message: 'Transaksi berhasil dibatalkan' });

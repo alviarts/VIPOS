@@ -2,6 +2,7 @@ const express = require('express');
 const { query, iLikePattern } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
+const { safeLogAudit, ACTIONS } = require('../lib/audit');
 const { ProductCreateSchema, ProductUpdateSchema } = require('@vipos/shared');
 
 const router = express.Router();
@@ -214,6 +215,12 @@ router.post(
 
       const product = (await query(`${PRODUCT_SELECT} WHERE p.id = $1`, [result.rows[0].id]))
         .rows[0];
+      await safeLogAudit(req, {
+        entity: 'product',
+        entity_id: product.id,
+        action: ACTIONS.CREATE,
+        after: product,
+      });
       res.status(201).json(product);
     } catch (err) {
       if (err.code === '23505') {
@@ -258,6 +265,8 @@ router.put(
         Array.isArray(image_urls) && image_urls.length
           ? JSON.stringify(image_urls.slice(0, 4))
           : null;
+
+      const before = (await query(`${PRODUCT_SELECT} WHERE p.id = $1`, [req.params.id])).rows[0];
 
       await query(
         `UPDATE products
@@ -307,6 +316,13 @@ router.put(
       );
 
       const product = (await query(`${PRODUCT_SELECT} WHERE p.id = $1`, [req.params.id])).rows[0];
+      await safeLogAudit(req, {
+        entity: 'product',
+        entity_id: req.params.id,
+        action: ACTIONS.UPDATE,
+        before,
+        after: product,
+      });
       res.json(product);
     } catch (err) {
       if (err.code === '23505') {
@@ -320,6 +336,7 @@ router.put(
 // Delete product
 router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
+    const before = (await query(`${PRODUCT_SELECT} WHERE p.id = $1`, [req.params.id])).rows[0];
     const hasTransactions = (
       await query('SELECT COUNT(*) as count FROM transaction_items WHERE product_id = $1', [
         req.params.id,
@@ -333,12 +350,29 @@ router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
 
     if (Number(hasTransactions.count) > 0 || Number(hasMovements.count) > 0) {
       await query('UPDATE products SET is_active = 0 WHERE id = $1', [req.params.id]);
+      const after = (await query(`${PRODUCT_SELECT} WHERE p.id = $1`, [req.params.id])).rows[0];
+      // Soft-delete keeps the row, so log it as an UPDATE (is_active 1->0)
+      // rather than a DELETE so downstream consumers can tell the
+      // difference between archived and truly gone.
+      await safeLogAudit(req, {
+        entity: 'product',
+        entity_id: req.params.id,
+        action: ACTIONS.UPDATE,
+        before,
+        after,
+      });
       return res.json({
         message: 'Produk dinonaktifkan karena sudah memiliki riwayat transaksi/stok',
       });
     }
 
     await query('DELETE FROM products WHERE id = $1', [req.params.id]);
+    await safeLogAudit(req, {
+      entity: 'product',
+      entity_id: req.params.id,
+      action: ACTIONS.DELETE,
+      before,
+    });
     res.json({ message: 'Produk berhasil dihapus' });
   } catch (err) {
     res.status(500).json({ error: err.message });

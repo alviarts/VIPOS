@@ -2,6 +2,7 @@ const express = require('express');
 const { query } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
+const { safeLogAudit, ACTIONS } = require('../lib/audit');
 const {
   CashAccountCreateSchema,
   CashAccountUpdateSchema,
@@ -73,6 +74,12 @@ router.post(
       );
       const row = (await query('SELECT * FROM cash_accounts WHERE id = $1', [ins.rows[0].id]))
         .rows[0];
+      await safeLogAudit(req, {
+        entity: 'cash_account',
+        entity_id: row.id,
+        action: ACTIONS.CREATE,
+        after: row,
+      });
       res.status(201).json({ ...row, saldo: await getAccountSaldo(query, row.id) });
     } catch (err) {
       if (err.code === '23505') {
@@ -110,6 +117,13 @@ router.put(
       );
       const row = (await query('SELECT * FROM cash_accounts WHERE id = $1', [req.params.id]))
         .rows[0];
+      await safeLogAudit(req, {
+        entity: 'cash_account',
+        entity_id: req.params.id,
+        action: ACTIONS.UPDATE,
+        before: existing,
+        after: row,
+      });
       res.json({ ...row, saldo: await getAccountSaldo(query, row.id) });
     } catch (err) {
       if (err.code === '23505') {
@@ -122,6 +136,8 @@ router.put(
 
 router.delete('/accounts/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
+    const before = (await query('SELECT * FROM cash_accounts WHERE id = $1', [req.params.id]))
+      .rows[0];
     const used = (
       await query(
         'SELECT COUNT(*) as count FROM cash_transactions WHERE account_id = $1 OR account_to_id = $2',
@@ -130,11 +146,26 @@ router.delete('/accounts/:id', authenticateToken, requireAdmin, async (req, res)
     ).rows[0];
     if (Number(used.count) > 0) {
       await query('UPDATE cash_accounts SET is_active = 0 WHERE id = $1', [req.params.id]);
+      const after = (await query('SELECT * FROM cash_accounts WHERE id = $1', [req.params.id]))
+        .rows[0];
+      await safeLogAudit(req, {
+        entity: 'cash_account',
+        entity_id: req.params.id,
+        action: ACTIONS.UPDATE,
+        before,
+        after,
+      });
       return res.json({
         message: 'Akun dinonaktifkan karena sudah memiliki transaksi',
       });
     }
     await query('DELETE FROM cash_accounts WHERE id = $1', [req.params.id]);
+    await safeLogAudit(req, {
+      entity: 'cash_account',
+      entity_id: req.params.id,
+      action: ACTIONS.DELETE,
+      before,
+    });
     res.json({ message: 'Akun berhasil dihapus' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -233,6 +264,12 @@ router.post(
           [ins.rows[0].id]
         )
       ).rows[0];
+      await safeLogAudit(req, {
+        entity: 'cash_transaction',
+        entity_id: row.id,
+        action: ACTIONS.CREATE,
+        after: row,
+      });
       res.status(201).json(row);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -242,7 +279,15 @@ router.post(
 
 router.delete('/transactions/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
+    const before = (await query('SELECT * FROM cash_transactions WHERE id = $1', [req.params.id]))
+      .rows[0];
     await query('DELETE FROM cash_transactions WHERE id = $1', [req.params.id]);
+    await safeLogAudit(req, {
+      entity: 'cash_transaction',
+      entity_id: req.params.id,
+      action: ACTIONS.DELETE,
+      before,
+    });
     res.json({ message: 'Transaksi keuangan dihapus' });
   } catch (err) {
     res.status(500).json({ error: err.message });
