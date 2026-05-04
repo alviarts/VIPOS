@@ -11,7 +11,7 @@
 
 ---
 
-### P2-01: Migrate SQLite → Postgres `[in_progress]`
+### P2-01: Migrate SQLite → Postgres `[done]`
 
 **Goal**: Migrate dari `better-sqlite3` ke Postgres (Prisma + Supabase). Schema migration tools + zero-data-loss data sync.
 
@@ -30,7 +30,8 @@
 
 - **P2-01a — Infrastructure** `[done]`: Prisma + schema + initial migration + data sync tool + backup script + .env.example. Routes belum migrate; semua test masih jalan via better-sqlite3.
   PR: [#41](https://github.com/alviarts/VIPOS/pull/41) (merged 2026-05-04, sha `b9d6869`), session: https://app.devin.ai/sessions/b8f03d6f55d34ed1acb3242d3fb8f910
-- **P2-01b — Route cutover** `[pending]`: Replace 759 raw SQL `.prepare()` calls di 45 route file → Prisma client. Drop better-sqlite3 dependency. Production deploy switch ke Postgres.
+- **P2-01b — Route cutover + Postgres-only finalstep** `[done]`: Async query layer (`db/index.js` + `driver-postgres.js`), 25 route file di-cutover ke `await query(...)` dengan Postgres `$1, $2, ...` placeholder + `RETURNING`. SQLite-isms (`UNIQUE` error string match, `GROUP_CONCAT`, `MAX(a,b)` scalar, `COLLATE NOCASE`, `ROUND(double, n)`, `sqlite_master`) di-rewrite ke Postgres-portable SQL. `models/database.js`, `db/driver-sqlite.js`, `utils/seed.js`, `__tests__/db-query-layer.test.mjs` dihapus. `better-sqlite3` di-drop dari `package.json`. CI workflow tambah Postgres 16 service container + `npx prisma migrate deploy` step. 372/372 backend tests pass terhadap Postgres real.
+  PR: [#43](https://github.com/alviarts/VIPOS/pull/43) (merged 2026-05-04, sha `f34c37e`), session: https://app.devin.ai/sessions/b119a589edff4feda4df2cc239454807
 
 **Acceptance criteria**:
 
@@ -41,12 +42,12 @@
 - [x] Backup script + restore drill `[P2-01a]`
 - [x] Connection pooling enabled (PgBouncer 6543 transaction mode) `[P2-01a]`
 - [x] Zero-data-loss verifier (row count parity per table) `[P2-01a]`
-- [ ] Seed script di-port `[P2-01b]`
-- [ ] Existing endpoints semua working di Postgres `[P2-01b]`
-- [ ] Drop better-sqlite3 dependency `[P2-01b]`
+- [x] Seed script di-port (Postgres-native `db/init.js` — admin user, CoA, outlet, taxes, payment methods, UoM, lainnya defaults) `[P2-01b]`
+- [x] Existing endpoints semua working di Postgres (372/372 backend tests pass) `[P2-01b]`
+- [x] Drop better-sqlite3 dependency `[P2-01b]`
 
-**Branch**: `devin/P2-01a-postgres-infrastructure` (P2-01a, merged), `devin/P2-01b-prisma-cutover` (P2-01b, future)
-**Estimasi**: 5-7 hari (P2-01a ✅ 1 hari, P2-01b 4-6 hari)
+**Branch**: `devin/P2-01a-postgres-infrastructure` (P2-01a, merged), `devin/P2-01b-prisma-cutover` (P2-01b, merged)
+**Estimasi**: 5-7 hari (P2-01a ✅ 1 hari, P2-01b ✅ ~2 hari)
 
 ---
 
