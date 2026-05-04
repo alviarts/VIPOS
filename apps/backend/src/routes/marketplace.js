@@ -14,7 +14,7 @@
 // swap kode di /connect + scheduler untuk token refresh.
 const crypto = require('crypto');
 const express = require('express');
-const { getDb } = require('../models/database');
+const { query } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const {
@@ -35,26 +35,31 @@ function ensureProvider(provider, res) {
   return true;
 }
 
-function loadConnection(db, provider) {
-  return db.prepare('SELECT * FROM marketplace_connections WHERE provider = ?').get(provider);
+async function loadConnection(provider) {
+  return (await query('SELECT * FROM marketplace_connections WHERE provider = $1', [provider]))
+    .rows[0];
 }
 
-function ensureConnectionRow(db, provider) {
-  let conn = loadConnection(db, provider);
+async function ensureConnectionRow(provider) {
+  let conn = await loadConnection(provider);
   if (!conn) {
-    db.prepare(
-      `INSERT INTO marketplace_connections (provider, status) VALUES (?, 'disconnected')`
-    ).run(provider);
-    conn = loadConnection(db, provider);
+    await query(
+      `INSERT INTO marketplace_connections (provider, status) VALUES ($1, 'disconnected')`,
+      [provider]
+    );
+    conn = await loadConnection(provider);
   }
   return conn;
 }
 
-router.get('/', authenticateToken, (_req, res) => {
-  const db = getDb();
-  for (const p of VALID_PROVIDERS) ensureConnectionRow(db, p);
-  const rows = db.prepare('SELECT * FROM marketplace_connections ORDER BY provider').all();
-  res.json(rows);
+router.get('/', authenticateToken, async (_req, res) => {
+  try {
+    for (const p of VALID_PROVIDERS) await ensureConnectionRow(p);
+    const rows = (await query('SELECT * FROM marketplace_connections ORDER BY provider')).rows;
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.post(
@@ -62,49 +67,57 @@ router.post(
   authenticateToken,
   requireAdmin,
   validate({ body: MarketplaceConnectSchema }),
-  (req, res) => {
-    const { provider } = req.params;
-    if (!ensureProvider(provider, res)) return;
-    const db = getDb();
-    ensureConnectionRow(db, provider);
-    const oauthToken = `mock_${crypto.randomBytes(16).toString('hex')}`;
-    const refreshToken = `mock_refresh_${crypto.randomBytes(16).toString('hex')}`;
-    const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
-    db.prepare(
-      `UPDATE marketplace_connections SET
-         status='connected', merchant_id=?, outlet_id=?, oauth_token=?, refresh_token=?,
-         token_expires_at=?, auto_accept=?, sla_accept_minutes=?, sla_ready_minutes=?,
-         mdr_percent=?, price_markup_percent=?, connected_at=CURRENT_TIMESTAMP,
-         updated_at=CURRENT_TIMESTAMP
-       WHERE provider = ?`
-    ).run(
-      req.body.merchant_id,
-      req.body.outlet_id || null,
-      oauthToken,
-      refreshToken,
-      expiresAt,
-      Number(req.body.auto_accept || 0),
-      req.body.sla_accept_minutes,
-      req.body.sla_ready_minutes,
-      req.body.mdr_percent,
-      req.body.price_markup_percent,
-      provider
-    );
-    res.json(loadConnection(db, provider));
+  async (req, res) => {
+    try {
+      const { provider } = req.params;
+      if (!ensureProvider(provider, res)) return;
+      await ensureConnectionRow(provider);
+      const oauthToken = `mock_${crypto.randomBytes(16).toString('hex')}`;
+      const refreshToken = `mock_refresh_${crypto.randomBytes(16).toString('hex')}`;
+      const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+      await query(
+        `UPDATE marketplace_connections SET
+           status='connected', merchant_id=$1, outlet_id=$2, oauth_token=$3, refresh_token=$4,
+           token_expires_at=$5, auto_accept=$6, sla_accept_minutes=$7, sla_ready_minutes=$8,
+           mdr_percent=$9, price_markup_percent=$10, connected_at=CURRENT_TIMESTAMP,
+           updated_at=CURRENT_TIMESTAMP
+         WHERE provider = $11`,
+        [
+          req.body.merchant_id,
+          req.body.outlet_id || null,
+          oauthToken,
+          refreshToken,
+          expiresAt,
+          Number(req.body.auto_accept || 0),
+          req.body.sla_accept_minutes,
+          req.body.sla_ready_minutes,
+          req.body.mdr_percent,
+          req.body.price_markup_percent,
+          provider,
+        ]
+      );
+      res.json(await loadConnection(provider));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   }
 );
 
-router.post('/:provider/disconnect', authenticateToken, requireAdmin, (req, res) => {
-  const { provider } = req.params;
-  if (!ensureProvider(provider, res)) return;
-  const db = getDb();
-  db.prepare(
-    `UPDATE marketplace_connections SET
+router.post('/:provider/disconnect', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { provider } = req.params;
+    if (!ensureProvider(provider, res)) return;
+    await query(
+      `UPDATE marketplace_connections SET
          status='disconnected', oauth_token=NULL, refresh_token=NULL,
          token_expires_at=NULL, updated_at=CURRENT_TIMESTAMP
-       WHERE provider = ?`
-  ).run(provider);
-  res.json({ message: 'Disconnected' });
+       WHERE provider = $1`,
+      [provider]
+    );
+    res.json({ message: 'Disconnected' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.put(
@@ -112,79 +125,90 @@ router.put(
   authenticateToken,
   requireAdmin,
   validate({ body: MarketplaceUpdateSchema }),
-  (req, res) => {
-    const { provider } = req.params;
-    if (!ensureProvider(provider, res)) return;
-    const db = getDb();
-    const conn = loadConnection(db, provider);
-    if (!conn) return res.status(404).json({ error: 'Tidak ditemukan' });
-    const fields = [];
-    const params = [];
-    const allowed = [
-      'auto_accept',
-      'sla_accept_minutes',
-      'sla_ready_minutes',
-      'mdr_percent',
-      'price_markup_percent',
-      'status',
-    ];
-    for (const k of allowed) {
-      if (k in req.body) {
-        fields.push(`${k} = ?`);
-        params.push(req.body[k]);
+  async (req, res) => {
+    try {
+      const { provider } = req.params;
+      if (!ensureProvider(provider, res)) return;
+      const conn = await loadConnection(provider);
+      if (!conn) return res.status(404).json({ error: 'Tidak ditemukan' });
+      const fields = [];
+      const params = [];
+      let p = 1;
+      const allowed = [
+        'auto_accept',
+        'sla_accept_minutes',
+        'sla_ready_minutes',
+        'mdr_percent',
+        'price_markup_percent',
+        'status',
+      ];
+      for (const k of allowed) {
+        if (k in req.body) {
+          fields.push(`${k} = $${p++}`);
+          params.push(req.body[k]);
+        }
       }
+      if (!fields.length) {
+        return res.json(conn);
+      }
+      fields.push('updated_at = CURRENT_TIMESTAMP');
+      params.push(provider);
+      await query(
+        `UPDATE marketplace_connections SET ${fields.join(', ')} WHERE provider = $${p}`,
+        params
+      );
+      res.json(await loadConnection(provider));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-    if (!fields.length) {
-      return res.json(conn);
-    }
-    fields.push('updated_at = CURRENT_TIMESTAMP');
-    params.push(provider);
-    db.prepare(`UPDATE marketplace_connections SET ${fields.join(', ')} WHERE provider = ?`).run(
-      ...params
-    );
-    res.json(loadConnection(db, provider));
   }
 );
 
-router.post('/:provider/sync-products', authenticateToken, requireAdmin, (req, res) => {
-  const { provider } = req.params;
-  if (!ensureProvider(provider, res)) return;
-  const db = getDb();
-  const conn = loadConnection(db, provider);
-  if (!conn || conn.status !== 'connected') {
-    return res.status(400).json({ error: 'Marketplace belum connected' });
+router.post('/:provider/sync-products', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { provider } = req.params;
+    if (!ensureProvider(provider, res)) return;
+    const conn = await loadConnection(provider);
+    if (!conn || conn.status !== 'connected') {
+      return res.status(400).json({ error: 'Marketplace belum connected' });
+    }
+    const result = await query(
+      `UPDATE marketplace_product_overrides SET sync_status='synced', synced_at=CURRENT_TIMESTAMP, sync_error=NULL, updated_at=CURRENT_TIMESTAMP WHERE provider = $1`,
+      [provider]
+    );
+    const lastSyncAt = new Date().toISOString();
+    await query(
+      `UPDATE marketplace_connections SET last_sync_at=$1, updated_at=CURRENT_TIMESTAMP WHERE provider = $2`,
+      [lastSyncAt, provider]
+    );
+    res.json({
+      synced: result.rowCount,
+      failed: 0,
+      last_sync_at: lastSyncAt,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  // Mock sync — semua override pending → synced.
-  const result = db
-    .prepare(
-      `UPDATE marketplace_product_overrides SET sync_status='synced', synced_at=CURRENT_TIMESTAMP, sync_error=NULL, updated_at=CURRENT_TIMESTAMP WHERE provider = ?`
-    )
-    .run(provider);
-  const lastSyncAt = new Date().toISOString();
-  db.prepare(
-    `UPDATE marketplace_connections SET last_sync_at=?, updated_at=CURRENT_TIMESTAMP WHERE provider = ?`
-  ).run(lastSyncAt, provider);
-  res.json({
-    synced: result.changes,
-    failed: 0,
-    last_sync_at: lastSyncAt,
-  });
 });
 
-router.get('/:provider/products', authenticateToken, (req, res) => {
-  const { provider } = req.params;
-  if (!ensureProvider(provider, res)) return;
-  const db = getDb();
-  const rows = db
-    .prepare(
-      `SELECT mpo.*, p.name AS product_name, p.sku AS product_sku, p.price AS base_price
-       FROM marketplace_product_overrides mpo
-       JOIN products p ON p.id = mpo.product_id
-       WHERE mpo.provider = ?
-       ORDER BY p.name ASC`
-    )
-    .all(provider);
-  res.json(rows);
+router.get('/:provider/products', authenticateToken, async (req, res) => {
+  try {
+    const { provider } = req.params;
+    if (!ensureProvider(provider, res)) return;
+    const rows = (
+      await query(
+        `SELECT mpo.*, p.name AS product_name, p.sku AS product_sku, p.price AS base_price
+         FROM marketplace_product_overrides mpo
+         JOIN products p ON p.id = mpo.product_id
+         WHERE mpo.provider = $1
+         ORDER BY p.name ASC`,
+        [provider]
+      )
+    ).rows;
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.post(
@@ -192,95 +216,112 @@ router.post(
   authenticateToken,
   requireAdmin,
   validate({ body: MarketplaceOverrideUpsertSchema }),
-  (req, res) => {
-    const { provider } = req.params;
-    if (!ensureProvider(provider, res)) return;
-    const db = getDb();
-    const product = db.prepare('SELECT id FROM products WHERE id = ?').get(req.body.product_id);
-    if (!product) {
-      return res.status(404).json({ error: 'Produk tidak ditemukan' });
-    }
-    const existing = db
-      .prepare('SELECT id FROM marketplace_product_overrides WHERE provider = ? AND product_id = ?')
-      .get(provider, req.body.product_id);
+  async (req, res) => {
+    try {
+      const { provider } = req.params;
+      if (!ensureProvider(provider, res)) return;
+      const product = (await query('SELECT id FROM products WHERE id = $1', [req.body.product_id]))
+        .rows[0];
+      if (!product) {
+        return res.status(404).json({ error: 'Produk tidak ditemukan' });
+      }
+      const existing = (
+        await query(
+          'SELECT id FROM marketplace_product_overrides WHERE provider = $1 AND product_id = $2',
+          [provider, req.body.product_id]
+        )
+      ).rows[0];
 
-    if (existing) {
-      db.prepare(
-        `UPDATE marketplace_product_overrides SET
-           override_name=?, override_price=?, override_image_url=?, is_enabled=?,
-           sync_status='pending', sync_error=NULL, updated_at=CURRENT_TIMESTAMP
-         WHERE id = ?`
-      ).run(
-        req.body.override_name || null,
-        req.body.override_price ?? null,
-        req.body.override_image_url || null,
-        Number(req.body.is_enabled ?? 1),
-        existing.id
-      );
-    } else {
-      db.prepare(
-        `INSERT INTO marketplace_product_overrides
-           (provider, product_id, override_name, override_price, override_image_url, is_enabled)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      ).run(
-        provider,
-        req.body.product_id,
-        req.body.override_name || null,
-        req.body.override_price ?? null,
-        req.body.override_image_url || null,
-        Number(req.body.is_enabled ?? 1)
-      );
+      if (existing) {
+        await query(
+          `UPDATE marketplace_product_overrides SET
+             override_name=$1, override_price=$2, override_image_url=$3, is_enabled=$4,
+             sync_status='pending', sync_error=NULL, updated_at=CURRENT_TIMESTAMP
+           WHERE id = $5`,
+          [
+            req.body.override_name || null,
+            req.body.override_price ?? null,
+            req.body.override_image_url || null,
+            Number(req.body.is_enabled ?? 1),
+            existing.id,
+          ]
+        );
+      } else {
+        await query(
+          `INSERT INTO marketplace_product_overrides
+             (provider, product_id, override_name, override_price, override_image_url, is_enabled)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            provider,
+            req.body.product_id,
+            req.body.override_name || null,
+            req.body.override_price ?? null,
+            req.body.override_image_url || null,
+            Number(req.body.is_enabled ?? 1),
+          ]
+        );
+      }
+      const row = (
+        await query(
+          'SELECT * FROM marketplace_product_overrides WHERE provider = $1 AND product_id = $2',
+          [provider, req.body.product_id]
+        )
+      ).rows[0];
+      res.json(row);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-    const row = db
-      .prepare('SELECT * FROM marketplace_product_overrides WHERE provider = ? AND product_id = ?')
-      .get(provider, req.body.product_id);
-    res.json(row);
   }
 );
 
-router.get('/settlement', authenticateToken, (req, res) => {
-  const db = getDb();
-  const { from, to } = req.query;
-  const where = ["status = 'COMPLETED'"];
-  const params = [];
-  if (from) {
-    where.push('completed_at >= ?');
-    params.push(from);
-  }
-  if (to) {
-    where.push('completed_at <= ?');
-    params.push(to);
-  }
-  const rows = db
-    .prepare(
-      `SELECT channel AS provider, COUNT(*) AS completed_orders, SUM(total) AS gross_revenue
-       FROM online_orders WHERE ${where.join(' AND ')}
-       GROUP BY channel ORDER BY channel`
-    )
-    .all(...params);
-  const conns = db.prepare('SELECT provider, mdr_percent FROM marketplace_connections').all();
-  const mdrByProvider = new Map(conns.map((c) => [c.provider, Number(c.mdr_percent || 0)]));
+router.get('/settlement', authenticateToken, async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    const where = ["status = 'COMPLETED'"];
+    const params = [];
+    let p = 1;
+    if (from) {
+      where.push(`completed_at >= $${p++}`);
+      params.push(from);
+    }
+    if (to) {
+      where.push(`completed_at <= $${p++}`);
+      params.push(to);
+    }
+    const rows = (
+      await query(
+        `SELECT channel AS provider, COUNT(*) AS completed_orders, SUM(total) AS gross_revenue
+         FROM online_orders WHERE ${where.join(' AND ')}
+         GROUP BY channel ORDER BY channel`,
+        params
+      )
+    ).rows;
+    const conns = (await query('SELECT provider, mdr_percent FROM marketplace_connections')).rows;
+    const mdrByProvider = new Map(conns.map((c) => [c.provider, Number(c.mdr_percent || 0)]));
 
-  const enriched = rows.map((r) => {
-    const gross = Number(r.gross_revenue || 0);
-    const mdrPct = mdrByProvider.get(r.provider) || 0;
-    const mdr = (gross * mdrPct) / 100;
-    return {
-      provider: r.provider,
-      completed_orders: r.completed_orders,
-      gross_revenue: gross,
-      mdr,
-      net_revenue: gross - mdr,
-    };
-  });
-  const totalGross = enriched.reduce((s, r) => s + r.gross_revenue, 0);
-  const totalMdr = enriched.reduce((s, r) => s + r.mdr, 0);
-  res.json({
-    rows: enriched,
-    total_gross: totalGross,
-    total_mdr: totalMdr,
-    total_net: totalGross - totalMdr,
-  });
+    const enriched = rows.map((r) => {
+      const gross = Number(r.gross_revenue || 0);
+      const mdrPct = mdrByProvider.get(r.provider) || 0;
+      const mdr = (gross * mdrPct) / 100;
+      return {
+        provider: r.provider,
+        completed_orders: Number(r.completed_orders),
+        gross_revenue: gross,
+        mdr,
+        net_revenue: gross - mdr,
+      };
+    });
+    const totalGross = enriched.reduce((s, r) => s + r.gross_revenue, 0);
+    const totalMdr = enriched.reduce((s, r) => s + r.mdr, 0);
+    res.json({
+      rows: enriched,
+      total_gross: totalGross,
+      total_mdr: totalMdr,
+      total_net: totalGross - totalMdr,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
