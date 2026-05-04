@@ -5,8 +5,8 @@
 // Format: csv|xlsx|pdf|json (export dilakukan di client; backend hanya kirim
 // JSON, tapi schema kita siapkan kalau ke depan butuh server-side rendering).
 
-import { z, registry } from "../openapi";
-import { DateOnlySchema, ErrorResponseSchema } from "./common";
+import { z, registry } from '../openapi';
+import { DateOnlySchema, ErrorResponseSchema } from './common';
 
 // ---------------------------------------------------------------------------
 // Filter umum
@@ -24,9 +24,9 @@ export const ReportFilterQuerySchema = z
     product_id: z.coerce.number().int().positive().optional(),
     customer_id: z.coerce.number().int().positive().optional(),
     limit: z.coerce.number().int().positive().max(1000).optional(),
-    group_by: z.enum(["day", "week", "month"]).optional(),
+    group_by: z.enum(['day', 'week', 'month']).optional(),
   })
-  .openapi("ReportFilterQuery");
+  .openapi('ReportFilterQuery');
 
 export type ReportFilterQuery = z.infer<typeof ReportFilterQuerySchema>;
 
@@ -36,45 +36,45 @@ export type ReportFilterQuery = z.infer<typeof ReportFilterQuerySchema>;
 
 export const REPORT_KEYS = [
   // Sales
-  "sales-summary",
-  "sales-detail",
-  "sales-daily",
-  "sales-by-outlet",
-  "sales-by-category",
-  "sales-by-department",
-  "sales-by-product",
-  "sales-by-cashier",
-  "sales-by-payment-method",
+  'sales-summary',
+  'sales-detail',
+  'sales-daily',
+  'sales-by-outlet',
+  'sales-by-category',
+  'sales-by-department',
+  'sales-by-product',
+  'sales-by-cashier',
+  'sales-by-payment-method',
   // Cash & shift
-  "cash-drawer",
-  "shift-close",
+  'cash-drawer',
+  'shift-close',
   // Adjustments
-  "void",
-  "refund",
-  "promo",
-  "loyalty",
-  "coupon",
+  'void',
+  'refund',
+  'promo',
+  'loyalty',
+  'coupon',
   // Tax & customer
-  "tax",
-  "customer",
+  'tax',
+  'customer',
   // Inventory
-  "inventory-stock",
-  "inventory-movement",
-  "inventory-turnover",
-  "inventory-value",
+  'inventory-stock',
+  'inventory-movement',
+  'inventory-turnover',
+  'inventory-value',
   // Employee
-  "employee-attendance",
-  "employee-shift",
-  "employee-commission",
+  'employee-attendance',
+  'employee-shift',
+  'employee-commission',
   // Financial (delegate ke /api/v1/financial-report; expose di hub)
-  "financial-pnl",
-  "financial-balance-sheet",
-  "financial-cashflow",
+  'financial-pnl',
+  'financial-balance-sheet',
+  'financial-cashflow',
   // Marketing (placeholder kalau campaign belum tersedia)
-  "marketing-campaign",
+  'marketing-campaign',
 ] as const;
 
-export const ReportKeySchema = z.enum(REPORT_KEYS).openapi("ReportKey");
+export const ReportKeySchema = z.enum(REPORT_KEYS).openapi('ReportKey');
 export type ReportKey = (typeof REPORT_KEYS)[number];
 
 // ---------------------------------------------------------------------------
@@ -123,7 +123,7 @@ export const SalesSummaryResponseSchema = z
       })
     ),
   })
-  .openapi("SalesSummaryResponse");
+  .openapi('SalesSummaryResponse');
 
 export type SalesSummaryResponse = z.infer<typeof SalesSummaryResponseSchema>;
 
@@ -132,8 +132,8 @@ export type SalesSummaryResponse = z.infer<typeof SalesSummaryResponseSchema>;
 // ---------------------------------------------------------------------------
 
 export const ReportFrequencySchema = z
-  .enum(["daily", "weekly", "monthly"])
-  .openapi("ReportFrequency");
+  .enum(['daily', 'weekly', 'monthly'])
+  .openapi('ReportFrequency');
 
 export const ReportScheduleSchema = z
   .object({
@@ -143,34 +143,31 @@ export const ReportScheduleSchema = z
     params_json: z.string().nullable(),
     frequency: ReportFrequencySchema,
     recipients: z.string().nullable(),
-    format: z.enum(["csv", "xlsx", "pdf"]).default("pdf"),
+    format: z.enum(['csv', 'xlsx', 'pdf']).default('pdf'),
     is_active: z.union([z.literal(0), z.literal(1)]),
     last_run_at: z.string().nullable(),
     created_by: z.number().int().nullable(),
     created_at: z.string().optional(),
   })
-  .openapi("ReportSchedule");
+  .openapi('ReportSchedule');
 export type ReportSchedule = z.infer<typeof ReportScheduleSchema>;
 
 export const ReportScheduleCreateSchema = z
   .object({
     report_key: ReportKeySchema,
-    name: z.string().min(1, "Nama jadwal wajib diisi").max(128),
+    name: z.string().min(1, 'Nama jadwal wajib diisi').max(128),
     params_json: z.string().max(2000).optional().nullable(),
     frequency: ReportFrequencySchema,
-    recipients: z
-      .string()
-      .max(512, "Maks 512 karakter daftar penerima")
-      .optional()
-      .nullable(),
-    format: z.enum(["csv", "xlsx", "pdf"]).optional().default("pdf"),
+    recipients: z.string().max(512, 'Maks 512 karakter daftar penerima').optional().nullable(),
+    format: z.enum(['csv', 'xlsx', 'pdf']).optional().default('pdf'),
     is_active: z.coerce.number().int().min(0).max(1).optional().default(1),
   })
-  .openapi("ReportScheduleCreateRequest");
+  .openapi('ReportScheduleCreateRequest');
 export type ReportScheduleCreate = z.infer<typeof ReportScheduleCreateSchema>;
 
-export const ReportScheduleUpdateSchema = ReportScheduleCreateSchema.partial()
-  .openapi("ReportScheduleUpdateRequest");
+export const ReportScheduleUpdateSchema = ReportScheduleCreateSchema.partial().openapi(
+  'ReportScheduleUpdateRequest'
+);
 export type ReportScheduleUpdate = z.infer<typeof ReportScheduleUpdateSchema>;
 
 // ---------------------------------------------------------------------------
@@ -178,36 +175,35 @@ export type ReportScheduleUpdate = z.infer<typeof ReportScheduleUpdateSchema>;
 // ---------------------------------------------------------------------------
 
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/reports/sales-summary",
-  description:
-    "Sales summary KPI + daily trend + top products + payment breakdown.",
-  tags: ["Reports"],
+  method: 'get',
+  path: '/api/v1/reports/sales-summary',
+  description: 'Sales summary KPI + daily trend + top products + payment breakdown.',
+  tags: ['Reports'],
   request: { query: ReportFilterQuerySchema },
   responses: {
     200: {
-      description: "Sales summary",
+      description: 'Sales summary',
       content: {
-        "application/json": { schema: SalesSummaryResponseSchema },
+        'application/json': { schema: SalesSummaryResponseSchema },
       },
     },
     400: {
-      description: "Invalid filter",
-      content: { "application/json": { schema: ErrorResponseSchema } },
+      description: 'Invalid filter',
+      content: { 'application/json': { schema: ErrorResponseSchema } },
     },
   },
 });
 
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/reports/schedule",
-  description: "List scheduled reports (Prime+ subscription).",
-  tags: ["Reports"],
+  method: 'get',
+  path: '/api/v1/reports/schedule',
+  description: 'List scheduled reports (Prime+ subscription).',
+  tags: ['Reports'],
   responses: {
     200: {
-      description: "List of schedules",
+      description: 'List of schedules',
       content: {
-        "application/json": {
+        'application/json': {
           schema: z.array(ReportScheduleSchema),
         },
       },
@@ -216,25 +212,25 @@ registry.registerPath({
 });
 
 registry.registerPath({
-  method: "post",
-  path: "/api/v1/reports/schedule",
-  description: "Create a new scheduled report.",
-  tags: ["Reports"],
+  method: 'post',
+  path: '/api/v1/reports/schedule',
+  description: 'Create a new scheduled report.',
+  tags: ['Reports'],
   request: {
     body: {
       content: {
-        "application/json": { schema: ReportScheduleCreateSchema },
+        'application/json': { schema: ReportScheduleCreateSchema },
       },
     },
   },
   responses: {
     201: {
-      description: "Created",
-      content: { "application/json": { schema: ReportScheduleSchema } },
+      description: 'Created',
+      content: { 'application/json': { schema: ReportScheduleSchema } },
     },
     400: {
-      description: "Invalid payload",
-      content: { "application/json": { schema: ErrorResponseSchema } },
+      description: 'Invalid payload',
+      content: { 'application/json': { schema: ErrorResponseSchema } },
     },
   },
 });

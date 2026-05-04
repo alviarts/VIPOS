@@ -1,17 +1,13 @@
 // Schema untuk endpoint /api/v1/inventory/*
 
-import { z, registry } from "../openapi";
-import {
-  DateOnlySchema,
-  DateTimeStringSchema,
-  ErrorResponseSchema,
-} from "./common";
+import { z, registry } from '../openapi';
+import { DateOnlySchema, DateTimeStringSchema, ErrorResponseSchema } from './common';
 
-export const InventoryTipeSchema = z.enum(["stok_in", "stok_out", "opname"]);
+export const InventoryTipeSchema = z.enum(['stok_in', 'stok_out', 'opname']);
 
 export const InventoryReasonSchema = z
-  .enum(["damaged", "expired", "shrinkage", "production", "manual", "other"])
-  .openapi("InventoryReason");
+  .enum(['damaged', 'expired', 'shrinkage', 'production', 'manual', 'other'])
+  .openapi('InventoryReason');
 
 export const InventoryMovementSchema = z
   .object({
@@ -34,7 +30,7 @@ export const InventoryMovementSchema = z
     user_name: z.string().nullable().optional(),
     created_at: DateTimeStringSchema.optional(),
   })
-  .openapi("InventoryMovement");
+  .openapi('InventoryMovement');
 export type InventoryMovement = z.infer<typeof InventoryMovementSchema>;
 
 export const InventoryMovementCreateSchema = z
@@ -42,21 +38,19 @@ export const InventoryMovementCreateSchema = z
     tanggal: DateOnlySchema.optional(),
     product_id: z.coerce.number().int().positive(),
     tipe: InventoryTipeSchema,
-    qty: z.coerce.number().int().nonnegative("Qty harus >= 0"),
+    qty: z.coerce.number().int().nonnegative('Qty harus >= 0'),
     unit_cost: z.coerce.number().nonnegative().optional().nullable(),
     reason: InventoryReasonSchema.optional().nullable(),
     keterangan: z.string().max(512).optional().nullable(),
   })
-  .openapi("InventoryMovementCreateRequest");
-export type InventoryMovementCreate = z.infer<
-  typeof InventoryMovementCreateSchema
->;
+  .openapi('InventoryMovementCreateRequest');
+export type InventoryMovementCreate = z.infer<typeof InventoryMovementCreateSchema>;
 
 // --- Stock opname ----------------------------------------------------------
 
 export const StockOpnameStatusSchema = z
-  .enum(["draft", "final", "cancelled"])
-  .openapi("StockOpnameStatus");
+  .enum(['draft', 'final', 'cancelled'])
+  .openapi('StockOpnameStatus');
 
 export const StockOpnameItemSchema = z
   .object({
@@ -71,7 +65,7 @@ export const StockOpnameItemSchema = z
     selisih: z.number().int().optional(),
     catatan: z.string().nullable().optional(),
   })
-  .openapi("StockOpnameItem");
+  .openapi('StockOpnameItem');
 export type StockOpnameItem = z.infer<typeof StockOpnameItemSchema>;
 
 export const StockOpnameSchema = z
@@ -93,7 +87,7 @@ export const StockOpnameSchema = z
     variance_count: z.number().int().optional(),
     items: z.array(StockOpnameItemSchema).optional(),
   })
-  .openapi("StockOpname");
+  .openapi('StockOpname');
 export type StockOpname = z.infer<typeof StockOpnameSchema>;
 
 export const StockOpnameCreateSchema = z
@@ -102,7 +96,7 @@ export const StockOpnameCreateSchema = z
     catatan: z.string().max(512).optional().nullable(),
     product_ids: z.array(z.coerce.number().int().positive()).optional(),
   })
-  .openapi("StockOpnameCreateRequest");
+  .openapi('StockOpnameCreateRequest');
 export type StockOpnameCreate = z.infer<typeof StockOpnameCreateSchema>;
 
 export const StockOpnameItemUpdateSchema = z
@@ -111,7 +105,7 @@ export const StockOpnameItemUpdateSchema = z
     qty_fisik: z.coerce.number().int().nonnegative().nullable(),
     catatan: z.string().max(255).optional().nullable(),
   })
-  .openapi("StockOpnameItemUpdate");
+  .openapi('StockOpnameItemUpdate');
 export type StockOpnameItemUpdate = z.infer<typeof StockOpnameItemUpdateSchema>;
 
 export const StockOpnameUpdateSchema = z
@@ -119,23 +113,23 @@ export const StockOpnameUpdateSchema = z
     catatan: z.string().max(512).optional().nullable(),
     items: z.array(StockOpnameItemUpdateSchema).optional(),
   })
-  .openapi("StockOpnameUpdateRequest");
+  .openapi('StockOpnameUpdateRequest');
 export type StockOpnameUpdate = z.infer<typeof StockOpnameUpdateSchema>;
 
 export const StockOpnameFinalizeSchema = z
   .object({
     confirm: z.literal(true),
   })
-  .openapi("StockOpnameFinalizeRequest");
+  .openapi('StockOpnameFinalizeRequest');
 export type StockOpnameFinalize = z.infer<typeof StockOpnameFinalizeSchema>;
 
 // --- OpenAPI path registrations -------------------------------------------
 
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/inventory/movements",
-  description: "List inventory movement (stok_in / stok_out / opname).",
-  tags: ["Inventory"],
+  method: 'get',
+  path: '/api/v1/inventory/movements',
+  description: 'List inventory movement (stok_in / stok_out / opname).',
+  tags: ['Inventory'],
   security: [{ bearerAuth: [] }],
   request: {
     query: z.object({
@@ -147,45 +141,45 @@ registry.registerPath({
   },
   responses: {
     200: {
-      description: "Array inventory movements",
+      description: 'Array inventory movements',
       content: {
-        "application/json": { schema: z.array(InventoryMovementSchema) },
+        'application/json': { schema: z.array(InventoryMovementSchema) },
       },
     },
   },
 });
 
 registry.registerPath({
-  method: "post",
-  path: "/api/v1/inventory/movements",
-  description: "Catat inventory movement (otomatis update stock di products).",
-  tags: ["Inventory"],
+  method: 'post',
+  path: '/api/v1/inventory/movements',
+  description: 'Catat inventory movement (otomatis update stock di products).',
+  tags: ['Inventory'],
   security: [{ bearerAuth: [] }],
   request: {
     body: {
       required: true,
       content: {
-        "application/json": { schema: InventoryMovementCreateSchema },
+        'application/json': { schema: InventoryMovementCreateSchema },
       },
     },
   },
   responses: {
     201: {
-      description: "Movement dibuat",
-      content: { "application/json": { schema: InventoryMovementSchema } },
+      description: 'Movement dibuat',
+      content: { 'application/json': { schema: InventoryMovementSchema } },
     },
     400: {
-      description: "Validation error",
-      content: { "application/json": { schema: ErrorResponseSchema } },
+      description: 'Validation error',
+      content: { 'application/json': { schema: ErrorResponseSchema } },
     },
   },
 });
 
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/inventory/movements/{product_id}",
-  description: "Riwayat pergerakan stok per produk.",
-  tags: ["Inventory"],
+  method: 'get',
+  path: '/api/v1/inventory/movements/{product_id}',
+  description: 'Riwayat pergerakan stok per produk.',
+  tags: ['Inventory'],
   security: [{ bearerAuth: [] }],
   request: {
     params: z.object({
@@ -197,9 +191,9 @@ registry.registerPath({
   },
   responses: {
     200: {
-      description: "Movement history",
+      description: 'Movement history',
       content: {
-        "application/json": { schema: z.array(InventoryMovementSchema) },
+        'application/json': { schema: z.array(InventoryMovementSchema) },
       },
     },
   },
@@ -208,10 +202,10 @@ registry.registerPath({
 // --- Stock opname endpoints -----------------------------------------------
 
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/stock-opname",
-  description: "List opname (draft + final).",
-  tags: ["Inventory"],
+  method: 'get',
+  path: '/api/v1/stock-opname',
+  description: 'List opname (draft + final).',
+  tags: ['Inventory'],
   security: [{ bearerAuth: [] }],
   request: {
     query: z.object({
@@ -220,42 +214,42 @@ registry.registerPath({
   },
   responses: {
     200: {
-      description: "Array opname (header only)",
+      description: 'Array opname (header only)',
       content: {
-        "application/json": { schema: z.array(StockOpnameSchema) },
+        'application/json': { schema: z.array(StockOpnameSchema) },
       },
     },
   },
 });
 
 registry.registerPath({
-  method: "post",
-  path: "/api/v1/stock-opname",
+  method: 'post',
+  path: '/api/v1/stock-opname',
   description:
-    "Buat opname baru (draft). Jika product_ids kosong, semua produk monitor_stok=1 disertakan.",
-  tags: ["Inventory"],
+    'Buat opname baru (draft). Jika product_ids kosong, semua produk monitor_stok=1 disertakan.',
+  tags: ['Inventory'],
   security: [{ bearerAuth: [] }],
   request: {
     body: {
       required: true,
       content: {
-        "application/json": { schema: StockOpnameCreateSchema },
+        'application/json': { schema: StockOpnameCreateSchema },
       },
     },
   },
   responses: {
     201: {
-      description: "Opname draft dibuat",
-      content: { "application/json": { schema: StockOpnameSchema } },
+      description: 'Opname draft dibuat',
+      content: { 'application/json': { schema: StockOpnameSchema } },
     },
   },
 });
 
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/stock-opname/{id}",
-  description: "Detail opname (header + items).",
-  tags: ["Inventory"],
+  method: 'get',
+  path: '/api/v1/stock-opname/{id}',
+  description: 'Detail opname (header + items).',
+  tags: ['Inventory'],
   security: [{ bearerAuth: [] }],
   request: {
     params: z.object({
@@ -264,21 +258,21 @@ registry.registerPath({
   },
   responses: {
     200: {
-      description: "Opname detail",
-      content: { "application/json": { schema: StockOpnameSchema } },
+      description: 'Opname detail',
+      content: { 'application/json': { schema: StockOpnameSchema } },
     },
     404: {
-      description: "Tidak ditemukan",
-      content: { "application/json": { schema: ErrorResponseSchema } },
+      description: 'Tidak ditemukan',
+      content: { 'application/json': { schema: ErrorResponseSchema } },
     },
   },
 });
 
 registry.registerPath({
-  method: "put",
-  path: "/api/v1/stock-opname/{id}",
-  description: "Update qty_fisik untuk item-item opname (hanya saat status=draft).",
-  tags: ["Inventory"],
+  method: 'put',
+  path: '/api/v1/stock-opname/{id}',
+  description: 'Update qty_fisik untuk item-item opname (hanya saat status=draft).',
+  tags: ['Inventory'],
   security: [{ bearerAuth: [] }],
   request: {
     params: z.object({
@@ -287,24 +281,24 @@ registry.registerPath({
     body: {
       required: true,
       content: {
-        "application/json": { schema: StockOpnameUpdateSchema },
+        'application/json': { schema: StockOpnameUpdateSchema },
       },
     },
   },
   responses: {
     200: {
-      description: "Opname diupdate",
-      content: { "application/json": { schema: StockOpnameSchema } },
+      description: 'Opname diupdate',
+      content: { 'application/json': { schema: StockOpnameSchema } },
     },
   },
 });
 
 registry.registerPath({
-  method: "post",
-  path: "/api/v1/stock-opname/{id}/finalize",
+  method: 'post',
+  path: '/api/v1/stock-opname/{id}/finalize',
   description:
-    "Finalize opname → posting OPNAME_ADJUST movements untuk setiap item dengan selisih ≠ 0; status menjadi final.",
-  tags: ["Inventory"],
+    'Finalize opname → posting OPNAME_ADJUST movements untuk setiap item dengan selisih ≠ 0; status menjadi final.',
+  tags: ['Inventory'],
   security: [{ bearerAuth: [] }],
   request: {
     params: z.object({
@@ -313,23 +307,23 @@ registry.registerPath({
     body: {
       required: true,
       content: {
-        "application/json": { schema: StockOpnameFinalizeSchema },
+        'application/json': { schema: StockOpnameFinalizeSchema },
       },
     },
   },
   responses: {
     200: {
-      description: "Opname difinalisasi",
-      content: { "application/json": { schema: StockOpnameSchema } },
+      description: 'Opname difinalisasi',
+      content: { 'application/json': { schema: StockOpnameSchema } },
     },
   },
 });
 
 registry.registerPath({
-  method: "delete",
-  path: "/api/v1/stock-opname/{id}",
-  description: "Cancel opname draft (tidak boleh kalau status=final).",
-  tags: ["Inventory"],
+  method: 'delete',
+  path: '/api/v1/stock-opname/{id}',
+  description: 'Cancel opname draft (tidak boleh kalau status=final).',
+  tags: ['Inventory'],
   security: [{ bearerAuth: [] }],
   request: {
     params: z.object({
@@ -337,10 +331,10 @@ registry.registerPath({
     }),
   },
   responses: {
-    204: { description: "Dihapus" },
+    204: { description: 'Dihapus' },
     400: {
-      description: "Status final tidak boleh dihapus",
-      content: { "application/json": { schema: ErrorResponseSchema } },
+      description: 'Status final tidak boleh dihapus',
+      content: { 'application/json': { schema: ErrorResponseSchema } },
     },
   },
 });

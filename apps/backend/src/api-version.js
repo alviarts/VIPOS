@@ -18,7 +18,7 @@
  * P2-07 merge gives integrators a comfortable migration window. Format is
  * IMF-fixdate (RFC 7231 §7.1.1.1).
  */
-const LEGACY_SUNSET = "Wed, 04 Nov 2026 23:59:59 GMT";
+const LEGACY_SUNSET = 'Wed, 04 Nov 2026 23:59:59 GMT';
 
 /**
  * Build a middleware that tags responses with deprecation headers and
@@ -33,33 +33,27 @@ const LEGACY_SUNSET = "Wed, 04 Nov 2026 23:59:59 GMT";
  * @param {string} [opts.sunset] IMF-fixdate string for the `Sunset` header.
  * @returns {import('express').RequestHandler}
  */
-function legacyDeprecationMiddleware({
-  successorPrefix = "/api/v1",
-  sunset = LEGACY_SUNSET,
-} = {}) {
+function legacyDeprecationMiddleware({ successorPrefix = '/api/v1', sunset = LEGACY_SUNSET } = {}) {
   return function legacyDeprecation(req, res, next) {
     // Inside a router mounted at `/api`, req.path is the part after `/api`.
-    const p = req.path || "/";
+    const p = req.path || '/';
 
     // Skip non-versioned utility endpoints + already-versioned paths.
     if (
-      p === "/health" ||
-      p.startsWith("/health/") ||
-      p === "/docs" ||
-      p.startsWith("/docs/") ||
-      p === "/docs.json" ||
-      p === "/v1" ||
-      p.startsWith("/v1/")
+      p === '/health' ||
+      p.startsWith('/health/') ||
+      p === '/docs' ||
+      p.startsWith('/docs/') ||
+      p === '/docs.json' ||
+      p === '/v1' ||
+      p.startsWith('/v1/')
     ) {
       return next();
     }
 
-    res.setHeader("Deprecation", "true");
-    res.setHeader("Sunset", sunset);
-    res.setHeader(
-      "Link",
-      `<${successorPrefix}${p}>; rel="successor-version"`,
-    );
+    res.setHeader('Deprecation', 'true');
+    res.setHeader('Sunset', sunset);
+    res.setHeader('Link', `<${successorPrefix}${p}>; rel="successor-version"`);
     next();
   };
 }

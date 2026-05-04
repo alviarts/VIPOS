@@ -1,41 +1,24 @@
 // Schemas untuk endpoint /api/v1/quotation, /api/v1/sales-order, /api/v1/delivery-order,
 // /api/v1/invoice, /api/v1/receipt + /api/v1/aging-report (P1-10 Invoice B2B 5-stage).
 
-import { z, registry } from "../openapi";
+import { z, registry } from '../openapi';
 import {
   DateOnlySchema,
   DateTimeStringSchema,
   ErrorResponseSchema,
   IdStringSchema,
-} from "./common";
+} from './common';
 
-export const QuotationStatusSchema = z.enum([
-  "DRAFT",
-  "SENT",
-  "ACCEPTED",
-  "REJECTED",
-  "EXPIRED",
-]);
-export const SalesOrderStatusSchema = z.enum([
-  "NEW",
-  "PARTIAL",
-  "FULFILLED",
-  "CANCELLED",
-]);
+export const QuotationStatusSchema = z.enum(['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'EXPIRED']);
+export const SalesOrderStatusSchema = z.enum(['NEW', 'PARTIAL', 'FULFILLED', 'CANCELLED']);
 export const DeliveryOrderStatusSchema = z.enum([
-  "PREPARING",
-  "IN_TRANSIT",
-  "DELIVERED",
-  "RETURNED",
+  'PREPARING',
+  'IN_TRANSIT',
+  'DELIVERED',
+  'RETURNED',
 ]);
-export const InvoiceStatusSchema = z.enum([
-  "ISSUED",
-  "PARTIAL",
-  "PAID",
-  "OVERDUE",
-  "VOID",
-]);
-export const PaymentMethodSchema = z.enum(["cash", "transfer", "cheque"]);
+export const InvoiceStatusSchema = z.enum(['ISSUED', 'PARTIAL', 'PAID', 'OVERDUE', 'VOID']);
+export const PaymentMethodSchema = z.enum(['cash', 'transfer', 'cheque']);
 
 const baseItem = {
   product_id: z.number().int().nullable().optional(),
@@ -82,7 +65,7 @@ export const QuotationSchema = z
     created_at: DateTimeStringSchema.optional(),
     updated_at: DateTimeStringSchema.optional(),
   })
-  .openapi("Quotation");
+  .openapi('Quotation');
 export type Quotation = z.infer<typeof QuotationSchema>;
 
 export const QuotationCreateSchema = z.object({
@@ -90,12 +73,12 @@ export const QuotationCreateSchema = z.object({
   customer_name: z.string().min(1),
   quote_date: DateOnlySchema,
   valid_until: DateOnlySchema.nullable().optional(),
-  status: QuotationStatusSchema.optional().default("DRAFT"),
+  status: QuotationStatusSchema.optional().default('DRAFT'),
   tax_percent: z.coerce.number().min(0).max(100).optional().default(0),
   discount_amount: z.coerce.number().min(0).optional().default(0),
   notes: z.string().nullable().optional(),
   terms: z.string().nullable().optional(),
-  items: z.array(B2BItemCreateSchema).min(1, "Minimal 1 item"),
+  items: z.array(B2BItemCreateSchema).min(1, 'Minimal 1 item'),
 });
 
 export const QuotationUpdateSchema = QuotationCreateSchema.partial().extend({
@@ -129,7 +112,7 @@ export const SalesOrderSchema = z
     created_at: DateTimeStringSchema.optional(),
     updated_at: DateTimeStringSchema.optional(),
   })
-  .openapi("SalesOrder");
+  .openapi('SalesOrder');
 export type SalesOrder = z.infer<typeof SalesOrderSchema>;
 
 export const SalesOrderCreateSchema = z.object({
@@ -138,11 +121,11 @@ export const SalesOrderCreateSchema = z.object({
   customer_name: z.string().min(1),
   order_date: DateOnlySchema,
   expected_delivery: DateOnlySchema.nullable().optional(),
-  status: SalesOrderStatusSchema.optional().default("NEW"),
+  status: SalesOrderStatusSchema.optional().default('NEW'),
   tax_percent: z.coerce.number().min(0).max(100).optional().default(0),
   discount_amount: z.coerce.number().min(0).optional().default(0),
   notes: z.string().nullable().optional(),
-  items: z.array(B2BItemCreateSchema).min(1, "Minimal 1 item"),
+  items: z.array(B2BItemCreateSchema).min(1, 'Minimal 1 item'),
 });
 
 export const SalesOrderUpdateSchema = SalesOrderCreateSchema.partial().extend({
@@ -184,7 +167,7 @@ export const DeliveryOrderSchema = z
     created_at: DateTimeStringSchema.optional(),
     updated_at: DateTimeStringSchema.optional(),
   })
-  .openapi("DeliveryOrder");
+  .openapi('DeliveryOrder');
 export type DeliveryOrder = z.infer<typeof DeliveryOrderSchema>;
 
 export const DeliveryOrderCreateSchema = z.object({
@@ -193,10 +176,10 @@ export const DeliveryOrderCreateSchema = z.object({
   expected_arrival: DateOnlySchema.nullable().optional(),
   carrier: z.string().nullable().optional(),
   driver: z.string().nullable().optional(),
-  status: DeliveryOrderStatusSchema.optional().default("PREPARING"),
+  status: DeliveryOrderStatusSchema.optional().default('PREPARING'),
   notes: z.string().nullable().optional(),
   signature_url: z.string().nullable().optional(),
-  items: z.array(DeliveryItemCreateSchema).min(1, "Minimal 1 item"),
+  items: z.array(DeliveryItemCreateSchema).min(1, 'Minimal 1 item'),
 });
 
 export const DeliveryOrderUpdateSchema = z.object({
@@ -233,7 +216,7 @@ export const InvoiceSchema = z
     created_at: DateTimeStringSchema.optional(),
     updated_at: DateTimeStringSchema.optional(),
   })
-  .openapi("Invoice");
+  .openapi('Invoice');
 export type Invoice = z.infer<typeof InvoiceSchema>;
 
 export const InvoiceCreateSchema = z.object({
@@ -242,12 +225,12 @@ export const InvoiceCreateSchema = z.object({
   customer_name: z.string().min(1),
   invoice_date: DateOnlySchema,
   due_date: DateOnlySchema.nullable().optional(),
-  status: InvoiceStatusSchema.optional().default("ISSUED"),
+  status: InvoiceStatusSchema.optional().default('ISSUED'),
   tax_percent: z.coerce.number().min(0).max(100).optional().default(0),
   discount_amount: z.coerce.number().min(0).optional().default(0),
   down_payment: z.coerce.number().min(0).optional().default(0),
   notes: z.string().nullable().optional(),
-  items: z.array(B2BItemCreateSchema).min(1, "Minimal 1 item"),
+  items: z.array(B2BItemCreateSchema).min(1, 'Minimal 1 item'),
 });
 
 export const InvoiceUpdateSchema = z.object({
@@ -276,13 +259,13 @@ export const ReceiptSchema = z
     notes: z.string().nullable(),
     created_at: DateTimeStringSchema.optional(),
   })
-  .openapi("Receipt");
+  .openapi('Receipt');
 export type Receipt = z.infer<typeof ReceiptSchema>;
 
 export const ReceiptCreateSchema = z.object({
   invoice_id: z.coerce.number().int(),
   payment_date: DateOnlySchema,
-  method: PaymentMethodSchema.optional().default("cash"),
+  method: PaymentMethodSchema.optional().default('cash'),
   amount: z.coerce.number().positive(),
   bank_account_id: z.coerce.number().int().nullable().optional(),
   ref_number: z.string().nullable().optional(),
@@ -315,13 +298,13 @@ export const AgingReportResponseSchema = z.object({
 // ============================================================
 // OpenAPI Registry
 // ============================================================
-const tags = ["B2B"];
+const tags = ['B2B'];
 
 function listResponse(itemSchema: z.ZodTypeAny) {
   return {
     200: {
-      description: "List",
-      content: { "application/json": { schema: z.array(itemSchema) } },
+      description: 'List',
+      content: { 'application/json': { schema: z.array(itemSchema) } },
     },
   };
 }
@@ -329,91 +312,91 @@ function listResponse(itemSchema: z.ZodTypeAny) {
 function notFound() {
   return {
     404: {
-      description: "Not found",
-      content: { "application/json": { schema: ErrorResponseSchema } },
+      description: 'Not found',
+      content: { 'application/json': { schema: ErrorResponseSchema } },
     },
   };
 }
 
 // Quotation
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/quotation",
+  method: 'get',
+  path: '/api/v1/quotation',
   tags,
-  summary: "List quotations",
+  summary: 'List quotations',
   responses: listResponse(QuotationSchema),
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/v1/quotation",
+  method: 'post',
+  path: '/api/v1/quotation',
   tags,
-  summary: "Create quotation",
+  summary: 'Create quotation',
   request: {
     body: {
-      content: { "application/json": { schema: QuotationCreateSchema } },
+      content: { 'application/json': { schema: QuotationCreateSchema } },
     },
   },
   responses: {
     201: {
-      description: "Created",
-      content: { "application/json": { schema: QuotationSchema } },
+      description: 'Created',
+      content: { 'application/json': { schema: QuotationSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/quotation/{id}",
+  method: 'get',
+  path: '/api/v1/quotation/{id}',
   tags,
-  summary: "Get quotation",
+  summary: 'Get quotation',
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: QuotationSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: QuotationSchema } },
     },
     ...notFound(),
   },
 });
 registry.registerPath({
-  method: "put",
-  path: "/api/v1/quotation/{id}",
+  method: 'put',
+  path: '/api/v1/quotation/{id}',
   tags,
-  summary: "Update quotation",
+  summary: 'Update quotation',
   request: {
     params: z.object({ id: IdStringSchema }),
     body: {
-      content: { "application/json": { schema: QuotationUpdateSchema } },
+      content: { 'application/json': { schema: QuotationUpdateSchema } },
     },
   },
   responses: {
     200: {
-      description: "Updated",
-      content: { "application/json": { schema: QuotationSchema } },
+      description: 'Updated',
+      content: { 'application/json': { schema: QuotationSchema } },
     },
     ...notFound(),
   },
 });
 registry.registerPath({
-  method: "delete",
-  path: "/api/v1/quotation/{id}",
+  method: 'delete',
+  path: '/api/v1/quotation/{id}',
   tags,
-  summary: "Delete quotation",
+  summary: 'Delete quotation',
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
-    200: { description: "Deleted" },
+    200: { description: 'Deleted' },
     ...notFound(),
   },
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/v1/quotation/{id}/convert-to-so",
+  method: 'post',
+  path: '/api/v1/quotation/{id}/convert-to-so',
   tags,
-  summary: "Convert quotation to sales order",
+  summary: 'Convert quotation to sales order',
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
     201: {
-      description: "Sales order created",
-      content: { "application/json": { schema: SalesOrderSchema } },
+      description: 'Sales order created',
+      content: { 'application/json': { schema: SalesOrderSchema } },
     },
     ...notFound(),
   },
@@ -421,252 +404,252 @@ registry.registerPath({
 
 // Sales Order
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/sales-order",
+  method: 'get',
+  path: '/api/v1/sales-order',
   tags,
-  summary: "List sales orders",
+  summary: 'List sales orders',
   responses: listResponse(SalesOrderSchema),
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/v1/sales-order",
+  method: 'post',
+  path: '/api/v1/sales-order',
   tags,
-  summary: "Create sales order",
+  summary: 'Create sales order',
   request: {
     body: {
-      content: { "application/json": { schema: SalesOrderCreateSchema } },
+      content: { 'application/json': { schema: SalesOrderCreateSchema } },
     },
   },
   responses: {
     201: {
-      description: "Created",
-      content: { "application/json": { schema: SalesOrderSchema } },
+      description: 'Created',
+      content: { 'application/json': { schema: SalesOrderSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/sales-order/{id}",
+  method: 'get',
+  path: '/api/v1/sales-order/{id}',
   tags,
-  summary: "Get sales order",
+  summary: 'Get sales order',
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: SalesOrderSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: SalesOrderSchema } },
     },
     ...notFound(),
   },
 });
 registry.registerPath({
-  method: "put",
-  path: "/api/v1/sales-order/{id}",
+  method: 'put',
+  path: '/api/v1/sales-order/{id}',
   tags,
-  summary: "Update sales order",
+  summary: 'Update sales order',
   request: {
     params: z.object({ id: IdStringSchema }),
     body: {
-      content: { "application/json": { schema: SalesOrderUpdateSchema } },
+      content: { 'application/json': { schema: SalesOrderUpdateSchema } },
     },
   },
   responses: {
     200: {
-      description: "Updated",
-      content: { "application/json": { schema: SalesOrderSchema } },
+      description: 'Updated',
+      content: { 'application/json': { schema: SalesOrderSchema } },
     },
     ...notFound(),
   },
 });
 registry.registerPath({
-  method: "delete",
-  path: "/api/v1/sales-order/{id}",
+  method: 'delete',
+  path: '/api/v1/sales-order/{id}',
   tags,
-  summary: "Delete sales order",
+  summary: 'Delete sales order',
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
-    200: { description: "Deleted" },
+    200: { description: 'Deleted' },
     ...notFound(),
   },
 });
 
 // Delivery Order
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/delivery-order",
+  method: 'get',
+  path: '/api/v1/delivery-order',
   tags,
-  summary: "List delivery orders",
+  summary: 'List delivery orders',
   responses: listResponse(DeliveryOrderSchema),
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/v1/delivery-order",
+  method: 'post',
+  path: '/api/v1/delivery-order',
   tags,
-  summary: "Create delivery order from SO",
+  summary: 'Create delivery order from SO',
   request: {
     body: {
-      content: { "application/json": { schema: DeliveryOrderCreateSchema } },
+      content: { 'application/json': { schema: DeliveryOrderCreateSchema } },
     },
   },
   responses: {
     201: {
-      description: "Created",
-      content: { "application/json": { schema: DeliveryOrderSchema } },
+      description: 'Created',
+      content: { 'application/json': { schema: DeliveryOrderSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/delivery-order/{id}",
+  method: 'get',
+  path: '/api/v1/delivery-order/{id}',
   tags,
-  summary: "Get delivery order",
+  summary: 'Get delivery order',
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: DeliveryOrderSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: DeliveryOrderSchema } },
     },
     ...notFound(),
   },
 });
 registry.registerPath({
-  method: "put",
-  path: "/api/v1/delivery-order/{id}",
+  method: 'put',
+  path: '/api/v1/delivery-order/{id}',
   tags,
-  summary: "Update delivery order (status, etc)",
+  summary: 'Update delivery order (status, etc)',
   request: {
     params: z.object({ id: IdStringSchema }),
     body: {
-      content: { "application/json": { schema: DeliveryOrderUpdateSchema } },
+      content: { 'application/json': { schema: DeliveryOrderUpdateSchema } },
     },
   },
   responses: {
     200: {
-      description: "Updated",
-      content: { "application/json": { schema: DeliveryOrderSchema } },
+      description: 'Updated',
+      content: { 'application/json': { schema: DeliveryOrderSchema } },
     },
     ...notFound(),
   },
 });
 registry.registerPath({
-  method: "delete",
-  path: "/api/v1/delivery-order/{id}",
+  method: 'delete',
+  path: '/api/v1/delivery-order/{id}',
   tags,
-  summary: "Delete delivery order",
+  summary: 'Delete delivery order',
   request: { params: z.object({ id: IdStringSchema }) },
-  responses: { 200: { description: "Deleted" }, ...notFound() },
+  responses: { 200: { description: 'Deleted' }, ...notFound() },
 });
 
 // Invoice
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/invoice",
+  method: 'get',
+  path: '/api/v1/invoice',
   tags,
-  summary: "List invoices",
+  summary: 'List invoices',
   responses: listResponse(InvoiceSchema),
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/v1/invoice",
+  method: 'post',
+  path: '/api/v1/invoice',
   tags,
-  summary: "Create invoice",
+  summary: 'Create invoice',
   request: {
     body: {
-      content: { "application/json": { schema: InvoiceCreateSchema } },
+      content: { 'application/json': { schema: InvoiceCreateSchema } },
     },
   },
   responses: {
     201: {
-      description: "Created",
-      content: { "application/json": { schema: InvoiceSchema } },
+      description: 'Created',
+      content: { 'application/json': { schema: InvoiceSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/invoice/{id}",
+  method: 'get',
+  path: '/api/v1/invoice/{id}',
   tags,
-  summary: "Get invoice",
+  summary: 'Get invoice',
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: InvoiceSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: InvoiceSchema } },
     },
     ...notFound(),
   },
 });
 registry.registerPath({
-  method: "put",
-  path: "/api/v1/invoice/{id}",
+  method: 'put',
+  path: '/api/v1/invoice/{id}',
   tags,
-  summary: "Update invoice",
+  summary: 'Update invoice',
   request: {
     params: z.object({ id: IdStringSchema }),
     body: {
-      content: { "application/json": { schema: InvoiceUpdateSchema } },
+      content: { 'application/json': { schema: InvoiceUpdateSchema } },
     },
   },
   responses: {
     200: {
-      description: "Updated",
-      content: { "application/json": { schema: InvoiceSchema } },
+      description: 'Updated',
+      content: { 'application/json': { schema: InvoiceSchema } },
     },
     ...notFound(),
   },
 });
 registry.registerPath({
-  method: "delete",
-  path: "/api/v1/invoice/{id}",
+  method: 'delete',
+  path: '/api/v1/invoice/{id}',
   tags,
-  summary: "Delete (void) invoice",
+  summary: 'Delete (void) invoice',
   request: { params: z.object({ id: IdStringSchema }) },
-  responses: { 200: { description: "Deleted" }, ...notFound() },
+  responses: { 200: { description: 'Deleted' }, ...notFound() },
 });
 
 // Receipt
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/receipt",
+  method: 'get',
+  path: '/api/v1/receipt',
   tags,
-  summary: "List receipts",
+  summary: 'List receipts',
   responses: listResponse(ReceiptSchema),
 });
 registry.registerPath({
-  method: "post",
-  path: "/api/v1/receipt",
+  method: 'post',
+  path: '/api/v1/receipt',
   tags,
-  summary: "Apply payment to invoice",
+  summary: 'Apply payment to invoice',
   request: {
     body: {
-      content: { "application/json": { schema: ReceiptCreateSchema } },
+      content: { 'application/json': { schema: ReceiptCreateSchema } },
     },
   },
   responses: {
     201: {
-      description: "Created",
-      content: { "application/json": { schema: ReceiptSchema } },
+      description: 'Created',
+      content: { 'application/json': { schema: ReceiptSchema } },
     },
   },
 });
 registry.registerPath({
-  method: "delete",
-  path: "/api/v1/receipt/{id}",
+  method: 'delete',
+  path: '/api/v1/receipt/{id}',
   tags,
-  summary: "Delete (void) receipt",
+  summary: 'Delete (void) receipt',
   request: { params: z.object({ id: IdStringSchema }) },
-  responses: { 200: { description: "Deleted" }, ...notFound() },
+  responses: { 200: { description: 'Deleted' }, ...notFound() },
 });
 
 // Aging report
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/aging-report",
+  method: 'get',
+  path: '/api/v1/aging-report',
   tags,
-  summary: "Aging report (0-30 / 31-60 / 61-90 / >90 days)",
+  summary: 'Aging report (0-30 / 31-60 / 61-90 / >90 days)',
   responses: {
     200: {
-      description: "OK",
-      content: { "application/json": { schema: AgingReportResponseSchema } },
+      description: 'OK',
+      content: { 'application/json': { schema: AgingReportResponseSchema } },
     },
   },
 });

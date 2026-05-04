@@ -12,53 +12,35 @@
 //   /api/v1/fixed-asset          — Fixed asset register + depreciation + disposal
 //   /api/v1/financial-report     — 7 standard reports (jurnal/neraca/laba-rugi/buku-besar/arus-kas/hutang/piutang)
 
-import { z, registry } from "../openapi";
-import { DateOnlySchema, ErrorResponseSchema, IdStringSchema } from "./common";
+import { z, registry } from '../openapi';
+import { DateOnlySchema, ErrorResponseSchema, IdStringSchema } from './common';
 
 // ================== ENUMS ==================
-export const GlAccountTypeSchema = z.enum([
-  "ASET",
-  "KEWAJIBAN",
-  "MODAL",
-  "PENDAPATAN",
-  "BEBAN",
-]);
+export const GlAccountTypeSchema = z.enum(['ASET', 'KEWAJIBAN', 'MODAL', 'PENDAPATAN', 'BEBAN']);
 export type GlAccountType = z.infer<typeof GlAccountTypeSchema>;
 
-export const GlNormalBalanceSchema = z.enum(["debit", "credit"]);
+export const GlNormalBalanceSchema = z.enum(['debit', 'credit']);
 export type GlNormalBalance = z.infer<typeof GlNormalBalanceSchema>;
 
 export const GlJournalSourceTypeSchema = z.enum([
-  "manual",
-  "sale",
-  "income",
-  "expense",
-  "transfer",
-  "payroll",
-  "depreciation",
-  "disposal",
-  "opening",
+  'manual',
+  'sale',
+  'income',
+  'expense',
+  'transfer',
+  'payroll',
+  'depreciation',
+  'disposal',
+  'opening',
 ]);
 
-export const RecurringFrequencySchema = z.enum([
-  "monthly",
-  "quarterly",
-  "annually",
-]);
+export const RecurringFrequencySchema = z.enum(['monthly', 'quarterly', 'annually']);
 
-export const DepreciationMethodSchema = z.enum([
-  "STRAIGHT_LINE",
-  "DOUBLE_DECLINING",
-]);
+export const DepreciationMethodSchema = z.enum(['STRAIGHT_LINE', 'DOUBLE_DECLINING']);
 
-export const FixedAssetStatusSchema = z.enum(["active", "disposed"]);
+export const FixedAssetStatusSchema = z.enum(['active', 'disposed']);
 
-export const DisposalTypeSchema = z.enum([
-  "SOLD",
-  "SCRAPPED",
-  "DONATED",
-  "LOST",
-]);
+export const DisposalTypeSchema = z.enum(['SOLD', 'SCRAPPED', 'DONATED', 'LOST']);
 
 // ================== CHART OF ACCOUNTS ==================
 export const GlAccountSchema = z
@@ -74,7 +56,7 @@ export const GlAccountSchema = z
     is_active: z.union([z.literal(0), z.literal(1)]),
     description: z.string().nullable(),
   })
-  .openapi("GlAccount");
+  .openapi('GlAccount');
 export type GlAccount = z.infer<typeof GlAccountSchema>;
 
 export const GlAccountCreateSchema = z
@@ -88,12 +70,11 @@ export const GlAccountCreateSchema = z
     description: z.string().max(512).optional().nullable(),
     is_active: z.coerce.number().int().min(0).max(1).optional().default(1),
   })
-  .openapi("GlAccountCreateRequest");
+  .openapi('GlAccountCreateRequest');
 export type GlAccountCreate = z.infer<typeof GlAccountCreateSchema>;
 
-export const GlAccountUpdateSchema = GlAccountCreateSchema.partial().openapi(
-  "GlAccountUpdateRequest"
-);
+export const GlAccountUpdateSchema =
+  GlAccountCreateSchema.partial().openapi('GlAccountUpdateRequest');
 export type GlAccountUpdate = z.infer<typeof GlAccountUpdateSchema>;
 
 // ================== JOURNAL ==================
@@ -108,15 +89,15 @@ export const GlJournalLineCreateSchema = z
     if (v.debit > 0 && v.credit > 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["debit"],
-        message: "Line tidak boleh punya debit DAN credit sekaligus",
+        path: ['debit'],
+        message: 'Line tidak boleh punya debit DAN credit sekaligus',
       });
     }
     if ((v.debit ?? 0) === 0 && (v.credit ?? 0) === 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["debit"],
-        message: "Line harus punya debit ATAU credit > 0",
+        path: ['debit'],
+        message: 'Line harus punya debit ATAU credit > 0',
       });
     }
   });
@@ -125,7 +106,7 @@ export const GlJournalCreateSchema = z
   .object({
     journal_date: DateOnlySchema,
     description: z.string().max(512).optional().nullable(),
-    source_type: GlJournalSourceTypeSchema.optional().default("manual"),
+    source_type: GlJournalSourceTypeSchema.optional().default('manual'),
     lines: z.array(GlJournalLineCreateSchema).min(2),
   })
   .superRefine((v, ctx) => {
@@ -134,12 +115,12 @@ export const GlJournalCreateSchema = z
     if (Math.abs(totalDebit - totalCredit) > 0.01) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["lines"],
+        path: ['lines'],
         message: `Total debit (${totalDebit}) harus sama dengan total credit (${totalCredit})`,
       });
     }
   })
-  .openapi("GlJournalCreateRequest");
+  .openapi('GlJournalCreateRequest');
 export type GlJournalCreate = z.infer<typeof GlJournalCreateSchema>;
 
 // ================== CASH TRANSFER ==================
@@ -158,26 +139,26 @@ export const CashTransferCreateSchema = z
     if (v.from_account_id === v.to_account_id) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["to_account_id"],
-        message: "Akun asal & tujuan harus berbeda",
+        path: ['to_account_id'],
+        message: 'Akun asal & tujuan harus berbeda',
       });
     }
     if ((v.fee ?? 0) > 0 && !v.fee_account_id) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["fee_account_id"],
-        message: "fee_account_id wajib jika fee > 0",
+        path: ['fee_account_id'],
+        message: 'fee_account_id wajib jika fee > 0',
       });
     }
   })
-  .openapi("CashTransferCreateRequest");
+  .openapi('CashTransferCreateRequest');
 export type CashTransferCreate = z.infer<typeof CashTransferCreateSchema>;
 
 // ================== INCOME ==================
 export const IncomeCreateSchema = z
   .object({
     income_date: DateOnlySchema,
-    source_type: z.enum(["customer", "other"]).optional().default("other"),
+    source_type: z.enum(['customer', 'other']).optional().default('other'),
     customer_id: z.coerce.number().int().positive().optional().nullable(),
     source_other: z.string().max(256).optional().nullable(),
     category: z.string().max(64).optional().nullable(),
@@ -188,7 +169,7 @@ export const IncomeCreateSchema = z
     description: z.string().max(512).optional().nullable(),
     attachment: z.string().url().optional().nullable(),
   })
-  .openapi("IncomeCreateRequest");
+  .openapi('IncomeCreateRequest');
 export type IncomeCreate = z.infer<typeof IncomeCreateSchema>;
 
 // ================== EXPENSE ==================
@@ -204,7 +185,7 @@ export const ExpenseCreateSchema = z
     attachment: z.string().url().optional().nullable(),
     is_recurring: z.coerce.number().int().min(0).max(1).optional().default(0),
   })
-  .openapi("ExpenseCreateRequest");
+  .openapi('ExpenseCreateRequest');
 export type ExpenseCreate = z.infer<typeof ExpenseCreateSchema>;
 
 // ================== RECURRING BILL ==================
@@ -215,15 +196,15 @@ export const RecurringBillCreateSchema = z
     expense_account_id: z.coerce.number().int().positive(),
     payment_account_id: z.coerce.number().int().positive().optional().nullable(),
     amount: z.coerce.number().positive(),
-    frequency: RecurringFrequencySchema.optional().default("monthly"),
+    frequency: RecurringFrequencySchema.optional().default('monthly'),
     due_day: z.coerce.number().int().min(1).max(31),
     is_active: z.coerce.number().int().min(0).max(1).optional().default(1),
   })
-  .openapi("RecurringBillCreateRequest");
+  .openapi('RecurringBillCreateRequest');
 export type RecurringBillCreate = z.infer<typeof RecurringBillCreateSchema>;
 
 export const RecurringBillUpdateSchema = RecurringBillCreateSchema.partial().openapi(
-  "RecurringBillUpdateRequest"
+  'RecurringBillUpdateRequest'
 );
 
 // ================== VENDOR ==================
@@ -243,12 +224,10 @@ export const VendorCreateSchema = z
     is_active: z.coerce.number().int().min(0).max(1).optional().default(1),
     note: z.string().max(512).optional().nullable(),
   })
-  .openapi("VendorCreateRequest");
+  .openapi('VendorCreateRequest');
 export type VendorCreate = z.infer<typeof VendorCreateSchema>;
 
-export const VendorUpdateSchema = VendorCreateSchema.partial().openapi(
-  "VendorUpdateRequest"
-);
+export const VendorUpdateSchema = VendorCreateSchema.partial().openapi('VendorUpdateRequest');
 
 // ================== FIXED ASSET ==================
 export const FixedAssetCreateSchema = z
@@ -259,9 +238,7 @@ export const FixedAssetCreateSchema = z
     cost: z.coerce.number().positive(),
     useful_life_years: z.coerce.number().int().min(1).max(50),
     salvage_value: z.coerce.number().nonnegative().optional().default(0),
-    depreciation_method: DepreciationMethodSchema.optional().default(
-      "STRAIGHT_LINE"
-    ),
+    depreciation_method: DepreciationMethodSchema.optional().default('STRAIGHT_LINE'),
     location: z.string().max(128).optional().nullable(),
     vendor_id: z.coerce.number().int().positive().optional().nullable(),
     photo_url: z.string().url().optional().nullable(),
@@ -270,12 +247,11 @@ export const FixedAssetCreateSchema = z
     dep_expense_account_id: z.coerce.number().int().positive(),
     payment_account_id: z.coerce.number().int().positive().optional().nullable(),
   })
-  .openapi("FixedAssetCreateRequest");
+  .openapi('FixedAssetCreateRequest');
 export type FixedAssetCreate = z.infer<typeof FixedAssetCreateSchema>;
 
-export const FixedAssetUpdateSchema = FixedAssetCreateSchema.partial().openapi(
-  "FixedAssetUpdateRequest"
-);
+export const FixedAssetUpdateSchema =
+  FixedAssetCreateSchema.partial().openapi('FixedAssetUpdateRequest');
 
 export const DepreciationRunSchema = z
   .object({
@@ -283,7 +259,7 @@ export const DepreciationRunSchema = z
     month: z.coerce.number().int().min(1).max(12),
     asset_ids: z.array(z.coerce.number().int().positive()).optional(),
   })
-  .openapi("DepreciationRunRequest");
+  .openapi('DepreciationRunRequest');
 export type DepreciationRun = z.infer<typeof DepreciationRunSchema>;
 
 export const FixedAssetDisposalSchema = z
@@ -295,120 +271,120 @@ export const FixedAssetDisposalSchema = z
     buyer: z.string().max(128).optional().nullable(),
   })
   .superRefine((v, ctx) => {
-    if (v.disposal_type === "SOLD" && v.proceeds <= 0) {
+    if (v.disposal_type === 'SOLD' && v.proceeds <= 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["proceeds"],
-        message: "proceeds wajib > 0 untuk disposal_type=SOLD",
+        path: ['proceeds'],
+        message: 'proceeds wajib > 0 untuk disposal_type=SOLD',
       });
     }
     if (v.proceeds > 0 && !v.proceeds_account_id) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["proceeds_account_id"],
-        message: "proceeds_account_id wajib jika proceeds > 0",
+        path: ['proceeds_account_id'],
+        message: 'proceeds_account_id wajib jika proceeds > 0',
       });
     }
   })
-  .openapi("FixedAssetDisposalRequest");
+  .openapi('FixedAssetDisposalRequest');
 export type FixedAssetDisposal = z.infer<typeof FixedAssetDisposalSchema>;
 
 // --- OpenAPI path registrations (sample for keuangan; full set covered by routes) ---
 
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/account",
-  description: "List Chart of Accounts (optionally filter by type).",
-  tags: ["Keuangan"],
+  method: 'get',
+  path: '/api/v1/account',
+  description: 'List Chart of Accounts (optionally filter by type).',
+  tags: ['Keuangan'],
   security: [{ bearerAuth: [] }],
   request: {
     query: z.object({ type: GlAccountTypeSchema.optional() }),
   },
   responses: {
     200: {
-      description: "Array akun.",
-      content: { "application/json": { schema: z.array(GlAccountSchema) } },
+      description: 'Array akun.',
+      content: { 'application/json': { schema: z.array(GlAccountSchema) } },
     },
   },
 });
 
 registry.registerPath({
-  method: "post",
-  path: "/api/v1/account",
-  description: "Buat akun CoA baru.",
-  tags: ["Keuangan"],
+  method: 'post',
+  path: '/api/v1/account',
+  description: 'Buat akun CoA baru.',
+  tags: ['Keuangan'],
   security: [{ bearerAuth: [] }],
   request: {
     body: {
       required: true,
-      content: { "application/json": { schema: GlAccountCreateSchema } },
+      content: { 'application/json': { schema: GlAccountCreateSchema } },
     },
   },
   responses: {
     201: {
-      description: "Akun dibuat.",
-      content: { "application/json": { schema: GlAccountSchema } },
+      description: 'Akun dibuat.',
+      content: { 'application/json': { schema: GlAccountSchema } },
     },
     400: {
-      description: "Validation error.",
-      content: { "application/json": { schema: ErrorResponseSchema } },
+      description: 'Validation error.',
+      content: { 'application/json': { schema: ErrorResponseSchema } },
     },
   },
 });
 
 registry.registerPath({
-  method: "post",
-  path: "/api/v1/journal",
+  method: 'post',
+  path: '/api/v1/journal',
   description:
-    "Post manual general journal. Total debit harus sama dengan total credit (validasi).",
-  tags: ["Keuangan"],
+    'Post manual general journal. Total debit harus sama dengan total credit (validasi).',
+  tags: ['Keuangan'],
   security: [{ bearerAuth: [] }],
   request: {
     body: {
       required: true,
-      content: { "application/json": { schema: GlJournalCreateSchema } },
+      content: { 'application/json': { schema: GlJournalCreateSchema } },
     },
   },
   responses: {
     201: {
-      description: "Journal posted.",
-      content: { "application/json": { schema: z.any() } },
+      description: 'Journal posted.',
+      content: { 'application/json': { schema: z.any() } },
     },
     400: {
-      description: "Unbalanced or invalid.",
-      content: { "application/json": { schema: ErrorResponseSchema } },
+      description: 'Unbalanced or invalid.',
+      content: { 'application/json': { schema: ErrorResponseSchema } },
     },
   },
 });
 
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/financial-report/balance-sheet",
-  description: "Laporan Neraca per as_of date (defaults to today).",
-  tags: ["Keuangan"],
+  method: 'get',
+  path: '/api/v1/financial-report/balance-sheet',
+  description: 'Laporan Neraca per as_of date (defaults to today).',
+  tags: ['Keuangan'],
   security: [{ bearerAuth: [] }],
   request: { query: z.object({ as_of: DateOnlySchema.optional() }) },
   responses: {
     200: {
-      description: "Balance sheet structure.",
-      content: { "application/json": { schema: z.any() } },
+      description: 'Balance sheet structure.',
+      content: { 'application/json': { schema: z.any() } },
     },
   },
 });
 
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/financial-report/income-statement",
-  description: "Laporan Laba Rugi periode (from..to).",
-  tags: ["Keuangan"],
+  method: 'get',
+  path: '/api/v1/financial-report/income-statement',
+  description: 'Laporan Laba Rugi periode (from..to).',
+  tags: ['Keuangan'],
   security: [{ bearerAuth: [] }],
   request: {
     query: z.object({ from: DateOnlySchema, to: DateOnlySchema }),
   },
   responses: {
     200: {
-      description: "Income statement structure.",
-      content: { "application/json": { schema: z.any() } },
+      description: 'Income statement structure.',
+      content: { 'application/json': { schema: z.any() } },
     },
   },
 });

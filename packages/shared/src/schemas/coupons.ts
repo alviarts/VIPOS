@@ -1,12 +1,8 @@
 // Schema untuk endpoint /api/v1/coupon/* — pre-generated coupon codes (SINGLE
 // atau BULK_GENERATE) yang trigger promo saat redeem di checkout.
 
-import { z, registry } from "../openapi";
-import {
-  DateTimeStringSchema,
-  ErrorResponseSchema,
-  IdStringSchema,
-} from "./common";
+import { z, registry } from '../openapi';
+import { DateTimeStringSchema, ErrorResponseSchema, IdStringSchema } from './common';
 
 export const CouponSchema = z
   .object({
@@ -25,7 +21,7 @@ export const CouponSchema = z
     customer_name: z.string().optional().nullable(),
     created_at: DateTimeStringSchema.optional(),
   })
-  .openapi("Coupon");
+  .openapi('Coupon');
 export type Coupon = z.infer<typeof CouponSchema>;
 
 export const CouponCreateSchema = z
@@ -33,9 +29,9 @@ export const CouponCreateSchema = z
     promo_id: z.coerce.number().int().positive(),
     code: z
       .string()
-      .min(3, "Kode kupon minimal 3 karakter")
+      .min(3, 'Kode kupon minimal 3 karakter')
       .max(64)
-      .regex(/^[A-Za-z0-9_-]+$/, "Kode kupon hanya huruf, angka, _, -")
+      .regex(/^[A-Za-z0-9_-]+$/, 'Kode kupon hanya huruf, angka, _, -')
       .transform((v) => v.toUpperCase()),
     max_uses: z.coerce.number().int().min(1).max(100000).default(1),
     assigned_customer_id: z.coerce.number().int().positive().optional().nullable(),
@@ -43,7 +39,7 @@ export const CouponCreateSchema = z
     valid_until: z.string().datetime().optional().nullable(),
     is_active: z.coerce.boolean().default(true),
   })
-  .openapi("CouponCreateRequest");
+  .openapi('CouponCreateRequest');
 export type CouponCreate = z.infer<typeof CouponCreateSchema>;
 
 export const CouponBulkCreateSchema = z
@@ -53,15 +49,15 @@ export const CouponBulkCreateSchema = z
     prefix: z
       .string()
       .max(16)
-      .regex(/^[A-Z0-9_-]*$/, "Prefix hanya huruf besar, angka, _, -")
+      .regex(/^[A-Z0-9_-]*$/, 'Prefix hanya huruf besar, angka, _, -')
       .optional()
-      .default(""),
+      .default(''),
     code_length: z.coerce.number().int().min(4).max(32).default(8),
     max_uses: z.coerce.number().int().min(1).max(100000).default(1),
     valid_from: z.string().datetime().optional().nullable(),
     valid_until: z.string().datetime().optional().nullable(),
   })
-  .openapi("CouponBulkCreateRequest");
+  .openapi('CouponBulkCreateRequest');
 export type CouponBulkCreate = z.infer<typeof CouponBulkCreateSchema>;
 
 export const CouponBulkResponseSchema = z
@@ -70,7 +66,7 @@ export const CouponBulkResponseSchema = z
     count: z.number().int().nonnegative(),
     codes: z.array(z.string()),
   })
-  .openapi("CouponBulkResponse");
+  .openapi('CouponBulkResponse');
 export type CouponBulkResponse = z.infer<typeof CouponBulkResponseSchema>;
 
 export const CouponValidateRequestSchema = z
@@ -79,7 +75,7 @@ export const CouponValidateRequestSchema = z
     customer_id: z.coerce.number().int().positive().optional().nullable(),
     subtotal: z.coerce.number().nonnegative().optional().default(0),
   })
-  .openapi("CouponValidateRequest");
+  .openapi('CouponValidateRequest');
 export type CouponValidateRequest = z.infer<typeof CouponValidateRequestSchema>;
 
 export const CouponValidateResponseSchema = z
@@ -99,30 +95,27 @@ export const CouponValidateResponseSchema = z
       .optional(),
     estimated_discount: z.number().nonnegative().optional(),
   })
-  .openapi("CouponValidateResponse");
-export type CouponValidateResponse = z.infer<
-  typeof CouponValidateResponseSchema
->;
+  .openapi('CouponValidateResponse');
+export type CouponValidateResponse = z.infer<typeof CouponValidateResponseSchema>;
 
 // --- OpenAPI registrations ------------------------------------------------
 
 const json = (schema: z.ZodTypeAny) => ({
-  "application/json": { schema },
+  'application/json': { schema },
 });
 const okMessage = z.object({ message: z.string() });
 
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/coupon",
-  description:
-    "List kupon dengan filter (promo_id, batch_id, is_active, search code).",
-  tags: ["Coupons"],
+  method: 'get',
+  path: '/api/v1/coupon',
+  description: 'List kupon dengan filter (promo_id, batch_id, is_active, search code).',
+  tags: ['Coupons'],
   security: [{ bearerAuth: [] }],
   request: {
     query: z.object({
       promo_id: z.string().optional(),
       batch_id: z.string().optional(),
-      is_active: z.enum(["0", "1"]).optional(),
+      is_active: z.enum(['0', '1']).optional(),
       search: z.string().optional(),
       limit: z.string().optional(),
       offset: z.string().optional(),
@@ -130,7 +123,7 @@ registry.registerPath({
   },
   responses: {
     200: {
-      description: "List kupon + total count",
+      description: 'List kupon + total count',
       content: json(
         z.object({
           items: z.array(CouponSchema),
@@ -142,14 +135,14 @@ registry.registerPath({
 });
 
 registry.registerPath({
-  method: "get",
-  path: "/api/v1/coupon/batches",
-  description: "Ringkasan batch (count, used, remaining, status).",
-  tags: ["Coupons"],
+  method: 'get',
+  path: '/api/v1/coupon/batches',
+  description: 'Ringkasan batch (count, used, remaining, status).',
+  tags: ['Coupons'],
   security: [{ bearerAuth: [] }],
   responses: {
     200: {
-      description: "Array batch summary",
+      description: 'Array batch summary',
       content: json(
         z.array(
           z.object({
@@ -168,61 +161,61 @@ registry.registerPath({
 });
 
 registry.registerPath({
-  method: "post",
-  path: "/api/v1/coupon",
-  description: "Buat satu kupon dengan kode custom.",
-  tags: ["Coupons"],
+  method: 'post',
+  path: '/api/v1/coupon',
+  description: 'Buat satu kupon dengan kode custom.',
+  tags: ['Coupons'],
   security: [{ bearerAuth: [] }],
   request: { body: { required: true, content: json(CouponCreateSchema) } },
   responses: {
-    201: { description: "Kupon dibuat", content: json(CouponSchema) },
+    201: { description: 'Kupon dibuat', content: json(CouponSchema) },
     400: {
-      description: "Validation error",
+      description: 'Validation error',
       content: json(ErrorResponseSchema),
     },
   },
 });
 
 registry.registerPath({
-  method: "post",
-  path: "/api/v1/coupon/bulk",
+  method: 'post',
+  path: '/api/v1/coupon/bulk',
   description:
-    "Generate N kupon secara bulk (random suffix). Kembalikan list kode untuk distribusi.",
-  tags: ["Coupons"],
+    'Generate N kupon secara bulk (random suffix). Kembalikan list kode untuk distribusi.',
+  tags: ['Coupons'],
   security: [{ bearerAuth: [] }],
   request: { body: { required: true, content: json(CouponBulkCreateSchema) } },
   responses: {
     201: {
-      description: "Bulk generate berhasil",
+      description: 'Bulk generate berhasil',
       content: json(CouponBulkResponseSchema),
     },
   },
 });
 
 registry.registerPath({
-  method: "post",
-  path: "/api/v1/coupon/validate",
+  method: 'post',
+  path: '/api/v1/coupon/validate',
   description:
-    "Validasi kupon (cek aktif, expiry, max_uses, customer assignment, min_purchase). Tidak meng-increment used_count.",
-  tags: ["Coupons"],
+    'Validasi kupon (cek aktif, expiry, max_uses, customer assignment, min_purchase). Tidak meng-increment used_count.',
+  tags: ['Coupons'],
   security: [{ bearerAuth: [] }],
   request: {
     body: { required: true, content: json(CouponValidateRequestSchema) },
   },
   responses: {
     200: {
-      description: "Hasil validasi",
+      description: 'Hasil validasi',
       content: json(CouponValidateResponseSchema),
     },
   },
 });
 
 registry.registerPath({
-  method: "post",
-  path: "/api/v1/coupon/redeem",
+  method: 'post',
+  path: '/api/v1/coupon/redeem',
   description:
-    "Redeem kupon — increment used_count + record di coupon_redemptions. Validasi sama dengan validate. Idempoten via transaction_id.",
-  tags: ["Coupons"],
+    'Redeem kupon — increment used_count + record di coupon_redemptions. Validasi sama dengan validate. Idempoten via transaction_id.',
+  tags: ['Coupons'],
   security: [{ bearerAuth: [] }],
   request: {
     body: {
@@ -237,43 +230,42 @@ registry.registerPath({
   },
   responses: {
     200: {
-      description: "Redeem berhasil",
+      description: 'Redeem berhasil',
       content: json(CouponValidateResponseSchema),
     },
     400: {
-      description: "Tidak valid / sudah dipakai",
+      description: 'Tidak valid / sudah dipakai',
       content: json(CouponValidateResponseSchema),
     },
   },
 });
 
 registry.registerPath({
-  method: "delete",
-  path: "/api/v1/coupon/{id}",
-  description: "Hapus satu kupon (admin).",
-  tags: ["Coupons"],
+  method: 'delete',
+  path: '/api/v1/coupon/{id}',
+  description: 'Hapus satu kupon (admin).',
+  tags: ['Coupons'],
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ id: IdStringSchema }) },
   responses: {
-    200: { description: "Berhasil", content: json(okMessage) },
+    200: { description: 'Berhasil', content: json(okMessage) },
     404: {
-      description: "Tidak ditemukan",
+      description: 'Tidak ditemukan',
       content: json(ErrorResponseSchema),
     },
   },
 });
 
 registry.registerPath({
-  method: "delete",
-  path: "/api/v1/coupon/batch/{batch_id}",
-  description:
-    "Deactivate seluruh kupon dalam batch (set is_active=0). Tidak menghapus row.",
-  tags: ["Coupons"],
+  method: 'delete',
+  path: '/api/v1/coupon/batch/{batch_id}',
+  description: 'Deactivate seluruh kupon dalam batch (set is_active=0). Tidak menghapus row.',
+  tags: ['Coupons'],
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ batch_id: z.string() }) },
   responses: {
     200: {
-      description: "Berhasil",
+      description: 'Berhasil',
       content: json(z.object({ message: z.string(), updated: z.number() })),
     },
   },
