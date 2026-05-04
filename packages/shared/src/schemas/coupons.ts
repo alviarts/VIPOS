@@ -1,4 +1,4 @@
-// Schema untuk endpoint /api/coupon/* — pre-generated coupon codes (SINGLE
+// Schema untuk endpoint /api/v1/coupon/* — pre-generated coupon codes (SINGLE
 // atau BULK_GENERATE) yang trigger promo saat redeem di checkout.
 
 import { z, registry } from "../openapi";
@@ -113,7 +113,7 @@ const okMessage = z.object({ message: z.string() });
 
 registry.registerPath({
   method: "get",
-  path: "/api/coupon",
+  path: "/api/v1/coupon",
   description:
     "List kupon dengan filter (promo_id, batch_id, is_active, search code).",
   tags: ["Coupons"],
@@ -143,7 +143,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/coupon/batches",
+  path: "/api/v1/coupon/batches",
   description: "Ringkasan batch (count, used, remaining, status).",
   tags: ["Coupons"],
   security: [{ bearerAuth: [] }],
@@ -169,7 +169,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/coupon",
+  path: "/api/v1/coupon",
   description: "Buat satu kupon dengan kode custom.",
   tags: ["Coupons"],
   security: [{ bearerAuth: [] }],
@@ -185,7 +185,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/coupon/bulk",
+  path: "/api/v1/coupon/bulk",
   description:
     "Generate N kupon secara bulk (random suffix). Kembalikan list kode untuk distribusi.",
   tags: ["Coupons"],
@@ -201,7 +201,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/coupon/validate",
+  path: "/api/v1/coupon/validate",
   description:
     "Validasi kupon (cek aktif, expiry, max_uses, customer assignment, min_purchase). Tidak meng-increment used_count.",
   tags: ["Coupons"],
@@ -219,7 +219,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/coupon/redeem",
+  path: "/api/v1/coupon/redeem",
   description:
     "Redeem kupon — increment used_count + record di coupon_redemptions. Validasi sama dengan validate. Idempoten via transaction_id.",
   tags: ["Coupons"],
@@ -249,7 +249,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "delete",
-  path: "/api/coupon/{id}",
+  path: "/api/v1/coupon/{id}",
   description: "Hapus satu kupon (admin).",
   tags: ["Coupons"],
   security: [{ bearerAuth: [] }],
@@ -265,7 +265,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "delete",
-  path: "/api/coupon/batch/{batch_id}",
+  path: "/api/v1/coupon/batch/{batch_id}",
   description:
     "Deactivate seluruh kupon dalam batch (set is_active=0). Tidak menghapus row.",
   tags: ["Coupons"],

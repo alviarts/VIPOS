@@ -1,5 +1,5 @@
-// Schemas untuk endpoint /api/appointment, /api/staff,
-// /api/appointment-resource, /api/calendar (P1-13 Appointment / Reservasi).
+// Schemas untuk endpoint /api/v1/appointment, /api/v1/staff,
+// /api/v1/appointment-resource, /api/v1/calendar (P1-13 Appointment / Reservasi).
 
 import { z, registry } from "../openapi";
 import {
@@ -221,14 +221,14 @@ function notFound() {
 // Staff
 registry.registerPath({
   method: "get",
-  path: "/api/staff",
+  path: "/api/v1/staff",
   tags,
   summary: "List staff",
   responses: listResponse(StaffSchema),
 });
 registry.registerPath({
   method: "post",
-  path: "/api/staff",
+  path: "/api/v1/staff",
   tags,
   summary: "Create staff",
   request: {
@@ -243,7 +243,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "put",
-  path: "/api/staff/{id}",
+  path: "/api/v1/staff/{id}",
   tags,
   summary: "Update staff",
   request: {
@@ -260,7 +260,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "delete",
-  path: "/api/staff/{id}",
+  path: "/api/v1/staff/{id}",
   tags,
   summary: "Delete staff",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -270,14 +270,14 @@ registry.registerPath({
 // Resource
 registry.registerPath({
   method: "get",
-  path: "/api/appointment-resource",
+  path: "/api/v1/appointment-resource",
   tags,
   summary: "List appointment resources",
   responses: listResponse(AppointmentResourceSchema),
 });
 registry.registerPath({
   method: "post",
-  path: "/api/appointment-resource",
+  path: "/api/v1/appointment-resource",
   tags,
   summary: "Create resource",
   request: {
@@ -296,7 +296,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "put",
-  path: "/api/appointment-resource/{id}",
+  path: "/api/v1/appointment-resource/{id}",
   tags,
   summary: "Update resource",
   request: {
@@ -317,7 +317,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "delete",
-  path: "/api/appointment-resource/{id}",
+  path: "/api/v1/appointment-resource/{id}",
   tags,
   summary: "Delete resource",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -327,7 +327,7 @@ registry.registerPath({
 // Appointment
 registry.registerPath({
   method: "get",
-  path: "/api/appointment",
+  path: "/api/v1/appointment",
   tags,
   summary: "List appointments",
   request: {
@@ -343,7 +343,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "get",
-  path: "/api/appointment/{id}",
+  path: "/api/v1/appointment/{id}",
   tags,
   summary: "Get appointment detail",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -357,7 +357,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/api/appointment",
+  path: "/api/v1/appointment",
   tags,
   summary: "Create appointment",
   request: {
@@ -374,7 +374,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "put",
-  path: "/api/appointment/{id}",
+  path: "/api/v1/appointment/{id}",
   tags,
   summary: "Update appointment",
   request: {
@@ -393,7 +393,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "delete",
-  path: "/api/appointment/{id}",
+  path: "/api/v1/appointment/{id}",
   tags,
   summary: "Delete appointment",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -401,7 +401,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/api/appointment/{id}/confirm",
+  path: "/api/v1/appointment/{id}/confirm",
   tags,
   summary: "Confirm appointment (PENDING → CONFIRMED)",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -414,7 +414,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/api/appointment/{id}/checkin",
+  path: "/api/v1/appointment/{id}/checkin",
   tags,
   summary: "Check-in appointment (CONFIRMED → IN_PROGRESS)",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -427,7 +427,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/api/appointment/{id}/complete",
+  path: "/api/v1/appointment/{id}/complete",
   tags,
   summary: "Complete appointment",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -440,7 +440,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/api/appointment/{id}/cancel",
+  path: "/api/v1/appointment/{id}/cancel",
   tags,
   summary: "Cancel appointment",
   request: {
@@ -458,7 +458,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/api/appointment/{id}/no-show",
+  path: "/api/v1/appointment/{id}/no-show",
   tags,
   summary: "Mark no-show",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -471,7 +471,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/api/appointment/{id}/reschedule",
+  path: "/api/v1/appointment/{id}/reschedule",
   tags,
   summary: "Reschedule appointment",
   request: {
@@ -491,7 +491,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/api/appointment/{id}/send-reminder",
+  path: "/api/v1/appointment/{id}/send-reminder",
   tags,
   summary: "Send reminder (24h or 1h)",
   request: {
@@ -513,7 +513,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/api/appointment/{id}/convert",
+  path: "/api/v1/appointment/{id}/convert",
   tags,
   summary: "Convert appointment to transaction",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -528,7 +528,7 @@ registry.registerPath({
 // Calendar
 registry.registerPath({
   method: "get",
-  path: "/api/calendar",
+  path: "/api/v1/calendar",
   tags,
   summary: "Calendar view (appointments + staff + resources within range)",
   request: {

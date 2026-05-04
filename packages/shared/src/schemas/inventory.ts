@@ -1,4 +1,4 @@
-// Schema untuk endpoint /api/inventory/*
+// Schema untuk endpoint /api/v1/inventory/*
 
 import { z, registry } from "../openapi";
 import {
@@ -133,7 +133,7 @@ export type StockOpnameFinalize = z.infer<typeof StockOpnameFinalizeSchema>;
 
 registry.registerPath({
   method: "get",
-  path: "/api/inventory/movements",
+  path: "/api/v1/inventory/movements",
   description: "List inventory movement (stok_in / stok_out / opname).",
   tags: ["Inventory"],
   security: [{ bearerAuth: [] }],
@@ -157,7 +157,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/inventory/movements",
+  path: "/api/v1/inventory/movements",
   description: "Catat inventory movement (otomatis update stock di products).",
   tags: ["Inventory"],
   security: [{ bearerAuth: [] }],
@@ -183,7 +183,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/inventory/movements/{product_id}",
+  path: "/api/v1/inventory/movements/{product_id}",
   description: "Riwayat pergerakan stok per produk.",
   tags: ["Inventory"],
   security: [{ bearerAuth: [] }],
@@ -209,7 +209,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/stock-opname",
+  path: "/api/v1/stock-opname",
   description: "List opname (draft + final).",
   tags: ["Inventory"],
   security: [{ bearerAuth: [] }],
@@ -230,7 +230,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/stock-opname",
+  path: "/api/v1/stock-opname",
   description:
     "Buat opname baru (draft). Jika product_ids kosong, semua produk monitor_stok=1 disertakan.",
   tags: ["Inventory"],
@@ -253,7 +253,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/stock-opname/{id}",
+  path: "/api/v1/stock-opname/{id}",
   description: "Detail opname (header + items).",
   tags: ["Inventory"],
   security: [{ bearerAuth: [] }],
@@ -276,7 +276,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "put",
-  path: "/api/stock-opname/{id}",
+  path: "/api/v1/stock-opname/{id}",
   description: "Update qty_fisik untuk item-item opname (hanya saat status=draft).",
   tags: ["Inventory"],
   security: [{ bearerAuth: [] }],
@@ -301,7 +301,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/stock-opname/{id}/finalize",
+  path: "/api/v1/stock-opname/{id}/finalize",
   description:
     "Finalize opname → posting OPNAME_ADJUST movements untuk setiap item dengan selisih ≠ 0; status menjadi final.",
   tags: ["Inventory"],
@@ -327,7 +327,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "delete",
-  path: "/api/stock-opname/{id}",
+  path: "/api/v1/stock-opname/{id}",
   description: "Cancel opname draft (tidak boleh kalau status=final).",
   tags: ["Inventory"],
   security: [{ bearerAuth: [] }],

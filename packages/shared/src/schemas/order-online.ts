@@ -1,5 +1,5 @@
-// Schema untuk endpoint /api/online-order/*, /api/marketplace/*,
-// /api/storefront-settings, /api/consumer-app-config, dan settlement report.
+// Schema untuk endpoint /api/v1/online-order/*, /api/v1/marketplace/*,
+// /api/v1/storefront-settings, /api/v1/consumer-app-config, dan settlement report.
 // P1-12: queue pesanan online + marketplace mock OAuth + storefront +
 // consumer app config.
 
@@ -355,7 +355,7 @@ const okMessage = z.object({ message: z.string() });
 
 registry.registerPath({
   method: "get",
-  path: "/api/online-order",
+  path: "/api/v1/online-order",
   description: "List online orders (filter status, channel, date range).",
   tags: ["OrderOnline"],
   security: [{ bearerAuth: [] }],
@@ -384,7 +384,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/online-order/{id}",
+  path: "/api/v1/online-order/{id}",
   description: "Detail order + items.",
   tags: ["OrderOnline"],
   security: [{ bearerAuth: [] }],
@@ -400,7 +400,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/online-order",
+  path: "/api/v1/online-order",
   description:
     "Buat online order baru (biasanya dari frontend e-menu / consumer app).",
   tags: ["OrderOnline"],
@@ -417,7 +417,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/online-order/{id}/accept",
+  path: "/api/v1/online-order/{id}/accept",
   description: "Terima order: NEW → PREPARING.",
   tags: ["OrderOnline"],
   security: [{ bearerAuth: [] }],
@@ -430,7 +430,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/online-order/{id}/reject",
+  path: "/api/v1/online-order/{id}/reject",
   description: "Tolak order dengan alasan.",
   tags: ["OrderOnline"],
   security: [{ bearerAuth: [] }],
@@ -445,7 +445,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/online-order/{id}/ready",
+  path: "/api/v1/online-order/{id}/ready",
   description: "Tandai siap: PREPARING → READY.",
   tags: ["OrderOnline"],
   security: [{ bearerAuth: [] }],
@@ -457,7 +457,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/online-order/{id}/complete",
+  path: "/api/v1/online-order/{id}/complete",
   description: "Tandai selesai: READY → COMPLETED.",
   tags: ["OrderOnline"],
   security: [{ bearerAuth: [] }],
@@ -469,7 +469,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/online-order/{id}/cancel",
+  path: "/api/v1/online-order/{id}/cancel",
   description: "Batalkan order.",
   tags: ["OrderOnline"],
   security: [{ bearerAuth: [] }],
@@ -484,7 +484,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/online-order/webhook/{provider}",
+  path: "/api/v1/online-order/webhook/{provider}",
   description:
     "Endpoint webhook untuk marketplace (mock simulator). Untuk testing: terima payload dan buat order baru.",
   tags: ["OrderOnline"],
@@ -499,7 +499,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/marketplace",
+  path: "/api/v1/marketplace",
   description: "List koneksi marketplace (semua provider terdaftar).",
   tags: ["Marketplace"],
   security: [{ bearerAuth: [] }],
@@ -513,7 +513,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/marketplace/{provider}/connect",
+  path: "/api/v1/marketplace/{provider}/connect",
   description:
     "Connect marketplace (mock OAuth — generate fake oauth_token + simpan kredensial).",
   tags: ["Marketplace"],
@@ -532,7 +532,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/marketplace/{provider}/disconnect",
+  path: "/api/v1/marketplace/{provider}/disconnect",
   description: "Disconnect marketplace.",
   tags: ["Marketplace"],
   security: [{ bearerAuth: [] }],
@@ -544,7 +544,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "put",
-  path: "/api/marketplace/{provider}",
+  path: "/api/v1/marketplace/{provider}",
   description: "Update setting marketplace (auto-accept, SLA, MDR, markup).",
   tags: ["Marketplace"],
   security: [{ bearerAuth: [] }],
@@ -562,7 +562,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/marketplace/{provider}/sync-products",
+  path: "/api/v1/marketplace/{provider}/sync-products",
   description:
     "Sync produk ke marketplace (mock — mark sync_status='synced' + update last_sync_at).",
   tags: ["Marketplace"],
@@ -584,7 +584,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/marketplace/{provider}/products",
+  path: "/api/v1/marketplace/{provider}/products",
   description: "List override produk untuk provider tertentu.",
   tags: ["Marketplace"],
   security: [{ bearerAuth: [] }],
@@ -599,7 +599,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/marketplace/{provider}/products",
+  path: "/api/v1/marketplace/{provider}/products",
   description: "Upsert override produk (price markup, name, image).",
   tags: ["Marketplace"],
   security: [{ bearerAuth: [] }],
@@ -617,7 +617,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/marketplace/settlement",
+  path: "/api/v1/marketplace/settlement",
   description: "Settlement report per provider (filter date range).",
   tags: ["Marketplace"],
   security: [{ bearerAuth: [] }],
@@ -644,7 +644,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/storefront-settings",
+  path: "/api/v1/storefront-settings",
   description: "Get storefront (e-menu) config.",
   tags: ["Storefront"],
   security: [{ bearerAuth: [] }],
@@ -658,7 +658,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "put",
-  path: "/api/storefront-settings",
+  path: "/api/v1/storefront-settings",
   description: "Update storefront config.",
   tags: ["Storefront"],
   security: [{ bearerAuth: [] }],
@@ -675,7 +675,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/consumer-app-config",
+  path: "/api/v1/consumer-app-config",
   description: "Get consumer app config.",
   tags: ["ConsumerApp"],
   security: [{ bearerAuth: [] }],
@@ -686,7 +686,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "put",
-  path: "/api/consumer-app-config",
+  path: "/api/v1/consumer-app-config",
   description: "Update consumer app config.",
   tags: ["ConsumerApp"],
   security: [{ bearerAuth: [] }],

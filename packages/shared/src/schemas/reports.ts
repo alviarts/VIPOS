@@ -1,6 +1,6 @@
 // P1-17 — Reports (Laporan).
 //
-// Schemas untuk endpoint /api/reports/* + report scheduler (Prime+).
+// Schemas untuk endpoint /api/v1/reports/* + report scheduler (Prime+).
 // Filter standar: date range (from, to), outlet, kasir, channel, kategori.
 // Format: csv|xlsx|pdf|json (export dilakukan di client; backend hanya kirim
 // JSON, tapi schema kita siapkan kalau ke depan butuh server-side rendering).
@@ -66,7 +66,7 @@ export const REPORT_KEYS = [
   "employee-attendance",
   "employee-shift",
   "employee-commission",
-  // Financial (delegate ke /api/financial-report; expose di hub)
+  // Financial (delegate ke /api/v1/financial-report; expose di hub)
   "financial-pnl",
   "financial-balance-sheet",
   "financial-cashflow",
@@ -179,7 +179,7 @@ export type ReportScheduleUpdate = z.infer<typeof ReportScheduleUpdateSchema>;
 
 registry.registerPath({
   method: "get",
-  path: "/api/reports/sales-summary",
+  path: "/api/v1/reports/sales-summary",
   description:
     "Sales summary KPI + daily trend + top products + payment breakdown.",
   tags: ["Reports"],
@@ -200,7 +200,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/reports/schedule",
+  path: "/api/v1/reports/schedule",
   description: "List scheduled reports (Prime+ subscription).",
   tags: ["Reports"],
   responses: {
@@ -217,7 +217,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/reports/schedule",
+  path: "/api/v1/reports/schedule",
   description: "Create a new scheduled report.",
   tags: ["Reports"],
   request: {

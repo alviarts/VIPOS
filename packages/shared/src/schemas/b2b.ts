@@ -1,5 +1,5 @@
-// Schemas untuk endpoint /api/quotation, /api/sales-order, /api/delivery-order,
-// /api/invoice, /api/receipt + /api/aging-report (P1-10 Invoice B2B 5-stage).
+// Schemas untuk endpoint /api/v1/quotation, /api/v1/sales-order, /api/v1/delivery-order,
+// /api/v1/invoice, /api/v1/receipt + /api/v1/aging-report (P1-10 Invoice B2B 5-stage).
 
 import { z, registry } from "../openapi";
 import {
@@ -338,14 +338,14 @@ function notFound() {
 // Quotation
 registry.registerPath({
   method: "get",
-  path: "/api/quotation",
+  path: "/api/v1/quotation",
   tags,
   summary: "List quotations",
   responses: listResponse(QuotationSchema),
 });
 registry.registerPath({
   method: "post",
-  path: "/api/quotation",
+  path: "/api/v1/quotation",
   tags,
   summary: "Create quotation",
   request: {
@@ -362,7 +362,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "get",
-  path: "/api/quotation/{id}",
+  path: "/api/v1/quotation/{id}",
   tags,
   summary: "Get quotation",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -376,7 +376,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "put",
-  path: "/api/quotation/{id}",
+  path: "/api/v1/quotation/{id}",
   tags,
   summary: "Update quotation",
   request: {
@@ -395,7 +395,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "delete",
-  path: "/api/quotation/{id}",
+  path: "/api/v1/quotation/{id}",
   tags,
   summary: "Delete quotation",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -406,7 +406,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/api/quotation/{id}/convert-to-so",
+  path: "/api/v1/quotation/{id}/convert-to-so",
   tags,
   summary: "Convert quotation to sales order",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -422,14 +422,14 @@ registry.registerPath({
 // Sales Order
 registry.registerPath({
   method: "get",
-  path: "/api/sales-order",
+  path: "/api/v1/sales-order",
   tags,
   summary: "List sales orders",
   responses: listResponse(SalesOrderSchema),
 });
 registry.registerPath({
   method: "post",
-  path: "/api/sales-order",
+  path: "/api/v1/sales-order",
   tags,
   summary: "Create sales order",
   request: {
@@ -446,7 +446,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "get",
-  path: "/api/sales-order/{id}",
+  path: "/api/v1/sales-order/{id}",
   tags,
   summary: "Get sales order",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -460,7 +460,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "put",
-  path: "/api/sales-order/{id}",
+  path: "/api/v1/sales-order/{id}",
   tags,
   summary: "Update sales order",
   request: {
@@ -479,7 +479,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "delete",
-  path: "/api/sales-order/{id}",
+  path: "/api/v1/sales-order/{id}",
   tags,
   summary: "Delete sales order",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -492,14 +492,14 @@ registry.registerPath({
 // Delivery Order
 registry.registerPath({
   method: "get",
-  path: "/api/delivery-order",
+  path: "/api/v1/delivery-order",
   tags,
   summary: "List delivery orders",
   responses: listResponse(DeliveryOrderSchema),
 });
 registry.registerPath({
   method: "post",
-  path: "/api/delivery-order",
+  path: "/api/v1/delivery-order",
   tags,
   summary: "Create delivery order from SO",
   request: {
@@ -516,7 +516,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "get",
-  path: "/api/delivery-order/{id}",
+  path: "/api/v1/delivery-order/{id}",
   tags,
   summary: "Get delivery order",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -530,7 +530,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "put",
-  path: "/api/delivery-order/{id}",
+  path: "/api/v1/delivery-order/{id}",
   tags,
   summary: "Update delivery order (status, etc)",
   request: {
@@ -549,7 +549,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "delete",
-  path: "/api/delivery-order/{id}",
+  path: "/api/v1/delivery-order/{id}",
   tags,
   summary: "Delete delivery order",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -559,14 +559,14 @@ registry.registerPath({
 // Invoice
 registry.registerPath({
   method: "get",
-  path: "/api/invoice",
+  path: "/api/v1/invoice",
   tags,
   summary: "List invoices",
   responses: listResponse(InvoiceSchema),
 });
 registry.registerPath({
   method: "post",
-  path: "/api/invoice",
+  path: "/api/v1/invoice",
   tags,
   summary: "Create invoice",
   request: {
@@ -583,7 +583,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "get",
-  path: "/api/invoice/{id}",
+  path: "/api/v1/invoice/{id}",
   tags,
   summary: "Get invoice",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -597,7 +597,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "put",
-  path: "/api/invoice/{id}",
+  path: "/api/v1/invoice/{id}",
   tags,
   summary: "Update invoice",
   request: {
@@ -616,7 +616,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "delete",
-  path: "/api/invoice/{id}",
+  path: "/api/v1/invoice/{id}",
   tags,
   summary: "Delete (void) invoice",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -626,14 +626,14 @@ registry.registerPath({
 // Receipt
 registry.registerPath({
   method: "get",
-  path: "/api/receipt",
+  path: "/api/v1/receipt",
   tags,
   summary: "List receipts",
   responses: listResponse(ReceiptSchema),
 });
 registry.registerPath({
   method: "post",
-  path: "/api/receipt",
+  path: "/api/v1/receipt",
   tags,
   summary: "Apply payment to invoice",
   request: {
@@ -650,7 +650,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "delete",
-  path: "/api/receipt/{id}",
+  path: "/api/v1/receipt/{id}",
   tags,
   summary: "Delete (void) receipt",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -660,7 +660,7 @@ registry.registerPath({
 // Aging report
 registry.registerPath({
   method: "get",
-  path: "/api/aging-report",
+  path: "/api/v1/aging-report",
   tags,
   summary: "Aging report (0-30 / 31-60 / 61-90 / >90 days)",
   responses: {

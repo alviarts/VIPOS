@@ -201,10 +201,15 @@ describe('OpenAPI generation', () => {
     expect(Object.keys(doc.paths || {}).length).toBeGreaterThan(0);
   });
 
-  it('exposes /api/auth/login path', () => {
+  it('exposes /api/v1/auth/login path', () => {
     const doc = generateOpenApiDocument();
-    expect(doc.paths?.['/api/auth/login']).toBeDefined();
-    expect(doc.paths?.['/api/auth/login']?.post).toBeDefined();
+    expect(doc.paths?.['/api/v1/auth/login']).toBeDefined();
+    expect(doc.paths?.['/api/v1/auth/login']?.post).toBeDefined();
+  });
+
+  it('does not expose unversioned /api/auth/login path (legacy alias is doc-only via runtime)', () => {
+    const doc = generateOpenApiDocument();
+    expect(doc.paths?.['/api/auth/login']).toBeUndefined();
   });
 
   it('exposes components.schemas', () => {

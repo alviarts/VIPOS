@@ -1,12 +1,12 @@
 // Schemas untuk P1-14 (Karyawan + Payroll + Absensi + Schedule + Approval).
 //
 // Endpoint:
-//   /api/employee, /api/employee/:id/document, /api/employee/:id/permissions
-//   /api/payroll-settings (single-row), /api/payroll-structure (CRUD),
-//     /api/payroll-run (CRUD + calculate + approve + paid),
-//   /api/attendance (log + manual), /api/attendance-geofence,
-//   /api/shift, /api/schedule (assign + swap),
-//   /api/approval-chain.
+//   /api/v1/employee, /api/v1/employee/:id/document, /api/v1/employee/:id/permissions
+//   /api/v1/payroll-settings (single-row), /api/v1/payroll-structure (CRUD),
+//     /api/v1/payroll-run (CRUD + calculate + approve + paid),
+//   /api/v1/attendance (log + manual), /api/v1/attendance-geofence,
+//   /api/v1/shift, /api/v1/schedule (assign + swap),
+//   /api/v1/approval-chain.
 
 import { z, registry } from "../openapi";
 import { ErrorResponseSchema, IdStringSchema } from "./common";
@@ -503,14 +503,14 @@ function notFound() {
 // Employee
 registry.registerPath({
   method: "get",
-  path: "/api/employee",
+  path: "/api/v1/employee",
   tags,
   summary: "List employees",
   responses: listResponse(EmployeeSchema),
 });
 registry.registerPath({
   method: "get",
-  path: "/api/employee/{id}",
+  path: "/api/v1/employee/{id}",
   tags,
   summary: "Get employee detail",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -524,7 +524,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/api/employee",
+  path: "/api/v1/employee",
   tags,
   summary: "Create employee",
   request: {
@@ -541,7 +541,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "put",
-  path: "/api/employee/{id}",
+  path: "/api/v1/employee/{id}",
   tags,
   summary: "Update employee",
   request: {
@@ -560,7 +560,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "delete",
-  path: "/api/employee/{id}",
+  path: "/api/v1/employee/{id}",
   tags,
   summary: "Delete employee (soft, set status=resigned)",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -570,7 +570,7 @@ registry.registerPath({
 // Documents
 registry.registerPath({
   method: "post",
-  path: "/api/employee/{id}/document",
+  path: "/api/v1/employee/{id}/document",
   tags,
   summary: "Add document",
   request: {
@@ -590,7 +590,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "delete",
-  path: "/api/employee/{id}/document/{documentId}",
+  path: "/api/v1/employee/{id}/document/{documentId}",
   tags,
   summary: "Delete document",
   request: {
@@ -602,7 +602,7 @@ registry.registerPath({
 // Permissions
 registry.registerPath({
   method: "get",
-  path: "/api/employee/{id}/permissions",
+  path: "/api/v1/employee/{id}/permissions",
   tags,
   summary: "List permission overrides",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -610,7 +610,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "put",
-  path: "/api/employee/{id}/permissions",
+  path: "/api/v1/employee/{id}/permissions",
   tags,
   summary: "Bulk assign permissions",
   request: {
@@ -625,7 +625,7 @@ registry.registerPath({
 // Payroll settings
 registry.registerPath({
   method: "get",
-  path: "/api/payroll-settings",
+  path: "/api/v1/payroll-settings",
   tags,
   summary: "Get payroll settings",
   responses: {
@@ -637,7 +637,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "put",
-  path: "/api/payroll-settings",
+  path: "/api/v1/payroll-settings",
   tags,
   summary: "Update payroll settings",
   request: {
@@ -658,14 +658,14 @@ registry.registerPath({
 // Payroll structure
 registry.registerPath({
   method: "get",
-  path: "/api/payroll-structure",
+  path: "/api/v1/payroll-structure",
   tags,
   summary: "List structures",
   responses: listResponse(PayrollStructureSchema),
 });
 registry.registerPath({
   method: "post",
-  path: "/api/payroll-structure",
+  path: "/api/v1/payroll-structure",
   tags,
   summary: "Create structure",
   request: {
@@ -684,7 +684,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "put",
-  path: "/api/payroll-structure/{id}",
+  path: "/api/v1/payroll-structure/{id}",
   tags,
   summary: "Update structure",
   request: {
@@ -705,7 +705,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "delete",
-  path: "/api/payroll-structure/{id}",
+  path: "/api/v1/payroll-structure/{id}",
   tags,
   summary: "Delete structure",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -715,14 +715,14 @@ registry.registerPath({
 // Payroll run
 registry.registerPath({
   method: "get",
-  path: "/api/payroll-run",
+  path: "/api/v1/payroll-run",
   tags,
   summary: "List payroll runs",
   responses: listResponse(PayrollRunSchema),
 });
 registry.registerPath({
   method: "get",
-  path: "/api/payroll-run/{id}",
+  path: "/api/v1/payroll-run/{id}",
   tags,
   summary: "Get payroll run with payslips",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -736,7 +736,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/api/payroll-run",
+  path: "/api/v1/payroll-run",
   tags,
   summary: "Create payroll run (DRAFT)",
   request: {
@@ -753,7 +753,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/api/payroll-run/{id}/calculate",
+  path: "/api/v1/payroll-run/{id}/calculate",
   tags,
   summary: "Calculate payslips for run",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -766,7 +766,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/api/payroll-run/{id}/approve",
+  path: "/api/v1/payroll-run/{id}/approve",
   tags,
   summary: "Approve calculated run",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -779,7 +779,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/api/payroll-run/{id}/paid",
+  path: "/api/v1/payroll-run/{id}/paid",
   tags,
   summary: "Mark run as paid",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -792,7 +792,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "get",
-  path: "/api/payroll-run/{id}/bank-file",
+  path: "/api/v1/payroll-run/{id}/bank-file",
   tags,
   summary: "Download bank transfer CSV",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -802,14 +802,14 @@ registry.registerPath({
 // Attendance
 registry.registerPath({
   method: "get",
-  path: "/api/attendance",
+  path: "/api/v1/attendance",
   tags,
   summary: "List attendance logs",
   responses: listResponse(AttendanceLogSchema),
 });
 registry.registerPath({
   method: "post",
-  path: "/api/attendance",
+  path: "/api/v1/attendance",
   tags,
   summary: "Add attendance log",
   request: {
@@ -826,7 +826,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "delete",
-  path: "/api/attendance/{id}",
+  path: "/api/v1/attendance/{id}",
   tags,
   summary: "Delete attendance log",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -835,14 +835,14 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/attendance-geofence",
+  path: "/api/v1/attendance-geofence",
   tags,
   summary: "List geofences",
   responses: listResponse(AttendanceGeofenceSchema),
 });
 registry.registerPath({
   method: "put",
-  path: "/api/attendance-geofence",
+  path: "/api/v1/attendance-geofence",
   tags,
   summary: "Upsert geofence (by outlet_id)",
   request: {
@@ -863,14 +863,14 @@ registry.registerPath({
 // Shift
 registry.registerPath({
   method: "get",
-  path: "/api/shift",
+  path: "/api/v1/shift",
   tags,
   summary: "List shifts",
   responses: listResponse(ShiftSchema),
 });
 registry.registerPath({
   method: "post",
-  path: "/api/shift",
+  path: "/api/v1/shift",
   tags,
   summary: "Create shift",
   request: {
@@ -885,7 +885,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "put",
-  path: "/api/shift/{id}",
+  path: "/api/v1/shift/{id}",
   tags,
   summary: "Update shift",
   request: {
@@ -902,7 +902,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "delete",
-  path: "/api/shift/{id}",
+  path: "/api/v1/shift/{id}",
   tags,
   summary: "Delete shift",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -912,7 +912,7 @@ registry.registerPath({
 // Schedule
 registry.registerPath({
   method: "get",
-  path: "/api/schedule",
+  path: "/api/v1/schedule",
   tags,
   summary: "List schedule assignments (range)",
   request: {
@@ -926,7 +926,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/api/schedule/assign",
+  path: "/api/v1/schedule/assign",
   tags,
   summary: "Bulk assign shifts",
   request: {
@@ -938,7 +938,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "delete",
-  path: "/api/schedule/{id}",
+  path: "/api/v1/schedule/{id}",
   tags,
   summary: "Delete schedule assignment",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -947,14 +947,14 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/schedule-swap",
+  path: "/api/v1/schedule-swap",
   tags,
   summary: "List swap requests",
   responses: listResponse(ScheduleSwapSchema),
 });
 registry.registerPath({
   method: "post",
-  path: "/api/schedule-swap",
+  path: "/api/v1/schedule-swap",
   tags,
   summary: "Create swap request",
   request: {
@@ -973,7 +973,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/api/schedule-swap/{id}/approve",
+  path: "/api/v1/schedule-swap/{id}/approve",
   tags,
   summary: "Approve swap (atomic exchange of dates/shifts)",
   request: {
@@ -993,7 +993,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
-  path: "/api/schedule-swap/{id}/reject",
+  path: "/api/v1/schedule-swap/{id}/reject",
   tags,
   summary: "Reject swap",
   request: {
@@ -1015,14 +1015,14 @@ registry.registerPath({
 // Approval chain
 registry.registerPath({
   method: "get",
-  path: "/api/approval-chain",
+  path: "/api/v1/approval-chain",
   tags,
   summary: "List approval chains",
   responses: listResponse(ApprovalChainSchema),
 });
 registry.registerPath({
   method: "post",
-  path: "/api/approval-chain",
+  path: "/api/v1/approval-chain",
   tags,
   summary: "Create approval chain",
   request: {
@@ -1041,7 +1041,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "put",
-  path: "/api/approval-chain/{id}",
+  path: "/api/v1/approval-chain/{id}",
   tags,
   summary: "Update approval chain",
   request: {
@@ -1062,7 +1062,7 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "delete",
-  path: "/api/approval-chain/{id}",
+  path: "/api/v1/approval-chain/{id}",
   tags,
   summary: "Delete approval chain",
   request: { params: z.object({ id: IdStringSchema }) },

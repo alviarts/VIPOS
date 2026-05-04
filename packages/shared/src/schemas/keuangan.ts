@@ -2,15 +2,15 @@
 // Aset Tetap + Laporan Keuangan + Chart of Accounts).
 //
 // Endpoint:
-//   /api/account              — Chart of Accounts CRUD + tree
-//   /api/journal              — General journal (manual + system) CRUD with balance check
-//   /api/cash-transfer        — Transfer between cash/bank accounts (auto-journal)
-//   /api/income               — Manual income entry (auto-journal Dr Cash, Cr Revenue)
-//   /api/expense              — Manual expense entry (auto-journal Dr Expense, Cr Cash)
-//   /api/recurring-bill       — Recurring bill template
-//   /api/vendor               — Vendor master (mitra)
-//   /api/fixed-asset          — Fixed asset register + depreciation + disposal
-//   /api/financial-report     — 7 standard reports (jurnal/neraca/laba-rugi/buku-besar/arus-kas/hutang/piutang)
+//   /api/v1/account              — Chart of Accounts CRUD + tree
+//   /api/v1/journal              — General journal (manual + system) CRUD with balance check
+//   /api/v1/cash-transfer        — Transfer between cash/bank accounts (auto-journal)
+//   /api/v1/income               — Manual income entry (auto-journal Dr Cash, Cr Revenue)
+//   /api/v1/expense              — Manual expense entry (auto-journal Dr Expense, Cr Cash)
+//   /api/v1/recurring-bill       — Recurring bill template
+//   /api/v1/vendor               — Vendor master (mitra)
+//   /api/v1/fixed-asset          — Fixed asset register + depreciation + disposal
+//   /api/v1/financial-report     — 7 standard reports (jurnal/neraca/laba-rugi/buku-besar/arus-kas/hutang/piutang)
 
 import { z, registry } from "../openapi";
 import { DateOnlySchema, ErrorResponseSchema, IdStringSchema } from "./common";
@@ -317,7 +317,7 @@ export type FixedAssetDisposal = z.infer<typeof FixedAssetDisposalSchema>;
 
 registry.registerPath({
   method: "get",
-  path: "/api/account",
+  path: "/api/v1/account",
   description: "List Chart of Accounts (optionally filter by type).",
   tags: ["Keuangan"],
   security: [{ bearerAuth: [] }],
@@ -334,7 +334,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/account",
+  path: "/api/v1/account",
   description: "Buat akun CoA baru.",
   tags: ["Keuangan"],
   security: [{ bearerAuth: [] }],
@@ -358,7 +358,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/journal",
+  path: "/api/v1/journal",
   description:
     "Post manual general journal. Total debit harus sama dengan total credit (validasi).",
   tags: ["Keuangan"],
@@ -383,7 +383,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/financial-report/balance-sheet",
+  path: "/api/v1/financial-report/balance-sheet",
   description: "Laporan Neraca per as_of date (defaults to today).",
   tags: ["Keuangan"],
   security: [{ bearerAuth: [] }],
@@ -398,7 +398,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/financial-report/income-statement",
+  path: "/api/v1/financial-report/income-statement",
   description: "Laporan Laba Rugi periode (from..to).",
   tags: ["Keuangan"],
   security: [{ bearerAuth: [] }],

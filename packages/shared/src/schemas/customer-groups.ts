@@ -1,4 +1,4 @@
-// Schema untuk endpoint /api/customer-groups/* dan /api/customer-tags/*
+// Schema untuk endpoint /api/v1/customer-groups/* dan /api/v1/customer-tags/*
 
 import { z, registry } from "../openapi";
 import {
@@ -92,7 +92,7 @@ const okMessage = z.object({ message: z.string() });
 // Groups
 registry.registerPath({
   method: "get",
-  path: "/api/customer-groups",
+  path: "/api/v1/customer-groups",
   description: "List grup pelanggan dengan jumlah anggotanya.",
   tags: ["CustomerGroups"],
   security: [{ bearerAuth: [] }],
@@ -106,7 +106,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/customer-groups",
+  path: "/api/v1/customer-groups",
   description: "Buat grup pelanggan baru.",
   tags: ["CustomerGroups"],
   security: [{ bearerAuth: [] }],
@@ -119,7 +119,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "put",
-  path: "/api/customer-groups/{id}",
+  path: "/api/v1/customer-groups/{id}",
   description: "Update grup pelanggan.",
   tags: ["CustomerGroups"],
   security: [{ bearerAuth: [] }],
@@ -135,7 +135,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "delete",
-  path: "/api/customer-groups/{id}",
+  path: "/api/v1/customer-groups/{id}",
   description: "Hapus grup pelanggan (hanya jika tidak ada anggota).",
   tags: ["CustomerGroups"],
   security: [{ bearerAuth: [] }],
@@ -149,7 +149,7 @@ registry.registerPath({
 // Tags
 registry.registerPath({
   method: "get",
-  path: "/api/customer-tags",
+  path: "/api/v1/customer-tags",
   description: "List tag pelanggan.",
   tags: ["CustomerTags"],
   security: [{ bearerAuth: [] }],
@@ -163,7 +163,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/customer-tags",
+  path: "/api/v1/customer-tags",
   description: "Buat tag pelanggan.",
   tags: ["CustomerTags"],
   security: [{ bearerAuth: [] }],
@@ -176,7 +176,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "put",
-  path: "/api/customer-tags/{id}",
+  path: "/api/v1/customer-tags/{id}",
   description: "Update tag pelanggan.",
   tags: ["CustomerTags"],
   security: [{ bearerAuth: [] }],
@@ -192,7 +192,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "delete",
-  path: "/api/customer-tags/{id}",
+  path: "/api/v1/customer-tags/{id}",
   description: "Hapus tag pelanggan (mapping otomatis ikut terhapus).",
   tags: ["CustomerTags"],
   security: [{ bearerAuth: [] }],
@@ -205,7 +205,7 @@ registry.registerPath({
 // Customer-tag assignment + detail
 registry.registerPath({
   method: "put",
-  path: "/api/customers/{id}/tags",
+  path: "/api/v1/customers/{id}/tags",
   description: "Replace daftar tag pada satu pelanggan.",
   tags: ["Customers"],
   security: [{ bearerAuth: [] }],
@@ -220,7 +220,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/customers/{id}/transactions",
+  path: "/api/v1/customers/{id}/transactions",
   description: "Riwayat transaksi pelanggan.",
   tags: ["Customers"],
   security: [{ bearerAuth: [] }],
@@ -235,7 +235,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/customers/export",
+  path: "/api/v1/customers/export",
   description:
     "Export semua pelanggan ke CSV. Authorization required, MIME text/csv.",
   tags: ["Customers"],
@@ -250,7 +250,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/customers/import",
+  path: "/api/v1/customers/import",
   description:
     "Import pelanggan dari array baris CSV (sudah diparse di client).",
   tags: ["Customers"],

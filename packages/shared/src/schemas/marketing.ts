@@ -319,7 +319,7 @@ const okMessage = z.object({ message: z.string() });
 
 registry.registerPath({
   method: "get",
-  path: "/api/marketing/template",
+  path: "/api/v1/marketing/template",
   description: "List marketing templates (filter channel).",
   tags: ["Marketing"],
   security: [{ bearerAuth: [] }],
@@ -336,7 +336,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/marketing/template",
+  path: "/api/v1/marketing/template",
   description: "Buat template marketing baru.",
   tags: ["Marketing"],
   security: [{ bearerAuth: [] }],
@@ -357,7 +357,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "put",
-  path: "/api/marketing/template/{id}",
+  path: "/api/v1/marketing/template/{id}",
   description: "Update template.",
   tags: ["Marketing"],
   security: [{ bearerAuth: [] }],
@@ -379,7 +379,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "delete",
-  path: "/api/marketing/template/{id}",
+  path: "/api/v1/marketing/template/{id}",
   description: "Hapus template.",
   tags: ["Marketing"],
   security: [{ bearerAuth: [] }],
@@ -395,7 +395,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/marketing/campaign",
+  path: "/api/v1/marketing/campaign",
   description: "List campaigns (filter channel/status).",
   tags: ["Marketing"],
   security: [{ bearerAuth: [] }],
@@ -422,7 +422,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/marketing/campaign",
+  path: "/api/v1/marketing/campaign",
   description:
     "Buat campaign + resolve audience + render message per recipient. Status awal `draft` (atau `scheduled` kalau schedule_type=scheduled).",
   tags: ["Marketing"],
@@ -444,7 +444,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/marketing/campaign/{id}",
+  path: "/api/v1/marketing/campaign/{id}",
   description: "Detail campaign.",
   tags: ["Marketing"],
   security: [{ bearerAuth: [] }],
@@ -463,7 +463,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "put",
-  path: "/api/marketing/campaign/{id}",
+  path: "/api/v1/marketing/campaign/{id}",
   description: "Update campaign (hanya status draft/scheduled).",
   tags: ["Marketing"],
   security: [{ bearerAuth: [] }],
@@ -489,7 +489,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "delete",
-  path: "/api/marketing/campaign/{id}",
+  path: "/api/v1/marketing/campaign/{id}",
   description: "Hapus / cancel campaign yang belum di-send.",
   tags: ["Marketing"],
   security: [{ bearerAuth: [] }],
@@ -509,7 +509,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/marketing/campaign/{id}/send",
+  path: "/api/v1/marketing/campaign/{id}/send",
   description:
     "Eksekusi kirim campaign (mark recipient sent + deduct credit + emit ledger). Tidak panggil provider eksternal — provider=mock akan transition ke status delivered langsung.",
   tags: ["Marketing"],
@@ -533,7 +533,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/marketing/campaign/{id}/test-send",
+  path: "/api/v1/marketing/campaign/{id}/test-send",
   description:
     "Test send 1 message ke nomor/email tester. Tidak deduct credit balance.",
   tags: ["Marketing"],
@@ -565,7 +565,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/marketing/campaign/{id}/recipients",
+  path: "/api/v1/marketing/campaign/{id}/recipients",
   description: "List recipients per campaign.",
   tags: ["Marketing"],
   security: [{ bearerAuth: [] }],
@@ -596,7 +596,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/marketing/campaign/{id}/recipient/{recipientId}/event",
+  path: "/api/v1/marketing/campaign/{id}/recipient/{recipientId}/event",
   description:
     "Catat event delivery per recipient (delivered / opened / clicked / failed). Dipanggil provider webhook (atau manual untuk testing).",
   tags: ["Marketing"],
@@ -619,7 +619,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/marketing/campaign/{id}/report",
+  path: "/api/v1/marketing/campaign/{id}/report",
   description: "Aggregate delivery/open/click rate + total cost.",
   tags: ["Marketing"],
   security: [{ bearerAuth: [] }],
@@ -638,7 +638,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/marketing/credit/balance",
+  path: "/api/v1/marketing/credit/balance",
   description: "Saldo kredit per channel (computed dari ledger).",
   tags: ["Marketing"],
   security: [{ bearerAuth: [] }],
@@ -652,7 +652,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/marketing/credit/ledger",
+  path: "/api/v1/marketing/credit/ledger",
   description: "List ledger entries (filter channel).",
   tags: ["Marketing"],
   security: [{ bearerAuth: [] }],
@@ -678,7 +678,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/marketing/credit/topup",
+  path: "/api/v1/marketing/credit/topup",
   description: "Top up kredit untuk channel tertentu (admin).",
   tags: ["Marketing"],
   security: [{ bearerAuth: [] }],

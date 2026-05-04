@@ -1,4 +1,4 @@
-// Schema untuk endpoint /api/auth/*
+// Schema untuk endpoint /api/v1/auth/*
 
 import { z, registry } from "../openapi";
 import { DateTimeStringSchema, ErrorResponseSchema } from "./common";
@@ -31,7 +31,7 @@ export const UserSummarySchema = z
   .openapi("UserSummary");
 export type UserSummary = z.infer<typeof UserSummarySchema>;
 
-// POST /api/auth/login
+// POST /api/v1/auth/login
 export const LoginRequestSchema = z
   .object({
     username: z.string().min(1, "Username wajib diisi").max(64),
@@ -83,7 +83,7 @@ export const LoginVerify2FARequestSchema = z
   .openapi("LoginVerify2FARequest");
 export type LoginVerify2FARequest = z.infer<typeof LoginVerify2FARequestSchema>;
 
-// POST /api/auth/refresh
+// POST /api/v1/auth/refresh
 export const RefreshRequestSchema = z
   .object({
     refresh_token: z.string().min(1),
@@ -95,7 +95,7 @@ export const RefreshResponseSchema = LoginResponseSchema.openapi(
   "RefreshResponse",
 );
 
-// POST /api/auth/logout
+// POST /api/v1/auth/logout
 export const LogoutRequestSchema = z
   .object({
     refresh_token: z.string().min(1),
@@ -103,7 +103,7 @@ export const LogoutRequestSchema = z
   .openapi("LogoutRequest");
 export type LogoutRequest = z.infer<typeof LogoutRequestSchema>;
 
-// POST /api/auth/forgot-password
+// POST /api/v1/auth/forgot-password
 export const ForgotPasswordRequestSchema = z
   .object({
     email_or_username: z.string().min(1),
@@ -111,7 +111,7 @@ export const ForgotPasswordRequestSchema = z
   .openapi("ForgotPasswordRequest");
 export type ForgotPasswordRequest = z.infer<typeof ForgotPasswordRequestSchema>;
 
-// POST /api/auth/reset-password
+// POST /api/v1/auth/reset-password
 export const ResetPasswordRequestSchema = z
   .object({
     token: z.string().min(1),
@@ -120,7 +120,7 @@ export const ResetPasswordRequestSchema = z
   .openapi("ResetPasswordRequest");
 export type ResetPasswordRequest = z.infer<typeof ResetPasswordRequestSchema>;
 
-// POST /api/auth/change-password (auth required)
+// POST /api/v1/auth/change-password (auth required)
 export const ChangePasswordRequestSchema = z
   .object({
     current_password: z.string().min(1),
@@ -131,7 +131,7 @@ export type ChangePasswordRequest = z.infer<
   typeof ChangePasswordRequestSchema
 >;
 
-// POST /api/auth/2fa/setup → returns secret + otpauth URL.
+// POST /api/v1/auth/2fa/setup → returns secret + otpauth URL.
 export const TwoFactorSetupResponseSchema = z
   .object({
     secret: z.string(),
@@ -142,7 +142,7 @@ export type TwoFactorSetupResponse = z.infer<
   typeof TwoFactorSetupResponseSchema
 >;
 
-// POST /api/auth/2fa/verify
+// POST /api/v1/auth/2fa/verify
 export const TwoFactorVerifyRequestSchema = z
   .object({
     code: z.string().regex(/^\d{6}$/, "Kode TOTP 6 digit angka"),
@@ -152,7 +152,7 @@ export type TwoFactorVerifyRequest = z.infer<
   typeof TwoFactorVerifyRequestSchema
 >;
 
-// POST /api/auth/2fa/disable
+// POST /api/v1/auth/2fa/disable
 export const TwoFactorDisableRequestSchema = z
   .object({
     password: z.string().min(1),
@@ -162,7 +162,7 @@ export type TwoFactorDisableRequest = z.infer<
   typeof TwoFactorDisableRequestSchema
 >;
 
-// GET /api/auth/me
+// GET /api/v1/auth/me
 export const MeResponseSchema = z
   .object({
     user: UserSummarySchema,
@@ -170,7 +170,7 @@ export const MeResponseSchema = z
   .openapi("MeResponse");
 export type MeResponse = z.infer<typeof MeResponseSchema>;
 
-// POST /api/auth/register (admin only)
+// POST /api/v1/auth/register (admin only)
 export const RegisterRequestSchema = z
   .object({
     username: z.string().min(1, "Username wajib diisi").max(64),
@@ -199,7 +199,7 @@ const bearerAuth = registry.registerComponent("securitySchemes", "bearerAuth", {
 
 registry.registerPath({
   method: "post",
-  path: "/api/auth/login",
+  path: "/api/v1/auth/login",
   description: "Login dengan username + password, balikin JWT.",
   tags: ["Auth"],
   request: {
@@ -226,7 +226,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/auth/me",
+  path: "/api/v1/auth/me",
   description: "Dapatkan info user dari JWT.",
   tags: ["Auth"],
   security: [{ [bearerAuth.name]: [] }],
@@ -244,7 +244,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/auth/register",
+  path: "/api/v1/auth/register",
   description: "Buat user baru (hanya admin).",
   tags: ["Auth"],
   security: [{ [bearerAuth.name]: [] }],
@@ -272,7 +272,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/auth/login/2fa",
+  path: "/api/v1/auth/login/2fa",
   description: "Verify TOTP code for users with 2FA enabled.",
   tags: ["Auth"],
   request: {
@@ -295,7 +295,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/auth/refresh",
+  path: "/api/v1/auth/refresh",
   description:
     "Tukar refresh token dengan access token baru. Refresh token lama langsung di-revoke (token rotation).",
   tags: ["Auth"],
@@ -319,7 +319,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/auth/logout",
+  path: "/api/v1/auth/logout",
   description: "Invalidate refresh token (server-side revoke).",
   tags: ["Auth"],
   request: {
@@ -335,7 +335,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/auth/forgot-password",
+  path: "/api/v1/auth/forgot-password",
   description:
     "Generate reset link. Untuk dev environment, link di-print ke server console.",
   tags: ["Auth"],
@@ -354,7 +354,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/auth/reset-password",
+  path: "/api/v1/auth/reset-password",
   description: "Reset password pakai token dari /forgot-password.",
   tags: ["Auth"],
   request: {
@@ -376,7 +376,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/auth/change-password",
+  path: "/api/v1/auth/change-password",
   description: "Ganti password pakai password lama.",
   tags: ["Auth"],
   security: [{ [bearerAuth.name]: [] }],
@@ -399,7 +399,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/auth/2fa/setup",
+  path: "/api/v1/auth/2fa/setup",
   description: "Generate TOTP secret + otpauth URL untuk QR.",
   tags: ["Auth"],
   security: [{ [bearerAuth.name]: [] }],
@@ -415,7 +415,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/auth/2fa/verify",
+  path: "/api/v1/auth/2fa/verify",
   description:
     "Verify TOTP code yang user input dari authenticator app, lalu enable 2FA.",
   tags: ["Auth"],
@@ -439,7 +439,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/auth/2fa/disable",
+  path: "/api/v1/auth/2fa/disable",
   description: "Disable 2FA. Butuh password user.",
   tags: ["Auth"],
   security: [{ [bearerAuth.name]: [] }],

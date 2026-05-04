@@ -1,4 +1,4 @@
-// Schema untuk endpoint /api/finance/* (cash accounts + cash transactions).
+// Schema untuk endpoint /api/v1/finance/* (cash accounts + cash transactions).
 
 import { z, registry } from "../openapi";
 import {
@@ -90,7 +90,7 @@ export type CashTransactionCreate = z.infer<typeof CashTransactionCreateSchema>;
 
 registry.registerPath({
   method: "get",
-  path: "/api/finance/accounts",
+  path: "/api/v1/finance/accounts",
   description: "List cash account.",
   tags: ["Finance"],
   security: [{ bearerAuth: [] }],
@@ -104,7 +104,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/finance/accounts",
+  path: "/api/v1/finance/accounts",
   description: "Buat cash account.",
   tags: ["Finance"],
   security: [{ bearerAuth: [] }],
@@ -128,7 +128,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "put",
-  path: "/api/finance/accounts/{id}",
+  path: "/api/v1/finance/accounts/{id}",
   description: "Update cash account.",
   tags: ["Finance"],
   security: [{ bearerAuth: [] }],
@@ -149,7 +149,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/finance/transactions",
+  path: "/api/v1/finance/transactions",
   description: "List cash transaction (filter by tanggal/tipe/account).",
   tags: ["Finance"],
   security: [{ bearerAuth: [] }],
@@ -173,7 +173,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/finance/transactions",
+  path: "/api/v1/finance/transactions",
   description: "Catat cash transaction (pemasukan/pengeluaran/transfer).",
   tags: ["Finance"],
   security: [{ bearerAuth: [] }],

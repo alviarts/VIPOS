@@ -1,4 +1,4 @@
-// Schema untuk endpoint /api/departments/*.
+// Schema untuk endpoint /api/v1/departments/*.
 //
 // Departemen = grup di atas kategori (misal Departemen "Beverages" → kategori
 // "Coffee", "Tea", "Juice"). Diperkenalkan di P1-05 sebagai master data
@@ -80,7 +80,7 @@ export type CategoryReorder = z.infer<typeof CategoryReorderSchema>;
 
 registry.registerPath({
   method: "get",
-  path: "/api/departments",
+  path: "/api/v1/departments",
   description: "List semua departemen, urut by urutan ASC, name ASC.",
   tags: ["Departments"],
   security: [{ bearerAuth: [] }],
@@ -94,7 +94,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/departments",
+  path: "/api/v1/departments",
   description: "Buat departemen baru (admin).",
   tags: ["Departments"],
   security: [{ bearerAuth: [] }],
@@ -118,7 +118,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "put",
-  path: "/api/departments/{id}",
+  path: "/api/v1/departments/{id}",
   description: "Update departemen (admin).",
   tags: ["Departments"],
   security: [{ bearerAuth: [] }],
@@ -143,7 +143,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "delete",
-  path: "/api/departments/{id}",
+  path: "/api/v1/departments/{id}",
   description: "Hapus departemen (admin). Gagal kalau masih dipakai kategori.",
   tags: ["Departments"],
   security: [{ bearerAuth: [] }],
@@ -166,7 +166,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/departments/reorder",
+  path: "/api/v1/departments/reorder",
   description:
     "Reorder departemen dalam batch (admin). Server set `urutan = index` ke tiap ID.",
   tags: ["Departments"],
@@ -195,7 +195,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/categories/reorder",
+  path: "/api/v1/categories/reorder",
   description:
     "Reorder kategori dalam batch (admin). Bisa juga move ke departemen lain dengan field `department_id`.",
   tags: ["Categories"],

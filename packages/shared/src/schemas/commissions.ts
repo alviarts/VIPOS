@@ -1,4 +1,4 @@
-// Schema untuk /api/commission-group + /api/commission-assignment + /api/commission-report
+// Schema untuk /api/v1/commission-group + /api/v1/commission-assignment + /api/v1/commission-report
 // Komisi: fixed atau tiered, opsional scoping per role/employee + per product/category.
 
 import { z, registry } from "../openapi";
@@ -178,7 +178,7 @@ const tag = "Commissions";
 
 registry.registerPath({
   method: "get",
-  path: "/api/commission-group",
+  path: "/api/v1/commission-group",
   tags: [tag],
   summary: "Daftar grup komisi",
   request: {
@@ -197,7 +197,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/commission-group",
+  path: "/api/v1/commission-group",
   tags: [tag],
   summary: "Buat grup komisi",
   request: {
@@ -219,7 +219,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "put",
-  path: "/api/commission-group/{id}",
+  path: "/api/v1/commission-group/{id}",
   tags: [tag],
   summary: "Update grup komisi",
   request: {
@@ -242,7 +242,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "delete",
-  path: "/api/commission-group/{id}",
+  path: "/api/v1/commission-group/{id}",
   tags: [tag],
   summary: "Hapus grup komisi",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -258,7 +258,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/commission-assignment",
+  path: "/api/v1/commission-assignment",
   tags: [tag],
   summary: "List per-transaction commission assignments",
   request: {
@@ -288,7 +288,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/commission-assignment",
+  path: "/api/v1/commission-assignment",
   tags: [tag],
   summary: "Tag karyawan ke transaksi (auto-compute commission per group qualifying)",
   request: {
@@ -319,7 +319,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "delete",
-  path: "/api/commission-assignment/{id}",
+  path: "/api/v1/commission-assignment/{id}",
   tags: [tag],
   summary: "Untag (hapus assignment)",
   request: { params: z.object({ id: IdStringSchema }) },
@@ -335,7 +335,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/commission-report",
+  path: "/api/v1/commission-report",
   tags: [tag],
   summary: "Aggregate commission per employee per period",
   request: {

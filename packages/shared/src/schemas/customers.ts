@@ -1,4 +1,4 @@
-// Schema untuk endpoint /api/customers/*
+// Schema untuk endpoint /api/v1/customers/*
 
 import { z, registry } from "../openapi";
 import {
@@ -102,7 +102,7 @@ export type CustomerUpdate = z.infer<typeof CustomerUpdateSchema>;
 
 registry.registerPath({
   method: "get",
-  path: "/api/customers",
+  path: "/api/v1/customers",
   description: "List customer dengan optional search.",
   tags: ["Customers"],
   security: [{ bearerAuth: [] }],
@@ -122,7 +122,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/customers",
+  path: "/api/v1/customers",
   description: "Buat customer baru.",
   tags: ["Customers"],
   security: [{ bearerAuth: [] }],
@@ -146,7 +146,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "put",
-  path: "/api/customers/{id}",
+  path: "/api/v1/customers/{id}",
   description: "Update customer.",
   tags: ["Customers"],
   security: [{ bearerAuth: [] }],
@@ -171,7 +171,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "delete",
-  path: "/api/customers/{id}",
+  path: "/api/v1/customers/{id}",
   description: "Soft-delete customer (set is_active=0).",
   tags: ["Customers"],
   security: [{ bearerAuth: [] }],

@@ -1,4 +1,4 @@
-// Schema untuk endpoint /api/loyalty-rule/* dan /api/loyalty/* (transaksi
+// Schema untuk endpoint /api/v1/loyalty-rule/* dan /api/v1/loyalty/* (transaksi
 // poin loyalty per customer). Mendukung 3 tipe rule: earn_per_total,
 // earn_per_product, redemption (pengaturan tukar poin).
 
@@ -139,7 +139,7 @@ const okMessage = z.object({ message: z.string() });
 
 registry.registerPath({
   method: "get",
-  path: "/api/loyalty-rule",
+  path: "/api/v1/loyalty-rule",
   description: "List semua loyalty rule (filter rule_type, is_active).",
   tags: ["Loyalty"],
   security: [{ bearerAuth: [] }],
@@ -159,7 +159,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/loyalty-rule",
+  path: "/api/v1/loyalty-rule",
   description: "Buat rule baru (earn / redemption).",
   tags: ["Loyalty"],
   security: [{ bearerAuth: [] }],
@@ -177,7 +177,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "put",
-  path: "/api/loyalty-rule/{id}",
+  path: "/api/v1/loyalty-rule/{id}",
   description: "Update rule.",
   tags: ["Loyalty"],
   security: [{ bearerAuth: [] }],
@@ -196,7 +196,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "delete",
-  path: "/api/loyalty-rule/{id}",
+  path: "/api/v1/loyalty-rule/{id}",
   description: "Hapus rule.",
   tags: ["Loyalty"],
   security: [{ bearerAuth: [] }],
@@ -212,7 +212,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/loyalty/transactions",
+  path: "/api/v1/loyalty/transactions",
   description: "List loyalty transactions (filter customer_id, type).",
   tags: ["Loyalty"],
   security: [{ bearerAuth: [] }],
@@ -239,7 +239,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/loyalty/adjust",
+  path: "/api/v1/loyalty/adjust",
   description:
     "Manual adjust poin customer (admin). Positive = tambah, negative = kurangi.",
   tags: ["Loyalty"],

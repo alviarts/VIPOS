@@ -1,4 +1,4 @@
-// Schema untuk endpoint /api/promo/* — 8 jenis promo (PERCENT, NOMINAL,
+// Schema untuk endpoint /api/v1/promo/* — 8 jenis promo (PERCENT, NOMINAL,
 // FREE_PRODUCT, BUY_X_GET_Y, BUNDLE_PRICE, MIN_PURCHASE, STEP_DISCOUNT,
 // MEMBER_PRICE) + kondisi waktu/customer-group/produk/min-purchase.
 
@@ -122,7 +122,7 @@ const okMessage = z.object({ message: z.string() });
 
 registry.registerPath({
   method: "get",
-  path: "/api/promo",
+  path: "/api/v1/promo",
   description:
     "List semua promo dengan filter optional (is_active, promo_type, search).",
   tags: ["Promos"],
@@ -144,7 +144,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/promo/{id}",
+  path: "/api/v1/promo/{id}",
   description: "Detail satu promo.",
   tags: ["Promos"],
   security: [{ bearerAuth: [] }],
@@ -160,7 +160,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/promo",
+  path: "/api/v1/promo",
   description: "Buat promo baru (admin).",
   tags: ["Promos"],
   security: [{ bearerAuth: [] }],
@@ -176,7 +176,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "put",
-  path: "/api/promo/{id}",
+  path: "/api/v1/promo/{id}",
   description: "Update promo (admin).",
   tags: ["Promos"],
   security: [{ bearerAuth: [] }],
@@ -195,7 +195,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "delete",
-  path: "/api/promo/{id}",
+  path: "/api/v1/promo/{id}",
   description: "Hapus promo (admin). Akan cascade hapus coupon terkait.",
   tags: ["Promos"],
   security: [{ bearerAuth: [] }],

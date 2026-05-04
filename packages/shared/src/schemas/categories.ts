@@ -1,4 +1,4 @@
-// Schema untuk endpoint /api/categories/*
+// Schema untuk endpoint /api/v1/categories/*
 
 import { z, registry } from "../openapi";
 import {
@@ -55,7 +55,7 @@ export type CategoryUpdate = z.infer<typeof CategoryUpdateSchema>;
 
 registry.registerPath({
   method: "get",
-  path: "/api/categories",
+  path: "/api/v1/categories",
   description: "List semua kategori.",
   tags: ["Categories"],
   security: [{ bearerAuth: [] }],
@@ -69,7 +69,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/categories",
+  path: "/api/v1/categories",
   description: "Buat kategori baru (admin).",
   tags: ["Categories"],
   security: [{ bearerAuth: [] }],
@@ -93,7 +93,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "put",
-  path: "/api/categories/{id}",
+  path: "/api/v1/categories/{id}",
   description: "Update kategori (admin).",
   tags: ["Categories"],
   security: [{ bearerAuth: [] }],
@@ -118,7 +118,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "delete",
-  path: "/api/categories/{id}",
+  path: "/api/v1/categories/{id}",
   description: "Hapus kategori (admin).",
   tags: ["Categories"],
   security: [{ bearerAuth: [] }],

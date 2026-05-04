@@ -1,4 +1,4 @@
-// Schema untuk endpoint /api/products/*
+// Schema untuk endpoint /api/v1/products/*
 
 import { z, registry } from "../openapi";
 import {
@@ -128,7 +128,7 @@ export type ProductListQuery = z.infer<typeof ProductListQuerySchema>;
 
 registry.registerPath({
   method: "get",
-  path: "/api/products",
+  path: "/api/v1/products",
   description: "List produk dengan filter optional (kategori, search, aktif).",
   tags: ["Products"],
   security: [{ bearerAuth: [] }],
@@ -145,7 +145,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/products/{id}",
+  path: "/api/v1/products/{id}",
   description: "Detail produk by ID.",
   tags: ["Products"],
   security: [{ bearerAuth: [] }],
@@ -166,7 +166,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "post",
-  path: "/api/products",
+  path: "/api/v1/products",
   description: "Buat produk baru (admin).",
   tags: ["Products"],
   security: [{ bearerAuth: [] }],
@@ -190,7 +190,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "put",
-  path: "/api/products/{id}",
+  path: "/api/v1/products/{id}",
   description: "Update produk (admin).",
   tags: ["Products"],
   security: [{ bearerAuth: [] }],
@@ -215,7 +215,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "delete",
-  path: "/api/products/{id}",
+  path: "/api/v1/products/{id}",
   description: "Soft-delete produk (set is_active=0).",
   tags: ["Products"],
   security: [{ bearerAuth: [] }],
