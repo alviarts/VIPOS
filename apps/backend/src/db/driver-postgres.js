@@ -28,6 +28,9 @@
  */
 
 const { AsyncLocalStorage } = require('node:async_hooks');
+const { child } = require('../lib/logger');
+
+const log = child({ component: 'pg-pool' });
 
 let _pool;
 
@@ -60,8 +63,7 @@ function getPool() {
   });
   _pool.on('error', (err) => {
     // Log but don't crash — pool errors during idle should be transient.
-
-    console.error('[pg pool] idle client error:', err.message);
+    log.error({ err: err.message }, 'idle client error');
   });
   return _pool;
 }

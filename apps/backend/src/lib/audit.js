@@ -8,6 +8,9 @@
 // tenant scope explicitly so RLS + the column DEFAULT pick the right id.
 
 const { query, runWithTenant } = require('../db');
+const { child } = require('./logger');
+
+const log = child({ component: 'audit' });
 
 const ACTIONS = Object.freeze({
   CREATE: 'create',
@@ -106,12 +109,14 @@ async function safeLogAudit(req, entry) {
   try {
     return await logAudit(req, entry);
   } catch (err) {
-    console.error(
-      '[audit] failed to log',
-      entry?.entity,
-      entry?.action,
-      entry?.entity_id,
-      err?.message
+    log.error(
+      {
+        entity: entry?.entity,
+        action: entry?.action,
+        entity_id: entry?.entity_id,
+        err: err?.message,
+      },
+      'failed to log'
     );
     return null;
   }

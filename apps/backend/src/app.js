@@ -1,10 +1,24 @@
+// P2-05 PR-A: Sentry MUST be initialised before requiring `express` so its
+// auto-instrumentation can patch the prototype. `initSentry()` is a no-op
+// when SENTRY_DSN is unset (tests, local dev).
+const {
+  initSentry,
+  attachSentryUserMiddleware,
+  attachSentryErrorHandler,
+} = require('./lib/sentry');
+initSentry();
+
 const express = require('express');
 const cors = require('cors');
-const morgan = require('morgan');
+const pinoHttp = require('pino-http');
 const path = require('path');
 const { legacyDeprecationMiddleware } = require('./api-version');
 const { authenticateToken } = require('./middleware/auth');
 const { requireTier } = require('./middleware/tier');
+const { requestIdMiddleware } = require('./middleware/request-id');
+const { globalErrorHandler } = require('./middleware/error-handler');
+const { logger } = require('./lib/logger');
+const { router: healthRouter } = require('./routes/health');
 
 /**
  * Mount every API resource onto the supplied router/app. The function is
@@ -171,11 +185,10 @@ function mountVersionedRoutes(parent) {
   parent.use('/capital', capitalRouter);
   parent.use('/supplies', suppliesRouter);
 
-  // Health probe is exposed under each version namespace plus the legacy
-  // alias so external monitors keep working without modification.
-  parent.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-  });
+  // P2-05 PR-A: extended health probe (DB + Redis with latency).
+  // Exposed under each version namespace plus the legacy alias so
+  // external monitors keep working without modification.
+  parent.use('/health', healthRouter);
 }
 
 /**
@@ -183,18 +196,58 @@ function mountVersionedRoutes(parent) {
  * Caller is responsible for app.listen(...).
  *
  * @param {object} [opts]
- * @param {boolean} [opts.morganEnabled] default true
+ * @param {boolean} [opts.morganEnabled] kept for backwards compat — when
+ *   false, suppresses pino-http request logging too. Production paths
+ *   should leave this true so structured request logs are emitted.
  * @returns {import('express').Express}
  */
 function buildApp(opts = {}) {
   const { morganEnabled = true } = opts;
 
   const app = express();
+
+  // P2-05 PR-A: request id MUST run before any logging middleware so
+  // pino-http picks up `req.id` automatically via genReqId.
+  app.use(requestIdMiddleware);
+
+  if (morganEnabled) {
+    app.use(
+      pinoHttp({
+        logger,
+        genReqId: (req) => req.id,
+        // Silence noisy default request/response binding; keep just the
+        // useful fields. Pino-http's default already covers method/url/
+        // status; this keeps the JSON payload small.
+        customLogLevel: function customLogLevel(_req, res, err) {
+          if (err || res.statusCode >= 500) return 'error';
+          if (res.statusCode >= 400) return 'warn';
+          return 'info';
+        },
+        serializers: {
+          req(req) {
+            return {
+              id: req.id,
+              method: req.method,
+              url: req.url,
+              tenant_id: req.raw?.tenantId,
+              user_id: req.raw?.user?.user_id ?? req.raw?.user?.id,
+            };
+          },
+          res(res) {
+            return { status: res.statusCode };
+          },
+        },
+      })
+    );
+  }
+
   app.use(cors());
   app.use(express.json());
-  if (morganEnabled) {
-    app.use(morgan('dev'));
-  }
+
+  // P2-05 PR-A: attach req.user / req.tenantId to Sentry scope after
+  // auth runs. authenticateToken sets these per-request inside route
+  // handlers, but mounting this here is a no-op without Sentry init.
+  app.use(attachSentryUserMiddleware());
 
   // Serve uploaded files publicly (no auth — they're public URLs). This is
   // intentionally outside the API surface.
@@ -233,7 +286,7 @@ function buildApp(opts = {}) {
       const { mountApiDocs } = require('./api-docs');
       mountApiDocs(app);
     } catch (err) {
-      console.warn('[api-docs] Failed to mount Swagger UI:', err.message);
+      logger.warn({ component: 'api-docs', err: err.message }, 'Failed to mount Swagger UI');
     }
   }
 
@@ -243,6 +296,12 @@ function buildApp(opts = {}) {
       res.sendFile(path.join(__dirname, '../../web/dist/index.html'));
     });
   }
+
+  // P2-05 PR-A: Sentry's Express error handler must run *before* any
+  // user-defined error middleware. No-op when Sentry is not enabled.
+  attachSentryErrorHandler(app);
+  // Global structured error handler — last in the stack.
+  app.use(globalErrorHandler());
 
   return app;
 }

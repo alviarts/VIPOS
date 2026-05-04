@@ -23,28 +23,31 @@
 require('dotenv').config();
 
 const { startWorkers } = require('./jobs');
+const { child } = require('./lib/logger');
+
+const log = child({ component: 'worker' });
 
 (async () => {
   if (!process.env.REDIS_URL) {
-    console.error('[worker] REDIS_URL is required');
+    log.fatal('REDIS_URL is required');
     process.exit(1);
   }
 
   let stop;
   try {
     stop = await startWorkers();
-    console.log('[worker] ready');
+    log.info('ready');
   } catch (err) {
-    console.error('[worker] failed to start:', err);
+    log.fatal({ err: { message: err.message, stack: err.stack } }, 'failed to start');
     process.exit(1);
   }
 
   const shutdown = async (signal) => {
-    console.log(`[worker] received ${signal}, draining jobs...`);
+    log.info({ signal }, 'received signal, draining jobs');
     try {
       await stop();
     } catch (err) {
-      console.error('[worker] shutdown error:', err.message);
+      log.error({ err: err.message }, 'shutdown error');
     }
     process.exit(0);
   };
