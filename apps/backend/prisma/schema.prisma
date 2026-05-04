@@ -1,0 +1,1910 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model app_settings {
+  id         Int       @id @default(autoincrement())
+  outlet_id  Int?
+  category   String
+  key        String
+  value_json String
+  updated_by Int?
+  updated_at DateTime? @default(now()) @db.Timestamptz(6)
+  outlets    outlets?  @relation(fields: [outlet_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users      users?    @relation(fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([outlet_id, category, key])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model appointment_resources {
+  id            Int            @id @default(autoincrement())
+  name          String
+  resource_type String         @default("room")
+  capacity      Int?           @default(1)
+  is_active     Int            @default(1)
+  created_at    DateTime?      @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime?      @default(now()) @db.Timestamptz(6)
+  appointments  appointments[]
+}
+
+model appointment_services {
+  id               Int          @id @default(autoincrement())
+  appointment_id   Int
+  product_id       Int?
+  service_name     String
+  qty              Int          @default(1)
+  price            Float        @default(0)
+  duration_minutes Int?         @default(0)
+  subtotal         Float        @default(0)
+  appointments     appointments @relation(fields: [appointment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products         products?    @relation(fields: [product_id], references: [id], onUpdate: NoAction)
+
+  @@index([appointment_id], map: "idx_appointment_services_appt")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model appointments {
+  id                    Int                    @id @default(autoincrement())
+  ref_no                String                 @unique
+  customer_id           Int?
+  customer_name         String?
+  customer_phone        String?
+  staff_id              Int?
+  resource_id           Int?
+  start_at              DateTime               @db.Timestamptz(6)
+  end_at                DateTime               @db.Timestamptz(6)
+  duration_minutes      Int                    @default(30)
+  status                String                 @default("PENDING")
+  notes                 String?
+  deposit_amount        Float?                 @default(0)
+  total                 Float                  @default(0)
+  transaction_id        Int?
+  checked_in_at         DateTime?              @db.Timestamptz(6)
+  completed_at          DateTime?              @db.Timestamptz(6)
+  cancelled_at          DateTime?              @db.Timestamptz(6)
+  cancel_reason         String?
+  reminders_config      String?
+  reminder_24h_sent_at  DateTime?              @db.Timestamptz(6)
+  reminder_1h_sent_at   DateTime?              @db.Timestamptz(6)
+  created_at            DateTime?              @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime?              @default(now()) @db.Timestamptz(6)
+  appointment_services  appointment_services[]
+  customers             customers?             @relation(fields: [customer_id], references: [id], onUpdate: NoAction)
+  appointment_resources appointment_resources? @relation(fields: [resource_id], references: [id], onUpdate: NoAction)
+  staff                 staff?                 @relation(fields: [staff_id], references: [id], onUpdate: NoAction)
+  transactions          transactions?          @relation(fields: [transaction_id], references: [id], onUpdate: NoAction)
+
+  @@index([customer_id], map: "idx_appointments_customer")
+  @@index([staff_id], map: "idx_appointments_staff")
+  @@index([start_at], map: "idx_appointments_start")
+  @@index([status], map: "idx_appointments_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model approval_chains {
+  id               Int       @id @default(autoincrement())
+  domain           String
+  name             String
+  threshold_amount Float?    @default(0)
+  steps            String
+  is_active        Int       @default(1)
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model attendance_geofences {
+  id          Int       @id @default(autoincrement())
+  outlet_id   Int       @unique
+  outlet_name String?
+  latitude    Float?
+  longitude   Float?
+  radius_m    Int?      @default(100)
+  strict_mode Int?      @default(0)
+  updated_at  DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model attendance_logs {
+  id          Int       @id @default(autoincrement())
+  employee_id Int
+  log_type    String
+  logged_at   DateTime  @db.Timestamptz(6)
+  method      String    @default("manual")
+  latitude    Float?
+  longitude   Float?
+  photo_url   String?
+  note        String?
+  is_off_site Int?      @default(0)
+  approved_by Int?
+  approved_at DateTime? @db.Timestamptz(6)
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+  employees   employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([employee_id], map: "idx_attendance_employee")
+  @@index([logged_at], map: "idx_attendance_logged")
+}
+
+model b2b_delivery_order_items {
+  id                    Int                    @id @default(autoincrement())
+  delivery_order_id     Int
+  sales_order_item_id   Int?
+  product_id            Int?
+  product_name          String
+  qty                   Float
+  b2b_delivery_orders   b2b_delivery_orders    @relation(fields: [delivery_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products              products?              @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  b2b_sales_order_items b2b_sales_order_items? @relation(fields: [sales_order_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([delivery_order_id], map: "idx_b2b_delivery_order_items_do")
+}
+
+model b2b_delivery_orders {
+  id                       Int                        @id @default(autoincrement())
+  number                   String                     @unique
+  sales_order_id           Int?
+  customer_id              Int?
+  customer_name            String
+  delivery_date            String
+  expected_arrival         String?
+  carrier                  String?
+  driver                   String?
+  status                   String                     @default("PREPARING")
+  notes                    String?
+  signature_url            String?
+  stock_posted             Int                        @default(0)
+  created_by               Int?
+  created_at               DateTime?                  @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime?                  @default(now()) @db.Timestamptz(6)
+  b2b_delivery_order_items b2b_delivery_order_items[]
+  users                    users?                     @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  customers                customers?                 @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  b2b_sales_orders         b2b_sales_orders?          @relation(fields: [sales_order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([sales_order_id], map: "idx_b2b_delivery_orders_so")
+}
+
+model b2b_invoice_items {
+  id                    Int                    @id @default(autoincrement())
+  invoice_id            Int
+  sales_order_item_id   Int?
+  product_id            Int?
+  product_name          String
+  qty                   Float
+  unit_price            Float
+  discount_percent      Float?                 @default(0)
+  subtotal              Float
+  b2b_invoices          b2b_invoices           @relation(fields: [invoice_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products              products?              @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  b2b_sales_order_items b2b_sales_order_items? @relation(fields: [sales_order_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([invoice_id], map: "idx_b2b_invoice_items_inv")
+}
+
+model b2b_invoices {
+  id                Int                 @id @default(autoincrement())
+  number            String              @unique
+  sales_order_id    Int?
+  customer_id       Int?
+  customer_name     String
+  invoice_date      String
+  due_date          String?
+  status            String              @default("ISSUED")
+  subtotal          Float               @default(0)
+  tax_percent       Float               @default(0)
+  tax_amount        Float               @default(0)
+  discount_amount   Float               @default(0)
+  total             Float               @default(0)
+  down_payment      Float               @default(0)
+  paid_amount       Float               @default(0)
+  outstanding       Float               @default(0)
+  notes             String?
+  created_by        Int?
+  created_at        DateTime?           @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime?           @default(now()) @db.Timestamptz(6)
+  b2b_invoice_items b2b_invoice_items[]
+  users             users?              @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  customers         customers?          @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  b2b_sales_orders  b2b_sales_orders?   @relation(fields: [sales_order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  b2b_receipts      b2b_receipts[]
+
+  @@index([customer_id], map: "idx_b2b_invoices_customer")
+  @@index([due_date], map: "idx_b2b_invoices_due")
+  @@index([status], map: "idx_b2b_invoices_status")
+}
+
+model b2b_quotation_items {
+  id               Int            @id @default(autoincrement())
+  quotation_id     Int
+  product_id       Int?
+  product_name     String
+  qty              Float
+  unit_price       Float
+  discount_percent Float?         @default(0)
+  subtotal         Float
+  products         products?      @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  b2b_quotations   b2b_quotations @relation(fields: [quotation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([quotation_id], map: "idx_b2b_quotation_items_qid")
+}
+
+model b2b_quotations {
+  id                  Int                   @id @default(autoincrement())
+  number              String                @unique
+  customer_id         Int?
+  customer_name       String
+  quote_date          String
+  valid_until         String?
+  status              String                @default("DRAFT")
+  subtotal            Float                 @default(0)
+  tax_percent         Float                 @default(0)
+  tax_amount          Float                 @default(0)
+  discount_amount     Float                 @default(0)
+  total               Float                 @default(0)
+  notes               String?
+  terms               String?
+  converted_so_id     Int?
+  created_by          Int?
+  created_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  b2b_quotation_items b2b_quotation_items[]
+  users               users?                @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  customers           customers?            @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  b2b_sales_orders    b2b_sales_orders[]
+
+  @@index([customer_id], map: "idx_b2b_quotations_customer")
+  @@index([status], map: "idx_b2b_quotations_status")
+}
+
+model b2b_receipts {
+  id              Int            @id @default(autoincrement())
+  number          String         @unique
+  invoice_id      Int
+  customer_id     Int?
+  payment_date    String
+  method          String         @default("cash")
+  amount          Float
+  bank_account_id Int?
+  ref_number      String?
+  notes           String?
+  created_by      Int?
+  created_at      DateTime?      @default(now()) @db.Timestamptz(6)
+  cash_accounts   cash_accounts? @relation(fields: [bank_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users           users?         @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  customers       customers?     @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  b2b_invoices    b2b_invoices   @relation(fields: [invoice_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([invoice_id], map: "idx_b2b_receipts_invoice")
+}
+
+model b2b_sales_order_items {
+  id                       Int                        @id @default(autoincrement())
+  sales_order_id           Int
+  product_id               Int?
+  product_name             String
+  qty                      Float
+  qty_delivered            Float                      @default(0)
+  qty_invoiced             Float                      @default(0)
+  unit_price               Float
+  discount_percent         Float?                     @default(0)
+  subtotal                 Float
+  b2b_delivery_order_items b2b_delivery_order_items[]
+  b2b_invoice_items        b2b_invoice_items[]
+  products                 products?                  @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  b2b_sales_orders         b2b_sales_orders           @relation(fields: [sales_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([sales_order_id], map: "idx_b2b_sales_order_items_so")
+}
+
+model b2b_sales_orders {
+  id                    Int                     @id @default(autoincrement())
+  number                String                  @unique
+  quotation_id          Int?
+  customer_id           Int?
+  customer_name         String
+  order_date            String
+  expected_delivery     String?
+  status                String                  @default("NEW")
+  subtotal              Float                   @default(0)
+  tax_percent           Float                   @default(0)
+  tax_amount            Float                   @default(0)
+  discount_amount       Float                   @default(0)
+  total                 Float                   @default(0)
+  notes                 String?
+  created_by            Int?
+  created_at            DateTime?               @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime?               @default(now()) @db.Timestamptz(6)
+  b2b_delivery_orders   b2b_delivery_orders[]
+  b2b_invoices          b2b_invoices[]
+  b2b_sales_order_items b2b_sales_order_items[]
+  users                 users?                  @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  customers             customers?              @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  b2b_quotations        b2b_quotations?         @relation(fields: [quotation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([customer_id], map: "idx_b2b_sales_orders_customer")
+  @@index([status], map: "idx_b2b_sales_orders_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model capital_applications {
+  id                      Int       @id @default(autoincrement())
+  amount                  Float
+  tenure_months           Int
+  purpose                 String
+  collateral              String?
+  monthly_revenue         Float?
+  status                  String    @default("submitted")
+  pre_qualification_score Int?
+  payload_json            String?
+  submitted_by            Int?
+  submitted_at            DateTime? @default(now()) @db.Timestamptz(6)
+  reviewed_at             DateTime? @db.Timestamptz(6)
+  users                   users?    @relation(fields: [submitted_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cash_accounts {
+  id                                                               Int                 @id @default(autoincrement())
+  kode                                                             String              @unique
+  tipe                                                             String?             @default("detail")
+  nama                                                             String
+  kategori                                                         String?             @default("Kas & Bank")
+  saldo_awal                                                       Float?              @default(0)
+  is_active                                                        Int?                @default(1)
+  created_at                                                       DateTime?           @default(now()) @db.Timestamptz(6)
+  b2b_receipts                                                     b2b_receipts[]
+  cash_transactions_cash_transactions_account_idTocash_accounts    cash_transactions[] @relation("cash_transactions_account_idTocash_accounts")
+  cash_transactions_cash_transactions_account_to_idTocash_accounts cash_transactions[] @relation("cash_transactions_account_to_idTocash_accounts")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cash_transactions {
+  id                                                           Int            @id @default(autoincrement())
+  tanggal                                                      DateTime       @default(dbgenerated("CURRENT_DATE")) @db.Date
+  tipe                                                         String
+  account_id                                                   Int
+  account_to_id                                                Int?
+  kategori                                                     String?
+  jumlah                                                       Float
+  keterangan                                                   String?
+  reference                                                    String?
+  user_id                                                      Int?
+  created_at                                                   DateTime?      @default(now()) @db.Timestamptz(6)
+  cash_accounts_cash_transactions_account_idTocash_accounts    cash_accounts  @relation("cash_transactions_account_idTocash_accounts", fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cash_accounts_cash_transactions_account_to_idTocash_accounts cash_accounts? @relation("cash_transactions_account_to_idTocash_accounts", fields: [account_to_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                                                        users?         @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([account_id], map: "idx_cash_transactions_account")
+  @@index([tanggal], map: "idx_cash_transactions_tanggal")
+}
+
+model categories {
+  id                Int          @id @default(autoincrement())
+  name              String       @unique
+  description       String?
+  urutan            Int?         @default(0)
+  department_id     Int?
+  color             String?
+  icon_url          String?
+  is_tampil_di_menu Int?         @default(1)
+  created_at        DateTime?    @default(now()) @db.Timestamptz(6)
+  departments       departments? @relation(fields: [department_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  products          products[]
+}
+
+model commission_assignments {
+  id                  Int               @id @default(autoincrement())
+  transaction_id      Int
+  employee_id         Int
+  commission_group_id Int
+  basis_amount        Float             @default(0)
+  basis_qty           Int               @default(0)
+  computed_amount     Float             @default(0)
+  tier_percentage     Float?
+  period_key          String?
+  notes               String?
+  created_at          DateTime?         @default(now()) @db.Timestamptz(6)
+  commission_groups   commission_groups @relation(fields: [commission_group_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users               users             @relation(fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  transactions        transactions      @relation(fields: [transaction_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([employee_id], map: "idx_commission_assign_employee")
+  @@index([period_key], map: "idx_commission_assign_period")
+  @@index([transaction_id], map: "idx_commission_assign_transaction")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model commission_groups {
+  id                        Int                      @id @default(autoincrement())
+  name                      String
+  description               String?
+  type                      String
+  applies_to_scope          String                   @default("all")
+  applies_to_role_keys      String?
+  applies_to_employee_ids   String?
+  applies_to_products_scope String                   @default("all")
+  applies_to_category_ids   String?
+  applies_to_product_ids    String?
+  amount                    Float?
+  amount_basis              String?                  @default("PER_TRANSACTION")
+  tiers                     String?
+  calc_period               String                   @default("MONTH")
+  is_active                 Int?                     @default(1)
+  created_at                DateTime?                @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime?                @default(now()) @db.Timestamptz(6)
+  commission_assignments    commission_assignments[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model consumer_app_config {
+  id                 Int       @id
+  app_name           String?
+  app_icon_url       String?
+  splash_image_url   String?
+  primary_color      String?   @default("#04C99E")
+  bundle_id_android  String?
+  bundle_id_ios      String?
+  play_store_url     String?
+  app_store_url      String?
+  status             String    @default("draft")
+  provisioned_at     DateTime? @db.Timestamptz(6)
+  published_at       DateTime? @db.Timestamptz(6)
+  featured_promo_ids String?
+  hidden_product_ids String?
+  operating_hours    String?
+  created_at         DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model coupon_redemptions {
+  id             Int           @id @default(autoincrement())
+  coupon_id      Int
+  transaction_id Int?
+  customer_id    Int?
+  amount         Float?        @default(0)
+  redeemed_at    DateTime?     @default(now()) @db.Timestamptz(6)
+  coupons        coupons       @relation(fields: [coupon_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  customers      customers?    @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  transactions   transactions? @relation(fields: [transaction_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([coupon_id], map: "idx_coupon_redemptions_coupon")
+  @@index([customer_id], map: "idx_coupon_redemptions_customer")
+}
+
+model coupons {
+  id                   Int                  @id @default(autoincrement())
+  promo_id             Int
+  code                 String               @unique
+  batch_id             String?
+  max_uses             Int?                 @default(1)
+  used_count           Int?                 @default(0)
+  assigned_customer_id Int?
+  valid_from           DateTime?            @db.Timestamptz(6)
+  valid_until          DateTime?            @db.Timestamptz(6)
+  is_active            Int?                 @default(1)
+  created_at           DateTime?            @default(now()) @db.Timestamptz(6)
+  coupon_redemptions   coupon_redemptions[]
+  customers            customers?           @relation(fields: [assigned_customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  promos               promos               @relation(fields: [promo_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([is_active], map: "idx_coupons_active")
+  @@index([batch_id], map: "idx_coupons_batch")
+  @@index([promo_id], map: "idx_coupons_promo")
+}
+
+model customer_groups {
+  id                Int         @id @default(autoincrement())
+  name              String      @unique
+  description       String?
+  discount_percent  Float?      @default(0)
+  points_multiplier Float?      @default(1)
+  color             String?
+  created_at        DateTime?   @default(now()) @db.Timestamptz(6)
+  customers         customers[]
+}
+
+model customer_tag_map {
+  customer_id   Int
+  tag_id        Int
+  created_at    DateTime?     @default(now()) @db.Timestamptz(6)
+  customers     customers     @relation(fields: [customer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  customer_tags customer_tags @relation(fields: [tag_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([customer_id, tag_id])
+  @@index([customer_id], map: "idx_customer_tag_map_customer")
+  @@index([tag_id], map: "idx_customer_tag_map_tag")
+}
+
+model customer_tags {
+  id               Int                @id @default(autoincrement())
+  name             String             @unique
+  color            String?
+  created_at       DateTime?          @default(now()) @db.Timestamptz(6)
+  customer_tag_map customer_tag_map[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model customers {
+  id                            Int                             @id @default(autoincrement())
+  kode                          String?                         @unique
+  name                          String
+  phone                         String?
+  email                         String?
+  address                       String?
+  gender                        String?
+  birth_date                    DateTime?                       @db.Date
+  points                        Int?                            @default(0)
+  deposit                       Float?                          @default(0)
+  notes                         String?
+  customer_group_id             Int?
+  npwp                          String?
+  id_card_no                    String?
+  province                      String?
+  city                          String?
+  district                      String?
+  is_active                     Int?                            @default(1)
+  created_at                    DateTime?                       @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime?                       @default(now()) @db.Timestamptz(6)
+  appointments                  appointments[]
+  b2b_delivery_orders           b2b_delivery_orders[]
+  b2b_invoices                  b2b_invoices[]
+  b2b_quotations                b2b_quotations[]
+  b2b_receipts                  b2b_receipts[]
+  b2b_sales_orders              b2b_sales_orders[]
+  coupon_redemptions            coupon_redemptions[]
+  coupons                       coupons[]
+  customer_tag_map              customer_tag_map[]
+  customer_groups               customer_groups?                @relation(fields: [customer_group_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  gl_incomes                    gl_incomes[]
+  loyalty_transactions          loyalty_transactions[]
+  marketing_campaign_recipients marketing_campaign_recipients[]
+  transactions                  transactions[]
+
+  @@index([customer_group_id], map: "idx_customers_group")
+}
+
+model departments {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  description String?
+  urutan      Int?         @default(0)
+  is_active   Int?         @default(1)
+  created_at  DateTime?    @default(now()) @db.Timestamptz(6)
+  categories  categories[]
+  employees   employees[]
+}
+
+model employee_documents {
+  id          Int       @id @default(autoincrement())
+  employee_id Int
+  doc_type    String
+  file_url    String
+  file_name   String?
+  uploaded_at DateTime? @default(now()) @db.Timestamptz(6)
+  employees   employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model employees {
+  id                                                    Int                    @id @default(autoincrement())
+  user_id                                               Int?                   @unique
+  employee_no                                           String                 @unique
+  name                                                  String
+  photo_url                                             String?
+  nik_ktp                                               String?
+  npwp                                                  String?
+  birth_date                                            DateTime?              @db.Date
+  birth_place                                           String?
+  gender                                                String?
+  marital_status                                        String?
+  religion                                              String?
+  blood_type                                            String?
+  nationality                                           String?                @default("Indonesia")
+  phone                                                 String?
+  email                                                 String?
+  address                                               String?
+  address_ktp                                           String?
+  emergency_contact_name                                String?
+  emergency_contact_relation                            String?
+  emergency_contact_phone                               String?
+  department_id                                         Int?
+  position                                              String?
+  employee_type                                         String?                @default("permanent")
+  date_joined                                           DateTime?              @db.Date
+  date_resigned                                         DateTime?              @db.Date
+  role                                                  String?                @default("cashier")
+  payroll_structure_id                                  Int?
+  bank_name                                             String?
+  bank_account_no                                       String?
+  bank_account_name                                     String?
+  base_salary                                           Float?                 @default(0)
+  pin_code                                              String?
+  attendance_methods                                    String?
+  allowed_outlet_ids                                    String?
+  status                                                String                 @default("active")
+  created_at                                            DateTime?              @default(now()) @db.Timestamptz(6)
+  updated_at                                            DateTime?              @default(now()) @db.Timestamptz(6)
+  attendance_logs                                       attendance_logs[]
+  employee_documents                                    employee_documents[]
+  departments                                           departments?           @relation(fields: [department_id], references: [id], onUpdate: NoAction)
+  users                                                 users?                 @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+  payslips                                              payslips[]
+  permission_overrides                                  permission_overrides[]
+  schedule_assignments                                  schedule_assignments[]
+  schedule_swaps_schedule_swaps_partner_idToemployees   schedule_swaps[]       @relation("schedule_swaps_partner_idToemployees")
+  schedule_swaps_schedule_swaps_requester_idToemployees schedule_swaps[]       @relation("schedule_swaps_requester_idToemployees")
+
+  @@index([department_id], map: "idx_employees_dept")
+  @@index([status], map: "idx_employees_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model gl_accounts {
+  id                                                                    Int                        @id @default(autoincrement())
+  code                                                                  String                     @unique
+  name                                                                  String
+  type                                                                  String
+  subtype                                                               String?
+  parent_id                                                             Int?
+  normal_balance                                                        String
+  opening_balance                                                       Float?                     @default(0)
+  is_active                                                             Int                        @default(1)
+  description                                                           String?
+  created_at                                                            DateTime?                  @default(now()) @db.Timestamptz(6)
+  updated_at                                                            DateTime?                  @default(now()) @db.Timestamptz(6)
+  gl_accounts                                                           gl_accounts?               @relation("gl_accountsTogl_accounts", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_gl_accounts                                                     gl_accounts[]              @relation("gl_accountsTogl_accounts")
+  gl_expenses_gl_expenses_expense_account_idTogl_accounts               gl_expenses[]              @relation("gl_expenses_expense_account_idTogl_accounts")
+  gl_expenses_gl_expenses_payment_account_idTogl_accounts               gl_expenses[]              @relation("gl_expenses_payment_account_idTogl_accounts")
+  gl_fixed_asset_disposals                                              gl_fixed_asset_disposals[]
+  gl_fixed_assets_gl_fixed_assets_accum_dep_account_idTogl_accounts     gl_fixed_assets[]          @relation("gl_fixed_assets_accum_dep_account_idTogl_accounts")
+  gl_fixed_assets_gl_fixed_assets_asset_account_idTogl_accounts         gl_fixed_assets[]          @relation("gl_fixed_assets_asset_account_idTogl_accounts")
+  gl_fixed_assets_gl_fixed_assets_dep_expense_account_idTogl_accounts   gl_fixed_assets[]          @relation("gl_fixed_assets_dep_expense_account_idTogl_accounts")
+  gl_fixed_assets_gl_fixed_assets_payment_account_idTogl_accounts       gl_fixed_assets[]          @relation("gl_fixed_assets_payment_account_idTogl_accounts")
+  gl_incomes_gl_incomes_cash_account_idTogl_accounts                    gl_incomes[]               @relation("gl_incomes_cash_account_idTogl_accounts")
+  gl_incomes_gl_incomes_revenue_account_idTogl_accounts                 gl_incomes[]               @relation("gl_incomes_revenue_account_idTogl_accounts")
+  gl_journal_lines                                                      gl_journal_lines[]
+  gl_recurring_bills_gl_recurring_bills_expense_account_idTogl_accounts gl_recurring_bills[]       @relation("gl_recurring_bills_expense_account_idTogl_accounts")
+  gl_recurring_bills_gl_recurring_bills_payment_account_idTogl_accounts gl_recurring_bills[]       @relation("gl_recurring_bills_payment_account_idTogl_accounts")
+  gl_vendors                                                            gl_vendors[]
+  payment_methods                                                       payment_methods[]
+
+  @@index([parent_id], map: "idx_gl_accounts_parent")
+  @@index([type], map: "idx_gl_accounts_type")
+}
+
+model gl_expenses {
+  id                                                      Int          @id @default(autoincrement())
+  ref_no                                                  String       @unique
+  expense_date                                            DateTime     @db.Date
+  vendor_id                                               Int?
+  expense_account_id                                      Int
+  payment_account_id                                      Int
+  amount                                                  Float
+  tax_amount                                              Float?       @default(0)
+  description                                             String?
+  attachment                                              String?
+  is_recurring                                            Int          @default(0)
+  journal_id                                              Int?
+  created_by                                              Int?
+  created_at                                              DateTime?    @default(now()) @db.Timestamptz(6)
+  users                                                   users?       @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  gl_accounts_gl_expenses_expense_account_idTogl_accounts gl_accounts  @relation("gl_expenses_expense_account_idTogl_accounts", fields: [expense_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  gl_journals                                             gl_journals? @relation(fields: [journal_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  gl_accounts_gl_expenses_payment_account_idTogl_accounts gl_accounts  @relation("gl_expenses_payment_account_idTogl_accounts", fields: [payment_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  gl_vendors                                              gl_vendors?  @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([expense_date], map: "idx_gl_expenses_date")
+}
+
+model gl_fixed_asset_depreciations {
+  id              Int             @id @default(autoincrement())
+  asset_id        Int
+  period_year     Int
+  period_month    Int
+  amount          Float
+  journal_id      Int?
+  run_at          DateTime?       @default(now()) @db.Timestamptz(6)
+  gl_fixed_assets gl_fixed_assets @relation(fields: [asset_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  gl_journals     gl_journals?    @relation(fields: [journal_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([asset_id, period_year, period_month])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model gl_fixed_asset_disposals {
+  id                  Int             @id @default(autoincrement())
+  asset_id            Int             @unique
+  disposal_date       DateTime        @db.Date
+  disposal_type       String
+  proceeds            Float           @default(0)
+  buyer               String?
+  gain_loss           Float           @default(0)
+  proceeds_account_id Int?
+  journal_id          Int?
+  created_at          DateTime?       @default(now()) @db.Timestamptz(6)
+  gl_fixed_assets     gl_fixed_assets @relation(fields: [asset_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  gl_journals         gl_journals?    @relation(fields: [journal_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  gl_accounts         gl_accounts?    @relation(fields: [proceeds_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model gl_fixed_assets {
+  id                                                              Int                            @id @default(autoincrement())
+  code                                                            String                         @unique
+  name                                                            String
+  category                                                        String?
+  acquisition_date                                                DateTime                       @db.Date
+  cost                                                            Float
+  useful_life_years                                               Int                            @default(1)
+  salvage_value                                                   Float                          @default(0)
+  depreciation_method                                             String                         @default("STRAIGHT_LINE")
+  accumulated_depreciation                                        Float                          @default(0)
+  location                                                        String?
+  vendor_id                                                       Int?
+  photo_url                                                       String?
+  asset_account_id                                                Int
+  accum_dep_account_id                                            Int
+  dep_expense_account_id                                          Int
+  payment_account_id                                              Int?
+  status                                                          String                         @default("active")
+  acquisition_journal_id                                          Int?
+  created_at                                                      DateTime?                      @default(now()) @db.Timestamptz(6)
+  updated_at                                                      DateTime?                      @default(now()) @db.Timestamptz(6)
+  gl_fixed_asset_depreciations                                    gl_fixed_asset_depreciations[]
+  gl_fixed_asset_disposals                                        gl_fixed_asset_disposals?
+  gl_accounts_gl_fixed_assets_accum_dep_account_idTogl_accounts   gl_accounts                    @relation("gl_fixed_assets_accum_dep_account_idTogl_accounts", fields: [accum_dep_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  gl_journals                                                     gl_journals?                   @relation(fields: [acquisition_journal_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  gl_accounts_gl_fixed_assets_asset_account_idTogl_accounts       gl_accounts                    @relation("gl_fixed_assets_asset_account_idTogl_accounts", fields: [asset_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  gl_accounts_gl_fixed_assets_dep_expense_account_idTogl_accounts gl_accounts                    @relation("gl_fixed_assets_dep_expense_account_idTogl_accounts", fields: [dep_expense_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  gl_accounts_gl_fixed_assets_payment_account_idTogl_accounts     gl_accounts?                   @relation("gl_fixed_assets_payment_account_idTogl_accounts", fields: [payment_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  gl_vendors                                                      gl_vendors?                    @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model gl_incomes {
+  id                                                     Int          @id @default(autoincrement())
+  ref_no                                                 String       @unique
+  income_date                                            DateTime     @db.Date
+  source_type                                            String       @default("other")
+  customer_id                                            Int?
+  source_other                                           String?
+  category                                               String?
+  amount                                                 Float
+  cash_account_id                                        Int
+  revenue_account_id                                     Int
+  tax_amount                                             Float?       @default(0)
+  description                                            String?
+  attachment                                             String?
+  journal_id                                             Int?
+  created_by                                             Int?
+  created_at                                             DateTime?    @default(now()) @db.Timestamptz(6)
+  gl_accounts_gl_incomes_cash_account_idTogl_accounts    gl_accounts  @relation("gl_incomes_cash_account_idTogl_accounts", fields: [cash_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                                                  users?       @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  customers                                              customers?   @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  gl_journals                                            gl_journals? @relation(fields: [journal_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  gl_accounts_gl_incomes_revenue_account_idTogl_accounts gl_accounts  @relation("gl_incomes_revenue_account_idTogl_accounts", fields: [revenue_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([income_date], map: "idx_gl_incomes_date")
+}
+
+model gl_journal_lines {
+  id          Int         @id @default(autoincrement())
+  journal_id  Int
+  account_id  Int
+  debit       Float       @default(0)
+  credit      Float       @default(0)
+  description String?
+  sort_order  Int         @default(0)
+  gl_accounts gl_accounts @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  gl_journals gl_journals @relation(fields: [journal_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([account_id], map: "idx_gl_journal_lines_account")
+  @@index([journal_id], map: "idx_gl_journal_lines_journal")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model gl_journals {
+  id                           Int                            @id @default(autoincrement())
+  journal_no                   String                         @unique
+  journal_date                 DateTime                       @db.Date
+  description                  String?
+  source_type                  String                         @default("manual")
+  source_id                    Int?
+  total_amount                 Float                          @default(0)
+  is_locked                    Int                            @default(0)
+  created_by                   Int?
+  created_at                   DateTime?                      @default(now()) @db.Timestamptz(6)
+  gl_expenses                  gl_expenses[]
+  gl_fixed_asset_depreciations gl_fixed_asset_depreciations[]
+  gl_fixed_asset_disposals     gl_fixed_asset_disposals[]
+  gl_fixed_assets              gl_fixed_assets[]
+  gl_incomes                   gl_incomes[]
+  gl_journal_lines             gl_journal_lines[]
+  users                        users?                         @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([journal_date], map: "idx_gl_journals_date")
+  @@index([source_type, source_id], map: "idx_gl_journals_source")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model gl_recurring_bills {
+  id                                                             Int          @id @default(autoincrement())
+  name                                                           String
+  vendor_id                                                      Int?
+  expense_account_id                                             Int
+  payment_account_id                                             Int?
+  amount                                                         Float
+  frequency                                                      String       @default("monthly")
+  due_day                                                        Int          @default(1)
+  last_run_at                                                    DateTime?    @db.Timestamptz(6)
+  next_run_at                                                    DateTime?    @db.Timestamptz(6)
+  is_active                                                      Int          @default(1)
+  created_at                                                     DateTime?    @default(now()) @db.Timestamptz(6)
+  updated_at                                                     DateTime?    @default(now()) @db.Timestamptz(6)
+  gl_accounts_gl_recurring_bills_expense_account_idTogl_accounts gl_accounts  @relation("gl_recurring_bills_expense_account_idTogl_accounts", fields: [expense_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  gl_accounts_gl_recurring_bills_payment_account_idTogl_accounts gl_accounts? @relation("gl_recurring_bills_payment_account_idTogl_accounts", fields: [payment_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  gl_vendors                                                     gl_vendors?  @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model gl_vendors {
+  id                  Int                  @id @default(autoincrement())
+  code                String               @unique
+  name                String
+  npwp                String?
+  address             String?
+  phone               String?
+  email               String?
+  bank_name           String?
+  bank_account_no     String?
+  bank_account_holder String?
+  default_account_id  Int?
+  payment_terms_days  Int                  @default(0)
+  is_active           Int                  @default(1)
+  note                String?
+  created_at          DateTime?            @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime?            @default(now()) @db.Timestamptz(6)
+  gl_expenses         gl_expenses[]
+  gl_fixed_assets     gl_fixed_assets[]
+  gl_recurring_bills  gl_recurring_bills[]
+  gl_accounts         gl_accounts?         @relation(fields: [default_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model help_feedback {
+  id             Int       @id @default(autoincrement())
+  type           String
+  title          String
+  description    String
+  screenshot_url String?
+  app_version    String?
+  device_info    String?
+  status         String    @default("open")
+  submitted_by   Int?
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime? @default(now()) @db.Timestamptz(6)
+  users          users?    @relation(fields: [submitted_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model help_topics {
+  id         Int       @id @default(autoincrement())
+  slug       String    @unique
+  title      String
+  category   String?
+  excerpt    String?
+  content    String?
+  sort_order Int?      @default(0)
+  is_active  Int?      @default(1)
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([category], map: "idx_help_topics_category")
+}
+
+model informasi_updates {
+  id           Int       @id @default(autoincrement())
+  version      String
+  title        String
+  body         String?
+  published_at DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model inspirasi_articles {
+  id              Int       @id @default(autoincrement())
+  slug            String    @unique
+  category        String
+  title           String
+  excerpt         String?
+  content         String?
+  cover_url       String?
+  author          String?
+  reading_minutes Int?      @default(3)
+  published_at    DateTime? @default(now()) @db.Timestamptz(6)
+  is_active       Int?      @default(1)
+
+  @@index([category], map: "idx_inspirasi_articles_category")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model inspirasi_event_rsvps {
+  id               Int              @id @default(autoincrement())
+  event_id         Int
+  user_id          Int
+  status           String           @default("going")
+  created_at       DateTime?        @default(now()) @db.Timestamptz(6)
+  inspirasi_events inspirasi_events @relation(fields: [event_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users            users            @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([event_id, user_id])
+}
+
+model inspirasi_events {
+  id                    Int                     @id @default(autoincrement())
+  slug                  String                  @unique
+  title                 String
+  description           String?
+  location              String?
+  event_date            DateTime                @db.Timestamptz(6)
+  cover_url             String?
+  capacity              Int?
+  created_at            DateTime?               @default(now()) @db.Timestamptz(6)
+  inspirasi_event_rsvps inspirasi_event_rsvps[]
+
+  @@index([event_date], map: "idx_inspirasi_events_date")
+}
+
+model inspirasi_magazines {
+  id           Int       @id @default(autoincrement())
+  year         Int
+  month        Int
+  title        String
+  cover_url    String?
+  pdf_url      String?
+  published_at DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@unique([year, month])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model inventory_movements {
+  id           Int       @id @default(autoincrement())
+  tanggal      DateTime  @default(dbgenerated("CURRENT_DATE")) @db.Date
+  product_id   Int
+  tipe         String
+  qty          Int
+  stok_sebelum Int
+  stok_sesudah Int
+  unit_cost    Float?
+  reason       String?
+  ref_type     String?
+  ref_id       Int?
+  keterangan   String?
+  user_id      Int?
+  created_at   DateTime? @default(now()) @db.Timestamptz(6)
+  products     products  @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users        users?    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([product_id], map: "idx_inventory_movements_product")
+  @@index([ref_type, ref_id], map: "idx_inventory_movements_ref")
+  @@index([tanggal], map: "idx_inventory_movements_tanggal")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model loyalty_rules {
+  id                              Int                    @id @default(autoincrement())
+  name                            String
+  rule_type                       String
+  earn_rate                       Float?
+  bonus_points                    Int?
+  target_product_ids              String?
+  multiplier_per_group            String?
+  excluded_payment_methods        String?
+  excluded_categories             String?
+  redemption_rate                 Float?
+  min_redeem_per_transaction      Int?
+  max_redeem_per_transaction      Int?
+  max_redeem_per_day_per_customer Int?
+  redemption_block                Int?
+  points_expire_after_months      Int?
+  valid_from                      DateTime?              @db.Timestamptz(6)
+  valid_until                     DateTime?              @db.Timestamptz(6)
+  is_active                       Int?                   @default(1)
+  created_at                      DateTime?              @default(now()) @db.Timestamptz(6)
+  updated_at                      DateTime?              @default(now()) @db.Timestamptz(6)
+  loyalty_transactions            loyalty_transactions[]
+
+  @@index([is_active], map: "idx_loyalty_rules_active")
+  @@index([rule_type], map: "idx_loyalty_rules_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model loyalty_transactions {
+  id             Int            @id @default(autoincrement())
+  customer_id    Int
+  type           String
+  points         Int
+  balance_after  Int
+  transaction_id Int?
+  rule_id        Int?
+  notes          String?
+  expires_at     DateTime?      @db.Timestamptz(6)
+  created_at     DateTime?      @default(now()) @db.Timestamptz(6)
+  customers      customers      @relation(fields: [customer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  loyalty_rules  loyalty_rules? @relation(fields: [rule_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  transactions   transactions?  @relation(fields: [transaction_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([customer_id], map: "idx_loyalty_tx_customer")
+  @@index([type], map: "idx_loyalty_tx_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model marketing_campaign_recipients {
+  id                  Int                 @id @default(autoincrement())
+  campaign_id         Int
+  customer_id         Int?
+  contact             String
+  contact_label       String?
+  rendered_message    String?
+  status              String              @default("pending")
+  cost                Float               @default(0)
+  provider_ref        String?
+  error_message       String?
+  sent_at             DateTime?           @db.Timestamptz(6)
+  delivered_at        DateTime?           @db.Timestamptz(6)
+  opened_at           DateTime?           @db.Timestamptz(6)
+  clicked_at          DateTime?           @db.Timestamptz(6)
+  created_at          DateTime?           @default(now()) @db.Timestamptz(6)
+  marketing_campaigns marketing_campaigns @relation(fields: [campaign_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  customers           customers?          @relation(fields: [customer_id], references: [id], onUpdate: NoAction)
+
+  @@index([campaign_id], map: "idx_marketing_recipients_campaign")
+  @@index([status], map: "idx_marketing_recipients_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model marketing_campaigns {
+  id                            Int                             @id @default(autoincrement())
+  name                          String
+  channel                       String
+  provider                      String                          @default("mock")
+  audience_type                 String
+  audience_group_ids            String?
+  audience_tag_ids              String?
+  audience_custom_recipients    String?
+  template_id                   Int?
+  template_snapshot             String
+  schedule_type                 String                          @default("now")
+  scheduled_at                  DateTime?                       @db.Timestamptz(6)
+  recurrence_rule               String?
+  cost_per_message              Float                           @default(0)
+  total_cost                    Float                           @default(0)
+  status                        String                          @default("draft")
+  sent_count                    Int                             @default(0)
+  delivered_count               Int                             @default(0)
+  opened_count                  Int                             @default(0)
+  clicked_count                 Int                             @default(0)
+  failed_count                  Int                             @default(0)
+  sent_at                       DateTime?                       @db.Timestamptz(6)
+  completed_at                  DateTime?                       @db.Timestamptz(6)
+  notes                         String?
+  created_by                    Int?
+  created_at                    DateTime?                       @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime?                       @default(now()) @db.Timestamptz(6)
+  marketing_campaign_recipients marketing_campaign_recipients[]
+  users                         users?                          @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  marketing_templates           marketing_templates?            @relation(fields: [template_id], references: [id], onUpdate: NoAction)
+  marketing_credit_ledger       marketing_credit_ledger[]
+
+  @@index([channel], map: "idx_marketing_campaigns_channel")
+  @@index([scheduled_at], map: "idx_marketing_campaigns_scheduled")
+  @@index([status], map: "idx_marketing_campaigns_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model marketing_credit_ledger {
+  id                  Int                  @id @default(autoincrement())
+  channel             String
+  delta               Float
+  balance_after       Float
+  type                String
+  campaign_id         Int?
+  notes               String?
+  created_by          Int?
+  created_at          DateTime?            @default(now()) @db.Timestamptz(6)
+  marketing_campaigns marketing_campaigns? @relation(fields: [campaign_id], references: [id], onUpdate: NoAction)
+  users               users?               @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([channel], map: "idx_marketing_credit_channel")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model marketing_templates {
+  id                  Int                   @id @default(autoincrement())
+  name                String
+  channel             String
+  header              String?
+  body                String
+  footer              String?
+  buttons             String?
+  subject             String?
+  caption             String?
+  created_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  marketing_campaigns marketing_campaigns[]
+
+  @@index([channel], map: "idx_marketing_templates_channel")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model marketplace_connections {
+  id                   Int       @id @default(autoincrement())
+  provider             String    @unique
+  status               String    @default("disconnected")
+  merchant_id          String?
+  outlet_id            String?
+  oauth_token          String?
+  refresh_token        String?
+  token_expires_at     DateTime? @db.Timestamptz(6)
+  auto_accept          Int?      @default(0)
+  sla_accept_minutes   Int?      @default(5)
+  sla_ready_minutes    Int?      @default(15)
+  mdr_percent          Float?    @default(20)
+  price_markup_percent Float?    @default(0)
+  settings             String?
+  connected_at         DateTime? @db.Timestamptz(6)
+  last_sync_at         DateTime? @db.Timestamptz(6)
+  created_at           DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model marketplace_product_overrides {
+  id                 Int       @id @default(autoincrement())
+  provider           String
+  product_id         Int
+  override_name      String?
+  override_price     Float?
+  override_image_url String?
+  is_enabled         Int       @default(1)
+  synced_at          DateTime? @db.Timestamptz(6)
+  sync_status        String?   @default("pending")
+  sync_error         String?
+  created_at         DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime? @default(now()) @db.Timestamptz(6)
+  products           products  @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([provider, product_id])
+  @@index([product_id], map: "idx_marketplace_overrides_product")
+  @@index([provider], map: "idx_marketplace_overrides_provider")
+}
+
+model notification_prefs {
+  id         Int       @id @default(autoincrement())
+  user_id    Int
+  event_key  String
+  via_push   Int?      @default(1)
+  via_wa     Int?      @default(0)
+  via_sms    Int?      @default(0)
+  via_email  Int?      @default(1)
+  updated_at DateTime? @default(now()) @db.Timestamptz(6)
+  users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, event_key])
+}
+
+model online_order_items {
+  id            Int           @id @default(autoincrement())
+  order_id      Int
+  product_id    Int?
+  product_name  String
+  qty           Int           @default(1)
+  price         Float         @default(0)
+  modifiers     String?
+  notes         String?
+  subtotal      Float         @default(0)
+  online_orders online_orders @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products      products?     @relation(fields: [product_id], references: [id], onUpdate: NoAction)
+
+  @@index([order_id], map: "idx_online_order_items_order")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model online_orders {
+  id                 Int                  @id @default(autoincrement())
+  ref_no             String               @unique
+  channel            String
+  external_ref       String?
+  order_type         String               @default("delivery")
+  table_no           String?
+  customer_name      String?
+  customer_phone     String?
+  customer_address   String?
+  delivery_zone      String?
+  delivery_fee       Float?               @default(0)
+  subtotal           Float                @default(0)
+  discount           Float                @default(0)
+  service_charge     Float                @default(0)
+  tax                Float                @default(0)
+  total              Float                @default(0)
+  payment_method     String?
+  payment_status     String               @default("unpaid")
+  status             String               @default("NEW")
+  reject_reason      String?
+  cancel_reason      String?
+  sla_minutes        Int?                 @default(30)
+  accepted_at        DateTime?            @db.Timestamptz(6)
+  ready_at           DateTime?            @db.Timestamptz(6)
+  completed_at       DateTime?            @db.Timestamptz(6)
+  cancelled_at       DateTime?            @db.Timestamptz(6)
+  notes              String?
+  created_at         DateTime?            @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime?            @default(now()) @db.Timestamptz(6)
+  online_order_items online_order_items[]
+
+  @@index([channel], map: "idx_online_orders_channel")
+  @@index([created_at], map: "idx_online_orders_created")
+  @@index([status], map: "idx_online_orders_status")
+}
+
+model outlet_floor_plans {
+  id          Int       @id @default(autoincrement())
+  outlet_id   Int
+  name        String
+  width       Int?      @default(1000)
+  height      Int?      @default(700)
+  tables_json String    @default("[]")
+  updated_at  DateTime? @default(now()) @db.Timestamptz(6)
+  outlets     outlets   @relation(fields: [outlet_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model outlets {
+  id                 Int                  @id @default(autoincrement())
+  code               String?              @unique
+  name               String
+  type               String?
+  address            String?
+  city               String?
+  province           String?
+  phone              String?
+  email              String?
+  logo_url           String?
+  tax_npwp           String?
+  timezone           String?              @default("Asia/Jakarta")
+  currency           String?              @default("IDR")
+  is_main            Int?                 @default(0)
+  is_active          Int?                 @default(1)
+  created_at         DateTime?            @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime?            @default(now()) @db.Timestamptz(6)
+  app_settings       app_settings[]
+  outlet_floor_plans outlet_floor_plans[]
+  terminals          terminals[]
+}
+
+model password_reset_tokens {
+  id         Int       @id @default(autoincrement())
+  user_id    Int
+  token_hash String    @unique
+  expires_at DateTime  @db.Timestamptz(6)
+  used       Int?      @default(0)
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  users      users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([user_id], map: "idx_password_reset_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model payment_methods {
+  id          Int          @id @default(autoincrement())
+  code        String?      @unique
+  name        String
+  type        String
+  provider    String?
+  fee_percent Float?       @default(0)
+  fee_flat    Float?       @default(0)
+  account_id  Int?
+  is_active   Int?         @default(1)
+  sort_order  Int?         @default(0)
+  created_at  DateTime?    @default(now()) @db.Timestamptz(6)
+  gl_accounts gl_accounts? @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model payroll_runs {
+  id               Int        @id @default(autoincrement())
+  ref_no           String     @unique
+  period_start     DateTime   @db.Date
+  period_end       DateTime   @db.Date
+  payment_date     DateTime?  @db.Date
+  status           String     @default("DRAFT")
+  total_gross      Float?     @default(0)
+  total_deductions Float?     @default(0)
+  total_net        Float?     @default(0)
+  employee_count   Int?       @default(0)
+  notes            String?
+  created_at       DateTime?  @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime?  @default(now()) @db.Timestamptz(6)
+  payslips         payslips[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model payroll_settings {
+  id                      Int       @id
+  period                  String    @default("monthly")
+  cutoff_day              Int?      @default(25)
+  payment_day             Int?      @default(1)
+  working_hours_per_month Float?    @default(173)
+  overtime_multiplier     Float?    @default(1.5)
+  tax_method              String?   @default("gross")
+  bpjs_kesehatan_employee Float?    @default(1.0)
+  bpjs_jht_employee       Float?    @default(2.0)
+  bpjs_jp_employee        Float?    @default(1.0)
+  updated_at              DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model payroll_structures {
+  id            Int       @id @default(autoincrement())
+  name          String    @unique
+  description   String?
+  basic_salary  Float     @default(0)
+  allowances    String?
+  deductions    String?
+  overtime_rate Float?    @default(0)
+  include_bpjs  Int?      @default(1)
+  include_pph21 Int?      @default(1)
+  is_active     Int       @default(1)
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model payslips {
+  id               Int          @id @default(autoincrement())
+  payroll_run_id   Int
+  employee_id      Int
+  employee_no      String?
+  employee_name    String?
+  structure_id     Int?
+  basic_salary     Float?       @default(0)
+  total_allowances Float?       @default(0)
+  total_deductions Float?       @default(0)
+  overtime_hours   Float?       @default(0)
+  overtime_amount  Float?       @default(0)
+  bpjs_kesehatan   Float?       @default(0)
+  bpjs_jht         Float?       @default(0)
+  bpjs_jp          Float?       @default(0)
+  pph21            Float?       @default(0)
+  gross_salary     Float?       @default(0)
+  net_salary       Float?       @default(0)
+  breakdown        String?
+  bank_name        String?
+  bank_account_no  String?
+  created_at       DateTime?    @default(now()) @db.Timestamptz(6)
+  employees        employees    @relation(fields: [employee_id], references: [id], onUpdate: NoAction)
+  payroll_runs     payroll_runs @relation(fields: [payroll_run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([employee_id], map: "idx_payslips_employee")
+  @@index([payroll_run_id], map: "idx_payslips_run")
+}
+
+model permission_overrides {
+  id             Int       @id @default(autoincrement())
+  employee_id    Int
+  permission_key String
+  granted        Int       @default(1)
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  employees      employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([employee_id, permission_key])
+}
+
+model product_recipe_items {
+  id                                                    Int       @id @default(autoincrement())
+  product_id                                            Int
+  ingredient_id                                         Int
+  qty                                                   Float
+  unit                                                  String?
+  notes                                                 String?
+  created_at                                            DateTime? @default(now()) @db.Timestamptz(6)
+  products_product_recipe_items_ingredient_idToproducts products  @relation("product_recipe_items_ingredient_idToproducts", fields: [ingredient_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  products_product_recipe_items_product_idToproducts    products  @relation("product_recipe_items_product_idToproducts", fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([product_id], map: "idx_product_recipe_product")
+}
+
+model product_variants {
+  id             Int       @id @default(autoincrement())
+  product_id     Int
+  group_name     String
+  option_label   String
+  price_modifier Float?    @default(0)
+  sku_suffix     String?
+  stock          Int?      @default(0)
+  is_default     Int?      @default(0)
+  sort_order     Int?      @default(0)
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  products       products  @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([product_id], map: "idx_product_variants_product")
+}
+
+model products {
+  id                                                                Int                             @id @default(autoincrement())
+  name                                                              String
+  sku                                                               String                          @unique
+  barcode                                                           String?
+  price                                                             Float
+  harga_modal                                                       Float?                          @default(0)
+  harga_beli                                                        Float?                          @default(0)
+  stock                                                             Int?                            @default(0)
+  satuan                                                            String?                         @default("pcs")
+  description                                                       String?
+  category_id                                                       Int?
+  image_url                                                         String?
+  is_active                                                         Int?                            @default(1)
+  is_tampil_di_menu                                                 Int?                            @default(1)
+  is_favorit                                                        Int?                            @default(0)
+  monitor_stok                                                      Int?                            @default(0)
+  stok_minimum                                                      Int?                            @default(0)
+  created_at                                                        DateTime?                       @default(now()) @db.Timestamptz(6)
+  updated_at                                                        DateTime?                       @default(now()) @db.Timestamptz(6)
+  price_online                                                      Float?
+  is_online_active                                                  Int?                            @default(0)
+  image_urls                                                        String?
+  has_variants                                                      Int?                            @default(0)
+  has_recipe                                                        Int?                            @default(0)
+  appointment_services                                              appointment_services[]
+  b2b_delivery_order_items                                          b2b_delivery_order_items[]
+  b2b_invoice_items                                                 b2b_invoice_items[]
+  b2b_quotation_items                                               b2b_quotation_items[]
+  b2b_sales_order_items                                             b2b_sales_order_items[]
+  inventory_movements                                               inventory_movements[]
+  marketplace_product_overrides                                     marketplace_product_overrides[]
+  online_order_items                                                online_order_items[]
+  product_recipe_items_product_recipe_items_ingredient_idToproducts product_recipe_items[]          @relation("product_recipe_items_ingredient_idToproducts")
+  product_recipe_items_product_recipe_items_product_idToproducts    product_recipe_items[]          @relation("product_recipe_items_product_idToproducts")
+  product_variants                                                  product_variants[]
+  categories                                                        categories?                     @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  stock_opname_items                                                stock_opname_items[]
+  transaction_items                                                 transaction_items[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model promos {
+  id                   Int       @id @default(autoincrement())
+  name                 String
+  description          String?
+  promo_type           String
+  discount_value       Float     @default(0)
+  max_discount         Float?
+  bundle_price         Float?
+  qty_required         Int?      @default(0)
+  give_qty             Int?      @default(0)
+  discount_target      String?   @default("WHOLE_CART")
+  target_product_ids   String?
+  target_category_ids  String?
+  customer_group_ids   String?
+  valid_from           DateTime? @db.Timestamptz(6)
+  valid_until          DateTime? @db.Timestamptz(6)
+  day_of_week_mask     Int?      @default(127)
+  time_of_day_start    String?
+  time_of_day_end      String?
+  min_purchase         Float?    @default(0)
+  max_use_per_customer Int?      @default(0)
+  max_total_use        Int?      @default(0)
+  current_use_count    Int?      @default(0)
+  step_tiers           String?
+  is_stackable         Int?      @default(0)
+  requires_coupon      Int?      @default(0)
+  is_active            Int?      @default(1)
+  created_at           DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime? @default(now()) @db.Timestamptz(6)
+  coupons              coupons[]
+
+  @@index([is_active], map: "idx_promos_active")
+  @@index([promo_type], map: "idx_promos_type")
+}
+
+model refresh_tokens {
+  id                   Int              @id @default(autoincrement())
+  user_id              Int
+  token_hash           String           @unique
+  expires_at           DateTime         @db.Timestamptz(6)
+  revoked              Int?             @default(0)
+  created_at           DateTime?        @default(now()) @db.Timestamptz(6)
+  replaced_by          Int?
+  refresh_tokens       refresh_tokens?  @relation("refresh_tokensTorefresh_tokens", fields: [replaced_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_refresh_tokens refresh_tokens[] @relation("refresh_tokensTorefresh_tokens")
+  users                users            @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([user_id], map: "idx_refresh_tokens_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model report_schedules {
+  id          Int       @id @default(autoincrement())
+  report_key  String
+  name        String
+  params_json String?
+  frequency   String
+  recipients  String?
+  format      String?   @default("pdf")
+  is_active   Int?      @default(1)
+  last_run_at DateTime? @db.Timestamptz(6)
+  created_by  Int?
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+  users       users?    @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model schedule_assignments {
+  id                                                                          Int              @id @default(autoincrement())
+  employee_id                                                                 Int
+  shift_id                                                                    Int?
+  schedule_date                                                               DateTime         @db.Date
+  is_off                                                                      Int?             @default(0)
+  note                                                                        String?
+  created_at                                                                  DateTime?        @default(now()) @db.Timestamptz(6)
+  updated_at                                                                  DateTime?        @default(now()) @db.Timestamptz(6)
+  employees                                                                   employees        @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  shifts                                                                      shifts?          @relation(fields: [shift_id], references: [id], onUpdate: NoAction)
+  schedule_swaps_schedule_swaps_partner_assignment_idToschedule_assignments   schedule_swaps[] @relation("schedule_swaps_partner_assignment_idToschedule_assignments")
+  schedule_swaps_schedule_swaps_requester_assignment_idToschedule_assignments schedule_swaps[] @relation("schedule_swaps_requester_assignment_idToschedule_assignments")
+
+  @@unique([employee_id, schedule_date])
+  @@index([schedule_date], map: "idx_schedule_date")
+  @@index([employee_id], map: "idx_schedule_employee")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model schedule_swaps {
+  id                                                                                Int                  @id @default(autoincrement())
+  requester_id                                                                      Int
+  requester_assignment_id                                                           Int
+  partner_id                                                                        Int
+  partner_assignment_id                                                             Int
+  reason                                                                            String?
+  status                                                                            String               @default("PENDING")
+  decided_by                                                                        Int?
+  decided_at                                                                        DateTime?            @db.Timestamptz(6)
+  decision_note                                                                     String?
+  created_at                                                                        DateTime?            @default(now()) @db.Timestamptz(6)
+  schedule_assignments_schedule_swaps_partner_assignment_idToschedule_assignments   schedule_assignments @relation("schedule_swaps_partner_assignment_idToschedule_assignments", fields: [partner_assignment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  employees_schedule_swaps_partner_idToemployees                                    employees            @relation("schedule_swaps_partner_idToemployees", fields: [partner_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  schedule_assignments_schedule_swaps_requester_assignment_idToschedule_assignments schedule_assignments @relation("schedule_swaps_requester_assignment_idToschedule_assignments", fields: [requester_assignment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  employees_schedule_swaps_requester_idToemployees                                  employees            @relation("schedule_swaps_requester_idToemployees", fields: [requester_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model service_applications {
+  id           Int       @id @default(autoincrement())
+  service_key  String
+  status       String    @default("submitted")
+  payload_json String?
+  notes        String?
+  submitted_by Int?
+  submitted_at DateTime? @default(now()) @db.Timestamptz(6)
+  reviewed_at  DateTime? @db.Timestamptz(6)
+  users        users?    @relation(fields: [submitted_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model shifts {
+  id                   Int                    @id @default(autoincrement())
+  name                 String                 @unique
+  start_time           String
+  end_time             String
+  break_minutes        Int?                   @default(0)
+  color                String?                @default("#04C99E")
+  is_active            Int?                   @default(1)
+  created_at           DateTime?              @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime?              @default(now()) @db.Timestamptz(6)
+  schedule_assignments schedule_assignments[]
+}
+
+model staff {
+  id           Int            @id @default(autoincrement())
+  name         String
+  phone        String?
+  email        String?
+  role         String?
+  color        String?        @default("#04C99E")
+  is_active    Int            @default(1)
+  created_at   DateTime?      @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime?      @default(now()) @db.Timestamptz(6)
+  appointments appointments[]
+
+  @@index([is_active], map: "idx_staff_active")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model stock_opname {
+  id                                     Int                  @id @default(autoincrement())
+  kode                                   String               @unique
+  tanggal                                DateTime             @default(dbgenerated("CURRENT_DATE")) @db.Date
+  status                                 String               @default("draft")
+  catatan                                String?
+  created_by                             Int?
+  finalized_by                           Int?
+  finalized_at                           DateTime?            @db.Timestamptz(6)
+  created_at                             DateTime?            @default(now()) @db.Timestamptz(6)
+  updated_at                             DateTime?            @default(now()) @db.Timestamptz(6)
+  users_stock_opname_created_byTousers   users?               @relation("stock_opname_created_byTousers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_stock_opname_finalized_byTousers users?               @relation("stock_opname_finalized_byTousers", fields: [finalized_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  stock_opname_items                     stock_opname_items[]
+
+  @@index([status], map: "idx_stock_opname_status")
+}
+
+model stock_opname_items {
+  id           Int          @id @default(autoincrement())
+  opname_id    Int
+  product_id   Int
+  qty_sistem   Int          @default(0)
+  qty_fisik    Int?
+  catatan      String?
+  created_at   DateTime?    @default(now()) @db.Timestamptz(6)
+  stock_opname stock_opname @relation(fields: [opname_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products     products     @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([opname_id, product_id])
+  @@index([opname_id], map: "idx_stock_opname_items_opname")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model storefront_settings {
+  id                     Int       @id
+  slug                   String?
+  custom_domain          String?
+  is_active              Int       @default(1)
+  brand_name             String?
+  logo_url               String?
+  cover_image_url        String?
+  primary_color          String?   @default("#04C99E")
+  accent_color           String?
+  theme                  String?   @default("light")
+  language               String?   @default("id")
+  currency               String?   @default("IDR")
+  tagline                String?
+  about_text             String?
+  contact_phone          String?
+  contact_whatsapp       String?
+  contact_email          String?
+  contact_instagram      String?
+  tos_text               String?
+  privacy_text           String?
+  faq_text               String?
+  seo_title              String?
+  seo_description        String?
+  seo_og_image_url       String?
+  ga_id                  String?
+  fb_pixel_id            String?
+  operating_hours        String?
+  payment_methods        String?
+  delivery_zones         String?
+  min_order_amount       Float?    @default(0)
+  service_charge_percent Float?    @default(0)
+  tax_percent            Float?    @default(0)
+  supports_dine_in       Int?      @default(1)
+  supports_takeaway      Int?      @default(1)
+  supports_delivery      Int?      @default(1)
+  banner_slides          String?
+  featured_product_ids   String?
+  hidden_category_ids    String?
+  created_at             DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model supplies_cart_items {
+  id                Int               @id @default(autoincrement())
+  cart_id           Int
+  product_id        Int
+  qty               Int               @default(1)
+  created_at        DateTime?         @default(now()) @db.Timestamptz(6)
+  supplies_carts    supplies_carts    @relation(fields: [cart_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  supplies_products supplies_products @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([cart_id, product_id])
+}
+
+model supplies_carts {
+  id                  Int                   @id @default(autoincrement())
+  user_id             Int                   @unique
+  created_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  supplies_cart_items supplies_cart_items[]
+  users               users                 @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model supplies_categories {
+  id                Int                 @id @default(autoincrement())
+  slug              String              @unique
+  name              String
+  sort_order        Int?                @default(0)
+  supplies_products supplies_products[]
+}
+
+model supplies_order_items {
+  id                Int               @id @default(autoincrement())
+  order_id          Int
+  product_id        Int
+  qty               Int
+  price             Float
+  subtotal          Float
+  supplies_orders   supplies_orders   @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  supplies_products supplies_products @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model supplies_orders {
+  id                   Int                    @id @default(autoincrement())
+  order_no             String                 @unique
+  user_id              Int
+  total_amount         Float
+  payment_method       String?
+  delivery_address     String?
+  delivery_date        DateTime?              @db.Date
+  status               String                 @default("ordered")
+  ordered_at           DateTime?              @default(now()) @db.Timestamptz(6)
+  delivered_at         DateTime?              @db.Timestamptz(6)
+  supplies_order_items supplies_order_items[]
+  users                users                  @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([user_id], map: "idx_supplies_orders_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model supplies_products {
+  id                   Int                    @id @default(autoincrement())
+  sku                  String                 @unique
+  name                 String
+  description          String?
+  image_url            String?
+  price                Float
+  moq                  Int?                   @default(1)
+  stock_status         String                 @default("in_stock")
+  supplier_name        String?
+  category_id          Int?
+  is_active            Int?                   @default(1)
+  created_at           DateTime?              @default(now()) @db.Timestamptz(6)
+  supplies_cart_items  supplies_cart_items[]
+  supplies_order_items supplies_order_items[]
+  supplies_categories  supplies_categories?   @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([category_id], map: "idx_supplies_products_category")
+}
+
+model support_access_grants {
+  id            Int       @id @default(autoincrement())
+  grantee_email String
+  reason        String?
+  granted_by    Int?
+  expires_at    DateTime  @db.Timestamptz(6)
+  revoked_at    DateTime? @db.Timestamptz(6)
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  users         users?    @relation(fields: [granted_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model tax_rates {
+  id           Int       @id @default(autoincrement())
+  code         String?   @unique
+  name         String
+  rate         Float     @default(0)
+  is_inclusive Int?      @default(0)
+  is_active    Int?      @default(1)
+  created_at   DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model terminals {
+  id             Int       @id @default(autoincrement())
+  code           String?   @unique
+  name           String
+  type           String
+  outlet_id      Int?
+  model          String?
+  serial_no      String?
+  ip_address     String?
+  mac_address    String?
+  paired_user_id Int?
+  config_json    String?
+  last_seen_at   DateTime? @db.Timestamptz(6)
+  is_active      Int?      @default(1)
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  outlets        outlets?  @relation(fields: [outlet_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users          users?    @relation(fields: [paired_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model transaction_items {
+  id             Int          @id @default(autoincrement())
+  transaction_id Int
+  product_id     Int
+  product_name   String
+  price          Float
+  quantity       Int
+  subtotal       Float
+  products       products     @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  transactions   transactions @relation(fields: [transaction_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model transactions {
+  id                     Int                      @id @default(autoincrement())
+  invoice_number         String                   @unique
+  user_id                Int
+  customer_id            Int?
+  total_amount           Float
+  payment_amount         Float
+  change_amount          Float
+  payment_method         String?                  @default("cash")
+  status                 String?                  @default("completed")
+  notes                  String?
+  created_at             DateTime?                @default(now()) @db.Timestamptz(6)
+  appointments           appointments[]
+  commission_assignments commission_assignments[]
+  coupon_redemptions     coupon_redemptions[]
+  loyalty_transactions   loyalty_transactions[]
+  transaction_items      transaction_items[]
+  customers              customers?               @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                  users                    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model uoms {
+  id                Int     @id @default(autoincrement())
+  code              String? @unique
+  name              String
+  symbol            String?
+  base_uom_id       Int?
+  conversion_factor Float?  @default(1)
+  is_active         Int?    @default(1)
+  uoms              uoms?   @relation("uomsTouoms", fields: [base_uom_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_uoms        uoms[]  @relation("uomsTouoms")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users {
+  id                                            Int                       @id @default(autoincrement())
+  username                                      String                    @unique
+  password                                      String
+  name                                          String
+  role                                          String?                   @default("cashier")
+  created_at                                    DateTime?                 @default(now()) @db.Timestamptz(6)
+  email                                         String?
+  totp_secret                                   String?
+  totp_enabled                                  Int?                      @default(0)
+  last_login_at                                 DateTime?                 @db.Timestamptz(6)
+  photo_url                                     String?
+  phone                                         String?
+  app_settings                                  app_settings[]
+  b2b_delivery_orders                           b2b_delivery_orders[]
+  b2b_invoices                                  b2b_invoices[]
+  b2b_quotations                                b2b_quotations[]
+  b2b_receipts                                  b2b_receipts[]
+  b2b_sales_orders                              b2b_sales_orders[]
+  capital_applications                          capital_applications[]
+  cash_transactions                             cash_transactions[]
+  commission_assignments                        commission_assignments[]
+  employees                                     employees?
+  gl_expenses                                   gl_expenses[]
+  gl_incomes                                    gl_incomes[]
+  gl_journals                                   gl_journals[]
+  help_feedback                                 help_feedback[]
+  inspirasi_event_rsvps                         inspirasi_event_rsvps[]
+  inventory_movements                           inventory_movements[]
+  marketing_campaigns                           marketing_campaigns[]
+  marketing_credit_ledger                       marketing_credit_ledger[]
+  notification_prefs                            notification_prefs[]
+  password_reset_tokens                         password_reset_tokens[]
+  refresh_tokens                                refresh_tokens[]
+  report_schedules                              report_schedules[]
+  service_applications                          service_applications[]
+  stock_opname_stock_opname_created_byTousers   stock_opname[]            @relation("stock_opname_created_byTousers")
+  stock_opname_stock_opname_finalized_byTousers stock_opname[]            @relation("stock_opname_finalized_byTousers")
+  supplies_carts                                supplies_carts?
+  supplies_orders                               supplies_orders[]
+  support_access_grants                         support_access_grants[]
+  terminals                                     terminals[]
+  transactions                                  transactions[]
+}

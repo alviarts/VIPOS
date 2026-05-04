@@ -11,33 +11,41 @@
 
 ---
 
-### P2-01: Migrate SQLite → Postgres `[pending]`
+### P2-01: Migrate SQLite → Postgres `[in_progress]`
 
-**Goal**: Migrate dari `better-sqlite3` ke Postgres (pakai `pg` atau Prisma). Schema migration tools.
+**Goal**: Migrate dari `better-sqlite3` ke Postgres (Prisma + Supabase). Schema migration tools + zero-data-loss data sync.
 
 **Dependencies**: P0-01
 
 **Outputs**:
 
-- Postgres deployment di VPS (Docker compose) atau managed (Supabase/Neon di production)
-- ORM/query layer: Prisma atau Knex (tim pilih) — recommendation Prisma
-- Migration tool: Prisma Migrate
-- Seed script porting dari better-sqlite3
-- Backup/restore script
-- ENV var: `DATABASE_URL`
+- Postgres deployment: Supabase (managed, free tier ap-southeast-1) untuk staging/prod; Docker `postgres:17-alpine` untuk dev lokal (port 5433)
+- ORM/query layer: **Prisma** (chosen over Knex; type-safe, Prisma Migrate, shadow DB)
+- Migration tool: Prisma Migrate (`prisma migrate dev` dev, `prisma migrate deploy` prod)
+- Data sync tool: `apps/backend/scripts/migrate-sqlite-to-postgres.mjs` (SQLite snapshot → bulk insert ke Postgres dengan zero-data-loss row-count parity verifier)
+- Backup/restore script: `apps/backend/scripts/backup-postgres.sh` (pg_dump daily + opsional S3 offload)
+- ENV var: `DATABASE_URL` (pooler 6543 transaction mode), `DIRECT_URL` (pooler 5432 session mode untuk migrate)
+
+**Sub-task split (executed)**:
+
+- **P2-01a — Infrastructure** (this PR): Prisma + schema + initial migration + data sync tool + backup script + .env.example. Routes belum migrate; semua test masih jalan via better-sqlite3.
+- **P2-01b — Route cutover** (next PR): Replace 759 raw SQL `.prepare()` calls di 45 route file → Prisma client. Drop better-sqlite3 dependency. Production deploy switch ke Postgres.
 
 **Acceptance criteria**:
 
-- [ ] Postgres running di VPS (Docker)
-- [ ] Schema sama dengan SQLite version (zero data loss)
-- [ ] Migration tool berfungsi (`prisma migrate dev`)
-- [ ] Seed script di-port
-- [ ] Existing endpoints semua working
-- [ ] Backup script jalan di cron (daily)
-- [ ] Connection pooling enabled (max 20 connection per worker)
+- [x] Postgres running (Supabase staging + Docker lokal)
+- [x] Schema sama dengan SQLite version (97 model di Prisma) `[P2-01a]`
+- [x] Migration tool berfungsi (`prisma migrate dev/deploy`) `[P2-01a]`
+- [x] Initial migration applied ke Supabase staging `[P2-01a]`
+- [x] Backup script + restore drill `[P2-01a]`
+- [x] Connection pooling enabled (PgBouncer 6543 transaction mode) `[P2-01a]`
+- [x] Zero-data-loss verifier (row count parity per table) `[P2-01a]`
+- [ ] Seed script di-port `[P2-01b]`
+- [ ] Existing endpoints semua working di Postgres `[P2-01b]`
+- [ ] Drop better-sqlite3 dependency `[P2-01b]`
 
-**Branch**: `devin/P2-01-postgres-migration`
-**Estimasi**: 5-7 hari
+**Branch**: `devin/P2-01a-postgres-infrastructure` (P2-01a), `devin/P2-01b-prisma-cutover` (P2-01b, future)
+**Estimasi**: 5-7 hari (P2-01a 1 hari, P2-01b 4-6 hari)
 
 ---
 

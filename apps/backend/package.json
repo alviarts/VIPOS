@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.3.4",
+    "@prisma/client": "^5.22.0",
     "@vipos/shared": "*",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.7.0",
@@ -23,6 +24,8 @@
     "morgan": "^1.10.0",
     "multer": "^2.1.1",
     "otplib": "^12.0.1",
+    "pg": "^8.20.0",
+    "prisma": "^5.22.0",
     "qrcode": "^1.5.4",
     "swagger-ui-express": "^5.0.1",
     "zod": "^3.25.76"

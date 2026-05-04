@@ -20,7 +20,10 @@ Aplikasi Point of Sale (POS) / Kasir modern yang mobile-friendly, dirancang untu
 
 - **Frontend (Web):** React 18 + Vite + Tailwind CSS
 - **Backend:** Node.js + Express
-- **Database:** SQLite (via better-sqlite3)
+- **Database:**
+  - Phase 1: SQLite (via better-sqlite3) — masih dipakai untuk dev/test
+  - Phase 2 P2-01a: Postgres infrastructure ready (Prisma + Supabase). Schema mirror SQLite, migration tool `apps/backend/scripts/migrate-sqlite-to-postgres.mjs` siap untuk cutover. Routes belum migrate ke Prisma — itu scope P2-01b
+- **ORM (Phase 2):** Prisma (Postgres provider). Schema di `apps/backend/prisma/schema.prisma`, 97 model
 - **Auth:** JWT
 - **Mobile (planned, Phase 3+):** Kotlin + Jetpack Compose
 - **Shared schemas:** Zod + OpenAPI 3.1 (di `packages/shared`, dipakai backend untuk runtime validation; web dapat type lewat `@vipos/shared`)
@@ -93,6 +96,74 @@ npm run dev:backend     # backend only
 ### 5. Default Login
 
 - **Admin:** `admin` / `admin123`
+
+## Database (P2-01a)
+
+VIPOS sedang transisi dari SQLite ke Postgres. Phase 1 jalan murni di SQLite. Phase 2 P2-01a sudah landing infrastruktur Prisma + Postgres; cutover route logic ke Prisma masuk scope P2-01b.
+
+### Quick start (Postgres lokal via Docker)
+
+```bash
+# Spin up Postgres 17 untuk dev (port 5433)
+docker run --rm -d --name vipos-pg \
+  -e POSTGRES_PASSWORD=devsecret -e POSTGRES_DB=vipos \
+  -p 5433:5432 postgres:17-alpine
+
+export DATABASE_URL="postgresql://postgres:devsecret@localhost:5433/vipos"
+export DIRECT_URL="postgresql://postgres:devsecret@localhost:5433/vipos"
+
+# Apply schema (97 tables) ke Postgres lokal
+cd apps/backend && npx prisma migrate deploy
+
+# Sync data dari SQLite snapshot ke Postgres
+node scripts/migrate-sqlite-to-postgres.mjs --dry-run   # preview
+node scripts/migrate-sqlite-to-postgres.mjs             # eksekusi
+```
+
+### Production (Supabase)
+
+Production pakai Supabase Postgres dengan dua URL:
+
+| Var            | Port | Mode        | Pakai untuk                 |
+| -------------- | ---- | ----------- | --------------------------- |
+| `DATABASE_URL` | 6543 | Transaction | Runtime app (Prisma client) |
+| `DIRECT_URL`   | 5432 | Session     | `prisma migrate` saja       |
+
+```
+DATABASE_URL=postgresql://postgres.<projectRef>:<PASS>@aws-X-region.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
+DIRECT_URL=postgresql://postgres.<projectRef>:<PASS>@aws-X-region.pooler.supabase.com:5432/postgres
+```
+
+⚠️ Untuk DIRECT_URL **JANGAN** pakai `db.<projectRef>.supabase.co:5432` — host itu IPv6-only di Supabase free tier dan banyak environment (CI runner, Devin, GitHub Actions) yang IPv4-only. Pakai pooler hostname dengan port 5432 (session mode) instead.
+
+### Migration tool
+
+`apps/backend/scripts/migrate-sqlite-to-postgres.mjs` — sync seluruh data SQLite ke Postgres dengan zero data loss verifier. Jalan idempoten (TRUNCATE + RESTART IDENTITY CASCADE per table) supaya boleh re-run berkali-kali.
+
+```bash
+# Dry-run (count saja, no writes)
+node scripts/migrate-sqlite-to-postgres.mjs --dry-run
+
+# Real (truncate Postgres → bulk insert)
+DATABASE_URL=$DATABASE_URL node scripts/migrate-sqlite-to-postgres.mjs
+```
+
+Exit code 0 = success + row count parity. Exit code 1 = mismatch (zero data loss criteria fail). Exit code 2 = env error.
+
+### Backup (P2-01a baseline; expand di P2-08)
+
+`apps/backend/scripts/backup-postgres.sh` — daily `pg_dump` + gzip → local dir + opsional S3 offload.
+
+```bash
+# Manual
+./apps/backend/scripts/backup-postgres.sh
+
+# Cron (production VPS)
+0 2 * * * cd /var/www/vipos && ./apps/backend/scripts/backup-postgres.sh \
+  >> /var/log/vipos-backup.log 2>&1
+```
+
+Restore: `gunzip < vipos-YYYY-MM-DD_HHMMSS.sql.gz | psql "$DATABASE_URL"`.
 
 ## Production Build
 
