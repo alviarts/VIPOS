@@ -3,8 +3,12 @@
  * P2-03 audit retention prune.
  *
  * Deletes rows from `audit_logs` older than `RETENTION_DAYS` (default 365).
- * Designed to be run by cron / GitHub Actions schedule until P2-04 BullMQ
- * is in place and we can move it to a recurring job.
+ *
+ * Once P2-04 BullMQ workers are deployed (`npm run worker --workspace=
+ * apps/backend`), the recurring `audit-retention` job in
+ * `src/jobs/audit-retention.js` runs nightly at 03:15 and supersedes
+ * this script. The script is kept as a fallback for environments without
+ * Redis and for ad-hoc one-shot prunes.
  *
  * Usage:
  *   DATABASE_URL=postgres://... node apps/backend/scripts/prune-audit-logs.mjs
