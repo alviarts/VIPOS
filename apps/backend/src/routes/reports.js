@@ -9,7 +9,7 @@
 // Cron actual + email delivery TBD — di-stub agar tier feature bisa di-toggle.
 
 const express = require('express');
-const { getDb } = require('../models/database');
+const { query } = require('../db');
 const { authenticateToken } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const {
@@ -24,11 +24,11 @@ const router = express.Router();
 // Helpers
 // ---------------------------------------------------------------------------
 
-function defaultRange(query) {
+function defaultRange(q) {
   const today = new Date().toISOString().slice(0, 10);
-  const to = query.to || today;
+  const to = q.to || today;
   const from =
-    query.from ||
+    q.from ||
     (() => {
       const d = new Date(to);
       d.setDate(d.getDate() - 29);
@@ -37,23 +37,25 @@ function defaultRange(query) {
   return { from, to };
 }
 
-function whereDateRange(field, from, to, params) {
-  params.push(from, to);
-  return `DATE(${field}) BETWEEN ? AND ?`;
+function makeCtx() {
+  return { params: [], idx: 1 };
 }
 
-function appendCashierFilter(where, params, cashierId) {
-  if (cashierId) {
-    where.push('t.user_id = ?');
-    params.push(cashierId);
-  }
+function ph(ctx, val) {
+  ctx.params.push(val);
+  return `$${ctx.idx++}`;
 }
 
-function appendPaymentFilter(where, params, method) {
-  if (method) {
-    where.push('t.payment_method = ?');
-    params.push(method);
-  }
+function whereDateRange(field, from, to, ctx) {
+  return `DATE(${field}) BETWEEN ${ph(ctx, from)} AND ${ph(ctx, to)}`;
+}
+
+function appendCashierFilter(where, ctx, cashierId) {
+  if (cashierId) where.push(`t.user_id = ${ph(ctx, cashierId)}`);
+}
+
+function appendPaymentFilter(where, ctx, method) {
+  if (method) where.push(`t.payment_method = ${ph(ctx, method)}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -152,19 +154,18 @@ router.get(
   '/sales-summary',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
     const { cashier_id, payment_method } = req.query;
+    const ctx = makeCtx();
     const where = ["t.status = 'completed'"];
-    const params = [];
-    where.push(whereDateRange('t.created_at', from, to, params));
-    appendCashierFilter(where, params, cashier_id);
-    appendPaymentFilter(where, params, payment_method);
+    where.push(whereDateRange('t.created_at', from, to, ctx));
+    appendCashierFilter(where, ctx, cashier_id);
+    appendPaymentFilter(where, ctx, payment_method);
     const whereSql = where.join(' AND ');
 
-    const kpi = db
-      .prepare(
+    const kpi = (
+      await query(
         `SELECT
            COALESCE(SUM(t.total_amount), 0) AS gross_revenue,
            COUNT(*) AS transaction_count,
@@ -173,33 +174,36 @@ router.get(
              (SELECT COALESCE(SUM(quantity), 0) FROM transaction_items WHERE transaction_id = t.id)
            ), 0) AS item_count
          FROM transactions t
-         WHERE ${whereSql}`
+         WHERE ${whereSql}`,
+        ctx.params
       )
-      .get(...params);
+    ).rows[0];
 
-    const voided = db
-      .prepare(
+    const voided = (
+      await query(
         `SELECT COUNT(*) AS voided_count, COALESCE(SUM(total_amount), 0) AS voided_value
          FROM transactions
          WHERE status = 'voided'
-           AND DATE(created_at) BETWEEN ? AND ?`
+           AND DATE(created_at) BETWEEN $1 AND $2`,
+        [from, to]
       )
-      .get(from, to);
+    ).rows[0];
 
-    const dailyTrend = db
-      .prepare(
+    const dailyTrend = (
+      await query(
         `SELECT DATE(t.created_at) AS date,
                 COALESCE(SUM(t.total_amount), 0) AS revenue,
                 COUNT(*) AS transactions
          FROM transactions t
          WHERE ${whereSql}
          GROUP BY DATE(t.created_at)
-         ORDER BY date ASC`
+         ORDER BY date ASC`,
+        ctx.params
       )
-      .all(...params);
+    ).rows;
 
-    const topProducts = db
-      .prepare(
+    const topProducts = (
+      await query(
         `SELECT ti.product_id,
                 ti.product_name,
                 COALESCE(SUM(ti.quantity), 0) AS qty,
@@ -209,23 +213,25 @@ router.get(
          WHERE ${whereSql}
          GROUP BY ti.product_id, ti.product_name
          ORDER BY qty DESC
-         LIMIT 5`
+         LIMIT 5`,
+        ctx.params
       )
-      .all(...params);
+    ).rows;
 
-    const paymentBreakdown = db
-      .prepare(
+    const paymentBreakdown = (
+      await query(
         `SELECT t.payment_method AS method,
                 COUNT(*) AS count,
                 COALESCE(SUM(t.total_amount), 0) AS total
          FROM transactions t
          WHERE ${whereSql}
-         GROUP BY t.payment_method`
+         GROUP BY t.payment_method`,
+        ctx.params
       )
-      .all(...params);
+    ).rows;
 
-    const transactionCount = kpi.transaction_count || 0;
-    const grossRevenue = kpi.gross_revenue || 0;
+    const transactionCount = Number(kpi.transaction_count) || 0;
+    const grossRevenue = Number(kpi.gross_revenue) || 0;
     res.json({
       period: { from, to },
       kpi: {
@@ -236,10 +242,10 @@ router.get(
         net_revenue: grossRevenue,
         transaction_count: transactionCount,
         avg_ticket: transactionCount ? grossRevenue / transactionCount : 0,
-        item_count: kpi.item_count || 0,
-        unique_customers: kpi.unique_customers || 0,
-        voided_count: voided.voided_count || 0,
-        voided_value: voided.voided_value || 0,
+        item_count: Number(kpi.item_count) || 0,
+        unique_customers: Number(kpi.unique_customers) || 0,
+        voided_count: Number(voided.voided_count) || 0,
+        voided_value: Number(voided.voided_value) || 0,
       },
       daily_trend: dailyTrend,
       top_products: topProducts,
@@ -252,19 +258,19 @@ router.get(
   '/sales-detail',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
     const { cashier_id, payment_method, limit = 500 } = req.query;
+    const ctx = makeCtx();
     const where = [];
-    const params = [];
-    where.push(whereDateRange('t.created_at', from, to, params));
-    appendCashierFilter(where, params, cashier_id);
-    appendPaymentFilter(where, params, payment_method);
+    where.push(whereDateRange('t.created_at', from, to, ctx));
+    appendCashierFilter(where, ctx, cashier_id);
+    appendPaymentFilter(where, ctx, payment_method);
     const whereSql = where.join(' AND ');
+    const limitPh = ph(ctx, Number(limit) || 500);
 
-    const rows = db
-      .prepare(
+    const rows = (
+      await query(
         `SELECT t.id,
                 t.invoice_number,
                 t.created_at,
@@ -283,9 +289,10 @@ router.get(
          LEFT JOIN customers c ON c.id = t.customer_id
          WHERE ${whereSql}
          ORDER BY t.created_at DESC
-         LIMIT ?`
+         LIMIT ${limitPh}`,
+        ctx.params
       )
-      .all(...params, Number(limit) || 500);
+    ).rows;
 
     res.json({ period: { from, to }, rows });
   }
@@ -295,18 +302,17 @@ router.get(
   '/sales-daily',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
+    const ctx = makeCtx();
     const where = ["t.status = 'completed'"];
-    const params = [];
-    where.push(whereDateRange('t.created_at', from, to, params));
-    appendCashierFilter(where, params, req.query.cashier_id);
-    appendPaymentFilter(where, params, req.query.payment_method);
+    where.push(whereDateRange('t.created_at', from, to, ctx));
+    appendCashierFilter(where, ctx, req.query.cashier_id);
+    appendPaymentFilter(where, ctx, req.query.payment_method);
     const whereSql = where.join(' AND ');
 
-    const rows = db
-      .prepare(
+    const rows = (
+      await query(
         `SELECT DATE(t.created_at) AS date,
                 COUNT(*) AS transactions,
                 COALESCE(SUM(t.total_amount), 0) AS revenue,
@@ -316,9 +322,10 @@ router.get(
          FROM transactions t
          WHERE ${whereSql}
          GROUP BY DATE(t.created_at)
-         ORDER BY date ASC`
+         ORDER BY date ASC`,
+        ctx.params
       )
-      .all(...params);
+    ).rows;
     res.json({ period: { from, to }, rows });
   }
 );
@@ -327,16 +334,13 @@ router.get(
   '/sales-by-outlet',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
-    // VIPOS belum punya outlet_id di transactions; sebelum migration full
-    // multi-outlet, treat semua transaksi sebagai outlet utama (id=1).
-    const outletRow = db
-      .prepare(`SELECT id, name FROM outlets WHERE is_main = 1 AND is_active = 1 LIMIT 1`)
-      .get() || { id: 1, name: 'Outlet Pusat' };
-    const aggregate = db
-      .prepare(
+    const outletRow = (
+      await query(`SELECT id, name FROM outlets WHERE is_main = 1 AND is_active = 1 LIMIT 1`)
+    ).rows[0] || { id: 1, name: 'Outlet Pusat' };
+    const aggregate = (
+      await query(
         `SELECT COUNT(*) AS transactions,
                 COALESCE(SUM(total_amount), 0) AS revenue,
                 COALESCE(SUM(
@@ -344,18 +348,20 @@ router.get(
                 ), 0) AS items
          FROM transactions t
          WHERE t.status = 'completed'
-           AND DATE(t.created_at) BETWEEN ? AND ?`
+           AND DATE(t.created_at) BETWEEN $1 AND $2`,
+        [from, to]
       )
-      .get(from, to);
-    const transactions = aggregate.transactions || 0;
+    ).rows[0];
+    const transactions = Number(aggregate.transactions) || 0;
+    const revenue = Number(aggregate.revenue) || 0;
     const rows = [
       {
         outlet_id: outletRow.id,
         outlet_name: outletRow.name,
         transactions,
-        revenue: aggregate.revenue || 0,
-        items: aggregate.items || 0,
-        avg_ticket: transactions ? aggregate.revenue / transactions : 0,
+        revenue,
+        items: Number(aggregate.items) || 0,
+        avg_ticket: transactions ? revenue / transactions : 0,
       },
     ];
     res.json({ period: { from, to }, rows });
@@ -366,11 +372,10 @@ router.get(
   '/sales-by-category',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
-    const rows = db
-      .prepare(
+    const rows = (
+      await query(
         `SELECT c.id AS category_id,
                 COALESCE(c.name, '(Tanpa Kategori)') AS category_name,
                 COALESCE(SUM(ti.quantity), 0) AS qty,
@@ -380,11 +385,12 @@ router.get(
          LEFT JOIN products p ON p.id = ti.product_id
          LEFT JOIN categories c ON c.id = p.category_id
          WHERE t.status = 'completed'
-           AND DATE(t.created_at) BETWEEN ? AND ?
+           AND DATE(t.created_at) BETWEEN $1 AND $2
          GROUP BY c.id, c.name
-         ORDER BY revenue DESC`
+         ORDER BY revenue DESC`,
+        [from, to]
       )
-      .all(from, to);
+    ).rows;
     res.json({ period: { from, to }, rows });
   }
 );
@@ -393,11 +399,10 @@ router.get(
   '/sales-by-department',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
-    const rows = db
-      .prepare(
+    const rows = (
+      await query(
         `SELECT d.id AS department_id,
                 COALESCE(d.name, '(Tanpa Departemen)') AS department_name,
                 COALESCE(SUM(ti.quantity), 0) AS qty,
@@ -408,11 +413,12 @@ router.get(
          LEFT JOIN categories c ON c.id = p.category_id
          LEFT JOIN departments d ON d.id = c.department_id
          WHERE t.status = 'completed'
-           AND DATE(t.created_at) BETWEEN ? AND ?
+           AND DATE(t.created_at) BETWEEN $1 AND $2
          GROUP BY d.id, d.name
-         ORDER BY revenue DESC`
+         ORDER BY revenue DESC`,
+        [from, to]
       )
-      .all(from, to);
+    ).rows;
     res.json({ period: { from, to }, rows });
   }
 );
@@ -421,12 +427,11 @@ router.get(
   '/sales-by-product',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
     const limit = Number(req.query.limit) || 100;
-    const rows = db
-      .prepare(
+    const rows = (
+      await query(
         `SELECT ti.product_id,
                 ti.product_name,
                 p.harga_modal,
@@ -437,12 +442,13 @@ router.get(
          JOIN transactions t ON t.id = ti.transaction_id
          LEFT JOIN products p ON p.id = ti.product_id
          WHERE t.status = 'completed'
-           AND DATE(t.created_at) BETWEEN ? AND ?
+           AND DATE(t.created_at) BETWEEN $1 AND $2
          GROUP BY ti.product_id, ti.product_name, p.harga_modal
          ORDER BY revenue DESC
-         LIMIT ?`
+         LIMIT $3`,
+        [from, to, limit]
       )
-      .all(from, to, limit);
+    ).rows;
     res.json({ period: { from, to }, rows });
   }
 );
@@ -451,11 +457,10 @@ router.get(
   '/sales-by-cashier',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
-    const rows = db
-      .prepare(
+    const rows = (
+      await query(
         `SELECT u.id AS cashier_id,
                 COALESCE(u.name, u.username) AS cashier_name,
                 COUNT(t.id) AS transactions,
@@ -466,12 +471,13 @@ router.get(
          FROM users u
          LEFT JOIN transactions t ON t.user_id = u.id
               AND t.status = 'completed'
-              AND DATE(t.created_at) BETWEEN ? AND ?
+              AND DATE(t.created_at) BETWEEN $1 AND $2
          GROUP BY u.id, u.name, u.username
-         HAVING transactions > 0
-         ORDER BY revenue DESC`
+         HAVING COUNT(t.id) > 0
+         ORDER BY revenue DESC`,
+        [from, to]
       )
-      .all(from, to);
+    ).rows;
     res.json({ period: { from, to }, rows });
   }
 );
@@ -480,42 +486,42 @@ router.get(
   '/sales-by-payment-method',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
-    const rows = db
-      .prepare(
+    const rows = (
+      await query(
         `SELECT t.payment_method AS method,
                 COUNT(*) AS transactions,
                 COALESCE(SUM(t.total_amount), 0) AS gross_amount
          FROM transactions t
          WHERE t.status = 'completed'
-           AND DATE(t.created_at) BETWEEN ? AND ?
+           AND DATE(t.created_at) BETWEEN $1 AND $2
          GROUP BY t.payment_method
-         ORDER BY gross_amount DESC`
+         ORDER BY gross_amount DESC`,
+        [from, to]
       )
-      .all(from, to);
-    // MDR & net dihitung dari payment_methods table jika ada.
-    const mdrRows = db
-      .prepare(
+    ).rows;
+    const mdrRows = (
+      await query(
         `SELECT code, name, type, fee_percent, fee_flat FROM payment_methods WHERE is_active = 1`
       )
-      .all()
-      .reduce((acc, row) => {
-        const keys = [row.code, row.name, row.type].filter(Boolean);
-        for (const k of keys) acc[String(k).toLowerCase()] = row;
-        return acc;
-      }, {});
+    ).rows.reduce((acc, row) => {
+      const keys = [row.code, row.name, row.type].filter(Boolean);
+      for (const k of keys) acc[String(k).toLowerCase()] = row;
+      return acc;
+    }, {});
     const enriched = rows.map((row) => {
       const pm = mdrRows[(row.method || '').toLowerCase()];
       const feePct = pm?.fee_percent || 0;
       const feeFlat = pm?.fee_flat || 0;
-      const mdrAmount = row.gross_amount * (feePct / 100) + feeFlat * (row.transactions || 0);
+      const grossAmount = Number(row.gross_amount) || 0;
+      const transactions = Number(row.transactions) || 0;
+      const mdrAmount = grossAmount * (feePct / 100) + feeFlat * transactions;
       return {
         ...row,
         mdr_pct: feePct,
         mdr_amount: mdrAmount,
-        net_amount: row.gross_amount - mdrAmount,
+        net_amount: grossAmount - mdrAmount,
       };
     });
     res.json({ period: { from, to }, rows: enriched });
@@ -530,12 +536,10 @@ router.get(
   '/cash-drawer',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
-    // Pakai cash_transactions sebagai proxy "drawer movement".
-    const rows = db
-      .prepare(
+    const rows = (
+      await query(
         `SELECT ct.id,
                 ct.tanggal,
                 ct.tipe,
@@ -548,14 +552,15 @@ router.get(
          FROM cash_transactions ct
          LEFT JOIN cash_accounts ca ON ca.id = ct.account_id
          LEFT JOIN users u ON u.id = ct.user_id
-         WHERE DATE(ct.tanggal) BETWEEN ? AND ?
-         ORDER BY ct.tanggal DESC, ct.id DESC`
+         WHERE DATE(ct.tanggal) BETWEEN $1 AND $2
+         ORDER BY ct.tanggal DESC, ct.id DESC`,
+        [from, to]
       )
-      .all(from, to);
+    ).rows;
     const totals = rows.reduce(
       (acc, row) => {
-        if (row.tipe === 'pemasukan') acc.income += row.jumlah;
-        if (row.tipe === 'pengeluaran') acc.expense += row.jumlah;
+        if (row.tipe === 'pemasukan') acc.income += Number(row.jumlah) || 0;
+        if (row.tipe === 'pengeluaran') acc.expense += Number(row.jumlah) || 0;
         return acc;
       },
       { income: 0, expense: 0 }
@@ -568,12 +573,10 @@ router.get(
   '/shift-close',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
-    // Surrogate "shift" = grouping per cashier per day.
-    const rows = db
-      .prepare(
+    const rows = (
+      await query(
         `SELECT DATE(t.created_at) AS shift_date,
                 u.id AS cashier_id,
                 COALESCE(u.name, u.username) AS cashier_name,
@@ -587,11 +590,12 @@ router.get(
          FROM transactions t
          JOIN users u ON u.id = t.user_id
          WHERE t.status = 'completed'
-           AND DATE(t.created_at) BETWEEN ? AND ?
-         GROUP BY DATE(t.created_at), u.id
-         ORDER BY shift_date DESC, cashier_name ASC`
+           AND DATE(t.created_at) BETWEEN $1 AND $2
+         GROUP BY DATE(t.created_at), u.id, u.name, u.username
+         ORDER BY shift_date DESC, cashier_name ASC`,
+        [from, to]
       )
-      .all(from, to);
+    ).rows;
     res.json({ period: { from, to }, rows });
   }
 );
@@ -600,12 +604,15 @@ router.get(
 // ADJUSTMENTS — void, refund, promo, loyalty, coupon
 // ---------------------------------------------------------------------------
 
-router.get('/void', authenticateToken, validate({ query: ReportFilterQuerySchema }), (req, res) => {
-  const db = getDb();
-  const { from, to } = defaultRange(req.query);
-  const rows = db
-    .prepare(
-      `SELECT t.id,
+router.get(
+  '/void',
+  authenticateToken,
+  validate({ query: ReportFilterQuerySchema }),
+  async (req, res) => {
+    const { from, to } = defaultRange(req.query);
+    const rows = (
+      await query(
+        `SELECT t.id,
                 t.invoice_number,
                 t.created_at,
                 t.total_amount,
@@ -615,38 +622,38 @@ router.get('/void', authenticateToken, validate({ query: ReportFilterQuerySchema
          FROM transactions t
          LEFT JOIN users u ON u.id = t.user_id
          WHERE t.status = 'voided'
-           AND DATE(t.created_at) BETWEEN ? AND ?
-         ORDER BY t.created_at DESC`
-    )
-    .all(from, to);
-  const total = rows.reduce(
-    (acc, row) => ({
-      count: acc.count + 1,
-      value: acc.value + (row.total_amount || 0),
-    }),
-    { count: 0, value: 0 }
-  );
-  res.json({ period: { from, to }, total, rows });
-});
+           AND DATE(t.created_at) BETWEEN $1 AND $2
+         ORDER BY t.created_at DESC`,
+        [from, to]
+      )
+    ).rows;
+    const total = rows.reduce(
+      (acc, row) => ({
+        count: acc.count + 1,
+        value: acc.value + (Number(row.total_amount) || 0),
+      }),
+      { count: 0, value: 0 }
+    );
+    res.json({ period: { from, to }, total, rows });
+  }
+);
 
 router.get(
   '/refund',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
-    // VIPOS belum punya tabel khusus refund/partial — surface row dari `transactions`
-    // dengan total_amount negatif (pattern store-credit) sebagai proxy.
-    const rows = db
-      .prepare(
+    const rows = (
+      await query(
         `SELECT id, invoice_number, created_at, total_amount, payment_method, notes
          FROM transactions
          WHERE total_amount < 0
-           AND DATE(created_at) BETWEEN ? AND ?
-         ORDER BY created_at DESC`
+           AND DATE(created_at) BETWEEN $1 AND $2
+         ORDER BY created_at DESC`,
+        [from, to]
       )
-      .all(from, to);
+    ).rows;
     res.json({ period: { from, to }, rows });
   }
 );
@@ -655,12 +662,10 @@ router.get(
   '/promo',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
-    // Aggregate dari tabel promos kalau ada kolom usage tracking-nya.
-    const rows = db
-      .prepare(
+    const rows = (
+      await query(
         `SELECT id,
                 name,
                 promo_type,
@@ -671,13 +676,14 @@ router.get(
                 is_active
          FROM promos
          WHERE (
-           (valid_from IS NULL OR DATE(valid_from) <= ?)
-           AND (valid_until IS NULL OR DATE(valid_until) >= ?)
+           (valid_from IS NULL OR DATE(valid_from) <= $1)
+           AND (valid_until IS NULL OR DATE(valid_until) >= $2)
          )
          ORDER BY current_use_count DESC, id DESC
-         LIMIT 200`
+         LIMIT 200`,
+        [to, from]
       )
-      .all(to, from);
+    ).rows;
     res.json({ period: { from, to }, rows });
   }
 );
@@ -686,31 +692,32 @@ router.get(
   '/loyalty',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
-    const totals = db
-      .prepare(
+    const totals = (
+      await query(
         `SELECT
            COALESCE(SUM(CASE WHEN type = 'earn' THEN points ELSE 0 END), 0) AS total_earned,
            COALESCE(SUM(CASE WHEN type = 'redeem' THEN points ELSE 0 END), 0) AS total_redeemed,
            COALESCE(SUM(CASE WHEN type = 'expire' THEN points ELSE 0 END), 0) AS total_expired
          FROM loyalty_transactions
-         WHERE DATE(created_at) BETWEEN ? AND ?`
+         WHERE DATE(created_at) BETWEEN $1 AND $2`,
+        [from, to]
       )
-      .get(from, to);
-    const topEarners = db
-      .prepare(
+    ).rows[0];
+    const topEarners = (
+      await query(
         `SELECT customer_id,
                 (SELECT name FROM customers WHERE id = lt.customer_id) AS customer_name,
                 COALESCE(SUM(CASE WHEN type = 'earn' THEN points ELSE 0 END), 0) AS earned
          FROM loyalty_transactions lt
-         WHERE DATE(created_at) BETWEEN ? AND ?
+         WHERE DATE(created_at) BETWEEN $1 AND $2
          GROUP BY customer_id
          ORDER BY earned DESC
-         LIMIT 10`
+         LIMIT 10`,
+        [from, to]
       )
-      .all(from, to);
+    ).rows;
     res.json({ period: { from, to }, totals, top_earners: topEarners });
   }
 );
@@ -719,11 +726,10 @@ router.get(
   '/coupon',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
-    const rows = db
-      .prepare(
+    const rows = (
+      await query(
         `SELECT c.id,
                 c.code,
                 c.batch_id,
@@ -738,12 +744,14 @@ router.get(
          FROM coupons c
          LEFT JOIN promos p ON p.id = c.promo_id
          LEFT JOIN coupon_redemptions cr ON cr.coupon_id = c.id
-              AND DATE(cr.redeemed_at) BETWEEN ? AND ?
-         GROUP BY c.id
+              AND DATE(cr.redeemed_at) BETWEEN $1 AND $2
+         GROUP BY c.id, c.code, c.batch_id, c.max_uses, c.used_count,
+                  c.valid_from, c.valid_until, c.is_active, p.name, p.discount_value, c.created_at
          ORDER BY c.created_at DESC
-         LIMIT 500`
+         LIMIT 500`,
+        [from, to]
       )
-      .all(from, to);
+    ).rows;
     res.json({ period: { from, to }, rows });
   }
 );
@@ -752,44 +760,48 @@ router.get(
 // TAX & CUSTOMER
 // ---------------------------------------------------------------------------
 
-router.get('/tax', authenticateToken, validate({ query: ReportFilterQuerySchema }), (req, res) => {
-  const db = getDb();
-  const { from, to } = defaultRange(req.query);
-  // Belum ada line-level tax breakdown di transactions; return row per
-  // tax_rate dengan estimasi (gross / (1+rate)) * rate.
-  const taxes = db.prepare(`SELECT id, code, name, rate FROM tax_rates WHERE is_active = 1`).all();
-  const aggregate = db
-    .prepare(
-      `SELECT COALESCE(SUM(total_amount), 0) AS gross
+router.get(
+  '/tax',
+  authenticateToken,
+  validate({ query: ReportFilterQuerySchema }),
+  async (req, res) => {
+    const { from, to } = defaultRange(req.query);
+    const taxes = (await query(`SELECT id, code, name, rate FROM tax_rates WHERE is_active = 1`))
+      .rows;
+    const aggregate = (
+      await query(
+        `SELECT COALESCE(SUM(total_amount), 0) AS gross
          FROM transactions
-         WHERE status = 'completed' AND DATE(created_at) BETWEEN ? AND ?`
-    )
-    .get(from, to);
-  const rows = taxes.map((tax) => {
-    const rate = tax.rate || 0;
-    const base = rate ? aggregate.gross / (1 + rate / 100) : aggregate.gross;
-    const taxAmount = aggregate.gross - base;
-    return {
-      tax_id: tax.id,
-      code: tax.code,
-      name: tax.name,
-      rate,
-      tax_base: base,
-      tax_amount: taxAmount,
-    };
-  });
-  res.json({ period: { from, to }, rows });
-});
+         WHERE status = 'completed' AND DATE(created_at) BETWEEN $1 AND $2`,
+        [from, to]
+      )
+    ).rows[0];
+    const grossNum = Number(aggregate.gross) || 0;
+    const rows = taxes.map((tax) => {
+      const rate = Number(tax.rate) || 0;
+      const base = rate ? grossNum / (1 + rate / 100) : grossNum;
+      const taxAmount = grossNum - base;
+      return {
+        tax_id: tax.id,
+        code: tax.code,
+        name: tax.name,
+        rate,
+        tax_base: base,
+        tax_amount: taxAmount,
+      };
+    });
+    res.json({ period: { from, to }, rows });
+  }
+);
 
 router.get(
   '/customer',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
-    const totals = db
-      .prepare(
+    const totals = (
+      await query(
         `SELECT COUNT(DISTINCT customer_id) AS active_customers,
                 COALESCE(AVG(total_amount), 0) AS avg_spend,
                 COUNT(*) AS transactions,
@@ -797,11 +809,12 @@ router.get(
          FROM transactions
          WHERE status = 'completed'
            AND customer_id IS NOT NULL
-           AND DATE(created_at) BETWEEN ? AND ?`
+           AND DATE(created_at) BETWEEN $1 AND $2`,
+        [from, to]
       )
-      .get(from, to);
-    const newCustomers = db
-      .prepare(
+    ).rows[0];
+    const newCustomers = (
+      await query(
         `SELECT COUNT(*) AS new_customers
          FROM (
            SELECT customer_id, MIN(DATE(created_at)) AS first_date
@@ -809,11 +822,12 @@ router.get(
            WHERE status = 'completed' AND customer_id IS NOT NULL
            GROUP BY customer_id
          ) sub
-         WHERE first_date BETWEEN ? AND ?`
+         WHERE first_date BETWEEN $1 AND $2`,
+        [from, to]
       )
-      .get(from, to);
-    const top = db
-      .prepare(
+    ).rows[0];
+    const top = (
+      await query(
         `SELECT t.customer_id,
                 c.name,
                 COUNT(*) AS transactions,
@@ -822,18 +836,20 @@ router.get(
          LEFT JOIN customers c ON c.id = t.customer_id
          WHERE t.status = 'completed'
            AND t.customer_id IS NOT NULL
-           AND DATE(t.created_at) BETWEEN ? AND ?
+           AND DATE(t.created_at) BETWEEN $1 AND $2
          GROUP BY t.customer_id, c.name
          ORDER BY total_spend DESC
-         LIMIT 10`
+         LIMIT 10`,
+        [from, to]
       )
-      .all(from, to);
+    ).rows;
     res.json({
       period: { from, to },
       totals: {
         ...totals,
-        new_customers: newCustomers.new_customers,
-        returning_customers: (totals.active_customers || 0) - (newCustomers.new_customers || 0),
+        new_customers: Number(newCustomers.new_customers) || 0,
+        returning_customers:
+          (Number(totals.active_customers) || 0) - (Number(newCustomers.new_customers) || 0),
       },
       top_customers: top,
     });
@@ -844,10 +860,9 @@ router.get(
 // INVENTORY
 // ---------------------------------------------------------------------------
 
-router.get('/inventory-stock', authenticateToken, (req, res) => {
-  const db = getDb();
-  const rows = db
-    .prepare(
+router.get('/inventory-stock', authenticateToken, async (req, res) => {
+  const rows = (
+    await query(
       `SELECT p.id,
               p.sku,
               p.name,
@@ -862,12 +877,12 @@ router.get('/inventory-stock', authenticateToken, (req, res) => {
        LEFT JOIN categories c ON c.id = p.category_id
        ORDER BY p.name ASC`
     )
-    .all();
+  ).rows;
   const totals = rows.reduce(
     (acc, row) => ({
       products: acc.products + 1,
-      stock_qty: acc.stock_qty + (row.stock || 0),
-      stock_value: acc.stock_value + (row.stock_value || 0),
+      stock_qty: acc.stock_qty + (Number(row.stock) || 0),
+      stock_value: acc.stock_value + (Number(row.stock_value) || 0),
       low_stock: acc.low_stock + (row.is_low_stock ? 1 : 0),
     }),
     { products: 0, stock_qty: 0, stock_value: 0, low_stock: 0 }
@@ -879,11 +894,10 @@ router.get(
   '/inventory-movement',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
-    const rows = db
-      .prepare(
+    const rows = (
+      await query(
         `SELECT im.id,
                 im.tanggal,
                 im.tipe,
@@ -901,11 +915,12 @@ router.get(
          FROM inventory_movements im
          LEFT JOIN products p ON p.id = im.product_id
          LEFT JOIN users u ON u.id = im.user_id
-         WHERE DATE(im.tanggal) BETWEEN ? AND ?
+         WHERE DATE(im.tanggal) BETWEEN $1 AND $2
          ORDER BY im.tanggal DESC, im.id DESC
-         LIMIT 1000`
+         LIMIT 1000`,
+        [from, to]
       )
-      .all(from, to);
+    ).rows;
     res.json({ period: { from, to }, rows });
   }
 );
@@ -914,11 +929,10 @@ router.get(
   '/inventory-turnover',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
-    const rows = db
-      .prepare(
+    const rows = (
+      await query(
         `SELECT p.id AS product_id,
                 p.sku,
                 p.name,
@@ -936,29 +950,29 @@ router.get(
          LEFT JOIN transaction_items ti ON ti.product_id = p.id
          LEFT JOIN transactions t ON t.id = ti.transaction_id
               AND t.status = 'completed'
-              AND DATE(t.created_at) BETWEEN ? AND ?
+              AND DATE(t.created_at) BETWEEN $1 AND $2
          GROUP BY p.id, p.sku, p.name, p.stock
          ORDER BY sold_qty DESC
-         LIMIT 200`
+         LIMIT 200`,
+        [from, to]
       )
-      .all(from, to);
+    ).rows;
     res.json({ period: { from, to }, rows });
   }
 );
 
-router.get('/inventory-value', authenticateToken, (req, res) => {
-  const db = getDb();
-  const result = db
-    .prepare(
+router.get('/inventory-value', authenticateToken, async (req, res) => {
+  const result = (
+    await query(
       `SELECT COUNT(*) AS products,
               COALESCE(SUM(stock), 0) AS qty,
               COALESCE(SUM(stock * COALESCE(harga_modal, 0)), 0) AS total_value
        FROM products
        WHERE is_active = 1`
     )
-    .get();
-  const byCategory = db
-    .prepare(
+  ).rows[0];
+  const byCategory = (
+    await query(
       `SELECT COALESCE(c.name, '(Tanpa Kategori)') AS category_name,
               COUNT(p.id) AS products,
               COALESCE(SUM(p.stock), 0) AS qty,
@@ -969,7 +983,7 @@ router.get('/inventory-value', authenticateToken, (req, res) => {
        GROUP BY c.id, c.name
        ORDER BY total_value DESC`
     )
-    .all();
+  ).rows;
   res.json({ totals: result, by_category: byCategory });
 });
 
@@ -981,15 +995,12 @@ router.get(
   '/employee-attendance',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
     let rows = [];
     try {
-      // Aggregate per (date, employee). attendance_logs cuma simpan event
-      // (check_in / check_out / break_*) jadi kita pivot ke daily summary.
-      rows = db
-        .prepare(
+      rows = (
+        await query(
           `SELECT DATE(al.logged_at) AS date,
                   al.employee_id,
                   e.name AS employee_name,
@@ -1001,12 +1012,13 @@ router.get(
                   SUM(CASE WHEN al.is_off_site = 1 THEN 1 ELSE 0 END) AS off_site_count
            FROM attendance_logs al
            LEFT JOIN employees e ON e.id = al.employee_id
-           WHERE DATE(al.logged_at) BETWEEN ? AND ?
-           GROUP BY DATE(al.logged_at), al.employee_id
+           WHERE DATE(al.logged_at) BETWEEN $1 AND $2
+           GROUP BY DATE(al.logged_at), al.employee_id, e.name, e.position
            ORDER BY date DESC, employee_name ASC
-           LIMIT 1000`
+           LIMIT 1000`,
+          [from, to]
         )
-        .all(from, to);
+      ).rows;
     } catch (_err) {
       rows = [];
     }
@@ -1018,13 +1030,12 @@ router.get(
   '/employee-shift',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
     let rows = [];
     try {
-      rows = db
-        .prepare(
+      rows = (
+        await query(
           `SELECT sa.id,
                   sa.schedule_date,
                   sa.is_off,
@@ -1036,11 +1047,12 @@ router.get(
            FROM schedule_assignments sa
            LEFT JOIN shifts s ON s.id = sa.shift_id
            LEFT JOIN employees e ON e.id = sa.employee_id
-           WHERE DATE(sa.schedule_date) BETWEEN ? AND ?
+           WHERE DATE(sa.schedule_date) BETWEEN $1 AND $2
            ORDER BY sa.schedule_date DESC, s.start_time ASC
-           LIMIT 1000`
+           LIMIT 1000`,
+          [from, to]
         )
-        .all(from, to);
+      ).rows;
     } catch (_err) {
       rows = [];
     }
@@ -1052,13 +1064,12 @@ router.get(
   '/employee-commission',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
     let rows = [];
     try {
-      rows = db
-        .prepare(
+      rows = (
+        await query(
           `SELECT ca.id AS assignment_id,
                   ca.basis_amount,
                   ca.basis_qty,
@@ -1078,11 +1089,12 @@ router.get(
            LEFT JOIN employees e ON e.user_id = u.id
            LEFT JOIN transactions t ON t.id = ca.transaction_id
            WHERE (ca.transaction_id IS NULL
-                  OR DATE(t.created_at) BETWEEN ? AND ?)
+                  OR DATE(t.created_at) BETWEEN $1 AND $2)
            ORDER BY ca.created_at DESC
-           LIMIT 1000`
+           LIMIT 1000`,
+          [from, to]
         )
-        .all(from, to);
+      ).rows;
     } catch (_err) {
       rows = [];
     }
@@ -1098,30 +1110,29 @@ router.get(
   '/financial-pnl',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
-    const accounts = db
-      .prepare(
+    const accounts = (
+      await query(
         `SELECT ga.id, ga.code, ga.name, ga.type, ga.normal_balance,
                 COALESCE(SUM(gjl.debit), 0) AS debit_total,
                 COALESCE(SUM(gjl.credit), 0) AS credit_total
          FROM gl_accounts ga
          LEFT JOIN gl_journal_lines gjl ON gjl.account_id = ga.id
          LEFT JOIN gl_journals gj ON gj.id = gjl.journal_id
-              AND DATE(gj.journal_date) BETWEEN ? AND ?
+              AND DATE(gj.journal_date) BETWEEN $1 AND $2
          WHERE ga.type IN ('PENDAPATAN', 'BEBAN')
-         GROUP BY ga.id
-         ORDER BY ga.code ASC`
+         GROUP BY ga.id, ga.code, ga.name, ga.type, ga.normal_balance
+         ORDER BY ga.code ASC`,
+        [from, to]
       )
-      .all(from, to);
+    ).rows;
     let revenue = 0;
     let expense = 0;
     for (const acc of accounts) {
-      const balance =
-        acc.normal_balance === 'credit'
-          ? acc.credit_total - acc.debit_total
-          : acc.debit_total - acc.credit_total;
+      const debit = Number(acc.debit_total) || 0;
+      const credit = Number(acc.credit_total) || 0;
+      const balance = acc.normal_balance === 'credit' ? credit - debit : debit - credit;
       if (acc.type === 'PENDAPATAN') revenue += balance;
       if (acc.type === 'BEBAN') expense += balance;
     }
@@ -1141,31 +1152,30 @@ router.get(
   '/financial-balance-sheet',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { to } = defaultRange(req.query);
-    const accounts = db
-      .prepare(
+    const accounts = (
+      await query(
         `SELECT ga.id, ga.code, ga.name, ga.type, ga.normal_balance,
                 COALESCE(SUM(gjl.debit), 0) AS debit_total,
                 COALESCE(SUM(gjl.credit), 0) AS credit_total
          FROM gl_accounts ga
          LEFT JOIN gl_journal_lines gjl ON gjl.account_id = ga.id
          LEFT JOIN gl_journals gj ON gj.id = gjl.journal_id
-              AND DATE(gj.journal_date) <= ?
+              AND DATE(gj.journal_date) <= $1
          WHERE ga.type IN ('ASET', 'KEWAJIBAN', 'MODAL')
-         GROUP BY ga.id
-         ORDER BY ga.code ASC`
+         GROUP BY ga.id, ga.code, ga.name, ga.type, ga.normal_balance
+         ORDER BY ga.code ASC`,
+        [to]
       )
-      .all(to);
+    ).rows;
     let asset = 0;
     let liability = 0;
     let equity = 0;
     const enriched = accounts.map((acc) => {
-      const balance =
-        acc.normal_balance === 'credit'
-          ? acc.credit_total - acc.debit_total
-          : acc.debit_total - acc.credit_total;
+      const debit = Number(acc.debit_total) || 0;
+      const credit = Number(acc.credit_total) || 0;
+      const balance = acc.normal_balance === 'credit' ? credit - debit : debit - credit;
       if (acc.type === 'ASET') asset += balance;
       if (acc.type === 'KEWAJIBAN') liability += balance;
       if (acc.type === 'MODAL') equity += balance;
@@ -1183,25 +1193,26 @@ router.get(
   '/financial-cashflow',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
-    const rows = db
-      .prepare(
+    const rows = (
+      await query(
         `SELECT DATE(ct.tanggal) AS date,
                 ct.tipe,
                 COALESCE(ct.kategori, '-') AS kategori,
                 COALESCE(SUM(ct.jumlah), 0) AS amount
          FROM cash_transactions ct
-         WHERE DATE(ct.tanggal) BETWEEN ? AND ?
+         WHERE DATE(ct.tanggal) BETWEEN $1 AND $2
          GROUP BY DATE(ct.tanggal), ct.tipe, ct.kategori
-         ORDER BY date ASC`
+         ORDER BY date ASC`,
+        [from, to]
       )
-      .all(from, to);
+    ).rows;
     const totals = rows.reduce(
       (acc, row) => {
-        if (row.tipe === 'pemasukan') acc.in += row.amount;
-        if (row.tipe === 'pengeluaran') acc.out += row.amount;
+        const amt = Number(row.amount) || 0;
+        if (row.tipe === 'pemasukan') acc.in += amt;
+        if (row.tipe === 'pengeluaran') acc.out += amt;
         return acc;
       },
       { in: 0, out: 0 }
@@ -1218,26 +1229,28 @@ router.get(
   '/marketing-campaign',
   authenticateToken,
   validate({ query: ReportFilterQuerySchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const { from, to } = defaultRange(req.query);
-    const exists = db
-      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='marketing_campaigns'`)
-      .get();
+    const exists = (
+      await query(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name='marketing_campaigns'`
+      )
+    ).rows[0];
     if (!exists) {
       res.json({ period: { from, to }, rows: [], placeholder: true });
       return;
     }
-    const rows = db
-      .prepare(
+    const rows = (
+      await query(
         `SELECT c.id, c.name, c.channel,
                 (SELECT COUNT(*) FROM marketing_campaign_recipients r WHERE r.campaign_id = c.id) AS audience_count,
                 c.sent_count, c.delivered_count, c.opened_count, c.status, c.scheduled_at
          FROM marketing_campaigns c
-         WHERE DATE(COALESCE(c.scheduled_at, c.created_at)) BETWEEN ? AND ?
-         ORDER BY COALESCE(c.scheduled_at, c.created_at) DESC`
+         WHERE DATE(COALESCE(c.scheduled_at, c.created_at)) BETWEEN $1 AND $2
+         ORDER BY COALESCE(c.scheduled_at, c.created_at) DESC`,
+        [from, to]
       )
-      .all(from, to);
+    ).rows;
     res.json({ period: { from, to }, rows });
   }
 );
@@ -1246,15 +1259,14 @@ router.get(
 // SCHEDULE (Prime+) — CRUD
 // ---------------------------------------------------------------------------
 
-router.get('/schedule', authenticateToken, (req, res) => {
-  const db = getDb();
-  const rows = db.prepare(`SELECT * FROM report_schedules ORDER BY created_at DESC`).all();
+router.get('/schedule', authenticateToken, async (req, res) => {
+  const rows = (await query(`SELECT * FROM report_schedules ORDER BY created_at DESC`)).rows;
   res.json(rows);
 });
 
-router.get('/schedule/:id', authenticateToken, (req, res) => {
-  const db = getDb();
-  const row = db.prepare(`SELECT * FROM report_schedules WHERE id = ?`).get(req.params.id);
+router.get('/schedule/:id', authenticateToken, async (req, res) => {
+  const row = (await query(`SELECT * FROM report_schedules WHERE id = $1`, [req.params.id]))
+    .rows[0];
   if (!row) return res.status(404).json({ error: 'Schedule tidak ditemukan' });
   res.json(row);
 });
@@ -1263,16 +1275,13 @@ router.post(
   '/schedule',
   authenticateToken,
   validate({ body: ReportScheduleCreateSchema }),
-  (req, res) => {
-    const db = getDb();
+  async (req, res) => {
     const data = req.body;
-    const result = db
-      .prepare(
-        `INSERT INTO report_schedules
+    const ins = await query(
+      `INSERT INTO report_schedules
            (report_key, name, params_json, frequency, recipients, format, is_active, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+      [
         data.report_key,
         data.name,
         data.params_json || null,
@@ -1280,11 +1289,11 @@ router.post(
         data.recipients || null,
         data.format || 'pdf',
         data.is_active ?? 1,
-        req.user?.id || null
-      );
-    const created = db
-      .prepare(`SELECT * FROM report_schedules WHERE id = ?`)
-      .get(result.lastInsertRowid);
+        req.user?.id || null,
+      ]
+    );
+    const created = (await query(`SELECT * FROM report_schedules WHERE id = $1`, [ins.rows[0].id]))
+      .rows[0];
     res.status(201).json(created);
   }
 );
@@ -1293,9 +1302,9 @@ router.put(
   '/schedule/:id',
   authenticateToken,
   validate({ body: ReportScheduleUpdateSchema }),
-  (req, res) => {
-    const db = getDb();
-    const existing = db.prepare(`SELECT * FROM report_schedules WHERE id = ?`).get(req.params.id);
+  async (req, res) => {
+    const existing = (await query(`SELECT * FROM report_schedules WHERE id = $1`, [req.params.id]))
+      .rows[0];
     if (!existing) return res.status(404).json({ error: 'Schedule tidak ditemukan' });
     const data = req.body;
     const merged = {
@@ -1307,42 +1316,42 @@ router.put(
       format: data.format || existing.format,
       is_active: data.is_active !== undefined ? data.is_active : existing.is_active,
     };
-    db.prepare(
+    await query(
       `UPDATE report_schedules
-         SET report_key = ?, name = ?, params_json = ?, frequency = ?,
-             recipients = ?, format = ?, is_active = ?
-       WHERE id = ?`
-    ).run(
-      merged.report_key,
-      merged.name,
-      merged.params_json,
-      merged.frequency,
-      merged.recipients,
-      merged.format,
-      merged.is_active,
-      req.params.id
+         SET report_key = $1, name = $2, params_json = $3, frequency = $4,
+             recipients = $5, format = $6, is_active = $7
+       WHERE id = $8`,
+      [
+        merged.report_key,
+        merged.name,
+        merged.params_json,
+        merged.frequency,
+        merged.recipients,
+        merged.format,
+        merged.is_active,
+        req.params.id,
+      ]
     );
-    const updated = db.prepare(`SELECT * FROM report_schedules WHERE id = ?`).get(req.params.id);
+    const updated = (await query(`SELECT * FROM report_schedules WHERE id = $1`, [req.params.id]))
+      .rows[0];
     res.json(updated);
   }
 );
 
-router.delete('/schedule/:id', authenticateToken, (req, res) => {
-  const db = getDb();
-  const existing = db.prepare(`SELECT id FROM report_schedules WHERE id = ?`).get(req.params.id);
+router.delete('/schedule/:id', authenticateToken, async (req, res) => {
+  const existing = (await query(`SELECT id FROM report_schedules WHERE id = $1`, [req.params.id]))
+    .rows[0];
   if (!existing) return res.status(404).json({ error: 'Schedule tidak ditemukan' });
-  db.prepare(`DELETE FROM report_schedules WHERE id = ?`).run(req.params.id);
+  await query(`DELETE FROM report_schedules WHERE id = $1`, [req.params.id]);
   res.status(204).send();
 });
 
-router.post('/schedule/:id/run', authenticateToken, (req, res) => {
-  // Stub: actual cron + email belum diimplement; kita catat last_run_at agar
-  // integrasi Prime+ scheduling di phase berikutnya bisa dibangun di atasnya.
-  const db = getDb();
-  const existing = db.prepare(`SELECT * FROM report_schedules WHERE id = ?`).get(req.params.id);
+router.post('/schedule/:id/run', authenticateToken, async (req, res) => {
+  const existing = (await query(`SELECT * FROM report_schedules WHERE id = $1`, [req.params.id]))
+    .rows[0];
   if (!existing) return res.status(404).json({ error: 'Schedule tidak ditemukan' });
   const now = new Date().toISOString();
-  db.prepare(`UPDATE report_schedules SET last_run_at = ? WHERE id = ?`).run(now, req.params.id);
+  await query(`UPDATE report_schedules SET last_run_at = $1 WHERE id = $2`, [now, req.params.id]);
   res.json({
     message: 'Scheduled report queued (stub).',
     last_run_at: now,
