@@ -13,6 +13,7 @@ const { authenticator } = require('otplib');
 const { query, tx } = require('../db');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
+const { logAuditWithTenant, ACTIONS } = require('../lib/audit');
 const {
   LoginRequestSchema,
   LoginVerify2FARequestSchema,
@@ -61,10 +62,21 @@ async function issueRefreshToken(userId, rememberMe) {
   return { raw, expiresAt, id: r.rows[0].id };
 }
 
-async function buildLoginPayload(user, rememberMe) {
+async function buildLoginPayload(user, rememberMe, req) {
   const access = signAccessToken(user);
   const refresh = await issueRefreshToken(user.id, rememberMe);
   await query('UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1', [user.id]);
+  if (user.tenant_id != null) {
+    await logAuditWithTenant({
+      tenant_id: user.tenant_id,
+      user_id: user.id,
+      ip: req?.ip,
+      user_agent: req?.headers?.['user-agent'],
+      entity: 'session',
+      entity_id: user.id,
+      action: ACTIONS.LOGIN,
+    });
+  }
   return {
     token: access,
     refresh_token: refresh.raw,
@@ -87,7 +99,7 @@ router.post('/login', validate({ body: LoginRequestSchema }), async (req, res) =
     if (user.totp_enabled) {
       return res.json({ requires_2fa: true, login_token: signLogin2faToken(user) });
     }
-    res.json(await buildLoginPayload(user, !!remember_me));
+    res.json(await buildLoginPayload(user, !!remember_me, req));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -110,7 +122,7 @@ router.post('/login/2fa', validate({ body: LoginVerify2FARequestSchema }), async
     if (!authenticator.check(code, user.totp_secret)) {
       return res.status(401).json({ error: 'Kode 2FA salah' });
     }
-    res.json(await buildLoginPayload(user, !!remember_me));
+    res.json(await buildLoginPayload(user, !!remember_me, req));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -157,7 +169,30 @@ router.post('/logout', validate({ body: LogoutRequestSchema }), async (req, res)
   try {
     const { refresh_token } = req.body;
     const tokenHash = hashToken(refresh_token);
+    // Look up the user behind the refresh token before revoking so the audit
+    // row can attribute the logout to the right user + tenant. If the token
+    // is unknown we still 204 (idempotent); just skip the audit write.
+    const tokenRow = (
+      await query(
+        `SELECT rt.user_id, u.tenant_id
+           FROM refresh_tokens rt
+           LEFT JOIN users u ON u.id = rt.user_id
+          WHERE rt.token_hash = $1`,
+        [tokenHash]
+      )
+    ).rows[0];
     await query('UPDATE refresh_tokens SET revoked = 1 WHERE token_hash = $1', [tokenHash]);
+    if (tokenRow?.tenant_id != null) {
+      await logAuditWithTenant({
+        tenant_id: tokenRow.tenant_id,
+        user_id: tokenRow.user_id,
+        ip: req.ip,
+        user_agent: req.headers?.['user-agent'],
+        entity: 'session',
+        entity_id: tokenRow.user_id,
+        action: ACTIONS.LOGOUT,
+      });
+    }
     res.status(204).end();
   } catch (err) {
     res.status(500).json({ error: err.message });
