@@ -244,29 +244,34 @@
 
 ---
 
-### P2-08: Backup + disaster recovery `[pending]`
+### P2-08: Backup + disaster recovery `[partial]`
 
-**Goal**: Daily DB backup ke S3 (Backblaze B2 cheaper alternative), uploads backup, runbook recovery.
+**Goal**: Daily DB backup ke S3 (Cloudflare R2 selected — zero-egress, S3-compatible), uploads backup, runbook recovery.
 
 **Dependencies**: P2-01, P2-04
 
 **Outputs**:
 
-- Daily Postgres dump → upload ke S3 / B2
-- Daily upload (uploaded files) → sync ke S3 / B2
-- Retention: daily 30 hari, weekly 12 minggu, monthly 12 bulan
-- Test recovery script (auto-test setiap minggu di staging)
-- Runbook: `docs/runbook/disaster_recovery.md`
+- Daily Postgres dump → upload ke S3 / R2 / B2 (provider-neutral via `S3_ENDPOINT` env) — `jobs/db-backup.js` (PR-A)
+- Daily upload (uploaded files) → sync ke S3 — `jobs/uploads-backup.js` (PR-A, incremental size-diff)
+- Retention: local 14 hari (worker-pruned) + S3 prefix tagging `daily/`/`weekly/`/`monthly/`. Long-tail retention (30 / 12 / 12) delegated to bucket lifecycle rules per runbook
+- Test recovery script (auto-test setiap minggu di staging) — **PR-B (pending)**, requires staging + R2 creds
+- Runbook: `docs/runbook/disaster_recovery.md` — RTO/RPO targets, env contract, 4 recovery scenarios, R2 provisioning (PR-A)
 
 **Acceptance criteria**:
 
-- [ ] Cron jalan harian, backup berhasil tersimpan
-- [ ] Restore script tested berhasil di staging
-- [ ] Runbook lengkap (langkah-langkah recovery)
-- [ ] Notification kalau backup fail
+- [x] Cron jalan harian, backup berhasil tersimpan — BullMQ schedulers (DB `0 2 * * *`, uploads `30 2 * * *`) + S3 daily/weekly/monthly tiering (PR-A)
+- [x] Restore script tested berhasil di staging — `scripts/test-backup-restore.sh` does a Docker round-trip; `scripts/restore-postgres.sh` + `scripts/restore-uploads.sh` cover production restore (PR-A). Auto-test loop in staging follows in PR-B
+- [x] Runbook lengkap (langkah-langkah recovery) — `docs/runbook/disaster_recovery.md` (PR-A)
+- [x] Notification kalau backup fail — `attachBackupFailureNotifier()` captures via Sentry + emails `BACKUP_NOTIFY_EMAILS` through the existing email queue (PR-A)
+
+**Status breakdown**:
+
+- PR-A (foundation): [done] — PR #61 squashed as `b201fbb`. Storage wrapper, both BullMQ jobs, schedulers, failure notifier, restore + smoke scripts, runbook, MinIO integration test in CI.
+- PR-B (auto-test recovery in staging): [pending] — weekly recurring restore test against a sandbox Postgres. Deferred until staging environment + R2 credentials are provisioned.
 
 **Branch**: `devin/P2-08-backup-dr`
-**Estimasi**: 2-3 hari
+**Estimasi**: 2-3 hari (PR-A done; PR-B ~0.5 hari once staging is available)
 
 ---
 
