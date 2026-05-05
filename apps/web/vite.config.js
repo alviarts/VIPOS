@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
@@ -13,6 +14,31 @@ const sentryEnabled =
   Boolean(process.env.SENTRY_AUTH_TOKEN) &&
   Boolean(process.env.SENTRY_ORG) &&
   Boolean(process.env.SENTRY_PROJECT);
+
+// Auto-derive `VITE_SENTRY_RELEASE` from `git rev-parse --short HEAD` when
+// the deploy operator forgot to set it. Without this fallback the plugin's
+// auto-detect picks the *full* git sha (no `<project>@` prefix), which then
+// drifts away from the runtime SDK's release tag (src/lib/sentry.js reads
+// `import.meta.env.VITE_SENTRY_RELEASE`) and source-map symbolication
+// silently breaks. We mutate `process.env` so both the plugin AND Vite's
+// `import.meta.env` exposure read the same value. See devin_session_protocol.md
+// §3b for the source-map verification gate this is meant to keep green.
+if (sentryEnabled && !process.env.VITE_SENTRY_RELEASE) {
+  try {
+    const sha = execSync('git rev-parse --short HEAD', {
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+      .toString()
+      .trim();
+    if (sha) {
+      process.env.VITE_SENTRY_RELEASE = `${process.env.SENTRY_PROJECT}@${sha}`;
+    }
+  } catch {
+    // Not a git checkout (tarball deploy?) — leave VITE_SENTRY_RELEASE unset.
+    // The plugin will fall back to its own detection; release tracking may
+    // be partial but the bundle itself is unaffected.
+  }
+}
 
 export default defineConfig(({ mode }) => ({
   // Use /vipos/ in production builds (deployed at http://<host>/vipos/),
@@ -34,8 +60,9 @@ export default defineConfig(({ mode }) => ({
         authToken: process.env.SENTRY_AUTH_TOKEN,
         release: {
           // Match the convention used by the backend Sentry init
-          // (`vipos-backend@<sha>`). VITE_SENTRY_RELEASE is rendered by
-          // the deploy script with the current git SHA.
+          // (`vipos-backend@<sha>`). VITE_SENTRY_RELEASE is set explicitly
+          // by the operator or auto-derived from `git rev-parse --short HEAD`
+          // above when running inside a git checkout.
           name: process.env.VITE_SENTRY_RELEASE,
         },
         sourcemaps: {
