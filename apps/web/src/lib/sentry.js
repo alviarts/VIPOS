@@ -84,12 +84,18 @@ let initialized = false;
 
 export function initSentry({ dsn, environment, release } = {}) {
   if (initialized) return false;
-  const resolvedDsn = dsn ?? import.meta.env?.VITE_SENTRY_DSN_FRONTEND;
+  // Direct (non-optional) `import.meta.env.X` access lets Vite statically
+  // replace these with literals at build time. Optional chaining defeats
+  // the static-analysis pass and causes Vite to emit a runtime lookup
+  // against an empty `import.meta.env` object — leading to silent Sentry
+  // init failure (no DSN, no release) in production. See vite.config.js
+  // for the matching `define` overrides.
+  const resolvedDsn = dsn ?? import.meta.env.VITE_SENTRY_DSN_FRONTEND;
   if (!resolvedDsn) return false;
   Sentry.init({
     dsn: resolvedDsn,
-    environment: environment ?? import.meta.env?.MODE ?? 'production',
-    release: release ?? import.meta.env?.VITE_SENTRY_RELEASE,
+    environment: environment ?? import.meta.env.MODE ?? 'production',
+    release: release ?? import.meta.env.VITE_SENTRY_RELEASE,
     sendDefaultPii: false,
     tracesSampleRate: 0,
     replaysSessionSampleRate: 0,
