@@ -61,7 +61,7 @@ router.get('/chart', authenticateToken, async (req, res) => {
                 COALESCE(SUM(total_amount), 0) as total,
                 COUNT(*) as transactions
          FROM transactions
-         WHERE DATE(created_at) >= DATE('now', '-' || $1 || ' days')
+         WHERE DATE(created_at) >= CURRENT_DATE - $1::int
            AND status = 'completed'
          GROUP BY DATE(created_at)
          ORDER BY date`,
@@ -86,7 +86,7 @@ router.get('/top-products', authenticateToken, async (req, res) => {
          FROM transaction_items ti
          JOIN transactions t ON ti.transaction_id = t.id
          WHERE t.status = 'completed'
-         GROUP BY ti.product_id
+         GROUP BY ti.product_id, ti.product_name
          ORDER BY total_sold DESC
          LIMIT $1`,
         [parseInt(limit)]
