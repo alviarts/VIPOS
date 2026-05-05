@@ -1,6 +1,8 @@
 # Devin Task Prompt — Template
 
 > Copy block bawah, ganti placeholder `{{...}}`, paste ke session Devin baru.
+>
+> **Wajib baca dulu**: [`docs/v3/workflow/devin_session_protocol.md`](../devin_session_protocol.md) — definisi "Phase X selesai", eksekusi order, komunikasi rules, quirks proxy, pattern interpretasi `gas`. Setiap Devin baru harus melalui §4 decision gates di awal sesi sebelum eksekusi apapun.
 
 ---
 
