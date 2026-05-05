@@ -57,16 +57,22 @@ export default function CashierPage() {
     return matchCategory && matchSearch;
   });
 
+  // Items with `monitor_stok=0` are made-to-order (cooked food, services) and
+  // are always sellable regardless of the `stock` column. Only block when stock
+  // tracking is on AND stock has run out.
+  const isStockTracked = (product) => Number(product?.monitor_stok) > 0;
+  const isOutOfStock = (product) => isStockTracked(product) && product.stock <= 0;
+
   const addToCart = (product) => {
-    if (product.stock <= 0) {
-      toast.error('Stok habis!');
+    if (isOutOfStock(product)) {
+      toast.error(`Stok ${product.name} habis. Tambah lewat menu Inventori \u2192 Stok Opname.`);
       return;
     }
 
     setCart((prev) => {
       const existing = prev.find((item) => item.product_id === product.id);
       if (existing) {
-        if (existing.quantity >= product.stock) {
+        if (existing.tracked && existing.quantity >= existing.stock) {
           toast.error(`Stok ${product.name} tidak mencukupi`);
           return prev;
         }
@@ -82,6 +88,7 @@ export default function CashierPage() {
           price: product.price,
           quantity: 1,
           stock: product.stock,
+          tracked: isStockTracked(product),
         },
       ];
     });
@@ -94,7 +101,7 @@ export default function CashierPage() {
           if (item.product_id !== productId) return item;
           const newQty = item.quantity + delta;
           if (newQty <= 0) return null;
-          if (newQty > item.stock) {
+          if (item.tracked && newQty > item.stock) {
             toast.error('Stok tidak mencukupi');
             return item;
           }
@@ -191,31 +198,39 @@ export default function CashierPage() {
         {/* Product Grid */}
         <div className="flex-1 overflow-y-auto">
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
-            {filteredProducts.map((product) => (
-              <button
-                key={product.id}
-                onClick={() => addToCart(product)}
-                disabled={product.stock <= 0}
-                className={`card text-left hover:shadow-md hover:border-primary-200 transition-all active:scale-[0.98]
-                  ${product.stock <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <div className="w-full aspect-square bg-gray-100 rounded-xl mb-3 flex items-center justify-center">
-                  <Package className="w-8 h-8 text-gray-300" />
-                </div>
-                <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{product.sku}</p>
-                <div className="flex items-center justify-between mt-2">
-                  <p className="text-sm font-bold text-primary-600">
-                    {formatCurrency(product.price)}
-                  </p>
-                  <span
-                    className={`text-xs ${product.stock <= 5 ? 'text-amber-500' : 'text-gray-400'}`}
-                  >
-                    {product.stock} stk
-                  </span>
-                </div>
-              </button>
-            ))}
+            {filteredProducts.map((product) => {
+              const tracked = isStockTracked(product);
+              const blocked = isOutOfStock(product);
+              return (
+                <button
+                  key={product.id}
+                  onClick={() => addToCart(product)}
+                  disabled={blocked}
+                  className={`card text-left hover:shadow-md hover:border-primary-200 transition-all active:scale-[0.98]
+                    ${blocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <div className="w-full aspect-square bg-gray-100 rounded-xl mb-3 flex items-center justify-center">
+                    <Package className="w-8 h-8 text-gray-300" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{product.sku}</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-sm font-bold text-primary-600">
+                      {formatCurrency(product.price)}
+                    </p>
+                    {tracked ? (
+                      <span
+                        className={`text-xs ${product.stock <= 5 ? 'text-amber-500' : 'text-gray-400'}`}
+                      >
+                        {product.stock} stk
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">Selalu tersedia</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
           {filteredProducts.length === 0 && (
             <div className="text-center py-12 text-gray-400">
