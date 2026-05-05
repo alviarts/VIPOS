@@ -5,6 +5,7 @@
 // products. Date range driven by `DateRangePicker`. Outlet selector reads from
 // `OutletContext` (hidden when only one outlet is available).
 import { useEffect, useState } from 'react';
+import { format, subDays } from 'date-fns';
 import { Star } from 'lucide-react';
 import api from '../utils/api';
 import { formatCurrency } from '../utils/format';
@@ -16,9 +17,17 @@ import DashboardSkeleton from '../components/dashboard/DashboardSkeleton';
 import RevenueChart from '../components/charts/RevenueChart';
 import TopProductChart from '../components/charts/TopProductChart';
 
+function defaultRange() {
+  const today = new Date();
+  return {
+    start: format(subDays(today, 29), 'yyyy-MM-dd'),
+    end: format(today, 'yyyy-MM-dd'),
+  };
+}
+
 export default function DashboardPage() {
   const { outlets, activeOutlet, switchOutlet } = useOutlet();
-  const [range, setRange] = useState({ start: '', end: '' });
+  const [range, setRange] = useState(defaultRange);
   const [summary, setSummary] = useState(null);
   const [trend, setTrend] = useState([]);
   const [topProducts, setTopProducts] = useState([]);
