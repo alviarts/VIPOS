@@ -48,6 +48,23 @@ log "2/6 npm install (workspaces)"
 npm install --no-audit --no-fund
 
 log "3/6 build web"
+# Source the Sentry build env file (if present) so the frontend Vite build can
+# bake the DSN + release into the bundle. Without this, the GitHub Actions
+# auto-deploy would race-overwrite any manually-built bundle with one that has
+# `import.meta.env.VITE_SENTRY_*` empty, silently disabling Sentry in prod.
+# See apps/web/vite.config.js (`define` option) and apps/web/src/lib/sentry.js
+# for the matching runtime injection. File is mode 600, root-only, set up
+# per docs/v3/workflow/devin_session_protocol.md §6a.
+SENTRY_ENV_FILE="${SENTRY_ENV_FILE:-/root/.vipos-sentry-build.env}"
+if [ -f "$SENTRY_ENV_FILE" ]; then
+  log "  sourcing $SENTRY_ENV_FILE for VITE_SENTRY_* + SENTRY_AUTH_TOKEN"
+  set -a
+  # shellcheck disable=SC1090
+  . "$SENTRY_ENV_FILE"
+  set +a
+else
+  log "  no Sentry env file at $SENTRY_ENV_FILE — building without Sentry vars"
+fi
 npm run build:web
 
 log "4a/6 migrate legacy backend/.env -> apps/backend/.env (one-shot)"
