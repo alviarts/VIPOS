@@ -1,6 +1,17 @@
+import { createElement, isValidElement } from 'react';
+
 /**
  * Empty state with Majoo-style SVG illustration (clipboard + magnifying glass, teal).
  * Used on empty list pages.
+ *
+ * The `icon` prop accepts either:
+ *   - a React component reference (e.g. a lucide-react icon `HelpCircle`,
+ *     which is internally a `forwardRef` object), or
+ *   - a pre-rendered JSX element (e.g. `<TrendingUp className="w-5 h-5" />`).
+ *
+ * Rendering a `forwardRef` object directly as a JSX child is a runtime error
+ * ("Objects are not valid as a React child (found: object with keys
+ * {$$typeof, render, displayName})"), so we normalize both forms here.
  */
 export default function EmptyState({
   title = 'Data tidak tersedia',
@@ -10,12 +21,21 @@ export default function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center text-center py-12 px-4">
-      <div className="mb-4">{icon || <DefaultIllustration />}</div>
+      <div className="mb-4">{renderIcon(icon)}</div>
       <h3 className="text-base font-semibold text-gray-700 mb-1">{title}</h3>
       <p className="text-sm text-gray-400 max-w-sm">{description}</p>
       {action && <div className="mt-5">{action}</div>}
     </div>
   );
+}
+
+function renderIcon(icon) {
+  if (icon == null) return <DefaultIllustration />;
+  if (isValidElement(icon)) return icon;
+  if (typeof icon === 'function' || typeof icon === 'object') {
+    return createElement(icon, { className: 'w-12 h-12 text-gray-400' });
+  }
+  return <DefaultIllustration />;
 }
 
 function DefaultIllustration() {
