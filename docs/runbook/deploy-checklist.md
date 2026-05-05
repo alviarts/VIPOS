@@ -186,6 +186,36 @@ grep -c 'ingest\.\(us\.\)\?sentry\.io' \
 # expect: at least 1 (DSN baked in)
 ```
 
+#### 2.6.2.a Source-map upload (optional but strongly recommended)
+
+When `SENTRY_AUTH_TOKEN` + `SENTRY_ORG` + `SENTRY_PROJECT` are exported
+alongside the `VITE_*` vars above, `apps/web/vite.config.js` activates
+`@sentry/vite-plugin`: it emits hidden source-maps, uploads them to the
+Sentry release matching `VITE_SENTRY_RELEASE`, then deletes the local
+`.map` files so they never reach the static bundle. Without these vars
+the plugin is a no-op (build size + behaviour unchanged).
+
+Generate an auth token at Sentry: _Settings → Account → Auth Tokens →
+Create New Token_ with scopes `project:read`, `project:write`,
+`project:releases`. Then on the VPS:
+
+```bash
+cd /var/www/vipos/apps/web
+SENTRY_AUTH_TOKEN=<token> \
+SENTRY_ORG=<sentry-org-slug> \
+SENTRY_PROJECT=<sentry-frontend-project-slug> \
+VITE_SENTRY_DSN_FRONTEND=https://<32-hex>@o<orgId>.ingest.us.sentry.io/<frontendProjectId> \
+VITE_SENTRY_RELEASE=vipos-web@$(cd /var/www/vipos && git rev-parse --short HEAD) \
+  npm run build
+# Plugin output appears in stdout: '> Found N source map files...'
+# After upload completes the .map files are removed from dist/.
+```
+
+Confirm in Sentry: _Releases → vipos-web@<sha> → Artifacts_ should list
+the bundle filenames with their size + sourcemap counterparts. Subsequent
+exceptions captured from this release will show readable `App.jsx:42:18`
+locations rather than minified `index-XXXXXX.js:1:12345`.
+
 #### 2.6.3 End-to-end verification
 
 Trigger one event into each project and confirm the network round-trip:
