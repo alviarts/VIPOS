@@ -184,6 +184,34 @@ if pm2 describe "$PM2_NAME" >/dev/null 2>&1; then
 else
   start_fresh
 fi
+
+# vipos-worker — the BullMQ recurring-job processor (db-backup,
+# uploads-backup, audit-retention, notification, settlement, …).
+# Runs as a separate pm2 process via `npm run worker` so it doesn't
+# share the request-path event loop with vipos-backend. We only
+# reload when it's already present — provisioning the worker for the
+# first time happens out-of-band with:
+#
+#   cd /var/www/vipos/apps/backend
+#   pm2 start npm --name vipos-worker -- run worker --update-env
+#
+# Why reload here at all: pm2 caches env vars at process start. If
+# `.env` rotates (Postgres / Redis / S3 creds) without restarting
+# the worker, every subsequent BullMQ job authenticates with stale
+# credentials and silently fails (e.g. `pg_dump: FATAL: password
+# authentication failed`). Restarting the worker on every deploy
+# matches what we already do for vipos-backend and keeps the two
+# processes in lock-step with the on-disk `.env`.
+WORKER_NAME="${WORKER_PM2_NAME:-vipos-worker}"
+if pm2 describe "$WORKER_NAME" >/dev/null 2>&1; then
+  log "  reload $WORKER_NAME --update-env (propagate .env rotations)"
+  cd "$EXPECTED_CWD"
+  pm2 restart "$WORKER_NAME" --update-env
+  cd "$DEPLOY_PATH"
+else
+  log "  $WORKER_NAME not registered with pm2 — skipping (provision out-of-band)"
+fi
+
 pm2 save
 
 log "6/6 nginx — verify config + reload"
