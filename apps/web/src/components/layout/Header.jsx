@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { usePermission } from '../../context/PermissionContext';
+import ConfirmationDialog from '../ui/ConfirmationDialog';
 import OutletSwitcher from './OutletSwitcher';
 import Breadcrumb from './Breadcrumb';
 
@@ -17,8 +18,10 @@ export default function Header({ onOpenMobileSidebar, notificationCount = 0 }) {
   const { role, tier } = usePermission();
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 
   const handleLogout = () => {
+    setLogoutConfirmOpen(false);
     logout();
     navigate('/login');
   };
@@ -111,7 +114,7 @@ export default function Header({ onOpenMobileSidebar, notificationCount = 0 }) {
                   type="button"
                   onClick={() => {
                     setProfileOpen(false);
-                    handleLogout();
+                    setLogoutConfirmOpen(true);
                   }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
                 >
@@ -125,6 +128,17 @@ export default function Header({ onOpenMobileSidebar, notificationCount = 0 }) {
       </div>
 
       <Breadcrumb />
+
+      <ConfirmationDialog
+        open={logoutConfirmOpen}
+        title="Keluar dari VIPOS?"
+        message="Sesi Anda akan diakhiri. Pastikan transaksi yang sedang berjalan sudah disimpan sebelum keluar."
+        confirmLabel="Ya, Keluar"
+        cancelLabel="Batal"
+        variant="danger"
+        onConfirm={handleLogout}
+        onCancel={() => setLogoutConfirmOpen(false)}
+      />
     </header>
   );
 }
