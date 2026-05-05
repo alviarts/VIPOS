@@ -40,6 +40,24 @@ if (sentryEnabled && !process.env.VITE_SENTRY_RELEASE) {
   }
 }
 
+// Vite reads `process.env` for `import.meta.env` injection BEFORE this
+// module's top-level code runs, so the auto-derive above wouldn't reach the
+// runtime SDK without an explicit `define` override. Mirror the env vars we
+// actually depend on at runtime so they survive Vite's static replacement
+// regardless of when the operator set them. Empty/missing values fall
+// through to Vite's default behavior (undefined at runtime).
+const sentryDefineEntries = {};
+if (process.env.VITE_SENTRY_RELEASE) {
+  sentryDefineEntries['import.meta.env.VITE_SENTRY_RELEASE'] = JSON.stringify(
+    process.env.VITE_SENTRY_RELEASE
+  );
+}
+if (process.env.VITE_SENTRY_DSN_FRONTEND) {
+  sentryDefineEntries['import.meta.env.VITE_SENTRY_DSN_FRONTEND'] = JSON.stringify(
+    process.env.VITE_SENTRY_DSN_FRONTEND
+  );
+}
+
 export default defineConfig(({ mode }) => ({
   // Use /vipos/ in production builds (deployed at http://<host>/vipos/),
   // and / in dev for convenience (localhost:5173).
@@ -51,6 +69,7 @@ export default defineConfig(({ mode }) => ({
     // at parity with the backend without leaking source to end users.
     sourcemap: sentryEnabled ? 'hidden' : false,
   },
+  define: sentryDefineEntries,
   plugins: [
     react(),
     sentryEnabled &&
