@@ -1,8 +1,8 @@
 // /api/commission-report — aggregate komisi per karyawan per periode.
 //
-// P2-01b cutover: async query layer. SQL still uses strftime() — needs
-// portable rewrite (to_char / date_trunc) before flipping to Postgres
-// driver in P2-01b finalstep.
+// SQL is Postgres-native: period bucketing uses to_char() with explicit
+// IYYY-"W"IW for ISO weeks. Default period is the pre-computed
+// `period_key` column on commission_assignments.
 
 const express = require('express');
 const { query } = require('../db');
