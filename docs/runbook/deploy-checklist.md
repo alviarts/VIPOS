@@ -123,12 +123,93 @@ See [`disaster_recovery.md`](./disaster_recovery.md) §1–2. At minimum:
 
 ### 2.6 Sentry DSNs set
 
-- Backend: `SENTRY_DSN=https://...@sentry.io/...`
-- Frontend (Vite, baked at build time): `VITE_SENTRY_DSN_FRONTEND=...` and
-  `VITE_SENTRY_RELEASE=vipos-web@<version>`
+VIPOS uses two separate Sentry projects so backend errors stay decoupled from
+client crashes (different alert thresholds, ownership, replay surfaces):
 
-If left unset the SDKs no-op; that is fine for staging sandbox traffic but
-unacceptable for merchant pilot.
+- **Backend project** (`vipos-backend`, platform Node.js)
+- **Frontend project** (`vipos-web`, platform React/Vite)
+
+Create both at `https://sentry.io/projects/` (Developer plan free tier is
+sufficient for early pilot — 5K errors / month). Copy each DSN from
+**Project → Settings → Client Keys (DSN)**.
+
+#### 2.6.1 Backend wire-up (runtime — read at boot)
+
+Append to `apps/backend/.env` and restart:
+
+```bash
+cat >> /var/www/vipos/apps/backend/.env <<EOF
+SENTRY_DSN=https://<32-hex>@o<orgId>.ingest.us.sentry.io/<backendProjectId>
+SENTRY_ENV=production
+SENTRY_RELEASE=vipos-backend@$(cd /var/www/vipos && git rev-parse --short HEAD)
+EOF
+chmod 600 /var/www/vipos/apps/backend/.env
+pm2 restart vipos-backend --update-env
+```
+
+Confirm init succeeded by tailing the structured log line:
+
+```bash
+pm2 logs vipos-backend --lines 30 --nostream | \
+  grep -F '"component":"sentry","msg":"Sentry initialised"'
+```
+
+If absent, Sentry is silently disabled (`SENTRY_DSN` was not set or empty).
+The backend boots either way — see `apps/backend/src/lib/sentry.js`.
+
+Optional tuning (defaults are conservative — no need to touch for pilot):
+
+- `SENTRY_TRACES_SAMPLE_RATE` (default `0.1` = 10% of requests carry traces)
+- `SENTRY_ENV` falls back to `NODE_ENV`
+
+#### 2.6.2 Frontend wire-up (build-time — baked into JS bundle)
+
+Vite reads `VITE_*` env vars at `npm run build`. Rebuild the web app on the
+server with the DSN exported, then nginx picks up the new bundle on next
+asset request (zero downtime — content-hashed filenames).
+
+```bash
+cd /var/www/vipos/apps/web
+# back up the previous bundle for instant rollback
+cp -a dist dist.pre-sentry-$(date +%s)
+VITE_SENTRY_DSN_FRONTEND=https://<32-hex>@o<orgId>.ingest.us.sentry.io/<frontendProjectId> \
+VITE_SENTRY_RELEASE=vipos-web@$(cd /var/www/vipos && git rev-parse --short HEAD) \
+  npm run build
+# nginx serves /var/www/vipos/apps/web/dist/ via alias — no restart needed
+```
+
+Confirm the DSN host actually made it into the bundle:
+
+```bash
+grep -c 'ingest\.\(us\.\)\?sentry\.io' \
+  /var/www/vipos/apps/web/dist/assets/index-*.js
+# expect: at least 1 (DSN baked in)
+```
+
+#### 2.6.3 End-to-end verification
+
+Trigger one event into each project and confirm the network round-trip:
+
+```bash
+# Backend: send via @sentry/node directly with the prod DSN
+node -e "
+const S=require('/var/www/vipos/node_modules/@sentry/node');
+S.init({dsn:process.env.SENTRY_DSN, environment:'production',
+        release:process.env.SENTRY_RELEASE});
+S.captureMessage('deploy verification — ignore', 'info');
+S.captureException(new Error('deploy verification — ignore'));
+S.flush(5000).then(()=>process.exit(0));
+"
+
+# Frontend: load any page in the browser (e.g. /vipos/login) and watch
+# devtools Network tab for a POST to *.ingest.sentry.io. The first error
+# from the React error boundary or window.onerror handler will fire one.
+```
+
+Both events should appear in their respective Sentry inbox within ~60 s.
+
+If `SENTRY_DSN` / `VITE_SENTRY_DSN_FRONTEND` is left unset the SDKs no-op;
+that is fine for staging sandbox traffic but unacceptable for merchant pilot.
 
 ### 2.7 Rate limit + secrets
 

@@ -87,11 +87,18 @@ cp .env.example apps/backend/.env
 JWT_SECRET=$(openssl rand -hex 32)
 sed -i "s|JWT_SECRET=.*|JWT_SECRET=${JWT_SECRET}|" apps/backend/.env
 sed -i "s|NODE_ENV=.*|NODE_ENV=production|" apps/backend/.env
+chmod 600 apps/backend/.env
+
+# 3b. (Optional but recommended) Wire Sentry — see deploy-checklist §2.6 for
+#     the full procedure, including separate backend + frontend project setup,
+#     verification commands, and rollback. Skip if you don't have DSNs yet —
+#     the SDK no-ops when the env var is unset.
 
 # 4. Seed database (admin user + sample produk/kategori)
 npm run seed
 
-# 5. Build frontend
+# 5. Build frontend (set VITE_SENTRY_DSN_FRONTEND here if Sentry wired —
+#    see deploy-checklist §2.6.2)
 npm run build:web
 
 # 6. Configure nginx (VIPOS at /vipos, welcome page at /)
