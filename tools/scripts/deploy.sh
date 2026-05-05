@@ -47,7 +47,43 @@ git reset --hard "origin/$BRANCH"
 log "2/6 npm install (workspaces)"
 npm install --no-audit --no-fund
 
-log "3/6 build web"
+log "3/6 snapshot dist + build web"
+# Snapshot the current dist/ before re-building, so a one-command rollback is
+# possible if a deploy bakes a broken bundle. Naming convention:
+# `dist.pre-deploy-<unix-ts>`. Older `dist.pre-*` directories (from any source
+# — auto-deploys, prior Devin sessions, manual ops) are pruned so disk usage
+# stays bounded. Override retention with env:  DIST_SNAPSHOT_RETAIN=5 …
+#
+# Rollback recipe:
+#   cd /var/www/vipos/apps/web
+#   mv dist dist.broken-$(date +%s)
+#   cp -a dist.pre-deploy-<ts> dist
+#   pm2 restart vipos-backend
+DIST_DIR="$DEPLOY_PATH/apps/web/dist"
+DIST_PARENT="$DEPLOY_PATH/apps/web"
+DIST_SNAPSHOT_RETAIN="${DIST_SNAPSHOT_RETAIN:-3}"
+if [ -d "$DIST_DIR" ]; then
+  SNAPSHOT_NAME="dist.pre-deploy-$(date +%s)"
+  log "  snapshot apps/web/dist -> apps/web/$SNAPSHOT_NAME"
+  cp -a "$DIST_DIR" "$DIST_PARENT/$SNAPSHOT_NAME"
+fi
+if [ -d "$DIST_PARENT" ]; then
+  KEPT=0
+  PRUNED=0
+  while IFS= read -r snap; do
+    [ -z "$snap" ] && continue
+    KEPT=$((KEPT + 1))
+    if [ "$KEPT" -le "$DIST_SNAPSHOT_RETAIN" ]; then
+      continue
+    fi
+    log "  prune apps/web/$(basename "$snap") (retain=$DIST_SNAPSHOT_RETAIN)"
+    rm -rf "$snap"
+    PRUNED=$((PRUNED + 1))
+  done < <(find "$DIST_PARENT" -maxdepth 1 -type d -name 'dist.pre-*' \
+    -printf '%T@ %p\n' 2>/dev/null | sort -nr | awk '{print $2}')
+  log "  snapshots: kept up to $DIST_SNAPSHOT_RETAIN, pruned $PRUNED older"
+fi
+
 # Source the Sentry build env file (if present) so the frontend Vite build can
 # bake the DSN + release into the bundle. Without this, the GitHub Actions
 # auto-deploy would race-overwrite any manually-built bundle with one that has
