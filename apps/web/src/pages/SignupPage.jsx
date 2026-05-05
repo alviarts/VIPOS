@@ -35,6 +35,10 @@ export default function SignupPage() {
 
   const effectiveSlug = slugTouched ? slug : slugify(businessName);
   const passwordStrength = useMemo(() => scorePassword(password), [password]);
+  const slugPrefix = useMemo(() => {
+    if (typeof window === 'undefined') return '';
+    return `${window.location.host}${import.meta.env.BASE_URL}`;
+  }, []);
 
   function setError(field, message) {
     setFieldErrors((prev) => ({ ...prev, [field]: message }));
@@ -185,7 +189,7 @@ export default function SignupPage() {
                 </label>
                 <div className="flex items-stretch rounded-lg border border-gray-300 overflow-hidden focus-within:ring-2 focus-within:ring-primary-500">
                   <span className="bg-gray-50 px-3 py-2 text-sm text-gray-500 border-r border-gray-300 select-none">
-                    vipos.app/
+                    {slugPrefix}
                   </span>
                   <input
                     id="signup-slug"
