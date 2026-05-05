@@ -121,6 +121,19 @@ See [`disaster_recovery.md`](./disaster_recovery.md) §1–2. At minimum:
 - `db-backup` cron entry at 02:00 UTC fires (check Sentry tags
   `component=backup`, `queue=db-backup` for the last successful run)
 
+> **Env rotation footgun (history)**: pm2 caches env vars at process start.
+> If `apps/backend/.env` rotates (Postgres / Redis / S3 creds) without
+> restarting **both** `vipos-backend` and `vipos-worker`, the worker keeps
+> reading the old creds and `db-backup` jobs silently fail with
+> `pg_dump: FATAL: password authentication failed`. `tools/scripts/deploy.sh`
+> reloads both processes with `--update-env` on every deploy, so a
+> re-deploy after editing `.env` is the durable fix. If you edit `.env`
+> by hand without re-deploying, restart **both** processes:
+>
+> ```bash
+> pm2 restart vipos-backend vipos-worker --update-env
+> ```
+
 ### 2.6 Sentry DSNs set
 
 VIPOS uses two separate Sentry projects so backend errors stay decoupled from
