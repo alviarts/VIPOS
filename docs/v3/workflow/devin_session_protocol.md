@@ -101,7 +101,7 @@ Gunakan urutan ini saat ngusulin plan ke founder, bukan urutan task ID di phase 
 | `vipos_app` role NOSUPERUSER NOBYPASSRLS | `psql ... -c "SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname='vipos_app'"` returns `f, f`                                  | ✅ DONE                       |
 | RLS policies enforced                    | `SET app.current_tenant='3'` di session → `SELECT count(*) FROM products` returns tenant-scoped count                                 | ✅ DONE                       |
 | Backend pm2 process                      | `pm2 jlist` shows `vipos-backend online`                                                                                              | ✅ DONE                       |
-| `/api/health` 200                        | `curl http://127.0.0.1:3001/health` → `{"status":"ok","db":{"ok":true},...}`                                                          | ✅ DONE                       |
+| `/api/health` 200                        | `curl http://127.0.0.1:3001/api/health` → `{"status":"ok","db":{"ok":true,...},"redis":{"enabled":true,"ok":true,...}}` (note: `:3001/health` returns SPA HTML fallback — gunakan `/api/health` untuk JSON health check) | ✅ DONE                       |
 | `CORS_ALLOWLIST` env set                 | `pm2 env <id>` includes `CORS_ALLOWLIST` non-empty di `NODE_ENV=production`                                                           | ✅ DONE                       |
 | Sentry backend init                      | pm2 log: `"component":"sentry","msg":"Sentry initialised"`                                                                            | ✅ DONE                       |
 | Sentry frontend init                     | DevTools console: `Sentry SDK loaded` setelah app boot                                                                                | ✅ DONE                       |
@@ -109,7 +109,7 @@ Gunakan urutan ini saat ngusulin plan ke founder, bukan urutan task ID di phase 
 | **`vipos-worker` pm2 process**           | `pm2 jlist` shows `vipos-worker online`; `/api/admin/queues` (Bull Board) accessible                                                  | ❌ **PENDING**                |
 | **Daily DB backup cron**                 | `crontab -l` includes `backup-postgres.sh` di 02:00 UTC; `aws s3 ls s3://<bucket>/vipos/` shows recent dumps                          | ❌ **PENDING**                |
 | **Daily uploads sync**                   | BullMQ scheduler `uploads-backup-daily` registered; recent run di Bull Board                                                          | ❌ **PENDING**                |
-| **Sentry source-maps**                   | Trigger known error → Sentry issue page menunjukkan stack trace ke source `.js`/`.jsx` filename + line, bukan minified `index-XXX.js` | ❌ **PENDING**                |
+| **Sentry source-maps**                   | Trigger known error → Sentry event stack frames `filename` resolve ke npm module path (e.g. `node_modules/scheduler/cjs/scheduler.production.min.js`) + `module` populated + `context` punya original source — BUKAN bundle URL `index-XXX.js`. API check: `curl -H "Authorization: Bearer $SENTRY_AUTH_TOKEN" "https://sentry.io/api/0/projects/vwrks/vipos-web/events/<eventID>/" \| jq '.entries[] \| select(.type=="exception") \| .data.values[0].stacktrace.frames[0]'` | ✅ DONE (PR #81 sha 758582f, release `vipos-web@758582f`, artifact bundle `ee30a558-a70f-5d2f-94cc-8188289bf3e3` 8 files) |
 | **Restore-test sandbox** (staging only)  | `BACKUP_RESTORE_TEST_ENABLED=1` + `RESTORE_TEST_DATABASE_URL` set                                                                     | ❌ **PENDING** (staging only) |
 
 ### 3c. Outstanding "bug layer" frictions (defer until 3a + 3b done)
@@ -146,7 +146,7 @@ Gw (Devin) harus melalui dec gate ini di tiap awal sesi sebelum eksekusi:
 | `git push` 403 dari proxy                                                            | Push lewat default `git push` setelah Devin commit                     | `TMP_HOME=$(mktemp -d) HOME=$TMP_HOME GIT_ASKPASS=/tmp/git-askpass.sh git push https://alviarts@github.com/alviarts/VIPOS.git <branch>` (script `git-askpass.sh` echo `$GITHUB_PAT`) |
 | `git_pr(action="create")` returns "Resource not accessible by personal access token" | Devin tool layer scoped read-only di proxy                             | Direct REST API: `curl -X POST -H "Authorization: token $GITHUB_PAT" https://api.github.com/repos/alviarts/VIPOS/pulls -d @body.json`                                                |
 | `git_comment` tool returns same 403                                                  | Same proxy scope                                                       | Direct REST API: `curl -X POST ... /repos/alviarts/VIPOS/issues/<n>/comments`                                                                                                        |
-| Backend `pm2 restart` health check fail-immediate                                    | Backend butuh ~7-9s buat init Sentry + Prisma + listen                 | Wait full boot. Sample probe: `for i in $(seq 1 12); do sleep 1; curl -fsS http://127.0.0.1:3001/health && break; done`                                                              |
+| Backend `pm2 restart` health check fail-immediate                                    | Backend butuh ~7-9s buat init Sentry + Prisma + listen                 | Wait full boot. Sample probe: `for i in $(seq 1 12); do sleep 1; curl -fsS http://127.0.0.1:3001/api/health && break; done` (note: `:3001/health` returns SPA HTML fallback, bukan JSON health) |
 | Frontend bundle lama nyangkut                                                        | `git pull` di VPS gak otomatis rebuild Vite output di `apps/web/dist/` | After `git pull`: `cd apps/web && npm run build` (output otomatis ke `dist/` yang nginx serve)                                                                                       |
 | `pre-commit` hook gak ke-install di Devin checkout                                   | Local clone fresh, `package.json prepare` script belum jalan           | Run `npm install` sekali di repo root sebelum first commit                                                                                                                           |
 
@@ -164,9 +164,22 @@ Gw (Devin) harus melalui dec gate ini di tiap awal sesi sebelum eksekusi:
 | _(belum ada)_ `R2_ACCESS_KEY_ID`     | org   | R2 IAM access key (write)                             |
 | _(belum ada)_ `R2_SECRET_ACCESS_KEY` | org   | R2 IAM secret                                         |
 | _(belum ada)_ `R2_BUCKET`            | org   | Bucket name (`vipos-backup`)                          |
-| _(belum ada)_ `SENTRY_AUTH_TOKEN`    | org   | Source-maps upload via `sentry-cli`                   |
+| _(belum ada)_ `SENTRY_AUTH_TOKEN`    | org   | Source-maps upload via `@sentry/vite-plugin`          |
 
 Saat lo butuh credential baru, **selalu** offer 3 opsi via `secrets` tool: skip, temporary-this-session, permanent-org. Founder strongly prefers permanent-org untuk credential yang akan reused sesi-sesi selanjutnya.
+
+### 6a. Fallback persistent di VPS — `/root/.vipos-sentry-build.env`
+
+Kalau Devin shell `secrets list` kosong (kasus org-scope secrets gak ke-inject), source ini dulu sebelum minta lagi ke founder:
+
+```sh
+set -a; source /root/.vipos-sentry-build.env; set +a
+# now SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT, SENTRY_PROJECT_FRONTEND,
+# VITE_SENTRY_DSN_FRONTEND, VIPOS_SENTRY_DSN_FRONTEND tersedia.
+cd /var/www/vipos/apps/web && npm run build
+```
+
+File mode 600, root-only. Slug-only values (`SENTRY_ORG=vwrks`, `SENTRY_PROJECT_FRONTEND=vipos-web`) public-safe. Sensitive values (`SENTRY_AUTH_TOKEN`, `VIPOS_SENTRY_DSN_FRONTEND`) di-rotate kalau bocor — file ini bukan pengganti permanent secret di Devin org settings, hanya fallback waktu org-scope inject gagal.
 
 ---
 
@@ -207,4 +220,4 @@ Kalau interpretasi `gas` ambigu (tidak ada top recommendation eksplisit), **jang
 
 ---
 
-_Last updated: 2026-05-05 by Devin session that reviewed Phase 2 prod-side gap. Update di tempat ini saat status §3 berubah._
+_Last updated: 2026-05-05 by Devin session that completed Phase 2 source-map upload (PR #81 → release `vipos-web@758582f` symbolicated). Update di tempat ini saat status §3 berubah._
