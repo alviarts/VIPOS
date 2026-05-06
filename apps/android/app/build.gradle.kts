@@ -65,6 +65,11 @@ android {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    // Backport of the SplashScreen APIs (P3-01e) — provides a
+    // consistent splash window across API 21..31+ and lets us swap
+    // out for the postSplashScreenTheme exactly once at MainActivity
+    // bootstrap.
+    implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 

@@ -14,13 +14,34 @@ This module was bootstrapped in **PR P3-01a**. Currently:
 
 Subsequent sub-PRs in the P3-01 series will add:
 
-| Sub-PR | Adds                                                                                    |
-| ------ | --------------------------------------------------------------------------------------- |
-| P3-01b | Hilt DI + real Material 3 theme (teal #04C99E primary, typography)                      |
-| P3-01c | Modular split — `:core:designsystem`, `:core:network`, `:core:database`, `:core:common` |
-| P3-01d | Build flavors (`dev` / `staging` / `prod`) + ProGuard rules + signing                   |
-| P3-01e | App icon, splash screen, dev-setup polish                                               |
-| P3-01f | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)  |
+| Sub-PR     | Status         | Adds                                                                                    |
+| ---------- | -------------- | --------------------------------------------------------------------------------------- |
+| P3-01a     | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow              |
+| P3-01b     | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)               |
+| **P3-01e** | this PR        | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                      |
+| P3-01c     | pending        | Modular split — `:core:designsystem`, `:core:network`, `:core:database`, `:core:common` |
+| P3-01d     | pending        | Build flavors (`dev` / `staging` / `prod`) + ProGuard rules + signing                   |
+| P3-01f     | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)  |
+
+### Branding
+
+- **Primary color**: VIPOS teal `#04C99E` (matches the Majoo brand).
+  See `app/src/main/res/values/colors.xml` for the active subset
+  (`vipos_teal`, `vipos_teal_dark`, `vipos_on_teal`, `splash_background`).
+  P3-02 will expand this into the full Material 3 ColorScheme inside
+  `:core:designsystem`.
+- **Launcher icon**: white `V` mark on a teal background. The
+  adaptive icon (API 26+) lives at `mipmap-anydpi-v26/ic_launcher.xml`
+  and references the vector drawables under `drawable/ic_launcher_*.xml`.
+  PNG fallbacks at every standard mipmap density (`mdpi` / `hdpi` /
+  `xhdpi` / `xxhdpi` / `xxxhdpi`) cover API 21–25. The themed
+  monochrome layer is also wired so Android 13+ honours the user's
+  themed-icon preference.
+- **Splash screen**: backed by `androidx.core:core-splashscreen`. The
+  launcher activity uses `Theme.VIPOS.Splash` (parent
+  `Theme.SplashScreen`); `MainActivity.onCreate` calls
+  `installSplashScreen()` before `super.onCreate(...)` to swap to the
+  post-splash `Theme.VIPOS`.
 
 ## Local dev setup
 

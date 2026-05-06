@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  VIPOS brand palette (P3-01e bootstrap subset). Sourced from the
+  Majoo primary teal (#04C99E) for visual continuity. P3-02 will
+  expand this into the full Material 3 ColorScheme inside
+  :core:designsystem; values here are the minimum needed for the
+  launcher icon background and the splash-screen window.
+-->
+<resources>
+    <color name="vipos_teal">#04C99E</color>
+    <color name="vipos_teal_dark">#039F7E</color>
+    <color name="vipos_on_teal">#FFFFFF</color>
+    <color name="splash_background">#04C99E</color>
+</resources>
