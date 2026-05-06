@@ -92,7 +92,7 @@ jobs:
           pkill -f "node src/index.js" || true
 
   lint:
-    name: lint (--if-present)
+    name: lint + format:check
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -108,10 +108,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        # No workspace defines a lint script yet (P0-03 will add ESLint/Prettier).
-        # `--if-present` makes this a no-op until then so CI stays green.
-        run: npm run lint --if-present
+      - name: Lint (zero warnings)
+        # `lint` script enforces --max-warnings=0 since PR #110.
+        # Codebase has been lint-clean since PR #108.
+        run: npm run lint
+
+      - name: Format check (Prettier)
+        # Codebase has been format-clean since PR #109.
+        # Pre-commit hook also runs Prettier on staged files, but CI
+        # gate catches drift on direct main pushes (e.g. via REST API).
+        run: npm run format:check
 
   test:
     name: test (--if-present)
