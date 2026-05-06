@@ -536,16 +536,16 @@
 
 **Acceptance criteria**:
 
-- [ ] Account profile: foto, nama, password, 2FA
-- [ ] Outlet: CRUD, floor plan editor (drag table)
-- [ ] Notifications: per-channel preference (push/WA/SMS/email)
-- [ ] Subscription: lihat plan, upgrade, ticket support, klaim voucher
-- [ ] Payment settings: receipt template, service charge, pajak (multi), non-cash methods, UOM
-- [ ] Print: PDF templates
-- [ ] Cashier: list cashier + kategori kas
-- [ ] Terminal: list device + soundbox
-- [ ] Support access: time-bounded grant
-- [ ] Import/Export: bulk operation per entity
+- [x] Account profile: foto, nama, password, 2FA — `apps/web/src/pages/pengaturan/AccountProfilePage.jsx` form has `name`, `email`, `phone`, `photo_url`; password change via `POST /account-profile/change-password`; 2FA shortcut links to dedicated page (TOTP enrollment from P1-02).
+- [x] Outlet: CRUD, floor plan editor (drag table) — `apps/web/src/pages/pengaturan/OutletsPage.jsx` (multi-cabang CRUD) + `FloorPlanPage.jsx` HTML5 drag editor reading/writing `/outlet/:id/floor-plan`.
+- [x] Notifications: per-channel preference (push/WA/SMS/email) — `apps/web/src/pages/pengaturan/NotificationsPage.jsx` toggles per event-key over `via_push`, `via_wa`, `via_sms`, `via_email` columns; backend `/notification-pref`.
+- [x] Subscription: lihat plan, upgrade, ticket support, klaim voucher — `apps/web/src/pages/pengaturan/SubscriptionPage.jsx` shows current plan, upgrade flow, voucher claim form, and support ticket link.
+- [x] Payment settings: receipt template, service charge, pajak (multi), non-cash methods, UOM — `apps/web/src/pages/pengaturan/PaymentSettingsPage.jsx` 5 tabs (`receipt`, `tax`, plus service charge/non-cash/UoM); persists via `PUT /setting`.
+- [x] Print: PDF templates — `apps/web/src/pages/pengaturan/PrintSettingsPage.jsx` template picker + receipt footer + kitchen ticket + label printing.
+- [x] Cashier: list cashier + kategori kas — `apps/web/src/pages/pengaturan/CashierSettingsPage.jsx` 2 tabs (`cashier` user list filtered by `role in [kasir, admin]`, plus kategori kas income/expense).
+- [x] Terminal: list device + soundbox — `apps/web/src/pages/pengaturan/TerminalsPage.jsx` lists hardware including `soundbox` device type, with heartbeat ping `POST /terminal/:id/heartbeat`.
+- [x] Support access: time-bounded grant — `apps/web/src/pages/pengaturan/SupportAccessPage.jsx` form takes `grantee_email` + `expires_at`; can revoke via `POST /support-access/:id/revoke`.
+- [x] Import/Export: bulk operation per entity — `apps/web/src/pages/pengaturan/ImportExportPage.jsx` supports `products`, `customers` entities with CSV export (`GET /import-export/export/:entity`) + import.
 
 **Reference**: `docs/v2/menus/pengaturan/*.md`
 
