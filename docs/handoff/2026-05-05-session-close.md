@@ -12,42 +12,53 @@ full PR list, production state at close, and outstanding backlog.
 ## TL;DR
 
 Continuous-automation mode active per founder directive (see
-`docs/v3/workflow/devin_continuous_automation.md`). Six PRs merged
-this session — three operational fixes, three docs follow-ups —
-all autonomous, no founder approval per PR.
+`docs/v3/workflow/devin_continuous_automation.md`). Eleven PRs merged
+across this calendar day — six operational fixes, five docs
+follow-ups — all autonomous, no founder approval per PR. Initial
+session-close at ~21:40 UTC; PRs #96 → #100 are post-close additions
+that surfaced from continued autonomous scanning (PAT consolidation,
+backup-freshness probe, dotenv override durable fix, plus matching
+docs).
 
-Prod state at close:
+Prod state at close (final, post-PR #100):
 
-- Frontend bundle `index-lloiLhy7.js` from release `vipos-web@88d638a`
-- pm2 `vipos-backend` + `vipos-worker` both online, just reloaded by
-  the new deploy.sh
-- `/api/health` 200, `db.ok=true latency 24ms`, `redis.ok=true latency 5ms`
-- BullMQ db-backup pipeline functional end-to-end (live verified
-  via shell-script smoke run + R2 dump uploaded)
+- Backend HEAD `97075bb` (PR #100 merge SHA)
+- pm2 `vipos-backend` + `vipos-worker` both online, freshly reloaded
+  by the post-#100 auto-deploy
+- `/api/v1/health/backup` returns `{"status":"ok"}` with a fresh
+  manual-smoke dump (`age_hours: 0.001`, `size_bytes: 577421`)
+- BullMQ db-backup pipeline functional end-to-end (verified via
+  `q.add('post-pr100-smoke', ...)` → `state=completed` post-deploy)
 - Snapshot retention live: 3 newest `dist.pre-deploy-*` kept,
   older pruned automatically
+- `.env` is now unambiguously authoritative for both API + worker
+  env vars (PR #100 `dotenv override:true`)
 
 ## All PRs merged this session
 
-| PR  | Subject                                                   | Risk   | Status                                  |
-| --- | --------------------------------------------------------- | ------ | --------------------------------------- |
-| #89 | `feat(deploy): rotate dist.pre-* (keep last 3)`           | yellow | merged + verified                       |
-| #90 | `docs(workflow): continuous-automation prompt + handoff`  | green  | merged                                  |
-| #91 | `fix(deploy): pm2 reload vipos-worker on every deploy`    | yellow | merged + verified via workflow_dispatch |
-| #92 | `docs(handoff): worker-reload follow-up`                  | green  | merged                                  |
-| #93 | `docs(runbook): env-rotation footgun in deploy-checklist` | green  | merged                                  |
-| #94 | `docs(env): clarify backup/S3/restore-test env vars`      | green  | merged                                  |
-| #96 | `docs: retire VPS PAT backup; single source of truth`     | green  | merged (post-close consolidation)       |
-| #97 | `feat(backend): /api/health/backup freshness probe`       | yellow | merged + verified live (200 ok)         |
+| PR   | Subject                                                              | Risk   | Status                                          |
+| ---- | -------------------------------------------------------------------- | ------ | ----------------------------------------------- |
+| #89  | `feat(deploy): rotate dist.pre-* (keep last 3)`                      | yellow | merged + verified                               |
+| #90  | `docs(workflow): continuous-automation prompt + handoff`             | green  | merged                                          |
+| #91  | `fix(deploy): pm2 reload vipos-worker on every deploy`               | yellow | merged + verified via workflow_dispatch         |
+| #92  | `docs(handoff): worker-reload follow-up`                             | green  | merged                                          |
+| #93  | `docs(runbook): env-rotation footgun in deploy-checklist`            | green  | merged                                          |
+| #94  | `docs(env): clarify backup/S3/restore-test env vars`                 | green  | merged                                          |
+| #96  | `docs: retire VPS PAT backup; single source of truth`                | green  | merged (post-close consolidation)               |
+| #97  | `feat(backend): /api/health/backup freshness probe`                  | yellow | merged + verified live (200 ok)                 |
+| #98  | `docs(handoff): add #96 + #97 to session-close`                      | green  | merged                                          |
+| #99  | `docs(phase-2): tick the Definition-of-Done checkboxes`              | green  | merged                                          |
+| #100 | `fix(backend): dotenv override:true so .env wins over stale pm2 env` | yellow | merged + verified live (BullMQ smoke completed) |
 
 (The "verified" suffix means I SSH'd VPS post-merge and confirmed
 the change took effect: pm2 process state, `/api/health`, R2 bucket
 contents, dist.pre-\* count, etc.)
 
-PRs #96 + #97 were added after the original session-close at ~21:40
-UTC. See § "Post-close consolidation: PAT single source of truth"
-and § "Post-close addition: /api/health/backup probe (PR #97)" below
-for the rationale + verification details.
+PRs #96 → #100 were added after the original session-close at ~21:40
+UTC. See § "Post-close consolidation: PAT single source of truth",
+§ "Post-close addition: /api/health/backup probe (PR #97)", and
+§ "Post-close addition: dotenv override:true durable fix (PR #100)"
+below for the rationale + verification details.
 
 ## Two operational fixes worth re-stating
 
@@ -221,15 +232,92 @@ Next step (out of scope for this PR): wire up the founder's monitoring
 provider (Uptime Kuma / BetterUptime / etc.) to poll the new endpoint
 and alert on 503.
 
+### Post-close addition: dotenv override:true durable fix (PR #100)
+
+**Symptom**: 2026-05-06 02:00 UTC `db-backup` cron fired (per Redis
+`bull:db-backup:repeat:db-backup-daily:1778007600000` —
+`processedOn=02:00:06.929` UTC, three retries, all `failedReason`
+matching `pg_dump: ... password authentication failed for user
+"postgres"`). Same shape as the 2026-05-05 19:00 UTC failures, even
+though PR #91 had reloaded the worker with `--update-env` at 21:04 UTC
+the previous evening.
+
+**Root cause** (traced 2026-05-06 ~06:30 UTC):
+
+1. `pm2 jlist` showed `vipos-worker` had _no_ `DIRECT_URL` in its
+   stored env (`pm2_env.DIRECT_URL === undefined`). `pm2 restart
+vipos-worker --update-env` is therefore a no-op for that key —
+   `--update-env` only refreshes from pm2's stored env, which never
+   had it.
+2. `src/worker.js` and `src/index.js` called `dotenv.config()`
+   without options. Default behaviour is "first-wins" — if a key is
+   _already_ present in `process.env` (e.g. inherited from the shell
+   that first launched pm2 ages ago), dotenv silently no-ops on that
+   key.
+3. So the worker re-read `.env` at every restart, but
+   `process.env.DIRECT_URL` retained whatever the long-ago parent
+   shell had leaked in (or nothing at all, falling through to a code
+   path that produced the same auth failure).
+
+**Fix**: PR #100 — `require('dotenv').config({ override: true })` in
+both `src/index.js` and `src/worker.js`. `.env` is now unambiguously
+authoritative for every env var the API + worker read, regardless of
+what pm2's parent shell ever held.
+
+Regression-tested via `apps/backend/src/__tests__/dotenv-override.test.mjs`
+(4 tests):
+
+- override:true replaces stale `process.env` with `.env` value
+- default config (no override) keeps stale value (pre-fix baseline)
+- static guard: `worker.js` source still calls dotenv with override:true
+- static guard: `index.js` source still calls dotenv with override:true
+
+**Verification post-merge** (2026-05-06 06:48 UTC):
+
+- HEAD = `97075bb` on prod, both files have `override: true`
+- pm2 reloaded: `vipos-backend` + `vipos-worker` both ~22s uptime
+- BullMQ smoke (`q.add('post-pr100-smoke', { source: 'devin-pr100-smoke' })`)
+  → `state=completed`, no `failedReason`
+- `/api/v1/health/backup` returns `{"status":"ok",
+"dump":{"path":".../vipos-2026-05-06T064754Z.dump","age_hours":0.001,
+"size_bytes":577421}}`
+
+**Defence-in-depth now**:
+
+- Primary: `tools/scripts/deploy.sh` reloads `vipos-backend` + `vipos-worker`
+  with `--update-env` (PR #91, 2026-05-05).
+- Secondary: dotenv override:true in `src/{index,worker}.js` (PR #100,
+  2026-05-06) — `.env` wins regardless of supervisor cache state.
+- Detection: `/api/health/backup` returns 503 if newest dump >25h
+  (PR #97, 2026-05-06) — silent failures get caught within one cron
+  cycle, even if defence layers above ever drift.
+- Alerting: BullMQ `failed` listener calls `Sentry.captureException`
+  with `tags.component=backup` (existing, in `src/jobs/index.js`).
+  Email path is gated on `BACKUP_NOTIFY_EMAILS` (still pending founder
+  value).
+
 ## Outstanding backlog
 
 ### Tier 1 — autonomous (Devin can pick + execute next session)
 
-- [ ] **Confirm tomorrow's 02:00 UTC BullMQ `db-backup` run succeeded.**
-      Worker was reloaded with current creds at 21:04 UTC, so it
-      _should_ fire correctly. Verify by `ls /var/backups/vipos/` and
-      `aws s3 ls s3://vipos-backup/vipos/2026/05/` after 02:01 UTC.
-      If it fails, re-investigate worker env propagation.
+- [x] ~~**Confirm 2026-05-06 02:00 UTC BullMQ `db-backup` run succeeded.**~~
+      Investigated 2026-05-06 ~06:30 UTC: the cron _did_ fire (Redis
+      `bull:db-backup:repeat:db-backup-daily:1778007600000` recorded
+      `processedOn=02:00:06.929` UTC, `failedReason="pg_dump exited
+  with code 1: ... password authentication failed for user
+  'postgres'"`). Same shape as the 2026-05-05 19:00 UTC failures.
+      Two-cause analysis: (1) the cron _did_ run; (2) the worker's
+      `process.env.DIRECT_URL` was still stale despite the post-PR #91
+      `--update-env` reloads — pm2's stored env never had `DIRECT_URL`
+      in the first place, so `--update-env` was a no-op for that key,
+      and dotenv's default first-wins precedence then preserved
+      whatever the parent shell had leaked in at first boot. **Fixed
+      durably by PR #100** (`dotenv.config({ override: true })` in
+      both `src/index.js` and `src/worker.js`). Manual smoke
+      post-merge: `await q.add('post-pr100-smoke', ...)` returned
+      `state=completed` and `/api/health/backup` returns 200 with
+      `age_hours: 0.001`. Next 02:00 UTC fire (2026-05-07) should now
+      succeed without intervention.
 - [x] ~~**Backup-freshness health endpoint.**~~ DONE in PR #97 (post-close).
       `/api/health/backup` + `/api/v1/health/backup` return 503 when
       no fresh dump (>25h) or zero-byte dump exists. Verified live.
