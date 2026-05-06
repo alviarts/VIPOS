@@ -31,13 +31,13 @@
 
 **Acceptance criteria**:
 
-- [ ] `npm install` di root install semua workspaces sekali
-- [ ] `npm run dev:web` jalan di apps/web
-- [ ] `npm run dev:backend` jalan di apps/backend
-- [ ] `npm run build` build semua packages
-- [ ] Existing `/vipos/api/*` endpoints masih working setelah migration
-- [ ] Production deploy script di-update (tools/scripts/deploy.sh)
-- [ ] No regression di existing fitur (smoke test pakai checklist PR #1)
+- [x] `npm install` di root install semua workspaces sekali
+- [x] `npm run dev:web` jalan di apps/web
+- [x] `npm run dev:backend` jalan di apps/backend
+- [x] `npm run build` build semua packages
+- [x] Existing `/vipos/api/*` endpoints masih working setelah migration
+- [x] Production deploy script di-update (tools/scripts/deploy.sh)
+- [x] No regression di existing fitur (smoke test pakai checklist PR #1)
 
 **Verifikasi**:
 
@@ -103,12 +103,12 @@ Catatan:
 
 **Acceptance criteria**:
 
-- [ ] PR baru otomatis trigger CI
-- [ ] CI checks: lint, typecheck, test, build (untuk web + backend)
-- [ ] Deploy workflow di-trigger saat merge ke main; SSH ke VPS, pull, build, restart pm2
-- [ ] Branch protection main: require PR + CI pass
-- [ ] Secrets di GitHub: VPS_HOST, VPS_USER, SSH_KEY tersimpan
-- [ ] CI badge di README.md
+- [x] PR baru otomatis trigger CI
+- [x] CI checks: lint, typecheck, test, build (untuk web + backend)
+- [x] Deploy workflow di-trigger saat merge ke main; SSH ke VPS, pull, build, restart pm2
+- [ ] Branch protection main: require PR + CI pass _(outstanding — needs founder to enable on GitHub Settings > Branches)_
+- [x] Secrets di GitHub: VPS_HOST, VPS_USER, SSH_KEY tersimpan
+- [x] CI badge di README.md
 
 **Verifikasi**:
 
@@ -159,10 +159,10 @@ Catatan:
 
 **Acceptance criteria**:
 
-- [ ] `npm run lint` pass tanpa error di kondisi awal
-- [ ] Pre-commit hook reject commit kalau lint fail
-- [ ] Commit message non-conventional di-reject
-- [ ] Prettier auto-format on save (VS Code config terdokumentasi)
+- [x] `npm run lint` pass tanpa error di kondisi awal (PR #110 enforce `--max-warnings=0`)
+- [x] Pre-commit hook reject commit kalau lint fail
+- [x] Commit message non-conventional di-reject (`.husky/commit-msg` runs commitlint)
+- [x] Prettier auto-format on save (VS Code config terdokumentasi via `.vscode/settings.json` + `.vscode/extensions.json`)
 
 **Branch**: `devin/P0-03-lint-style-hooks`
 **Estimasi**: 1 hari
