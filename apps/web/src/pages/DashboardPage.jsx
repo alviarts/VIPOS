@@ -22,13 +22,29 @@ const RevenueChart = lazy(() => import('../components/charts/RevenueChart'));
 const TopProductChart = lazy(() => import('../components/charts/TopProductChart'));
 
 function ChartFallback({ label }) {
+  // Skeleton mirip layout grafik final: garis Y-axis di kiri, "bar" varying
+  // height di sebelahnya. animate-pulse untuk shimmer subtle.
+  // Visible window biasanya pendek karena DashboardPage prefetch chart chunks
+  // di mount (lihat useEffect prefetch). Ini belt-and-suspenders supaya saat
+  // chunk belum cached (cold load / network lambat), placeholder masih
+  // visually grounded ke layout chart akhir.
+  const bars = [55, 75, 40, 90, 60, 80, 35, 70, 50, 85, 45, 65];
   return (
     <div
       role="status"
       aria-label={label}
-      className="flex h-48 w-full items-center justify-center rounded-md bg-gray-50 text-xs text-gray-400"
+      className="flex h-48 w-full animate-pulse items-end gap-1 rounded-md bg-gray-50 px-3 pt-3 pb-1"
     >
-      Memuat grafik…
+      <div className="h-full w-px bg-gray-200" aria-hidden="true" />
+      {bars.map((h, i) => (
+        <div
+          key={i}
+          className="flex-1 rounded-t-sm bg-gray-200"
+          style={{ height: `${h}%` }}
+          aria-hidden="true"
+        />
+      ))}
+      <span className="sr-only">Memuat grafik…</span>
     </div>
   );
 }
