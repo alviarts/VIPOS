@@ -8,11 +8,15 @@ by amend PR #161 after merging **PR #159** (recharts → vanilla SVG
 chart migration; −377 kB / −113.7 kB gzip; **96% bundle reduction**)
 and **PR #160** (deploy smoke retry + max-time cap; fixes the 4-min
 hang seen on PR #159's deploy run 25445961488). Re-closed: 2026-05-06
-~16:25 UTC by this amend PR after merging **PR #162** (deploy smoke
+~16:25 UTC by amend PR #164 after merging **PR #162** (deploy smoke
 `/api/v1/health/backup` informational curl) and **PR #163** (deploy
 ssh-keyscan retry + 10-sec timeout cap; fixes the SSH-key-setup
-failure pattern seen on runs 25445248136 + 25447094832). Prepared
-by Devin in continuous-automation mode. Devin session:
+failure pattern seen on runs 25445248136 + 25447094832). Re-closed:
+2026-05-06 ~16:48 UTC by this amend PR after merging **PR #165**
+(CI build job prints bundle-size summary in GH Actions step
+summary; non-blocking informational, surfaces eager-bundle bloat
+for PR reviewers). Prepared by Devin in continuous-automation mode.
+Devin session:
 <https://app.devin.ai/sessions/37291d97f04c45c18b7731c7cfd44e7f>
 
 Successor to `2026-05-06-tier1-perf-followups.md` (which was re-closed at
@@ -50,9 +54,13 @@ total_bytes, free_bytes, used_bytes, used_percent}}`. Returns 503
 - Zero behaviour change to existing routes, frontend bundles, deploy
   pipeline, or any other surface.
 
-Prod state at close (post-PR #163 deploy at ~16:25 UTC):
+Prod state at close (post-PR #165 deploy at ~16:48 UTC):
 
-- Backend HEAD `8c08c14` (PR #163 squash-merge SHA on `main`).
+- Backend HEAD `2c4aa58` (PR #165 squash-merge SHA on `main`).
+  PR #165 is CI-only; no runtime change vs PR #164 (`7fb8c87`,
+  handoff doc amend) or PR #163 (`8c08c14`, ssh-keyscan retry)
+  before that. The PR #163 deploy run (25447713648) is the most
+  recent run that actually touched `pm2`.
 - `pm2 list` → `vipos-backend` (online), `vipos-worker` (online),
   `finance-bot-tg` (online, 6d uptime), `pm2-logrotate` (online).
 - `/api/v1/health/disk` → `{"status":"ok","mount":"/var/backups/vipos","threshold_percent":90,"fs":{"used_percent":71,...}}`.
@@ -79,7 +87,8 @@ Prod state at close (post-PR #163 deploy at ~16:25 UTC):
 | #159 | `devin/1778081933-cartesian-chart-vanilla-svg` | perf(web): replace recharts with vanilla SVG charts (−377 kB / −113.7 kB gzip) | yellow | merged `2bf09ab`; deploy 25445961488 (smoke flaked, see PR #160 RCA); production verified healthy via SSH (new chart bundle live, no CartesianChart-\*.js, pm2 backend 99.9 MB) |
 | #160 | `devin/1778083192-deploy-smoke-retry`          | ci(deploy): retry + cap smoke-curl timeouts (run 25445961488 4-min hang)       | green  | merged `d44215c`; deploy 25446623776 ✅; smoke now `frontend HTTP 200` / `health HTTP 200` / `disk HTTP 200` in <2 sec total                                                    |
 | #162 | `devin/1778084064-deploy-smoke-backup`         | ci(deploy): smoke `/api/v1/health/backup` informationally                      | green  | merged `5e8b51a`; deploy 25447362897 ✅; smoke now `frontend/health/disk/backup HTTP 200` in ~1.5 sec total                                                                     |
-| #163 | `devin/1778084511-deploy-ssh-keyscan-retry`    | ci(deploy): retry ssh-keyscan on transient runner-to-VPS flake                 | green  | merged `8c08c14`; deploy verification pending                                                                                                                                   |
+| #163 | `devin/1778084511-deploy-ssh-keyscan-retry`    | ci(deploy): retry ssh-keyscan on transient runner-to-VPS flake                 | green  | merged `8c08c14`; deploy 25447713648 ✅                                                                                                                                         |
+| #165 | `devin/1778085581-ci-bundle-size-summary`      | ci(build): print web bundle size summary in step summary                       | green  | merged `2c4aa58`; deploy 25448632619 ✅; build job step summary now lists top-15 chunks + eager-bundle table                                                                    |
 
 PR #102 was open from a previous Devin session (author: `alviarts`,
 opened 2026-05-06 06:58 UTC, head commit `4ed5731`). It had passed
@@ -202,6 +211,26 @@ backoff, and if all 5 attempts fail the step still passes — the
 later `ssh -o StrictHostKeyChecking=accept-new` will populate
 `known_hosts` on first contact, so the pre-seed is defence-in-
 depth, not strictly required.
+
+## PR #165 — CI bundle-size summary
+
+Adds a non-blocking step to the CI build job that prints the web
+build's chunk sizes to `$GITHUB_STEP_SUMMARY` (rendered as markdown
+in the PR Checks tab). Two tables:
+
+- **Top 15 chunks by raw size** — sorted by raw bytes, with `gzip
+-9` estimate (matches what nginx serves with `gzip_static`).
+- **Eager bundle** — `index-*.js` (377 kB / 123 kB gzip currently) +
+  `index.es-*.js` (Sentry SDK, 156 kB / 52 kB gzip) + `index-*.css`
+  (58 kB / 9.5 kB gzip). Total eager: ~590 kB / ~185 kB gzip on
+  current `main`. This is what the user downloads on first paint
+  before any lazy chunk kicks in.
+
+Design: deliberately **does not fail CI on size regressions** —
+there's no agreed baseline yet. Future PR can pin per-chunk budgets
+(e.g. `[ "$bytes" -lt 400000 ] || exit 1`). For now, this just
+makes regressions visible to reviewers without forcing them to
+rebuild locally.
 
 ## Root cause analysis: PR #102's first CI run cancelled
 
@@ -388,9 +417,9 @@ package-lock.json                                     | −400      PR #159 (38 
 docs/handoff/2026-05-06-disk-health-and-ci-timeout-fix.md | (this file)  handoff PR + 3 amends
 ```
 
-Total: 13 source/config files + 1 new handoff doc (with three amends),
-~1024 insertions / ~510 deletions across PRs #102 + #153 + #155 +
-#157 + #159 + #160 + handoff PR + 3 amend PRs.
+Total: 14 source/config files + 1 new handoff doc (with five amends),
+~1103 insertions / ~516 deletions across PRs #102 + #153 + #155 +
+#157 + #159 + #160 + #162 + #163 + #165 + handoff PR + 5 amend PRs.
 
 ## Operational notes for next session
 
