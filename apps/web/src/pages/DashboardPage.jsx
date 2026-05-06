@@ -4,7 +4,7 @@
 // from /dashboard/sales-trend, and the top product list from /dashboard/top-
 // products. Date range driven by `DateRangePicker`. Outlet selector reads from
 // `OutletContext` (hidden when only one outlet is available).
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { format, subDays } from 'date-fns';
 import { Star } from 'lucide-react';
 import api from '../utils/api';
@@ -14,8 +14,24 @@ import DateRangePicker from '../components/dashboard/DateRangePicker';
 import KpiCards from '../components/dashboard/KpiCards';
 import QuickActions from '../components/dashboard/QuickActions';
 import DashboardSkeleton from '../components/dashboard/DashboardSkeleton';
-import RevenueChart from '../components/charts/RevenueChart';
-import TopProductChart from '../components/charts/TopProductChart';
+
+// recharts adalah dependency terbesar di route /dashboard. Lazy-import-kan
+// supaya page shell + KPI + QuickActions render duluan, lalu chart muncul
+// setelah recharts chunk landed.
+const RevenueChart = lazy(() => import('../components/charts/RevenueChart'));
+const TopProductChart = lazy(() => import('../components/charts/TopProductChart'));
+
+function ChartFallback({ label }) {
+  return (
+    <div
+      role="status"
+      aria-label={label}
+      className="flex h-48 w-full items-center justify-center rounded-md bg-gray-50 text-xs text-gray-400"
+    >
+      Memuat grafik…
+    </div>
+  );
+}
 
 function defaultRange() {
   const today = new Date();
@@ -117,7 +133,9 @@ export default function DashboardPage() {
               {summary?.range?.start} → {summary?.range?.end}
             </span>
           </div>
-          <RevenueChart data={trend} />
+          <Suspense fallback={<ChartFallback label="Memuat tren pendapatan" />}>
+            <RevenueChart data={trend} />
+          </Suspense>
         </div>
 
         <div className="card">
@@ -142,7 +160,9 @@ export default function DashboardPage() {
           <h2 className="font-semibold text-gray-900">Top 10 Produk</h2>
           <span className="text-xs text-gray-400">Berdasarkan unit terjual</span>
         </div>
-        <TopProductChart data={topProducts} />
+        <Suspense fallback={<ChartFallback label="Memuat top produk" />}>
+          <TopProductChart data={topProducts} />
+        </Suspense>
       </div>
     </div>
   );
