@@ -1,8 +1,18 @@
-# VIPOS Sesi Handoff — 2026-05-06 (Sentry lazy + budget + toast lazy + bundle visualizer)
+# VIPOS Sesi Handoff — 2026-05-06 (Sentry lazy + budget + toast lazy + bundle visualizer + lazy-AppShell abandoned)
 
-Closed: 2026-05-06 ~19:20 UTC (re-closed after follow-up PR #176).
-Prepared by Devin in continuous-automation mode. Devin session:
-<https://app.devin.ai/sessions/d88203c179a44adb964e0bf8798b0456>
+Closed: 2026-05-06 ~19:50 UTC on founder `pause` signal. **Final close
+for this session.** Prepared by Devin in continuous-automation mode.
+Devin session: <https://app.devin.ai/sessions/d88203c179a44adb964e0bf8798b0456>
+
+This session shipped four Tier-1 PRs (#170, #172, #174, #176) end-to-end
+in continuous-automation mode and started a fifth (#178, lazy AppShell)
+which was **abandoned unmerged** when the founder signalled `pause` —
+PR #178 hit a Vite/Rollup chunk-fragmentation regression that fragmented
+the dist into ~140 per-icon chunks; an in-progress `manualChunks`
+fix is documented below in the "Abandoned work" subsection so the
+next session can pick it up cleanly. The `pause` signal landed before
+the fix could be validated end-to-end. **`main` HEAD stays at `9e38489`
+(post PR #177).**
 
 Successor to `2026-05-06-disk-health-and-ci-timeout-fix.md` (which was
 "final-closed" at ~17:05 UTC after founder said `pause`). This doc
@@ -144,11 +154,19 @@ Prod state at close (post-PR #172 deploy):
 | #174 | `devin/1778093115-lazy-react-hot-toast` | perf(web): lazy-load react-hot-toast (-4.2 kB gzip eager bundle)               | yellow | merged `81a941c`; deploy 25454817872 ✅; CI bundle-budget step shows eager `index-DIrvQ15_.js` 95.20 kB gzip (cap 110 kB), production rebuilt to 97.76 kB gzip    |
 | #175 | `devin/1778093875-handoff-toast-lazy`   | docs(handoff): re-close 2026-05-06 session with PR #174 (react-hot-toast lazy) | green  | merged `c6381fb`; deploy 25455420041 ✅; this doc was the third close — re-opened to fold in PR #176                                                              |
 | #176 | `devin/1778094590-bundle-visualizer`    | ci(web): emit + upload bundle treemap (rollup-plugin-visualizer)               | green  | merged `ed93a46`; deploy 25455922786 ✅; CI run 25455922841 emitted `web-bundle-stats` artifact (137,546 B compressed); production eager rebuilt to 97,734 B gzip |
+| #177 | `devin/1778095246-handoff-visualizer`   | docs(handoff): re-close 2026-05-06 session with PR #176 (bundle visualizer)    | green  | merged `9e38489`; deploy 25456362658 ✅; this doc was the fourth close — re-opened to fold in PR #178 abandoned-work + final pause                                |
+| #178 | `devin/1778096788-lazy-appshell`        | perf(web): lazy-load AppShell + Sidebar + 38-icon menu-groups                  | yellow | **NOT merged** — closed unmerged 2026-05-06 ~19:50 UTC after founder `pause` signal; chunk-fragmentation regression mid-fix; see "Abandoned work" subsection      |
 
-All seven PRs were implemented end-to-end this session. CI ran 3/3
-green on the first push for each (lint + format:check, test
---if-present, build web + backend) — no reruns needed across any
-of them.
+PRs #170-177 were all implemented end-to-end and merged with CI 3/3
+green on the first push (lint + format:check, test --if-present,
+build web + backend) — no reruns needed across any of them.
+
+PR #178 was closed unmerged — its build-job CI failed (job 74690533448)
+on the new chunk-fragmentation regression that lazy-AppShell triggered.
+The `manualChunks` follow-up fix was in progress when the founder
+signalled `pause`, so the work is preserved in the local stash + this
+handoff doc rather than pushed. See "Abandoned work" subsection below
+for the resume recipe.
 
 ## Root cause / design notes per change
 
@@ -570,24 +588,158 @@ block to keep the improved entry-detection summary without the cap.
   Listed here as a placeholder note that PR #170 / #172 / #174 did
   not touch `xlsx`; its 429 kB lazy chunk is unchanged and still
   loads on first Export Excel click.
+- **Lazy AppShell + `manualChunks: { 'lucide-icons' }` follow-up**
+  — **STARTED, ABANDONED UNMERGED (PR #178), pick up next session**.
+  Eager-bundle savings are real (-37,589 B raw / **-8,227 B gzip**;
+  eager drops 304,800 B → 267,211 B raw / 97,482 → 89,255 B gzip)
+  and validated locally on a clean build. The pause signal landed
+  before the in-progress `manualChunks` fix could be validated
+  end-to-end, so the PR was closed unmerged. See "Abandoned work"
+  subsection below for the full design + WIP patch + step-by-step
+  resume recipe. Estimated remaining work: ~30 minutes (apply WIP
+  patch, build, push, PR, merge, deploy verify, handoff close).
+  Risk: yellow (single-file route refactor + single-file Vite
+  config patch; no functional changes; existing `<Suspense>`
+  boundary at `App.jsx:115` already catches the lazy load).
 
-**At session re-close, no Tier-1-actionable-without-founder-input
-backlog items remain that yield ≥3 kB gzip.** Remaining candidate
-for a future session: extract `axios` (~16 kB gzip in the eager
-chunk) into a lazy chunk by deferring the AuthContext's bootstrap
-`/auth/me` + `/auth/refresh` calls to a `useEffect()` that
-dynamic-imports axios. This is a **yellow-to-red risk refactor**
-(touches ~30+ files that import `utils/api.js` + changes the auth
-bootstrap ordering). Per protocol §7, the mass-user-invalidation
-risk if the refactor breaks pushes this into red territory —
-**block on founder approval before starting**. Estimated savings:
-−10-15 kB gzip on the eager chunk (axios isn't fully tree-shakable;
-~2-4 kB stays for the type definitions / interceptor scaffolding
-that AuthContext uses before the dynamic import resolves). The
-bundle visualizer (PR #176) treemap is the right tool to verify
-this estimate before greenlighting the refactor: download the
-`web-bundle-stats` artifact from any recent CI run on `main`, open
-`stats.html`, and inspect the eager chunk's axios subtree.
+**At session pause-close, the only remaining ≥3 kB gzip candidate
+without founder approval is the abandoned-but-resumable PR #178
+above (lazy AppShell + lucide manualChunks).** Other remaining
+candidate for a future session: extract `axios` (~16 kB gzip in the
+eager chunk) into a lazy chunk by deferring the AuthContext's
+bootstrap `/auth/me` + `/auth/refresh` calls to a `useEffect()`
+that dynamic-imports axios. This is a **yellow-to-red risk
+refactor** (touches ~30+ files that import `utils/api.js` + changes
+the auth bootstrap ordering). Per protocol §7, the
+mass-user-invalidation risk if the refactor breaks pushes this
+into red territory — **block on founder approval before starting**.
+Estimated savings: −10-15 kB gzip on the eager chunk (axios isn't
+fully tree-shakable; ~2-4 kB stays for the type definitions /
+interceptor scaffolding that AuthContext uses before the dynamic
+import resolves). The bundle visualizer (PR #176) treemap is the
+right tool to verify this estimate before greenlighting the
+refactor: download the `web-bundle-stats` artifact from any recent
+CI run on `main`, open `stats.html`, and inspect the eager chunk's
+axios subtree.
+
+### Abandoned work — PR #178 lazy AppShell
+
+Closed: <https://github.com/alviarts/VIPOS/pull/178> on 2026-05-06
+~19:50 UTC after founder `pause` signal interrupted the in-progress
+end-to-end validation of the `manualChunks` follow-up fix. **Not
+reverting anything** — `main` stays at `9e38489` (post PR #177).
+
+**What landed in the (now-closed) branch
+`devin/1778096788-lazy-appshell` at commit `73ac07d`:**
+
+```js
+// apps/web/src/App.jsx — change one static import to a React.lazy()
+// boundary. The existing <Suspense fallback={<Spinner/>}> at line 115
+// already wraps the entire <Routes> block, so the lazy load is caught
+// by the same spinner the rest of the lazy pages use.
+-import AppShell from './components/layout/AppShell';
++const AppShell = lazy(() => import('./components/layout/AppShell'));
+```
+
+**The regression — Vite/Rollup chunk-fragmentation**:
+
+When `AppShell` becomes lazy, all of its imports (Sidebar, Header,
+OutletSwitcher, Breadcrumb, ConfirmationDialog, PageHeader,
+Pagination, EmptyState, FilterTabs, Toggle, ErrorBoundary) move
+out of the eager chunk and into a new `AppShell-*.js` chunk. So
+far so good — measured eager chunk drops from 304,800 B / 97,482 B
+gzip to 267,211 B / 89,255 B gzip.
+
+But `apps/web/src/data/menu-groups.js` (imported by `Sidebar`)
+statically imports 38 lucide-react icons. Combined with the
+existing 73 lazy pages each importing their own subset of
+lucide-react icons (CashierPage, ProductsPage, etc.), Rollup's
+default chunk-split heuristic decides each icon is "shared
+between multiple chunks" and emits **one chunk per icon**, ~140
+total individual `<icon-name>-<hash>.js` files in
+`apps/web/dist/assets/`:
+
+```
+apps/web/dist/assets/arrow-left-C0HuWHxU.js     0.33 kB / 0.26 kB gz
+apps/web/dist/assets/arrow-left-right-DspCT6UA.js  0.34 kB / ...
+apps/web/dist/assets/book-open-Dpy3n0oq.js      0.4  kB / ...
+... (~140 more)
+```
+
+This is bad on three axes:
+
+1. **HTTP overhead** — first protected-route mount in production
+   triggers ~140 HTTP requests for icons, even with HTTP/2
+   multiplexing. Cumulative TLS framing + header overhead is
+   non-trivial.
+2. **Cache thrash** — every dep update that hashes an icon's bytes
+   invalidates all of those tiny files, multiplying CDN purge
+   work.
+3. **CI bundle-summary loop fails with `set -euo pipefail`** —
+   the `Bundle size summary` step's
+   `ls -1S "$DIST"/*.js "$DIST"/*.css 2>/dev/null | head -15 | while read -r f`
+   pipeline trips an exit-2 path under the conditions created
+   by the chunk-fragmentation. CI run 74690533448 on the PR
+   exited with code 2 from this step despite the eager chunk
+   being well under cap (87.16 kB gzip vs 110 kB cap).
+
+**The in-progress fix (WIP, not yet committed/pushed)**:
+
+A `manualChunks` rule in `apps/web/vite.config.js` collapses every
+used `lucide-react` icon back into a single shared chunk, restoring
+1 HTTP round-trip on the first protected-route mount and reverting
+the dist's chunk count to ~30:
+
+```js
+build: {
+  // existing sourcemap config above unchanged...
+  rollupOptions: {
+    output: {
+      // Bundle every `lucide-react` icon export into a single shared
+      // chunk so the lazy AppShell + 73 lazy pages don't trigger
+      // Rollup's per-icon code-split heuristic (which fragments the
+      // dist into ~140 tiny `<icon-name>-<hash>.js` chunks — bad
+      // for HTTP overhead and bad for the CI bundle-summary loop
+      // which iterates `dist/assets/*.js`). One chunk = one HTTP
+      // round-trip on the first protected-route mount, then cached
+      // for the rest of the session. Tree-shaking still applies at
+      // the package level — only icons actually imported by app
+      // source land in the chunk.
+      manualChunks(id) {
+        if (id.includes('node_modules/lucide-react/')) {
+          return 'lucide-icons';
+        }
+        return undefined;
+      },
+    },
+  },
+},
+```
+
+This patch was applied to `apps/web/vite.config.js` locally but
+the build run that would have validated it was killed by the
+`pause` signal before producing output. The patch is currently
+**stashed locally on the Devin VM** under
+`stash@{0}: On main: wip lucide manualChunks - abandoned with PR #178 (lazy AppShell) per founder pause signal`
+(see operational note 8 below for the recovery recipe).
+
+**Resume recipe for next session**:
+
+1. Re-create branch from `main`:
+   `git checkout -b devin/$(date +%s)-lazy-appshell-v2 main`.
+2. Apply the App.jsx change (`const AppShell = lazy(...)`) per
+   the diff above. Commit message can re-use PR #178's body.
+3. Apply the `vite.config.js` `manualChunks` patch above. Commit
+   separately so the bisect history is clean (PR #178 logically
+   was app code; this is a build config change).
+4. Verify locally: `cd apps/web && rm -rf dist && BUNDLE_VISUALIZER=1 npm run build`
+   and confirm `ls dist/assets/*.js | wc -l` returns ~30 (not
+   ~140) and that `dist/assets/lucide-icons-*.js` exists as a
+   single chunk. Eager chunk should still measure ~89 kB gzip.
+5. Run lint + format:check + vitest — all should pass (PR #178's
+   change had zero test impact, all 191 tests passed; the
+   manualChunks add doesn't reach test code).
+6. Push, create PR (will be #180+), wait CI, merge, SSH-deploy verify.
 
 ### Tier 1 (operational) — no follow-ups this session
 
@@ -701,3 +853,28 @@ doc, ~1,043 insertions / ~65 deletions across PR #170 + PR #171
    detection regex in the step may need adjustment. The step fails
    fast with `::error::failed to detect eager entry chunk` so the
    failure is loud, not silent.
+8. **PR #178 abandoned-work stash recovery** — the in-progress
+   `manualChunks` patch in `apps/web/vite.config.js` is preserved
+   on the Devin VM as `stash@{0}`. Future Devin sessions don't
+   share VM state with previous sessions (each session clones
+   fresh from `origin/main`), so this stash will be **lost** at
+   the next `git clone`. **The patch text is reproduced verbatim
+   in the "Abandoned work" subsection above so the next session
+   can apply it from this handoff doc directly** — no need to
+   recover the stash. If a same-VM session does need to recover
+   it: `git stash list` will show
+   `stash@{0}: On main: wip lucide manualChunks - abandoned with PR #178 (lazy AppShell) per founder pause signal`
+   and `git stash show -p stash@{0}` prints the diff. `git stash pop`
+   applies + drops it; `git stash apply` applies without dropping
+   (use this if you want to compare against the doc-text version
+   first).
+9. **Vite/Rollup chunk-fragmentation lesson (from PR #178)** — when
+   you add a new `React.lazy(() => import(...))` boundary that
+   pulls in modules already used by many other lazy routes,
+   Rollup's default `manualChunks` heuristic may decide each
+   shared module belongs in its own chunk (one chunk per icon /
+   utility / etc.). Always re-run `BUNDLE_VISUALIZER=1 npm run build`
+   AND `ls dist/assets/*.js | wc -l` after a lazy-load PR — if
+   the chunk count jumped by more than ~5, suspect fragmentation
+   and add a `manualChunks` rule to consolidate (see PR #178
+   resume recipe for the lucide-react template).
