@@ -122,7 +122,13 @@ jobs:
   test:
     name: test (--if-present)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 15 min matches the build job's headroom. The test job has more
+    # provisioning steps than build (Postgres + Redis services, MinIO
+    # docker boot, postgresql-client apt install) and one transient
+    # apt-archive slowdown can push it over a 10-minute budget — see
+    # PR #102's run 25421076324 (test job 74563134898 cancelled at
+    # 10m12s while still on `apt-get update`).
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:16-alpine
