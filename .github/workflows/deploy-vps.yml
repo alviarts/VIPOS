@@ -85,3 +85,10 @@ jobs:
           # disk-cleanup fix can't ship because the disk is too full.
           # Surface the signal, let humans triage.
           curl -sS "${CURL_OPTS[@]}" -o /dev/null -w "disk     HTTP %{http_code}\n" "http://${VPS_HOST}/vipos/api/v1/health/disk" || true
+          # Backup-freshness probe (PR #97). Same informational-only
+          # contract as the disk probe above: 503 means the most recent
+          # Postgres dump is older than threshold_hours (default 25),
+          # which is a real signal but not something a code-deploy can
+          # fix mid-flight (it'd need an out-of-band db-backup job
+          # restart). Surface in the log, let humans triage.
+          curl -sS "${CURL_OPTS[@]}" -o /dev/null -w "backup   HTTP %{http_code}\n" "http://${VPS_HOST}/vipos/api/v1/health/backup" || true
