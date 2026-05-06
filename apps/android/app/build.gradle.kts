@@ -22,12 +22,50 @@ android {
         vectorDrawables { useSupportLibrary = true }
     }
 
+    // P3-01d: three product flavors carry the per-environment
+    // configuration (API base URL, applicationId suffix, visual
+    // label). The `dimension` is required by AGP whenever any
+    // flavor is declared.
+    flavorDimensions += "environment"
+    productFlavors {
+        create("dev") {
+            dimension = "environment"
+            // Distinct applicationId so dev / staging / prod APKs can
+            // coexist on the same device without uninstall churn.
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            // 10.0.2.2 is the Android-emulator alias for the host's
+            // loopback interface; engineers running the backend at
+            // localhost:3001 reach it from the emulator via this URL.
+            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:3001\"")
+            buildConfigField("String", "ENVIRONMENT", "\"dev\"")
+        }
+        create("staging") {
+            dimension = "environment"
+            applicationIdSuffix = ".staging"
+            versionNameSuffix = "-staging"
+            // VPS staging endpoint. P3-05 (network client) wires this
+            // into the Retrofit base URL.
+            buildConfigField("String", "API_BASE_URL", "\"http://103.74.5.44\"")
+            buildConfigField("String", "ENVIRONMENT", "\"staging\"")
+        }
+        create("prod") {
+            dimension = "environment"
+            // Production endpoint — placeholder until Phase 4 turns
+            // on the public domain. P3-01d only wires the constant;
+            // the actual cut-over is gated by the founder.
+            buildConfigField("String", "API_BASE_URL", "\"https://vipos.id\"")
+            buildConfigField("String", "ENVIRONMENT", "\"prod\"")
+        }
+    }
+
     buildTypes {
         release {
-            // Phase 3 will add ProGuard rules + signing config in a
-            // follow-up PR (P3-01d). For the bootstrap PR, debug-style
-            // release is enough for `assembleDebug` / `assembleRelease`
-            // to both succeed in CI.
+            // R8 / minification + resource shrinking stay OFF until
+            // Phase 3 has actual code to shrink. Hilt + AndroidX ship
+            // their own consumer ProGuard rules inside their AARs;
+            // app-specific keep rules (if any) will go into
+            // proguard-rules.pro alongside that future flip.
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
