@@ -14,14 +14,24 @@ This module was bootstrapped in **PR P3-01a**. Currently:
 
 Subsequent sub-PRs in the P3-01 series will add:
 
-| Sub-PR     | Status         | Adds                                                                                    |
-| ---------- | -------------- | --------------------------------------------------------------------------------------- |
-| P3-01a     | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow              |
-| P3-01b     | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)               |
-| P3-01e     | done (PR #187) | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                      |
-| P3-01c     | done (PR #188) | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database` |
-| **P3-01d** | this PR        | Build flavors (`dev` / `staging` / `prod`) + per-flavor `BuildConfig` + CI matrix       |
-| P3-01f     | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)  |
+| Sub-PR    | Status         | Adds                                                                                    |
+| --------- | -------------- | --------------------------------------------------------------------------------------- |
+| P3-01a    | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow              |
+| P3-01b    | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)               |
+| P3-01e    | done (PR #187) | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                      |
+| P3-01c    | done (PR #188) | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database` |
+| P3-01d    | done (PR #189) | Build flavors (`dev` / `staging` / `prod`) + per-flavor `BuildConfig` + CI matrix       |
+| P3-01f    | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)  |
+| **P3-02** | this PR        | Real Material 3 design system — full ColorScheme (light + dark), typography, shapes     |
+
+### Design system (`:core:designsystem`)
+
+After **P3-02** the design system module ships the full Material 3 trio:
+
+- **Colors** (`theme/Color.kt`) — light + dark `ColorScheme` tokens derived from the brand teal `#04C99E` via the M3 HCT tonal palette generator. All M3 roles are wired (primary / secondary / tertiary / error / surface / surfaceVariant / outline / inverse / scrim).
+- **Typography** (`theme/Type.kt`) — full 15-style M3 type scale (display / headline / title / body / label, each at Large / Medium / Small). Uses `FontFamily.Default` (Roboto on Android) so a future custom-font swap is a one-line change.
+- **Shapes** (`theme/Shape.kt`) — canonical M3 corner-radius scale (`extraSmall=4dp`, `small=8dp`, `medium=12dp`, `large=16dp`, `extraLarge=28dp`).
+- **`VIPOSTheme(darkTheme, dynamicColor, content)`** — picks `LightColors` / `DarkColors` based on `darkTheme` (defaulted to system). When `dynamicColor = true` AND running on Android 12+, the OS-derived Material You palette wins instead — opt-in only because canonical brand surfaces should remain on-brand.
 
 ### Build flavors
 
