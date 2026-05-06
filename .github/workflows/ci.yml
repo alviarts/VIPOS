@@ -63,6 +63,55 @@ jobs:
       - name: Build all workspaces
         run: npm run build
 
+      - name: Bundle size summary
+        # PR #165: surface the web build's chunk sizes in GH Actions
+        # step summary so PR reviewers spot eager-bundle bloat without
+        # re-running the build locally. Lists the top 15 chunks by raw
+        # byte size + the eager bundle alone (index-*.js + index.es-*.js
+        # if present + the main CSS). Non-blocking — informational only;
+        # we don't fail CI on a size regression because there's no
+        # baseline to compare against (yet). The next time someone wants
+        # bundle-size budgets they can pin specific chunks here with
+        # `[ "$bytes" -lt "$budget" ] || exit 1`.
+        if: always()
+        run: |
+          set -euo pipefail
+          DIST=apps/web/dist/assets
+          if [ ! -d "$DIST" ]; then
+            echo "::warning::no $DIST directory; skipping bundle summary"
+            exit 0
+          fi
+          {
+            echo "## Web bundle (apps/web/dist/assets)"
+            echo
+            echo "### Top 15 chunks by raw size"
+            echo
+            echo "| chunk | raw | gzip est. |"
+            echo "| ----- | --- | --------- |"
+            ls -1S "$DIST"/*.js "$DIST"/*.css 2>/dev/null | head -15 | while read -r f; do
+              raw=$(stat -c '%s' "$f")
+              gz=$(gzip -c -9 "$f" | wc -c)
+              raw_kb=$(awk -v b="$raw" 'BEGIN{printf "%.2f", b/1024}')
+              gz_kb=$(awk -v b="$gz" 'BEGIN{printf "%.2f", b/1024}')
+              echo "| \`$(basename "$f")\` | ${raw_kb} kB | ${gz_kb} kB |"
+            done
+            echo
+            echo "### Eager bundle (initial download)"
+            echo
+            echo "| chunk | raw | gzip est. |"
+            echo "| ----- | --- | --------- |"
+            for pat in 'index-*.js' 'index.es-*.js' 'index-*.css'; do
+              for f in "$DIST"/$pat; do
+                [ -e "$f" ] || continue
+                raw=$(stat -c '%s' "$f")
+                gz=$(gzip -c -9 "$f" | wc -c)
+                raw_kb=$(awk -v b="$raw" 'BEGIN{printf "%.2f", b/1024}')
+                gz_kb=$(awk -v b="$gz" 'BEGIN{printf "%.2f", b/1024}')
+                echo "| \`$(basename "$f")\` | ${raw_kb} kB | ${gz_kb} kB |"
+              done
+            done
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Smoke check backend can start
         env:
           NODE_ENV: production
