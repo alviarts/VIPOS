@@ -23,7 +23,12 @@
   commit + push + buat PR + merge** (kalau CI hijau & risk≤yellow) sebelum
   lanjut. Jangan numpuk WIP di branch lokal.
 - Setiap akhir sesi (atau saat founder bilang `pause`) → update
-  `docs/handoff/YYYY-MM-DD-<descriptor>.md` dengan hasil + commit + push.
+  `docs/handoff/YYYY-MM-DD-<descriptor>.md` dengan hasil, lalu **WAJIB
+  push ke `main` via PR + squash-merge** (bukan cuma commit lokal,
+  bukan cuma push ke branch). Sesi Devin berikutnya clone fresh dari
+  `origin/main` — kalau handoff cuma ada di branch / lokal, future
+  Devin akan miss state. Aturan ini berlaku **selalu**, termasuk saat
+  founder bilang `pause` setelah sesi pendek.
 - Pakai `todo_write` di tiap task untuk tracking + visibility ke founder.
 
 **Risk gate untuk auto-merge**:
@@ -176,6 +181,14 @@ curl -sS -X POST -H "Authorization: Bearer ${GITHUB_PAT_VIPOS}" \
 
 ## 6. Handoff doc format (`docs/handoff/YYYY-MM-DD-<descriptor>.md`)
 
+**Hard rule**: handoff doc **HARUS** ter-merge ke `main` sebelum sesi
+berakhir / sebelum founder dapet konfirmasi `pause`. Bukan cuma commit
+lokal, bukan cuma push ke feature branch — full **PR + squash-merge ke
+`main`**. Sesi Devin berikutnya clone fresh dari `origin/main` dan
+baca `docs/handoff/<latest>.md` (file paling baru by date) sebagai
+entry point. Kalau file ini cuma ada di branch / lokal, future Devin
+akan miss state production + outstanding backlog.
+
 Sections wajib (urutan ini):
 
 1. **Closed timestamp + Devin session URL** (di TL;DR atau header).
@@ -225,6 +238,9 @@ diff --stat`.
 - ❌ Auto-deploy ke prod tanpa run di repo lokal dulu (lint, typecheck, build).
 - ❌ Modify production code di-VPS langsung. Selalu via PR + merge + deploy.
 - ❌ Skip handoff doc update di akhir sesi. Future Devin akan miss state.
+- ❌ Selesai handoff doc tapi cuma commit lokal / push ke branch tanpa
+  merge ke `main`. Future Devin clone dari `origin/main` dan tidak akan
+  lihat handoff yang masih nyangkut di branch. Selalu PR + squash-merge.
 - ❌ Edit `tools/scripts/deploy.sh` tanpa trigger `workflow_dispatch` setelah
   merge (chicken-egg — perubahan baru aktif di run kedua).
 - ❌ Commit secret ke repo (DSN backend, postgres pwd, dll). Tetap di env
