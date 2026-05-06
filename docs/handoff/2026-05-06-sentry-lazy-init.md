@@ -1,12 +1,12 @@
-# VIPOS Sesi Handoff — 2026-05-06 (Sentry lazy-init + bundle budget + react-hot-toast lazy)
+# VIPOS Sesi Handoff — 2026-05-06 (Sentry lazy + budget + toast lazy + bundle visualizer)
 
-Closed: 2026-05-06 ~18:57 UTC (re-closed after follow-up PR #174).
+Closed: 2026-05-06 ~19:20 UTC (re-closed after follow-up PR #176).
 Prepared by Devin in continuous-automation mode. Devin session:
 <https://app.devin.ai/sessions/d88203c179a44adb964e0bf8798b0456>
 
 Successor to `2026-05-06-disk-health-and-ci-timeout-fix.md` (which was
 "final-closed" at ~17:05 UTC after founder said `pause`). This doc
-covers the next continuous-automation session, which merged **three**
+covers the next continuous-automation session, which merged **four**
 Tier-1 PRs end-to-end:
 
 1. **PR #170** (yellow) — Sentry SDK lazy-load → eager bundle
@@ -17,22 +17,27 @@ Tier-1 PRs end-to-end:
 3. **PR #174** (yellow) — react-hot-toast lazy-load via thin
    wrapper module → eager bundle further −4.2 kB gzip; cap
    headroom grows from ~8 kB to ~14.5 kB.
+4. **PR #176** (green) — rollup-plugin-visualizer treemap as a
+   CI artifact (`web-bundle-stats`, 30-day retention) so reviewers
+   can diagnose bundle-budget regressions from the run summary
+   instead of grepping minified `dist/assets/index-*.js` locally.
 
-Total time-to-handoff after secret bootstrap: ~70 minutes across
-three PRs (PR #170 ~15 min, PR #172 ~10 min, founder cap-decision
+Total time-to-handoff after secret bootstrap: ~95 minutes across
+four PRs (PR #170 ~15 min, PR #172 ~10 min, founder cap-decision
 round-trip ~5 min, PR #174 ~25 min including new lazy-wrapper
-design + 9 regression tests, three handoff doc updates).
+design + 9 regression tests, PR #176 ~25 min including
+visualizer plugin + CI artifact upload, four handoff doc updates).
 
-(This doc was re-opened twice: first after `~18:11 UTC` to fold
-in PR #172, then again after `~18:30 UTC` to fold in PR #174,
-rather than forking separate per-PR handoff docs for tightly-
-coupled bundle-size follow-ups. The original prod numbers are
-preserved as `PR #170 close state` / `PR #172 close state`
-subsections.)
+(This doc was re-opened three times: first after `~18:11 UTC` to
+fold in PR #172, then `~18:30 UTC` for PR #174, then `~19:20 UTC`
+for PR #176, rather than forking separate per-PR handoff docs for
+tightly-coupled bundle-tooling follow-ups. The original prod
+numbers are preserved as `PR #170 close state` / `PR #172 close
+state` / `PR #174 close state` subsections.)
 
 ## TL;DR
 
-Three PRs merged + auto-deployed back-to-back in one continuous run.
+Four PRs merged + auto-deployed back-to-back in one continuous run.
 **The Sentry SDK no longer ships in the eager `index-*.js` chunk**
 (PR #170) — it's been promoted to a dynamic `import('@sentry/react')`
 scheduled via `requestIdleCallback` after first paint. Errors during
@@ -61,6 +66,16 @@ PR #174 followed the same lazy-wrapper pattern as PR #170 but for
 `react-hot-toast` (and its `goober` CSS-in-JS dep) into a 5 kB gzip
 lazy chunk. **−4.2 kB gzip on the eager bundle (-4.2%)**; cap
 headroom grows from ~8 kB to ~14.5 kB.
+
+PR #176 closes the bundle-tooling story by emitting a per-build
+treemap (rollup-plugin-visualizer) as a CI artifact
+(`web-bundle-stats`, 30-day retention). Future bundle-budget
+bumps and lazy-load PRs can diagnose regressions visually instead
+of having to grep into minified `dist/assets/index-*.js`. The
+plugin is gated behind `BUNDLE_VISUALIZER=1`; CI sets it on every
+build, local devs only emit `dist/stats.html` on opt-in. Build
+output is byte-identical with or without the env var (verified
+by chunk hash).
 
 Net effect:
 
@@ -120,15 +135,17 @@ Prod state at close (post-PR #172 deploy):
 
 ## All PRs merged this session
 
-| PR   | Branch                                  | Subject                                                                      | Risk   | Status                                                                                                                                                         |
-| ---- | --------------------------------------- | ---------------------------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #170 | `devin/1778089953-sentry-lazy-init`     | perf(web): lazy-load Sentry SDK after first paint (-25 kB gzip eager bundle) | yellow | merged `0c2439b`; deploy 25452632891 ✅; production verified (eager bundle 102.02 kB gzip post-deploy)                                                         |
-| #171 | `devin/1778091098-handoff-sentry-lazy`  | docs(handoff): close 2026-05-06 Sentry lazy-init session (PR #170)           | green  | merged `ddd3dd8`; deploy 25453068273 ✅; this doc was the original close — re-opened to fold in PR #172 + PR #174                                              |
-| #172 | `devin/1778091701-bundle-size-budget`   | ci(web): enforce eager-bundle gzip budget at 110 kB                          | green  | merged `7371b45`; deploy 25453547650 ✅; CI bundle-budget step shows eager `index-CoGD66kV.js` 101,797 B gzip (99.41 kB) under 110 kB cap on `main`            |
-| #173 | `devin/1778092250-handoff-budget-pr`    | docs(handoff): re-close 2026-05-06 session with PR #172 (bundle-size budget) | green  | merged `f7dd8a6`; deploy 25454061637 ✅; this doc was the second close — re-opened to fold in PR #174                                                          |
-| #174 | `devin/1778093115-lazy-react-hot-toast` | perf(web): lazy-load react-hot-toast (-4.2 kB gzip eager bundle)             | yellow | merged `81a941c`; deploy 25454817872 ✅; CI bundle-budget step shows eager `index-DIrvQ15_.js` 95.20 kB gzip (cap 110 kB), production rebuilt to 97.76 kB gzip |
+| PR   | Branch                                  | Subject                                                                        | Risk   | Status                                                                                                                                                            |
+| ---- | --------------------------------------- | ------------------------------------------------------------------------------ | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #170 | `devin/1778089953-sentry-lazy-init`     | perf(web): lazy-load Sentry SDK after first paint (-25 kB gzip eager bundle)   | yellow | merged `0c2439b`; deploy 25452632891 ✅; production verified (eager bundle 102.02 kB gzip post-deploy)                                                            |
+| #171 | `devin/1778091098-handoff-sentry-lazy`  | docs(handoff): close 2026-05-06 Sentry lazy-init session (PR #170)             | green  | merged `ddd3dd8`; deploy 25453068273 ✅; this doc was the original close — re-opened to fold in PR #172 + PR #174                                                 |
+| #172 | `devin/1778091701-bundle-size-budget`   | ci(web): enforce eager-bundle gzip budget at 110 kB                            | green  | merged `7371b45`; deploy 25453547650 ✅; CI bundle-budget step shows eager `index-CoGD66kV.js` 101,797 B gzip (99.41 kB) under 110 kB cap on `main`               |
+| #173 | `devin/1778092250-handoff-budget-pr`    | docs(handoff): re-close 2026-05-06 session with PR #172 (bundle-size budget)   | green  | merged `f7dd8a6`; deploy 25454061637 ✅; this doc was the second close — re-opened to fold in PR #174                                                             |
+| #174 | `devin/1778093115-lazy-react-hot-toast` | perf(web): lazy-load react-hot-toast (-4.2 kB gzip eager bundle)               | yellow | merged `81a941c`; deploy 25454817872 ✅; CI bundle-budget step shows eager `index-DIrvQ15_.js` 95.20 kB gzip (cap 110 kB), production rebuilt to 97.76 kB gzip    |
+| #175 | `devin/1778093875-handoff-toast-lazy`   | docs(handoff): re-close 2026-05-06 session with PR #174 (react-hot-toast lazy) | green  | merged `c6381fb`; deploy 25455420041 ✅; this doc was the third close — re-opened to fold in PR #176                                                              |
+| #176 | `devin/1778094590-bundle-visualizer`    | ci(web): emit + upload bundle treemap (rollup-plugin-visualizer)               | green  | merged `ed93a46`; deploy 25455922786 ✅; CI run 25455922841 emitted `web-bundle-stats` artifact (137,546 B compressed); production eager rebuilt to 97,734 B gzip |
 
-All five PRs were implemented end-to-end this session. CI ran 3/3
+All seven PRs were implemented end-to-end this session. CI ran 3/3
 green on the first push for each (lint + format:check, test
 --if-present, build web + backend) — no reruns needed across any
 of them.
@@ -389,51 +406,55 @@ so the missing toast is not the user-visible problem.
 
 ### VPS (103.74.5.44)
 
-- Repo path: `/var/www/vipos`. `git log --oneline -5`:
+- Repo path: `/var/www/vipos`. `git log --oneline -7`:
   ```
+  ed93a46 ci(web): emit + upload bundle treemap (rollup-plugin-visualizer) (#176)
+  c6381fb docs(handoff): re-close 2026-05-06 session with PR #174 (react-hot-toast lazy) (#175)
   81a941c perf(web): lazy-load react-hot-toast (-4.2 kB gzip eager bundle) (#174)
   f7dd8a6 docs(handoff): re-close 2026-05-06 session with PR #172 (bundle-size budget) (#173)
   7371b45 ci(web): enforce eager-bundle gzip budget at 110 kB (#172)
   ddd3dd8 docs(handoff): close 2026-05-06 Sentry lazy-init session (PR #170) (#171)
   0c2439b perf(web): lazy-load Sentry SDK after first paint (#170)
   ```
-- pm2 list (post-PR-#174 deploy):
-  ```
-  finance-bot-tg    online  6D uptime    67.x MB
-  vipos-backend     online  ~99s uptime  141.x MB
-  vipos-worker      online  ~97s uptime  54.x MB
-  pm2-logrotate     online  (untouched)  37.x MB
-  ```
-  `bot-wa` remains absent (deleted in
+- pm2 list (post-PR-#176 deploy): all four processes online
+  (`finance-bot-tg`, `vipos-backend`, `vipos-worker`,
+  `pm2-logrotate`); `bot-wa` remains absent (deleted in
   `2026-05-06-tier1-perf-followups.md` session).
-- Disk: `/dev/sda1` 35 GB / 49 GB (~71% used). Unchanged across
-  PR #170 → PR #172 → PR #174 deploys — comfortably under the
-  `/api/v1/health/disk` 90% threshold.
+- Disk: `/dev/sda1` ~71% used. Unchanged across
+  PR #170 → PR #172 → PR #174 → PR #176 deploys — comfortably
+  under the `/api/v1/health/disk` 90% threshold.
 - Health probes (verified by SSH `curl localhost:3001/...`
-  immediately after PR #174 deploy):
-  - `/api/health` → `{"status":"ok","db":{"latency_ms":28},"redis":{"latency_ms":5}}`
-  - `/api/v1/health/disk` → `{"status":"ok","used_percent":71.19}`
-  - `/api/v1/health/backup` → `{"status":"ok","age_hours":12.158}`
-- Frontend bundles served (post-PR #174 deploy rebuild):
-  - Eager: `apps/web/dist/assets/index-Do0DuQOR.js` =
-    **305,296 bytes raw / 97,758 bytes gzip** (under the
-    110 kB cap with ~14.55 kB / 13.2% headroom — best
-    headroom in the project's history).
-  - Lazy Sentry chunk: `apps/web/dist/assets/index-BD4U5CaG.js` =
-    **360,647 bytes raw / 120,331 bytes gzip**, fetched only after
-    first paint when `initSentry()` runs.
-  - Lazy react-hot-toast chunk:
-    `apps/web/dist/assets/index-DO0a46Wi.js` =
-    **12,568 bytes raw / 5,081 bytes gzip**, fetched on the
-    first `toast(...)` call or first Toaster mount (whichever
-    happens first).
-  - `dist/index.html` `<script>` reference: `index-Do0DuQOR.js`
-    only (both lazy chunks are loaded on demand, not preloaded).
+  immediately after PR #176 deploy):
+  - `/api/health` → `{"status":"ok","db":{"latency_ms":32},"redis":{"latency_ms":9}}`
+- Frontend bundles served (post-PR #176 deploy rebuild):
+  - Eager: `apps/web/dist/assets/index-BAAkMglR.js` =
+    **305,296 bytes raw / 97,734 bytes gzip** (under the
+    110 kB cap with ~14.56 kB / 13.2% headroom — best
+    headroom in the project's history; bundle bytes are
+    effectively identical to PR #174's deploy build, confirming
+    PR #176 introduced no functional changes).
+  - `dist/stats.html` is **not** present in the production
+    `dist/` (deploy script does not set `BUNDLE_VISUALIZER=1`,
+    intentionally — the treemap is a CI-side diagnostic, not
+    something we want to ship publicly under `/vipos/stats.html`).
   - The CI bundle-budget step on the merge commit reported the
-    eager chunk at **95.20 kB gzip / 97,486 bytes** for the
-    runner build (no Sentry source-maps upload → ~270 bytes
-    smaller than the deploy build); both numbers are well under
-    the 110 kB cap.
+    eager chunk at **95.42 kB gzip** for the runner build
+    (no Sentry source-maps upload → ~250 bytes smaller than the
+    deploy build); both numbers are well under the 110 kB cap.
+  - The CI build also produced a `web-bundle-stats` artifact
+    (137,546 bytes compressed, 30-day retention) on run
+    25455922841 — first artifact from the new visualizer step.
+
+### PR #174 close state (preserved for reference)
+
+- Backend HEAD on `main` at PR #174 close: `81a941c`.
+- Frontend chunks at PR #174 deploy rebuild:
+  `index-Do0DuQOR.js` = 305,296 bytes raw / **97,758 bytes
+  gzip** (eager); `index-BD4U5CaG.js` = 360,647 bytes raw /
+  120,331 bytes gzip (lazy Sentry); `index-DO0a46Wi.js` =
+  12,568 bytes raw / 5,081 bytes gzip (lazy react-hot-toast).
+- `/api/health` db latency 28 ms / redis 5 ms; disk 71.19%;
+  backup age 12.158 h.
 
 ### PR #172 close state (preserved for reference)
 
@@ -537,6 +558,14 @@ block to keep the improved entry-detection summary without the cap.
   Vite's other CSS-in-JS users). Eager chunk now
   **97,758 B gzip / 95.46 kB** post-deploy with ~14.5 kB / 13.2%
   headroom under the 110 kB cap.
+- ~~**Bundle visualizer + CI artifact**~~ — **✅ DONE this session
+  (PR #176)**. `rollup-plugin-visualizer` 5.x emits a treemap
+  to `apps/web/dist/stats.html` when `BUNDLE_VISUALIZER=1`; CI
+  sets the env var on every build and uploads the file as the
+  `web-bundle-stats` artifact (30-day retention). First artifact
+  appeared on run 25455922841 (137,546 B compressed). Future
+  bundle-budget bumps can use the treemap to identify the next
+  lazy-load candidate without grepping into minified chunks.
 - **`xlsx@0.18.5` high CVE eradication** — see Tier 2 carry-over.
   Listed here as a placeholder note that PR #170 / #172 / #174 did
   not touch `xlsx`; its 429 kB lazy chunk is unchanged and still
@@ -547,18 +576,23 @@ backlog items remain that yield ≥3 kB gzip.** Remaining candidate
 for a future session: extract `axios` (~16 kB gzip in the eager
 chunk) into a lazy chunk by deferring the AuthContext's bootstrap
 `/auth/me` + `/auth/refresh` calls to a `useEffect()` that
-dynamic-imports axios. This is a yellow-to-red risk refactor (touches
-~30+ files that import `utils/api.js` + changes the auth bootstrap
-ordering), so worth budgeting ~3-4 hours and getting founder buy-in
-before starting. Estimated savings: −10-15 kB gzip on the eager
-chunk (axios isn't fully tree-shakable; ~2-4 kB stays for the
-type definitions / interceptor scaffolding that AuthContext uses
-before the dynamic import resolves).
+dynamic-imports axios. This is a **yellow-to-red risk refactor**
+(touches ~30+ files that import `utils/api.js` + changes the auth
+bootstrap ordering). Per protocol §7, the mass-user-invalidation
+risk if the refactor breaks pushes this into red territory —
+**block on founder approval before starting**. Estimated savings:
+−10-15 kB gzip on the eager chunk (axios isn't fully tree-shakable;
+~2-4 kB stays for the type definitions / interceptor scaffolding
+that AuthContext uses before the dynamic import resolves). The
+bundle visualizer (PR #176) treemap is the right tool to verify
+this estimate before greenlighting the refactor: download the
+`web-bundle-stats` artifact from any recent CI run on `main`, open
+`stats.html`, and inspect the eager chunk's axios subtree.
 
 ### Tier 1 (operational) — no follow-ups this session
 
-PR #170, #172, #174 are all single-purpose source-code or CI
-changes. CI ran 3/3 green on the first push for each; deploys
+PR #170, #172, #174, #176 are all single-purpose source-code or
+CI changes. CI ran 3/3 green on the first push for each; deploys
 ran ✅ on the first attempt. No operational tweaks layered.
 
 ### Tier 2 — blocked on founder input
@@ -587,21 +621,31 @@ features`, original initial PR) — still open from project genesis.
 ```
 apps/web/src/lib/sentry.js                    | 232 +/- 33   PR #170 (rewrite to lazy-load + pre-init buffer)
 apps/web/src/__tests__/SentryLazyInit.test.js | 204 ++       PR #170 (new — 10 cases)
-.github/workflows/ci.yml                      |  83 +/- 25   PR #172 (rewrite + budget enforcement)
+.github/workflows/ci.yml                      | 104 +/- 25   PR #172 (rewrite + budget enforcement) + PR #176 (visualizer artifact)
 apps/web/src/utils/toast.js                   | 149 ++       PR #174 (new lazy wrapper around react-hot-toast)
 apps/web/src/__tests__/ToastLazy.test.js      | 191 ++       PR #174 (new — 9 cases)
 apps/web/src/main.jsx                         |  16 +/-  6   PR #174 (Toaster lazy + Suspense wrap)
 apps/web/src/pages/LoginPage.jsx              |   8 +/-  1   PR #174 (toast import via wrapper)
-docs/handoff/2026-05-06-sentry-lazy-init.md   | (this file)  handoff PR (created by #171, updated by #173 + this re-close PR)
+apps/web/vite.config.js                       |  26 ++       PR #176 (rollup-plugin-visualizer plugin gated by BUNDLE_VISUALIZER)
+apps/web/package.json                         |   1 ++       PR #176 (devDep: rollup-plugin-visualizer ^5.14.0)
+package-lock.json                             | 112 ++       PR #176 (lock for rollup-plugin-visualizer + transitive deps)
+docs/handoff/2026-05-06-sentry-lazy-init.md   | (this file)  handoff PR (created by #171, updated by #173, #175, this re-close PR)
 ```
 
-Total: 6 source files + 1 ci workflow + 1 handoff doc,
-~880 insertions / ~65 deletions across PR #170 + PR #171 +
-PR #172 + PR #173 + PR #174 + this re-close handoff PR.
+Total: 7 source files + 1 ci workflow + 1 lockfile + 1 handoff
+doc, ~1,043 insertions / ~65 deletions across PR #170 + PR #171
+
+- PR #172 + PR #173 + PR #174 + PR #175 + PR #176 + this re-close
+  handoff PR.
 
 ## Operational notes for next session
 
-1. **The eager `index-*.js` is now hash `Do0DuQOR`** (97.76 kB gzip).
+1. **The eager `index-*.js` is now hash `BAAkMglR`** (97.74 kB gzip).
+   Production rebuilds get a fresh hash on every deploy because
+   the Sentry source-map upload mutates the chunk; CI runner
+   builds (no source-maps) produce a stable hash per source-tree
+   state. Use the `web-bundle-stats` CI artifact (PR #176) for
+   per-chunk inspection rather than chasing hashes.
    If it suddenly grows back past ~110 kB gzip without a corresponding
    feature PR, suspect a regression of one of the lazy-loads:
    - Sentry: someone added `import * as Sentry from '@sentry/react'`
