@@ -1,18 +1,18 @@
 # VIPOS Sesi Handoff — 2026-05-06 (Tier-1 perf follow-ups)
 
-Closed: 2026-05-06 ~10:18 UTC. Prepared by Devin in continuous-automation
+Closed: 2026-05-06 ~10:30 UTC. Prepared by Devin in continuous-automation
 mode. Devin session:
 <https://app.devin.ai/sessions/52c2da66635d43a9a7c774b05036ae66>
 
 Successor to `2026-05-06-phase1-ac-completion-and-bundle-split.md` (which
 captured PRs #112–#119 / per-AC ticks + initial route-level
-`React.lazy`). This doc starts at PR #122 and ends at PR #124, covering
-the three Tier-1 backlog items that were ready to execute autonomously
+`React.lazy`). This doc starts at PR #122 and ends at PR #126, covering
+the four Tier-1 backlog items that were ready to execute autonomously
 this session.
 
 ## TL;DR
 
-Three green/yellow PRs merged in one continuous run while resolving an
+Four green/yellow PRs merged in one continuous run while resolving an
 expired-PAT incident. **`apps/web` lazy chunks ≥ 400 kB previously**
 (`ReportFilterBar` 717 kB and `DashboardPage` 417 kB) **both shrunk to
 ~10–31 kB by lifting their heavy deps into per-feature dynamic imports**
@@ -150,6 +150,25 @@ Net UX: KPI cards / QuickActions / outlet selector / DateRangePicker
 render right away; both chart cards show 'Memuat grafik…' for the brief
 window while the recharts chunk lands (~334 kB; instant on broadband,
 ~1 s on 3G). Page shell renders well under a second on slow networks.
+
+### PR #126 — prefetch dashboard chart chunks on mount
+
+Follow-up to #124 to mask the brief 'Memuat grafik…' fallback. Added a
+one-shot `useEffect` in `DashboardPage` that fires `import('.../RevenueChart')`
+
+- `import('.../TopProductChart')` as fire-and-forget prefetch. Dynamic
+  imports are cached by the bundler, so the `React.lazy(() => import(…))`
+  calls reuse the same promise at render time — the recharts chunk
+  downloads in parallel with the four `/dashboard/*` API fetches.
+
+Bundle delta: `DashboardPage-*.js` 30.83 kB → 31.00 kB (+0.17 kB for the
+extra effect). Charts and `CartesianChart` chunks unchanged. No new
+chunks. Vite warning still absent.
+
+Risk: green (additive prefetch only; no render-path change). `vi.mock`
+in `DashboardPage.test.jsx` continues to intercept the prefetch dynamic
+import via vitest hoisting. All 14 web test files / 82 tests still
+green.
 
 ## Production state at close
 
@@ -296,19 +315,25 @@ new script.
   - (c) No-op — keep status quo. **Recommendation**: leave it stopped
     until the founder explicitly asks to revisit. Risk: green / yellow.
     Estimate: 0.5–2 hours depending on path.
-- **DashboardPage chart loading flicker** — `<ChartFallback>` renders for
-  the brief window while `CartesianChart-*.js` lands. On first
-  navigation the user sees 'Memuat grafik…' for ~300 ms on broadband.
-  Could be smoothed with: (a) `link rel=modulepreload` on the chart
-  chunks from inside the DashboardPage shell, (b) a more visually
-  matched skeleton (gray bars where the chart will be) instead of the
-  generic `<ChartFallback>`. Risk: green. Estimate: 1 hour.
-- **xlsx / jspdf preload on Reports navigation** — same idea: when
-  `ReportFilterBar` mounts, optionally `link rel=prefetch` `xlsx-*.js`
-  - `jspdf.es.min-*.js` so the first Export click feels instant.
-    Trade-off: extra background bandwidth for users who never export.
-    Defer until we have telemetry on how often `/reports/*` users actually
-    export. Risk: yellow. Estimate: 1–2 hours + measurement.
+- **`<ChartFallback>` visual matching** — current placeholder is a flat
+  gray block with 'Memuat grafik…'. Could swap for a skeleton that
+  mimics the actual chart axes / grid (Tailwind `animate-pulse` on bar
+  shapes) so first-paint is even smoother. PR #126 already prefetches
+  the recharts chunk on `DashboardPage` mount, so the fallback is
+  rarely visible — this is mostly belt-and-suspenders. Risk: green.
+  Estimate: 30 min.
+- **xlsx / jspdf preload on Reports navigation** — when
+  `ReportFilterBar` mounts, optionally fire-and-forget
+  `import('xlsx')` + `import('jspdf')` + `import('jspdf-autotable')`
+  so the first Export click feels instant. Trade-off: extra background
+  bandwidth (~850 kB) for users who never export. Defer until we have
+  telemetry on how often `/reports/*` users actually export. Risk:
+  yellow. Estimate: 1 hour + measurement.
+- **Export busy-state UX in `ExportButtons`** — when xlsx/PDF chunk is
+  downloading, the Export trigger is disabled (opacity-50) but doesn't
+  show a spinner or text change. Users on slow networks may wonder if
+  the click registered. Add an inline spinner + 'Memuat…' label when
+  `busy=true`. Risk: green. Estimate: 30 min.
 
 ### Tier 2 — blocked on founder input
 
@@ -339,13 +364,13 @@ apps/web/src/__tests__/OnboardingPage.test.jsx    |  4 ++--   PR #123
 apps/web/src/__tests__/ProductTabs.test.jsx       |  2 +-     PR #123
 apps/web/src/__tests__/Sidebar.test.jsx           |  2 +-     PR #123
 apps/web/src/components/reports/ExportButtons.jsx | 28 ++++++++++++++++-----     PR #122
-apps/web/src/pages/DashboardPage.jsx              | 30 +++++++++++++++++++----   PR #124
+apps/web/src/pages/DashboardPage.jsx              | 39 ++++++++++++++++++++++++++   PRs #124, #126
 apps/web/src/utils/exportTable.js                 | 23 +++++++++++++----    PR #122
-docs/handoff/2026-05-06-tier1-perf-followups.md   | (this file)             handoff PR
+docs/handoff/2026-05-06-tier1-perf-followups.md   | (this file + post-#126 amend)   handoff PRs #125, #127
 ```
 
-Total: 6 source files, 70 insertions / 19 deletions across PRs
-#122–#124.
+Total: 6 source files, ~80 insertions / 19 deletions across PRs
+#122–#126.
 
 ## Smoke test infrastructure
 
