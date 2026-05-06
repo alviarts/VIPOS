@@ -406,7 +406,7 @@ export default function LoyaltyPage() {
       setTiers(t.data);
       setLedger(l.data);
       setCustomers((c.data?.items || c.data || []).map((cust) => cust));
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal memuat data loyalty');
     } finally {
       setLoading(false);
@@ -422,7 +422,7 @@ export default function LoyaltyPage() {
       await api.delete(`/loyalty-rule/${id}`);
       toast.success('Rule dihapus');
       load();
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal hapus rule');
     } finally {
       setConfirmDelete(null);

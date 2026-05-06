@@ -364,7 +364,7 @@ export default function CouponsPage() {
       setList(listRes.data);
       setBatches(batchRes.data);
       setPromos(promoRes.data);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal memuat data kupon');
     } finally {
       setLoading(false);
@@ -381,7 +381,7 @@ export default function CouponsPage() {
       await api.delete(`/coupon/${id}`);
       toast.success('Kupon dihapus');
       load();
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal hapus kupon');
     } finally {
       setConfirmDelete(null);
@@ -393,7 +393,7 @@ export default function CouponsPage() {
       const res = await api.delete(`/coupon/batch/${batchId}`);
       toast.success(`${res.data.updated} kupon dinonaktifkan`);
       load();
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal deactivate batch');
     } finally {
       setConfirmBatchDelete(null);

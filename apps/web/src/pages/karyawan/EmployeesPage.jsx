@@ -92,7 +92,7 @@ export default function EmployeesPage() {
       if (search) params.set('search', search);
       const { data } = await api.get(`/employee?${params.toString()}`);
       setEmployees(Array.isArray(data) ? data : []);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal memuat karyawan');
     }
   }

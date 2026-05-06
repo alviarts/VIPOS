@@ -65,7 +65,7 @@ export default function NotificationsPage() {
         via_sms: !!next.via_sms,
         via_email: !!next.via_email,
       });
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal simpan');
       load();
     } finally {

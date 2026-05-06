@@ -62,7 +62,7 @@ export default function PromosPage() {
     try {
       const res = await api.get('/promo');
       setPromos(res.data);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal memuat promo');
     } finally {
       setLoading(false);
@@ -106,7 +106,7 @@ export default function PromosPage() {
       await api.delete(`/promo/${id}`);
       toast.success('Promo dihapus');
       load();
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal hapus promo');
     } finally {
       setConfirmDelete(null);
@@ -116,7 +116,7 @@ export default function PromosPage() {
     try {
       await api.put(`/promo/${promo.id}`, { is_active: !promo.is_active });
       load();
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal update status');
     }
   }

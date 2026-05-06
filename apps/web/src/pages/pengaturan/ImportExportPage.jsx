@@ -40,7 +40,7 @@ export default function ImportExportPage() {
       a.click();
       URL.revokeObjectURL(url);
       toast.success(`${ENTITY_LABEL[entity] || entity} di-export`);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal export');
     } finally {
       setBusy(false);

@@ -45,7 +45,7 @@ export default function DepartmentsPage() {
     try {
       const res = await api.get('/departments');
       setDepartments(res.data);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal memuat departemen');
     } finally {
       setLoading(false);
@@ -149,7 +149,7 @@ export default function DepartmentsPage() {
     try {
       await api.post('/departments/reorder', { ids: next });
       toast.success('Urutan tersimpan');
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal simpan urutan, refresh');
       loadData();
     }

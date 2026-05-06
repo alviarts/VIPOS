@@ -51,7 +51,7 @@ export default function CustomerGroupsPage() {
     try {
       const res = await api.get('/customer-groups');
       setGroups(res.data);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal memuat grup');
     }
   }
@@ -59,7 +59,7 @@ export default function CustomerGroupsPage() {
     try {
       const res = await api.get('/customer-tags');
       setTags(res.data);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal memuat tag');
     }
   }

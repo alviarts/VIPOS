@@ -80,7 +80,7 @@ export default function TerminalsPage() {
       await api.post(`/terminal/${id}/heartbeat`);
       toast.success('Heartbeat tercatat');
       load();
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal');
     }
   }
@@ -90,7 +90,7 @@ export default function TerminalsPage() {
       await api.delete(`/terminal/${confirmDel.id}`);
       setConfirmDel(null);
       load();
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal');
     }
   }

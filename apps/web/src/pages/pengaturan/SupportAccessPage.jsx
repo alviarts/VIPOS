@@ -53,7 +53,7 @@ export default function SupportAccessPage() {
       await api.post(`/support-access/${g.id}/revoke`);
       toast.success('Akses dicabut');
       load();
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal');
     }
   }

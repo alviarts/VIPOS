@@ -59,7 +59,7 @@ export default function CategoriesPage() {
       ]);
       setCategories(catRes.data);
       setDepartments(deptRes.data);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal memuat data');
     }
   };
@@ -266,7 +266,7 @@ export default function CategoriesPage() {
     try {
       await api.post('/categories/reorder', { ids, department_id });
       toast.success('Urutan kategori tersimpan');
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal simpan urutan, refresh');
       // Rollback by reload.
       const fresh = byId; // keep ref to suppress unused warning

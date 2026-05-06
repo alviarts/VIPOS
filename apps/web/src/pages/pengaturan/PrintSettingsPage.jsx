@@ -34,7 +34,7 @@ export default function PrintSettingsPage() {
       );
       await Promise.all(ops);
       toast.success('Disimpan');
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal');
     } finally {
       setSaving(false);
