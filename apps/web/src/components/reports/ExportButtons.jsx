@@ -4,7 +4,7 @@
 // `apps/web/src/utils/exportTable.js`. Bisa di-disable kalau rows kosong.
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { Download, FileSpreadsheet, FileText, Code2, ChevronDown } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, Code2, ChevronDown, Loader2 } from 'lucide-react';
 import { exportCsv, exportXlsx, exportPdf, exportJson } from '../../utils/exportTable';
 
 export default function ExportButtons({
@@ -52,10 +52,20 @@ export default function ExportButtons({
         disabled={isDisabled}
         className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
         data-testid="report-export-trigger"
+        aria-busy={busy}
       >
-        <Download className="h-4 w-4" />
-        Export
-        <ChevronDown className="h-4 w-4" />
+        {busy ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            Memuat…
+          </>
+        ) : (
+          <>
+            <Download className="h-4 w-4" aria-hidden="true" />
+            Export
+            <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          </>
+        )}
       </button>
       {open && !isDisabled && (
         <div
