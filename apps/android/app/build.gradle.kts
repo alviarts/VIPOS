@@ -64,6 +64,17 @@ android {
 }
 
 dependencies {
+    // P3-01c: depend on the project's `:core:*` library modules.
+    // `:core:common` carries shared value types (e.g. AppConfig).
+    // `:core:designsystem` carries the VIPOSTheme + Material 3
+    // ColorScheme. `:core:network` and `:core:database` ship empty
+    // placeholders today; their concrete primitives land in P3-04
+    // and P3-05 respectively.
+    implementation(project(":core:common"))
+    implementation(project(":core:designsystem"))
+    implementation(project(":core:network"))
+    implementation(project(":core:database"))
+
     implementation(libs.androidx.core.ktx)
     // Backport of the SplashScreen APIs (P3-01e) — provides a
     // consistent splash window across API 21..31+ and lets us swap

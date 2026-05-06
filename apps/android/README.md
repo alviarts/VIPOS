@@ -18,10 +18,32 @@ Subsequent sub-PRs in the P3-01 series will add:
 | ---------- | -------------- | --------------------------------------------------------------------------------------- |
 | P3-01a     | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow              |
 | P3-01b     | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)               |
-| **P3-01e** | this PR        | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                      |
-| P3-01c     | pending        | Modular split — `:core:designsystem`, `:core:network`, `:core:database`, `:core:common` |
+| P3-01e     | done (PR #187) | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                      |
+| **P3-01c** | this PR        | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database` |
 | P3-01d     | pending        | Build flavors (`dev` / `staging` / `prod`) + ProGuard rules + signing                   |
 | P3-01f     | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)  |
+
+### Module structure
+
+After P3-01c the project graph is:
+
+```
+:app
+├── :core:common         (shared value types — AppConfig)
+├── :core:designsystem   (VIPOSTheme + Material 3 color scheme)
+├── :core:network        (placeholder; OkHttp/Retrofit primitives in P3-05)
+└── :core:database       (placeholder; Room primitives in P3-04)
+```
+
+- `:core:*` modules are AGP `library` modules (`com.android.library`).
+  Each has its own `namespace` (e.g. `id.alviarts.vipos.core.common`)
+  and the same Java 17 / Kotlin 1.9.24 / Compose 1.5.14 toolchain as
+  `:app`.
+- Hilt code-gen stays in `:app` only; `:core:*` modules can declare
+  `@Inject` constructors / `@Provides` modules, but the
+  annotation-processing classpath is set up exclusively at the
+  application module today.
+- New feature modules will follow the same pattern under `:feature:*`.
 
 ### Branding
 
