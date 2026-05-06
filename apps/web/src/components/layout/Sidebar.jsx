@@ -9,14 +9,7 @@
 // triggered by the `Header` hamburger button (controlled via `mobileOpen`).
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import {
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  PanelLeft,
-  Store,
-  X,
-} from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, PanelLeft, Store, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { usePermission } from '../../context/PermissionContext';
 import { filterMenuGroups, MENU_GROUPS } from '../../data/menu-groups';

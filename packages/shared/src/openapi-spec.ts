@@ -5,10 +5,10 @@
 //   const doc = generateOpenApiDocument();
 //   res.json(doc);
 
-import { OpenApiGeneratorV31 } from "@asteasolutions/zod-to-openapi";
-import { registry } from "./openapi";
+import { OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi';
+import { registry } from './openapi';
 // Side-effect import: pastikan semua schema sudah di-register.
-import "./schemas";
+import './schemas';
 
 export interface GenerateOptions {
   /** Versi API. Default: 1.0.0 */
@@ -20,16 +20,16 @@ export interface GenerateOptions {
 }
 
 export function generateOpenApiDocument(opts: GenerateOptions = {}) {
-  const { version = "1.0.0", title = "VIPOS API", serverUrl = "/" } = opts;
+  const { version = '1.0.0', title = 'VIPOS API', serverUrl = '/' } = opts;
   const generator = new OpenApiGeneratorV31(registry.definitions);
 
   return generator.generateDocument({
-    openapi: "3.1.0",
+    openapi: '3.1.0',
     info: {
       version,
       title,
       description:
-        "Auto-generated dari Zod schemas di `@vipos/shared`. Endpoint dilindungi JWT (kecuali POST /auth/login).",
+        'Auto-generated dari Zod schemas di `@vipos/shared`. Endpoint dilindungi JWT (kecuali POST /auth/login).',
     },
     servers: [{ url: serverUrl }],
   });

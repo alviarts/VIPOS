@@ -96,10 +96,7 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
          LIMIT $${nextIdx} OFFSET $${nextIdx + 1}`,
       rowsParams
     );
-    const totalR = await query(
-      `SELECT count(*)::int AS count FROM audit_logs ${whereSql}`,
-      params
-    );
+    const totalR = await query(`SELECT count(*)::int AS count FROM audit_logs ${whereSql}`, params);
 
     res.json({
       rows: rowsR.rows,
@@ -140,10 +137,7 @@ router.get('/export.csv', authenticateToken, requireAdmin, async (req, res) => {
       params
     );
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader(
-      'Content-Disposition',
-      'attachment; filename="audit-log.csv"'
-    );
+    res.setHeader('Content-Disposition', 'attachment; filename="audit-log.csv"');
     const lines = [
       'id,user_id,entity,entity_id,action,before_json,after_json,ip,user_agent,created_at',
     ];

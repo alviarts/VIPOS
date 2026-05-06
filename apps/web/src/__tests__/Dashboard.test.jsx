@@ -29,7 +29,7 @@ describe('KpiCards', () => {
           low_stock: 0,
         }}
         loading={false}
-      />,
+      />
     );
     expect(screen.getByText(/1\.500\.000/)).toBeInTheDocument();
     expect(screen.getByText('12')).toBeInTheDocument();
@@ -41,7 +41,7 @@ describe('QuickActions', () => {
     render(
       <MemoryRouter>
         <QuickActions />
-      </MemoryRouter>,
+      </MemoryRouter>
     );
     expect(screen.getByText('Kasir Baru')).toBeInTheDocument();
     expect(screen.getByText('Tambah Produk')).toBeInTheDocument();
@@ -62,7 +62,9 @@ describe('DateRangePicker', () => {
 
   it('applies "Hari ini" preset when clicked', () => {
     const onChange = vi.fn();
-    render(<DateRangePicker value={{ start: '2025-01-01', end: '2025-01-31' }} onChange={onChange} />);
+    render(
+      <DateRangePicker value={{ start: '2025-01-01', end: '2025-01-31' }} onChange={onChange} />
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Hari ini' }));
     const last = onChange.mock.calls[onChange.mock.calls.length - 1][0];
     expect(last.start).toBe(last.end);

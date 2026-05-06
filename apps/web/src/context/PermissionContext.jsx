@@ -52,12 +52,16 @@ const FULL_ACCESS_ROLES = new Set([ROLES.OWNER, ROLES.ADMIN]);
 
 function normalizeRole(role) {
   if (!role) return ROLES.STAFF;
-  return String(role).toLowerCase().replace(/[^a-z_]/g, '_');
+  return String(role)
+    .toLowerCase()
+    .replace(/[^a-z_]/g, '_');
 }
 
 function normalizeTier(tier) {
   if (!tier) return TIERS.LITE;
-  return String(tier).toLowerCase().replace(/[^a-z_]/g, '_');
+  return String(tier)
+    .toLowerCase()
+    .replace(/[^a-z_]/g, '_');
 }
 
 export function PermissionProvider({ children, mockTier }) {

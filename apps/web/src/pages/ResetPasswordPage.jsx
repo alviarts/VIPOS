@@ -71,7 +71,9 @@ export default function ResetPasswordPage() {
             </button>
           </div>
 
-          <label className="mt-4 block text-sm font-medium text-gray-700">Konfirmasi password</label>
+          <label className="mt-4 block text-sm font-medium text-gray-700">
+            Konfirmasi password
+          </label>
           <input
             type={showPassword ? 'text' : 'password'}
             value={confirm}

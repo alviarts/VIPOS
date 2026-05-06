@@ -62,9 +62,7 @@ export default function ForgotPasswordPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
-            <label className="block text-sm font-medium text-gray-700">
-              Email atau username
-            </label>
+            <label className="block text-sm font-medium text-gray-700">Email atau username</label>
             <input
               type="text"
               value={emailOrUsername}

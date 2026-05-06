@@ -47,14 +47,16 @@ async function loginAsAdmin() {
 }
 
 async function registerTenant(slug, tier = 'advance') {
-  const r = await request(app).post('/api/v1/tenant/register').send({
-    tenant_slug: slug,
-    tenant_name: slug,
-    tier,
-    admin_username: `${slug}_admin`,
-    admin_password: 'rahasia123',
-    admin_name: `${slug} Admin`,
-  });
+  const r = await request(app)
+    .post('/api/v1/tenant/register')
+    .send({
+      tenant_slug: slug,
+      tenant_name: slug,
+      tier,
+      admin_username: `${slug}_admin`,
+      admin_password: 'rahasia123',
+      admin_name: `${slug} Admin`,
+    });
   expect(r.status).toBe(201);
   return { tenantId: r.body.tenant.id, userId: r.body.user.id, token: r.body.token };
 }
@@ -332,9 +334,7 @@ describe('GET /api/v1/audit-log', () => {
   it('403 — non-admin user blocked by requireAdmin', async () => {
     const t = await registerTenant('audit-nonadmin', 'advance');
     // Demote the tenant admin to cashier and re-login.
-    await runAsSystem(() =>
-      queryFn(`UPDATE users SET role = 'cashier' WHERE id = $1`, [t.userId])
-    );
+    await runAsSystem(() => queryFn(`UPDATE users SET role = 'cashier' WHERE id = $1`, [t.userId]));
     const login = await request(app)
       .post('/api/auth/login')
       .send({ username: 'audit-nonadmin_admin', password: 'rahasia123' });

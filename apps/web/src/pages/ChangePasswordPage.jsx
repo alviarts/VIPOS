@@ -88,7 +88,9 @@ export default function ChangePasswordPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Konfirmasi password baru</label>
+            <label className="block text-sm font-medium text-gray-700">
+              Konfirmasi password baru
+            </label>
             <input
               type={show ? 'text' : 'password'}
               value={confirm}

@@ -4,7 +4,7 @@
 // Tiap section di-namespace per kategori. Semua endpoint registered ke
 // OpenAPIRegistry sebagai `Lainnya/{Kategori}` untuk gampang dibrowse.
 
-import { z } from "../openapi";
+import { z } from '../openapi';
 
 // -----------------------------------------------------------------------------
 // Bantuan / Help center
@@ -21,16 +21,11 @@ export const HelpTopicSchema = z
     sort_order: z.number().int().default(0),
     is_active: z.union([z.literal(0), z.literal(1)]).default(1),
   })
-  .openapi("HelpTopic");
+  .openapi('HelpTopic');
 export type HelpTopic = z.infer<typeof HelpTopicSchema>;
 
-export const HelpFeedbackTypeSchema = z.enum(["bug", "feature", "general"]);
-export const HelpFeedbackStatusSchema = z.enum([
-  "open",
-  "in_review",
-  "resolved",
-  "closed",
-]);
+export const HelpFeedbackTypeSchema = z.enum(['bug', 'feature', 'general']);
+export const HelpFeedbackStatusSchema = z.enum(['open', 'in_review', 'resolved', 'closed']);
 
 export const HelpFeedbackSchema = z
   .object({
@@ -44,7 +39,7 @@ export const HelpFeedbackSchema = z
     status: HelpFeedbackStatusSchema,
     created_at: z.string().optional(),
   })
-  .openapi("HelpFeedback");
+  .openapi('HelpFeedback');
 export type HelpFeedback = z.infer<typeof HelpFeedbackSchema>;
 
 export const HelpFeedbackCreateSchema = z
@@ -56,26 +51,21 @@ export const HelpFeedbackCreateSchema = z
     app_version: z.string().optional(),
     device_info: z.string().optional(),
   })
-  .openapi("HelpFeedbackCreate");
+  .openapi('HelpFeedbackCreate');
 export type HelpFeedbackCreate = z.infer<typeof HelpFeedbackCreateSchema>;
 
 // -----------------------------------------------------------------------------
 // LAYANAN
 // -----------------------------------------------------------------------------
 
-export const ServiceKeySchema = z.enum([
-  "majoopay",
-  "edc",
-  "satu_sehat",
-  "aura",
-]);
+export const ServiceKeySchema = z.enum(['majoopay', 'edc', 'satu_sehat', 'aura']);
 export type ServiceKey = z.infer<typeof ServiceKeySchema>;
 
 export const ServiceApplicationStatusSchema = z.enum([
-  "submitted",
-  "review",
-  "approved",
-  "rejected",
+  'submitted',
+  'review',
+  'approved',
+  'rejected',
 ]);
 
 export const ServiceApplicationSchema = z
@@ -89,7 +79,7 @@ export const ServiceApplicationSchema = z
     submitted_at: z.string().optional(),
     reviewed_at: z.string().nullable().optional(),
   })
-  .openapi("ServiceApplication");
+  .openapi('ServiceApplication');
 export type ServiceApplication = z.infer<typeof ServiceApplicationSchema>;
 
 export const ServiceApplicationCreateSchema = z
@@ -97,24 +87,22 @@ export const ServiceApplicationCreateSchema = z
     service_key: ServiceKeySchema,
     payload: z.record(z.unknown()).optional(),
   })
-  .openapi("ServiceApplicationCreate");
-export type ServiceApplicationCreate = z.infer<
-  typeof ServiceApplicationCreateSchema
->;
+  .openapi('ServiceApplicationCreate');
+export type ServiceApplicationCreate = z.infer<typeof ServiceApplicationCreateSchema>;
 
 // -----------------------------------------------------------------------------
 // INSPIRASI
 // -----------------------------------------------------------------------------
 
 export const InspirasiArticleCategorySchema = z.enum([
-  "home",
-  "berbagi",
-  "tren-bisnis",
-  "trivia",
-  "kisah-sukses",
-  "tips",
-  "inspirasi",
-  "edukasi",
+  'home',
+  'berbagi',
+  'tren-bisnis',
+  'trivia',
+  'kisah-sukses',
+  'tips',
+  'inspirasi',
+  'edukasi',
 ]);
 
 export const InspirasiArticleSchema = z
@@ -131,7 +119,7 @@ export const InspirasiArticleSchema = z
     published_at: z.string().optional(),
     is_active: z.union([z.literal(0), z.literal(1)]).default(1),
   })
-  .openapi("InspirasiArticle");
+  .openapi('InspirasiArticle');
 export type InspirasiArticle = z.infer<typeof InspirasiArticleSchema>;
 
 export const InspirasiEventSchema = z
@@ -147,15 +135,15 @@ export const InspirasiEventSchema = z
     rsvp_count: z.number().int().nonnegative().default(0),
     user_rsvp_status: z.string().nullable().optional(),
   })
-  .openapi("InspirasiEvent");
+  .openapi('InspirasiEvent');
 
-export const RsvpStatusSchema = z.enum(["going", "interested", "cancelled"]);
+export const RsvpStatusSchema = z.enum(['going', 'interested', 'cancelled']);
 
 export const RsvpRequestSchema = z
   .object({
-    status: RsvpStatusSchema.default("going"),
+    status: RsvpStatusSchema.default('going'),
   })
-  .openapi("RsvpRequest");
+  .openapi('RsvpRequest');
 
 export const InspirasiMagazineSchema = z
   .object({
@@ -167,7 +155,7 @@ export const InspirasiMagazineSchema = z
     pdf_url: z.string().nullable(),
     published_at: z.string().optional(),
   })
-  .openapi("InspirasiMagazine");
+  .openapi('InspirasiMagazine');
 
 export const InformasiUpdateSchema = z
   .object({
@@ -177,18 +165,18 @@ export const InformasiUpdateSchema = z
     body: z.string().nullable(),
     published_at: z.string().optional(),
   })
-  .openapi("InformasiUpdate");
+  .openapi('InformasiUpdate');
 
 // -----------------------------------------------------------------------------
 // Capital
 // -----------------------------------------------------------------------------
 
 export const CapitalApplicationStatusSchema = z.enum([
-  "submitted",
-  "review",
-  "approved",
-  "rejected",
-  "disbursed",
+  'submitted',
+  'review',
+  'approved',
+  'rejected',
+  'disbursed',
 ]);
 
 export const CapitalApplicationSchema = z
@@ -205,22 +193,20 @@ export const CapitalApplicationSchema = z
     submitted_at: z.string().optional(),
     reviewed_at: z.string().nullable().optional(),
   })
-  .openapi("CapitalApplication");
+  .openapi('CapitalApplication');
 export type CapitalApplication = z.infer<typeof CapitalApplicationSchema>;
 
 export const CapitalApplicationCreateSchema = z
   .object({
-    amount: z.coerce.number().min(1_000_000, "Minimal Rp 1.000.000"),
+    amount: z.coerce.number().min(1_000_000, 'Minimal Rp 1.000.000'),
     tenure_months: z.coerce.number().int().min(1).max(60),
     purpose: z.string().min(3).max(500),
     collateral: z.string().optional(),
     monthly_revenue: z.coerce.number().nonnegative().optional(),
     payload: z.record(z.unknown()).optional(),
   })
-  .openapi("CapitalApplicationCreate");
-export type CapitalApplicationCreate = z.infer<
-  typeof CapitalApplicationCreateSchema
->;
+  .openapi('CapitalApplicationCreate');
+export type CapitalApplicationCreate = z.infer<typeof CapitalApplicationCreateSchema>;
 
 export const CapitalPreQualificationSchema = z
   .object({
@@ -233,15 +219,13 @@ export const CapitalPreQualificationSchema = z
         label: z.string(),
         passed: z.boolean(),
         message: z.string().optional(),
-      }),
+      })
     ),
     avg_monthly_revenue: z.number().nonnegative(),
     months_active: z.number().int().nonnegative(),
   })
-  .openapi("CapitalPreQualification");
-export type CapitalPreQualification = z.infer<
-  typeof CapitalPreQualificationSchema
->;
+  .openapi('CapitalPreQualification');
+export type CapitalPreQualification = z.infer<typeof CapitalPreQualificationSchema>;
 
 // -----------------------------------------------------------------------------
 // SUPPLIES
@@ -254,13 +238,9 @@ export const SupplyCategorySchema = z
     name: z.string(),
     sort_order: z.number().int().default(0),
   })
-  .openapi("SupplyCategory");
+  .openapi('SupplyCategory');
 
-export const SupplyStockStatusSchema = z.enum([
-  "in_stock",
-  "low",
-  "out_of_stock",
-]);
+export const SupplyStockStatusSchema = z.enum(['in_stock', 'low', 'out_of_stock']);
 
 export const SupplyProductSchema = z
   .object({
@@ -278,7 +258,7 @@ export const SupplyProductSchema = z
     category_name: z.string().nullable().optional(),
     is_active: z.union([z.literal(0), z.literal(1)]).default(1),
   })
-  .openapi("SupplyProduct");
+  .openapi('SupplyProduct');
 
 export const SupplyCartItemSchema = z
   .object({
@@ -288,7 +268,7 @@ export const SupplyCartItemSchema = z
     product: SupplyProductSchema.optional(),
     subtotal: z.number().nonnegative().optional(),
   })
-  .openapi("SupplyCartItem");
+  .openapi('SupplyCartItem');
 
 export const SupplyCartSchema = z
   .object({
@@ -297,30 +277,33 @@ export const SupplyCartSchema = z
     total_amount: z.number().nonnegative(),
     item_count: z.number().int().nonnegative(),
   })
-  .openapi("SupplyCart");
+  .openapi('SupplyCart');
 
 export const SupplyCartItemCreateSchema = z
   .object({
     product_id: z.coerce.number().int().positive(),
     qty: z.coerce.number().int().min(1).default(1),
   })
-  .openapi("SupplyCartItemCreate");
+  .openapi('SupplyCartItemCreate');
 
 export const SupplyCheckoutSchema = z
   .object({
-    payment_method: z.enum(["bank_transfer", "majoopay", "capital_credit"]),
+    payment_method: z.enum(['bank_transfer', 'majoopay', 'capital_credit']),
     delivery_address: z.string().min(10).max(500),
-    delivery_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    delivery_date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
   })
-  .openapi("SupplyCheckout");
+  .openapi('SupplyCheckout');
 
 export const SupplyOrderStatusSchema = z.enum([
-  "ordered",
-  "confirmed",
-  "shipped",
-  "delivered",
-  "completed",
-  "cancelled",
+  'ordered',
+  'confirmed',
+  'shipped',
+  'delivered',
+  'completed',
+  'cancelled',
 ]);
 
 export const SupplyOrderItemSchema = z
@@ -332,7 +315,7 @@ export const SupplyOrderItemSchema = z
     price: z.number().nonnegative(),
     subtotal: z.number().nonnegative(),
   })
-  .openapi("SupplyOrderItem");
+  .openapi('SupplyOrderItem');
 
 export const SupplyOrderSchema = z
   .object({
@@ -348,5 +331,5 @@ export const SupplyOrderSchema = z
     delivered_at: z.string().nullable().optional(),
     items: z.array(SupplyOrderItemSchema).optional(),
   })
-  .openapi("SupplyOrder");
+  .openapi('SupplyOrder');
 export type SupplyOrder = z.infer<typeof SupplyOrderSchema>;

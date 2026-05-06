@@ -43,14 +43,14 @@ export default function TabMajooOrder({ form, onChange, basePrice }) {
             className="input-field w-full"
           />
           {markup > 0 && (
-            <p className="mt-1 text-xs text-gray-500">
-              Markup +{markup}% dibanding harga offline.
-            </p>
+            <p className="mt-1 text-xs text-gray-500">Markup +{markup}% dibanding harga offline.</p>
           )}
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-700">Harga Offline (Acuan)</label>
+          <label className="mb-1 block text-xs font-medium text-gray-700">
+            Harga Offline (Acuan)
+          </label>
           <input
             type="text"
             value={basePrice ? formatCurrency(basePrice) : '—'}

@@ -43,9 +43,7 @@ describe('EmptyState', () => {
   });
 
   it('renders title and description', () => {
-    const { getByText } = render(
-      <EmptyState title="No data" description="Nothing here yet" />
-    );
+    const { getByText } = render(<EmptyState title="No data" description="Nothing here yet" />);
     expect(getByText('No data')).toBeInTheDocument();
     expect(getByText('Nothing here yet')).toBeInTheDocument();
   });
