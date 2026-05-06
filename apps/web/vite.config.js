@@ -2,6 +2,18 @@ import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
+import { visualizer } from 'rollup-plugin-visualizer';
+
+// Bundle visualizer is opt-in via the BUNDLE_VISUALIZER env var so the
+// extra ~50-100 ms post-build write doesn't slow routine local builds.
+// When set to a truthy value, the plugin emits `dist/stats.html` (a
+// treemap of every chunk's content + per-module gzip/brotli sizes)
+// alongside the regular build output. Useful for diagnosing the
+// next bundle-budget bump candidate without having to manually grep
+// `dist/assets/index-*.js`. CI does not run this by default to keep
+// the build job fast; run locally or trigger it on demand.
+const visualizerEnabled =
+  process.env.BUNDLE_VISUALIZER === '1' || process.env.BUNDLE_VISUALIZER === 'true';
 
 // Sentry source-map upload is opt-in via env. When SENTRY_AUTH_TOKEN +
 // SENTRY_ORG + SENTRY_PROJECT are all set the plugin emits source-maps
@@ -94,6 +106,20 @@ export default defineConfig(({ mode }) => ({
         errorHandler: (err) => {
           console.warn('[sentry-vite-plugin] upload failed:', err.message);
         },
+      }),
+    visualizerEnabled &&
+      visualizer({
+        // Emit the treemap into `dist/` so it sits next to the chunks
+        // it visualizes. Gitignored via `apps/web/dist/` already.
+        filename: 'dist/stats.html',
+        // Show gzip + brotli sizes per module so the treemap matches
+        // the units used by the CI bundle-budget step (gzip-of-the-
+        // eager-chunk).
+        gzipSize: true,
+        brotliSize: true,
+        // Suppress the "open in browser" popup — we run this in CI-
+        // adjacent flows where there's no browser to open into.
+        open: false,
       }),
   ].filter(Boolean),
   server: {
