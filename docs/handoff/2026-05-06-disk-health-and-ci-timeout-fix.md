@@ -4,11 +4,15 @@ Closed: 2026-05-06 ~14:55 UTC. Re-closed: 2026-05-06 ~15:10 UTC by
 amend PR after merging PR #155 (CI build-smoke follow-up to PR #102).
 Re-closed: 2026-05-06 ~15:30 UTC by amend PR #158 after merging
 PR #157 (deploy-smoke follow-up). Re-closed: 2026-05-06 ~16:10 UTC
-by this amend PR after merging **PR #159** (recharts → vanilla SVG
+by amend PR #161 after merging **PR #159** (recharts → vanilla SVG
 chart migration; −377 kB / −113.7 kB gzip; **96% bundle reduction**)
 and **PR #160** (deploy smoke retry + max-time cap; fixes the 4-min
-hang seen on PR #159's deploy run 25445961488). Prepared by Devin
-in continuous-automation mode. Devin session:
+hang seen on PR #159's deploy run 25445961488). Re-closed: 2026-05-06
+~16:25 UTC by this amend PR after merging **PR #162** (deploy smoke
+`/api/v1/health/backup` informational curl) and **PR #163** (deploy
+ssh-keyscan retry + 10-sec timeout cap; fixes the SSH-key-setup
+failure pattern seen on runs 25445248136 + 25447094832). Prepared
+by Devin in continuous-automation mode. Devin session:
 <https://app.devin.ai/sessions/37291d97f04c45c18b7731c7cfd44e7f>
 
 Successor to `2026-05-06-tier1-perf-followups.md` (which was re-closed at
@@ -46,25 +50,22 @@ total_bytes, free_bytes, used_bytes, used_percent}}`. Returns 503
 - Zero behaviour change to existing routes, frontend bundles, deploy
   pipeline, or any other surface.
 
-Prod state at close (post-PR #160 deploy at ~16:06 UTC):
+Prod state at close (post-PR #163 deploy at ~16:25 UTC):
 
-- Backend HEAD `d44215c` (PR #160 squash-merge SHA on `main`).
-- `pm2 list` → `vipos-backend` (online, 99.9 MB, ~2 min uptime since
-  PR #160's deploy), `vipos-worker` (online, 55.3 MB, ~2 min uptime),
-  `finance-bot-tg` (online, 6d uptime, 68.5 MB), `pm2-logrotate`
-  (online).
-- `/api/v1/health/disk` → `{"status":"ok","mount":"/var/backups/vipos","threshold_percent":90,"fs":{"used_percent":71.06,...}}` (verified
-  via SSH `curl localhost:3001/api/v1/health/disk` and via public
-  `http://103.74.5.44/vipos/api/v1/health/disk`).
-- `/api/health` (existing) → 200 (verified via deploy 25446623776's
-  retry-enabled smoke step).
-- VPS: disk 35 GB / 49 GB (72%), well under the probe's 90%
-  default threshold.
+- Backend HEAD `8c08c14` (PR #163 squash-merge SHA on `main`).
+- `pm2 list` → `vipos-backend` (online), `vipos-worker` (online),
+  `finance-bot-tg` (online, 6d uptime), `pm2-logrotate` (online).
+- `/api/v1/health/disk` → `{"status":"ok","mount":"/var/backups/vipos","threshold_percent":90,"fs":{"used_percent":71,...}}`.
+- `/api/v1/health/backup` → `{"status":"ok","threshold_hours":25,"dump":{"age_hours":9.44,"size_bytes":577421}}`.
+- `/api/health` (existing) → 200 (verified via deploy 25447362897
+  retry-enabled smoke step + `frontend/health/disk/backup HTTP 200`).
+- VPS: disk 35 GB / 49 GB (72%), well under the probe's 90% default
+  threshold.
 - Frontend chunks live: `RevenueChart-BGwmECCc.js` (9.5 kB),
   `TopProductChart-Cw-m8AsT.js` (3.29 kB), `useChartSize-668n_Adz.js`
   (0.85 kB). NO `CartesianChart-*.js` (recharts gone, confirmed via
   `ls apps/web/dist/assets/`).
-- `tools/scripts/deploy.sh` untouched in all 6 PRs this session — no
+- `tools/scripts/deploy.sh` untouched in all 8 PRs this session — no
   `workflow_dispatch` chicken-egg needed.
 
 ## All PRs merged this session
@@ -77,6 +78,8 @@ Prod state at close (post-PR #160 deploy at ~16:06 UTC):
 | #157 | `devin/1778080968-deploy-smoke-disk-info`      | ci(deploy): informational `/api/v1/health/disk` curl in live smoke             | green  | merged `0856eca`; deploy 25444751281 ✅; deploy log shows `disk     HTTP 200` line                                                                                              |
 | #159 | `devin/1778081933-cartesian-chart-vanilla-svg` | perf(web): replace recharts with vanilla SVG charts (−377 kB / −113.7 kB gzip) | yellow | merged `2bf09ab`; deploy 25445961488 (smoke flaked, see PR #160 RCA); production verified healthy via SSH (new chart bundle live, no CartesianChart-\*.js, pm2 backend 99.9 MB) |
 | #160 | `devin/1778083192-deploy-smoke-retry`          | ci(deploy): retry + cap smoke-curl timeouts (run 25445961488 4-min hang)       | green  | merged `d44215c`; deploy 25446623776 ✅; smoke now `frontend HTTP 200` / `health HTTP 200` / `disk HTTP 200` in <2 sec total                                                    |
+| #162 | `devin/1778084064-deploy-smoke-backup`         | ci(deploy): smoke `/api/v1/health/backup` informationally                      | green  | merged `5e8b51a`; deploy 25447362897 ✅; smoke now `frontend/health/disk/backup HTTP 200` in ~1.5 sec total                                                                     |
+| #163 | `devin/1778084511-deploy-ssh-keyscan-retry`    | ci(deploy): retry ssh-keyscan on transient runner-to-VPS flake                 | green  | merged `8c08c14`; deploy verification pending                                                                                                                                   |
 
 PR #102 was open from a previous Devin session (author: `alviarts`,
 opened 2026-05-06 06:58 UTC, head commit `4ed5731`). It had passed
@@ -163,6 +166,42 @@ from PR #157). Deploy run 25446623776 confirmed the fix:
 `frontend HTTP 200` (16:06:26.13) → `health HTTP 200`
 (16:06:26.76) → `disk HTTP 200` (16:06:27.27) — all three in
 ~1.6 sec total.
+
+## PR #162 — deploy smoke `/api/v1/health/backup` informational curl
+
+Fourth PR in the disk/backup-health follow-up chain. Adds a
+non-blocking curl to `/api/v1/health/backup` (PR #97 endpoint) in
+the live deploy smoke step — same `curl -sS ... || true` contract
+as the disk probe added in PR #157. A 503 (most recent Postgres
+dump older than `threshold_hours`, default 25) shows up in the
+deploy log but does not block the deploy: a stale-backup signal
+isn't something a code-deploy can fix mid-flight (it'd need an
+out-of-band db-backup job restart). Confirmed via deploy run
+25447362897: `backup   HTTP 200` printed alongside the existing
+smoke lines.
+
+Live verification of `/api/v1/health/backup` body shape:
+`{"status":"ok","threshold_hours":25,"backup_dir":"/var/backups/vipos","dump":{"path":"vipos-2026-05-06T064754Z.dump","age_hours":9.44,"size_bytes":577421}}`.
+
+## PR #163 — ssh-keyscan retry on transient runner-to-VPS flake
+
+Two of the last seven deploy runs died on the very first step,
+"Setup SSH key", before `deploy.sh` ever got a chance to run:
+
+- run 25445248136 (PR #158, handoff doc): exit 1, no other output
+- run 25447094832 (PR #161, handoff doc amend): same
+
+Both failed at exactly the same line: `ssh-keyscan -t ed25519 -H ...`.
+Different runs were scheduled in different Azure regions
+(`westcentralus`, `westus`, `eastus`), suggesting a regional
+peering blip rather than a VPS-side issue. The next deploy from the
+same PR-set always succeeded cleanly.
+
+Fix: explicit `-T 10` connect-timeout cap, 5 retries with 3-sec
+backoff, and if all 5 attempts fail the step still passes — the
+later `ssh -o StrictHostKeyChecking=accept-new` will populate
+`known_hosts` on first contact, so the pre-seed is defence-in-
+depth, not strictly required.
 
 ## Root cause analysis: PR #102's first CI run cancelled
 
