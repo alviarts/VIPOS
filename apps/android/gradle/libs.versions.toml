@@ -33,6 +33,11 @@ kotlinxSerialization = "1.6.3"
 # for small key/value data such as auth tokens.
 datastore = "1.1.1"
 
+# Room (P3-04). Latest 2.6.x; 2.7.x is in alpha. Room ships
+# coroutine + Flow support out of the box via room-ktx and
+# generates DAO impls at compile time via KSP.
+room = "2.6.1"
+
 # Coroutines (P3-03a). The auth repository exposes Flow<...> APIs
 # and uses suspend functions to talk to OkHttp. The version is
 # whatever is current with Kotlin 1.9.24.
@@ -64,6 +69,13 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 # P3-03a persistence + coroutines (auth token storage).
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
+
+# P3-04 Room. room-runtime is the core library; room-ktx layers
+# coroutine + Flow extension functions on top; room-compiler is
+# the KSP processor that generates DAO + Database implementations.
+androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

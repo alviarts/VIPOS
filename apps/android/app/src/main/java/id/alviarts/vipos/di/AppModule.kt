@@ -1,11 +1,16 @@
 package id.alviarts.vipos.di
 
+import android.content.Context
+import androidx.room.Room
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import id.alviarts.vipos.BuildConfig
 import id.alviarts.vipos.core.common.AppConfig
+import id.alviarts.vipos.core.database.VIPOSDatabase
+import id.alviarts.vipos.core.database.dao.KeyValueCacheDao
 import id.alviarts.vipos.core.network.NetworkClientFactory
 import id.alviarts.vipos.core.network.api.HealthApi
 import kotlinx.serialization.json.Json
@@ -96,4 +101,37 @@ object AppModule {
     @Provides
     @Singleton
     fun provideHealthApi(retrofit: Retrofit): HealthApi = retrofit.create()
+
+    /**
+     * Application-scoped [VIPOSDatabase] (P3-04).
+     *
+     * Built once per process via [Room.databaseBuilder]. The
+     * builder defaults are deliberate:
+     *  - **No `fallbackToDestructiveMigration()`** — every schema
+     *    change MUST ship an explicit `Migration(prevVersion,
+     *    newVersion)`. The schema-export-diff CI guard (lands in
+     *    a P3-04 follow-up) makes this enforceable.
+     *  - **No `allowMainThreadQueries()`** — Room's main-thread
+     *    block is the right default; all DAO calls in this
+     *    project are suspending or Flow-based.
+     *
+     * `:app` builds the database against the application context
+     * so the connection lifecycle matches the process lifecycle.
+     * Feature modules consume DAOs through Hilt — they never see
+     * the [VIPOSDatabase] handle directly.
+     */
+    @Provides
+    @Singleton
+    fun provideVIPOSDatabase(
+        @ApplicationContext context: Context,
+    ): VIPOSDatabase = Room.databaseBuilder(
+        context,
+        VIPOSDatabase::class.java,
+        VIPOSDatabase.DATABASE_NAME,
+    ).build()
+
+    @Provides
+    @Singleton
+    fun provideKeyValueCacheDao(database: VIPOSDatabase): KeyValueCacheDao =
+        database.keyValueCacheDao()
 }
