@@ -1,13 +1,13 @@
 # VIPOS Sesi Handoff — 2026-05-06 (Tier-1 perf follow-ups)
 
-Closed: 2026-05-06 ~14:30 UTC (re-closed by PR #148 + xlsx audit
-amend; previously ~14:10 UTC after bot-wa-delete amend, ~13:35 UTC
-after PR #143–#145 amend, ~13:00 UTC after PR #141 amend, and
-~10:50 UTC at the original close). Prepared by Devin in continuous-
+Closed: 2026-05-06 ~14:50 UTC (re-closed by PRs #150 + #151 amend;
+previously ~14:30 UTC after PR #148 + xlsx audit amend, ~14:10 UTC
+after bot-wa-delete amend, ~13:35 UTC after PR #143–#145 amend,
+~13:00 UTC after PR #141 amend, and ~10:50 UTC at the original close). Prepared by Devin in continuous-
 automation mode. Devin sessions:
 
 - Original close: <https://app.devin.ai/sessions/52c2da66635d43a9a7c774b05036ae66>
-- 2026-05-06 #141 + #143–#145 + bot-wa-delete + #148 amend: <https://app.devin.ai/sessions/5a13e29449674f47bb2d035b5636542b>
+- 2026-05-06 #141 + #143–#145 + bot-wa-delete + #148 + #150/#151 amend: <https://app.devin.ai/sessions/5a13e29449674f47bb2d035b5636542b>
 
 Successor to `2026-05-06-phase1-ac-completion-and-bundle-split.md` (which
 captured PRs #112–#119 / per-AC ticks + initial route-level
@@ -32,13 +32,16 @@ to ~10–31 kB by lifting their heavy deps into per-feature dynamic
 imports** (`xlsx`, `jspdf`, `jspdf-autotable`, `recharts`), with chart
 prefetch + bar-skeleton + Export busy spinner + Export dropdown-open
 prefetch polishing the resulting UX. Test coverage on the touched
-surface area went from 14 files / 82 tests to **21 files / 113 tests**
+surface area went from 14 files / 82 tests to **23 files / 166 tests**
 (+1 file ExportButtons regression with prefetch tests, +1 file
 exportTable.js regression, +1 file DashboardChartFallback Suspense
 regression, +3 files for the lazy-dialog contracts of
 `CustomerImportDialog`, `ProductMovementHistoryDialog`,
 `CampaignBuilder`, +1 file for the `<ProtectedRoute>` auth-guard
-contract, plus jsdom matchMedia/ResizeObserver stubs in shared setup).
+contract, +1 file for `signup-helpers` (slugify/SLUG_REGEX/scorePassword,
+27 cases), +1 file for `sentry-scrub` PII redaction (scrubObject /
+scrubBreadcrumb / scrubEvent, 26 cases), plus jsdom
+matchMedia/ResizeObserver stubs in shared setup).
 The eager bundle dropped to **387 kB / gzip 127 kB** (was 401 kB / gzip
 130 kB at session start; PR #137 lazy-loaded three uncommon auth
 pages). Login fast-path unaffected.
@@ -64,8 +67,10 @@ Net effect:
 
 Prod state at close (post-PR #145 deploy):
 
-- Backend HEAD `73e1e4d` (PR #148 squash-merge SHA on `main`; PR #146
-  - #147 + this PR are doc-only and don't change the bundle).
+- Backend HEAD `7f05b84` (PR #151 squash-merge SHA on `main`; PRs #146,
+  #147, #149, and this PR are doc-only and don't change the bundle;
+  PRs #150 and #151 are pure-helper test additions and don't touch any
+  bundled source).
 - `pm2 list` → `vipos-backend` (online, 100.3 MB, ~4 min uptime),
   `vipos-worker` (online, 55.4 MB, ~4 min uptime), `finance-bot-tg`
   (online, 5d uptime, 67.6 MB), `pm2-logrotate` (online, 34.3 MB).
@@ -84,34 +89,37 @@ Prod state at close (post-PR #145 deploy):
 
 ## All PRs merged this session
 
-| PR   | Subject                                                                                         | Risk   | Status                             |
-| ---- | ----------------------------------------------------------------------------------------------- | ------ | ---------------------------------- |
-| #122 | `perf(web): dynamic-import xlsx + jspdf in exportTable; ReportFilterBar 717kB→10kB`             | yellow | merged (`c5f4d71`); deploy success |
-| #123 | `test(web): replace .toBeNull() with .not.toBeInTheDocument() on DOM queries`                   | green  | merged (`cd90a15`); deploy success |
-| #124 | `perf(web): lazy-load recharts via React.lazy on dashboard charts; DashboardPage 417kB→31kB`    | yellow | merged (`230ae23`); deploy success |
-| #125 | `docs(handoff): close 2026-05-06 Tier-1 perf follow-ups session` (this doc, initial draft)      | green  | merged (`8e76507`); deploy success |
-| #126 | `perf(web): prefetch dashboard chart chunks in useEffect to mask Suspense fallback`             | green  | merged (`00982c2`); deploy success |
-| #127 | `docs(handoff): amend 2026-05-06 Tier-1 perf doc with PR #126 (chart prefetch)`                 | green  | merged (`1e16b39`); deploy success |
-| #128 | `feat(reports): show inline spinner + 'Memuat…' on Export button while xlsx/pdf chunk loads`    | green  | merged (`998aad2`); deploy success |
-| #129 | `feat(dashboard): use bar-skeleton for ChartFallback instead of flat placeholder`               | green  | merged (`c74f36e`); deploy success |
-| #130 | `docs(handoff): final amend with PRs #128, #129 + post-deploy prod state`                       | green  | merged (`55bd5c8`); deploy success |
-| #131 | `test(web): add ExportButtons regression tests for disabled, dropdown, sync, busy, error paths` | green  | merged (`7d07608`); deploy success |
-| #132 | `test(web): stub matchMedia, ResizeObserver, IntersectionObserver in test setup`                | green  | merged (`d6c7752`); deploy success |
-| #133 | `test(web): add exportTable.js regression tests for csv/json/formatValue`                       | green  | merged (`c7bab47`); deploy success |
-| #134 | `docs(handoff): amend with PRs #131-#133 (test coverage)`                                       | green  | merged (`677ba64`); deploy success |
-| #135 | `perf(reports): prefetch xlsx + jspdf chunks when ExportButtons dropdown opens`                 | green  | merged (`e744878`); deploy success |
-| #136 | `docs(handoff): amend with PR #135 (export prefetch) + Reports audit`                           | green  | merged (`88badfc`); deploy success |
-| #137 | `perf(web): lazy-load SignupPage + ForgotPasswordPage + ResetPasswordPage`                      | green  | merged (`82ff723`); deploy success |
-| #138 | `docs(handoff): amend with PR #137 (lazy auth pages)`                                           | green  | merged (`ec29d80`); deploy success |
-| #141 | `test(web): add DashboardChartFallback Suspense regression for /dashboard charts`               | green  | merged (`5cb739b`); deploy success |
-| #142 | `docs(handoff): amend with PR #141 (DashboardChartFallback regression test)`                    | green  | merged (`ff33a79`); deploy success |
-| #143 | `test(web): add CustomerImportDialog lazy-load contract test`                                   | green  | merged (`37ccc60`); deploy success |
-| #144 | `test(web): add ProductMovementHistoryDialog lazy-load contract test`                           | green  | merged (`3f3751d`); deploy success |
-| #145 | `test(web): add CampaignBuilder lazy-load contract test`                                        | green  | merged (`9bde4ff`); deploy success |
-| #146 | `docs(handoff): amend with PRs #143/#144/#145 (lazy-dialog regression tests)`                   | green  | merged (`aa88abe`); deploy success |
-| #147 | `docs(handoff): record bot-wa pm2 delete + drop from VIPOS backlog (not VIPOS scope)`           | green  | merged (`37203f1`); deploy success |
-| #148 | `test(web): add ProtectedRoute auth-guard regression test`                                      | green  | merged (`73e1e4d`); deploy success |
-| #149 | `docs(handoff): amend with PR #148 + xlsx (SheetJS) audit finding` (this PR)                    | green  | pending merge                      |
+| PR   | Subject                                                                                          | Risk   | Status                             |
+| ---- | ------------------------------------------------------------------------------------------------ | ------ | ---------------------------------- |
+| #122 | `perf(web): dynamic-import xlsx + jspdf in exportTable; ReportFilterBar 717kB→10kB`              | yellow | merged (`c5f4d71`); deploy success |
+| #123 | `test(web): replace .toBeNull() with .not.toBeInTheDocument() on DOM queries`                    | green  | merged (`cd90a15`); deploy success |
+| #124 | `perf(web): lazy-load recharts via React.lazy on dashboard charts; DashboardPage 417kB→31kB`     | yellow | merged (`230ae23`); deploy success |
+| #125 | `docs(handoff): close 2026-05-06 Tier-1 perf follow-ups session` (this doc, initial draft)       | green  | merged (`8e76507`); deploy success |
+| #126 | `perf(web): prefetch dashboard chart chunks in useEffect to mask Suspense fallback`              | green  | merged (`00982c2`); deploy success |
+| #127 | `docs(handoff): amend 2026-05-06 Tier-1 perf doc with PR #126 (chart prefetch)`                  | green  | merged (`1e16b39`); deploy success |
+| #128 | `feat(reports): show inline spinner + 'Memuat…' on Export button while xlsx/pdf chunk loads`     | green  | merged (`998aad2`); deploy success |
+| #129 | `feat(dashboard): use bar-skeleton for ChartFallback instead of flat placeholder`                | green  | merged (`c74f36e`); deploy success |
+| #130 | `docs(handoff): final amend with PRs #128, #129 + post-deploy prod state`                        | green  | merged (`55bd5c8`); deploy success |
+| #131 | `test(web): add ExportButtons regression tests for disabled, dropdown, sync, busy, error paths`  | green  | merged (`7d07608`); deploy success |
+| #132 | `test(web): stub matchMedia, ResizeObserver, IntersectionObserver in test setup`                 | green  | merged (`d6c7752`); deploy success |
+| #133 | `test(web): add exportTable.js regression tests for csv/json/formatValue`                        | green  | merged (`c7bab47`); deploy success |
+| #134 | `docs(handoff): amend with PRs #131-#133 (test coverage)`                                        | green  | merged (`677ba64`); deploy success |
+| #135 | `perf(reports): prefetch xlsx + jspdf chunks when ExportButtons dropdown opens`                  | green  | merged (`e744878`); deploy success |
+| #136 | `docs(handoff): amend with PR #135 (export prefetch) + Reports audit`                            | green  | merged (`88badfc`); deploy success |
+| #137 | `perf(web): lazy-load SignupPage + ForgotPasswordPage + ResetPasswordPage`                       | green  | merged (`82ff723`); deploy success |
+| #138 | `docs(handoff): amend with PR #137 (lazy auth pages)`                                            | green  | merged (`ec29d80`); deploy success |
+| #141 | `test(web): add DashboardChartFallback Suspense regression for /dashboard charts`                | green  | merged (`5cb739b`); deploy success |
+| #142 | `docs(handoff): amend with PR #141 (DashboardChartFallback regression test)`                     | green  | merged (`ff33a79`); deploy success |
+| #143 | `test(web): add CustomerImportDialog lazy-load contract test`                                    | green  | merged (`37ccc60`); deploy success |
+| #144 | `test(web): add ProductMovementHistoryDialog lazy-load contract test`                            | green  | merged (`3f3751d`); deploy success |
+| #145 | `test(web): add CampaignBuilder lazy-load contract test`                                         | green  | merged (`9bde4ff`); deploy success |
+| #146 | `docs(handoff): amend with PRs #143/#144/#145 (lazy-dialog regression tests)`                    | green  | merged (`aa88abe`); deploy success |
+| #147 | `docs(handoff): record bot-wa pm2 delete + drop from VIPOS backlog (not VIPOS scope)`            | green  | merged (`37203f1`); deploy success |
+| #148 | `test(web): add ProtectedRoute auth-guard regression test`                                       | green  | merged (`73e1e4d`); deploy success |
+| #149 | `docs(handoff): amend with PR #148 + xlsx (SheetJS) audit finding`                               | green  | merged (`56c8d51`); deploy success |
+| #150 | `test(web): add signup-helpers regression tests (slugify, SLUG_REGEX, scorePassword)`            | green  | merged (`85aa254`); deploy success |
+| #151 | `test(web): add sentry-scrub PII regression tests (scrubObject, scrubBreadcrumb, scrubEvent)`    | green  | merged (`7f05b84`); deploy success |
+| #152 | `docs(handoff): amend with PRs #150 + #151 (signup-helpers + sentry-scrub regression)` (this PR) | green  | pending merge                      |
 
 (All twenty-three merged via REST API squash with `GITHUB_PAT_VIPOS` —
 see **Critical infrastructure context** below for the PAT rotation
@@ -587,6 +595,74 @@ Test suite delta: 20 files / 109 tests → **21 files / 113 tests** (+1
 file, +4 tests).
 
 Risk: green (one-line `export` keyword addition + new test file).
+
+### PR #150 — `signup-helpers` regression tests
+
+`apps/web/src/utils/signup-helpers.js` exposes three pure helpers that
+gate the signup flow:
+
+| Helper              | Where it runs                                                                       | Regression cost                                                                                                  |
+| ------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `slugify(input)`    | Live preview while user types business name; output flows into `POST /auth/signup`. | User sees a slug different from what they preview, or a slug the API rejects (e.g. accents not stripped).        |
+| `SLUG_REGEX`        | Real-time form validation gate before submit.                                       | Either accepts invalid slugs (API rejects with confusing error) or rejects valid ones (user can't proceed).      |
+| `scorePassword(pw)` | 0–4 strength meter + label next to the password input.                              | Label drift (e.g. "Sangat kuat" for a weak password) or submit-disabled bug if the strength gate uses the score. |
+
+Implementation in `apps/web/src/__tests__/signup-helpers.test.js`
+(27 cases, 174 LOC):
+
+- `slugify` (8): non-string inputs → `''`, ASCII case+dash, NFKD
+  accent strip, non-alnum collapse, leading/trailing dash strip,
+  40-char cap, all-non-alnum input, empty string.
+- `SLUG_REGEX` (7): valid 3–40 char alnum + interior dashes, 1-char
+  minimum, leading/trailing dash rejection, uppercase rejection,
+  non-dash special char rejection, length>40 rejection, empty.
+- `scorePassword` (12): empty/non-string → `score=0`, length
+  boundaries (5/6/10), composition rules (length, mixed case, digit,
+  symbol), label transitions (Lemah/Cukup/Kuat/Sangat kuat), score
+  cap at 4.
+
+Test suite delta: 21 / 113 → 22 / 140 (+1 file, +27 tests).
+
+Risk: green (zero source changes, pure-helper test only).
+
+### PR #151 — `sentry-scrub` PII regression tests
+
+`apps/web/src/lib/sentry.js` ships three PII scrubbers that run before
+Sentry events leave the browser. The author explicitly designed them
+for unit testing (per the comment in `sentry.js` and the `_internal`
+export), but no test file existed. A regression in any of these is a
+**P0 privacy bug** — tokens, passwords, TOTP codes, session cookies,
+emails, or IP addresses could end up in Sentry.
+
+| Helper               | Sentry hook         | Coverage                                                                                                                                                                          |
+| -------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scrubObject(value)` | All recursive scrub | SENSITIVE_KEYS list, nested objects + arrays, mutation safety                                                                                                                     |
+| `scrubBreadcrumb(b)` | `beforeBreadcrumb`  | `data` scrub + Bearer/password/token regex on `message` strings                                                                                                                   |
+| `scrubEvent(e)`      | `beforeSend`        | `request.cookies` redact, `request.headers/data` scrub, query_string token/password/totp regex, user PII strip (username/email/ip_address), breadcrumbs map, extra+contexts scrub |
+
+Implementation in `apps/web/src/__tests__/sentry-scrub.test.js`
+(26 cases, 366 LOC):
+
+- `SENSITIVE_KEYS` (1): pins the redacted-key list.
+- `scrubObject` (8): primitives passthrough, top-level redact,
+  case-insensitive matching, nested object recursion, array recursion,
+  mixed object/array recursion, no input mutation, non-sensitive key
+  preservation.
+- `scrubBreadcrumb` (6): null/undefined passthrough, data scrub, Bearer
+  token regex, inline `password=` / `token=` regex, non-string message
+  guard, no input mutation.
+- `scrubEvent` (11): null/undefined passthrough, `request.cookies`
+  wholesale redact, headers/data scrub, query_string
+  token/password/totp regex, case-insensitive query_string keys,
+  non-string `query_string` passthrough, user PII removal
+  (username/email/ip_address) with `id` + `role` kept, breadcrumbs
+  array map, `extra`+`contexts` scrub, end-to-end realistic Sentry
+  event combining all the above.
+
+Test suite delta: 22 / 140 → 23 / 166 (+1 file, +26 tests).
+
+Risk: green (zero source changes; the helpers were already exported
+via `_internal` for testability).
 
 ## Production state at close
 
