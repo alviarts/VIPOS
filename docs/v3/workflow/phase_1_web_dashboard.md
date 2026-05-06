@@ -28,14 +28,14 @@
 
 **Acceptance criteria**:
 
-- [ ] Sidebar punya 11 menu group (Penjualan, Order Online, Appointment, Karyawan, Keuangan, Pengaturan, Lainnya, Bantuan, LAYANAN, INSPIRASI, Capital, SUPPLIES)
-- [ ] Sidebar collapsible (icon-only mode)
-- [ ] Outlet switcher di header berfungsi (mock 2 outlet)
-- [ ] Role-based: kasir tidak lihat menu Keuangan, dst (gunakan permission matrix `docs/v2/05_PERMISSIONS.md`)
-- [ ] Tier-based: Lite tier tidak lihat fitur Prime+ (gunakan `docs/v2/06_FEATURE_TIERS.md`)
-- [ ] Breadcrumb auto-update per route
-- [ ] Notification badge di header (mock count)
-- [ ] Mobile-responsive (sidebar jadi drawer di < 768px)
+- [x] Sidebar punya 11+ menu group — `apps/web/src/data/menu-groups.js` exposes 14 top-level groups (Penjualan, Promosi, Order Online, Invoice B2B, Appointment, Karyawan, Keuangan, Pengaturan, Lainnya, Bantuan, LAYANAN, INSPIRASI, Capital, SUPPLIES). Exceeds the originally-listed groups.
+- [x] Sidebar collapsible (icon-only mode) — `Sidebar.jsx` toggles `md:w-16` (icon-only rail) vs `md:w-64` based on `collapsed` prop; mobile drawer also supported.
+- [x] Outlet switcher di header berfungsi — `OutletContext.jsx` `MOCK_OUTLETS` defines 2 outlets (Outlet Pusat, Outlet Cabang 1); `OutletSwitcher.jsx` rendered in Header.
+- [x] Role-based: kasir tidak lihat menu Keuangan, dst — `PermissionContext.jsx` exports `ROLES` (OWNER, ADMIN, MANAGER, KASIR, …) + `canAccess({ roles, minTier })`; `Sidebar.jsx` calls `filterMenuGroups(MENU_GROUPS, canAccess)`.
+- [x] Tier-based: Lite tier tidak lihat fitur Prime+ — `PermissionContext.jsx` exports `TIERS` (LITE, STARTER, ADVANCE, PRIME, PRIME_PLUS) with numeric ordering; `hasTier(minTier)` enforces gating per menu item.
+- [x] Breadcrumb auto-update per route — `Breadcrumb.jsx` reads `useLocation()` and rebuilds crumbs each render; mounted in `Header.jsx`.
+- [x] Notification badge di header (mock count) — `Header.jsx` renders `<Bell />` with overlaid badge (`data-testid="notification-badge"`), shows `99+` cap; controlled by `notificationCount` prop.
+- [x] Mobile-responsive (sidebar jadi drawer di < 768px) — `Sidebar.jsx` toggles `md:hidden` overlay + slide-in drawer; Tailwind `md:` breakpoint = 768px (default).
 
 **Reference**:
 
