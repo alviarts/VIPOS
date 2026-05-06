@@ -69,14 +69,14 @@
 
 **Acceptance criteria**:
 
-- [ ] Login pakai email + password (atau username), JWT issued
-- [ ] Token expiry 15 min, refresh token 30 hari
-- [ ] Auto-refresh token via axios interceptor
-- [ ] Forgot password kirim email reset link
-- [ ] Reset password via link valid 24 jam
-- [ ] Change password butuh password lama
-- [ ] 2FA setup via TOTP (Google Authenticator)
-- [ ] Logout invalidate refresh token
+- [x] Login pakai username + password, JWT issued — `apps/backend/src/routes/auth.js` `POST /auth/login` validates `LoginRequestSchema`, issues access + refresh tokens.
+- [x] Token expiry 15 min, refresh token 30 hari — `apps/backend/src/utils/tokens.js` constants `ACCESS_TOKEN_TTL_SECONDS = 15 * 60`, `REFRESH_TOKEN_TTL_DAYS = 30`.
+- [x] Auto-refresh token via axios interceptor — `apps/web/src/utils/api.js` `api.interceptors.request.use` injects `Authorization: Bearer <access>`; `api.interceptors.response.use` retries 401s once via `refreshTokens()` (with single-flight `refreshInFlight` guard) before redirecting to `/login`.
+- [x] Forgot password kirim email reset link — `apps/backend/src/routes/auth.js` `POST /auth/forgot-password` generates opaque reset token and emits link `${baseUrl}/reset-password?token=…` (mock email sender in dev).
+- [x] Reset password via link valid 24 jam — `apps/backend/src/utils/tokens.js` `RESET_TOKEN_TTL_HOURS = 24`; `POST /auth/reset-password` consumes the token.
+- [x] Change password butuh password lama — `apps/backend/src/routes/auth.js` `POST /auth/change-password` (auth-required) takes old + new password and verifies old before update.
+- [x] 2FA setup via TOTP (Google Authenticator) — `apps/backend/src/routes/auth.js` exposes `POST /auth/2fa/setup`, `POST /auth/2fa/verify`, `POST /auth/2fa/disable`; login flow issues a 5-minute `signLogin2faToken` intermediate when 2FA is enabled, and `POST /auth/login/2fa` finalises the session.
+- [x] Logout invalidate refresh token — `apps/backend/src/routes/auth.js` `POST /auth/logout` deletes the refresh token row by hash; `apps/web/src/context/AuthContext.jsx` calls it before clearing local storage.
 
 **Reference**: `docs/v2/04_AUTH_AND_SESSION.md`
 
