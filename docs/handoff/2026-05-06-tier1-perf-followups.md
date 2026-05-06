@@ -6,13 +6,13 @@ mode. Devin session:
 
 Successor to `2026-05-06-phase1-ac-completion-and-bundle-split.md` (which
 captured PRs #112–#119 / per-AC ticks + initial route-level
-`React.lazy`). This doc starts at PR #122 and ends at PR #135, covering
-seven Tier-1 perf items + three test-coverage items + one read-only
+`React.lazy`). This doc starts at PR #122 and ends at PR #137, covering
+eight Tier-1 perf items + three test-coverage items + one read-only
 audit, all ready to execute autonomously this session.
 
 ## TL;DR
 
-Ten green/yellow PRs (and four handoff doc amends) merged in one
+Eleven green/yellow PRs (and five handoff doc amends) merged in one
 continuous run while resolving an expired-PAT incident. **`apps/web`
 lazy chunks ≥ 400 kB previously** (`ReportFilterBar` 717 kB and
 `DashboardPage` 417 kB) **both shrunk to ~10–31 kB by lifting their
@@ -23,8 +23,9 @@ resulting UX. Test coverage on the touched surface area went from 14
 files / 82 tests to **16 files / 105 tests** (+1 file ExportButtons
 regression with prefetch tests, +1 file exportTable.js regression,
 plus jsdom matchMedia/ResizeObserver stubs in shared setup). The
-eager bundle stays at 401 kB / gzip 130 kB — login fast-path
-unaffected.
+eager bundle dropped to **387 kB / gzip 127 kB** (was 401 kB / gzip
+130 kB at session start; PR #137 lazy-loaded three uncommon auth
+pages). Login fast-path unaffected.
 
 Net effect:
 
@@ -77,9 +78,11 @@ Prod state at close (post-PR #129 deploy):
 | #133 | `test(web): add exportTable.js regression tests for csv/json/formatValue`                       | green  | merged (`c7bab47`); deploy success |
 | #134 | `docs(handoff): amend with PRs #131-#133 (test coverage)`                                       | green  | merged (`677ba64`); deploy success |
 | #135 | `perf(reports): prefetch xlsx + jspdf chunks when ExportButtons dropdown opens`                 | green  | merged (`e744878`); deploy success |
-| #136 | `docs(handoff): amend with PR #135 (export prefetch) + Reports audit` (this PR)                 | green  | pending merge                      |
+| #136 | `docs(handoff): amend with PR #135 (export prefetch) + Reports audit`                           | green  | merged (`88badfc`); deploy success |
+| #137 | `perf(web): lazy-load SignupPage + ForgotPasswordPage + ResetPasswordPage`                      | green  | merged (`82ff723`); deploy success |
+| #138 | `docs(handoff): amend with PR #137 (lazy auth pages)` (this PR)                                 | green  | pending merge                      |
 
-(All fourteen merged via REST API squash with `GITHUB_PAT_VIPOS` — see
+(All sixteen merged via REST API squash with `GITHUB_PAT_VIPOS` — see
 **Critical infrastructure context** below for the PAT rotation incident
 that gated PR #122.)
 
@@ -347,7 +350,8 @@ libraries. Suite total: 16 files / 105 tests passing (+2 vs #133).
 
 Risk: green (conservative trigger gated on user-intent click,
 idempotent, errors swallowed, full test coverage). Bundle eager
-unchanged at 401 kB / gzip 130 kB.
+at 401 kB / gzip 130 kB pre-#137; subsequent PR #137 dropped it to
+387 kB / gzip 127 kB.
 
 ### Reports child-page jspdf/xlsx audit (no PR — verification only)
 
@@ -367,24 +371,54 @@ re-imports xlsx/jspdf statically. The only runtime references are:
 No regressions: every Reports surface keeps the heavy chunks lazy.
 Audit task (Tier-1, 30 min estimate) closed.
 
+### PR #137 — lazy-load uncommon auth pages
+
+The eager bundle (`index-*.js`) carried four auth pages: `LoginPage`,
+`SignupPage`, `ForgotPasswordPage`, `ResetPasswordPage`. Only
+`LoginPage` is the canonical entry point — every unauthenticated user
+lands there. The other three are long-tail flows:
+
+- `/signup` — rare for an existing tenant app.
+- `/forgot-password` — long-tail recovery flow.
+- `/reset-password` — used at most once per email link.
+
+This PR moves those three behind `React.lazy()`, leaving only
+`LoginPage` eager. Routes are already wrapped in
+`<Suspense fallback={<Spinner />}>` at `App.jsx:115`, so no new
+Suspense boundary needed.
+
+Bundle delta:
+
+- **`index-*.js` (eager)**: 401.21 kB / gzip 130.04 kB →
+  **387.25 kB / gzip 127.20 kB** (−13.96 kB / −2.84 kB gzip, −3.5%
+  raw). On VPS: `index-CBkho8Zq.js` = 387,749 bytes.
+- New lazy chunks:
+  - `SignupPage-*.js` 9.47 kB / gzip 3.18 kB.
+  - `ForgotPasswordPage-*.js` 2.37 kB / gzip 1.08 kB.
+  - `ResetPasswordPage-*.js` 2.51 kB / gzip 1.13 kB.
+
+Login fast-path unaffected — `LoginPage` stays eager and the spinner
+is the same one used for every other lazy boundary.
+
+Risk: green (route-level code split, three uncommon paths, fallback
+Suspense already wired).
+
 ## Production state at close
 
 ### VPS
 
 ```
 Host: 103.74.5.44 (xserver.local)
-Repo: /var/www/vipos @ git HEAD e744878 (PR #135)
+Repo: /var/www/vipos @ git HEAD 82ff723 (PR #137)
 Disk: 35 GB / 49 GB used (71%)
 RAM: 22% used / 3.8 GB total
 Swap: 4% used
-GH Actions deploy runs (this session): success for #122-#135
+GH Actions deploy runs (this session): success for #122-#137
 ```
 
-**Note**: PRs #131-#134 were test/docs-only and didn't change runtime
-behaviour. PR #135 is a small (+0.60 kB) `ReportFilterBar` perf
-improvement (export prefetch) — user-visible only as 'Export click
-feels instant after dropdown is open'. VPS git HEAD now `e744878`;
-bundles match #135 build output.
+**Note**: PR #137 shrunk the eager bundle from 401.21 kB to 387.25 kB
+by lazy-loading three uncommon auth pages. VPS git HEAD now `82ff723`;
+production bundles match the #137 build output.
 
 ### pm2 (post-deploy)
 
@@ -588,14 +622,15 @@ apps/web/src/__tests__/setup.js                    |  48 +++    PR #132
 apps/web/src/components/reports/ExportButtons.jsx  |  73 +++    PRs #122, #128, #135
 apps/web/src/pages/DashboardPage.jsx               |  57 +++    PRs #124, #126, #129
 apps/web/src/utils/exportTable.js                  |  23 ++-    PR #122
-docs/handoff/2026-05-06-tier1-perf-followups.md    | (this file + 4 amends)   handoff PRs #125, #127, #130, #134, #136
+apps/web/src/App.jsx                               |  22 ++-    PR #137
+docs/handoff/2026-05-06-tier1-perf-followups.md    | (this file + 5 amends)   handoff PRs #125, #127, #130, #134, #136, #138
 ```
 
-Total: 9 source files, ~640 insertions / 25 deletions across PRs
-#122–#135. Plus 5 handoff doc PRs (#125 initial, #127 post-#126 amend,
+Total: 10 source files, ~660 insertions / 32 deletions across PRs
+#122–#137. Plus 6 handoff doc PRs (#125 initial, #127 post-#126 amend,
 #130 final amend with #128 + #129 + post-deploy prod state, #134 amend
 with #131-#133 test coverage, #136 amend with #135 export prefetch +
-Reports audit).
+Reports audit, #138 amend with #137 lazy auth pages).
 
 ## Smoke test infrastructure
 
