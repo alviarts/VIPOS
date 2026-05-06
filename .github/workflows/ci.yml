@@ -191,6 +191,107 @@ jobs:
           fi
           echo "::notice::eager entry chunk $ENTRY is ${ENTRY_GZ_KB} kB gzip (cap ${BUDGET_GZ_KB} kB)"
 
+      - name: Lazy chunk size summary + budget enforcement
+        # PR #182: per-chunk gzip cap on the lazy graph. The eager budget
+        # check above guards the first-paint critical path; this one
+        # guards against an inadvertent heavy library entering the
+        # client bundle via a dynamic-import path. PR #179
+        # (xlsx@0.18.5 -> exceljs@4.4.0 CVE migration) bumped the
+        # heaviest lazy chunk from ~143 kB gzip to ~265 kB gzip, and
+        # would have been a silent regression without this check.
+        #
+        # Strategy: cap each individual non-eager .js file at
+        # LAZY_CHUNK_BUDGET_GZIP. The eager entry chunk is excluded
+        # (it has its own cap above). The total-size of the lazy
+        # graph is intentionally NOT capped — it grows monotonically
+        # as new pages/features ship and that growth is expected;
+        # the per-chunk cap is what catches a single heavy lib.
+        #
+        # Bumping the cap is a deliberate act: edit
+        # LAZY_CHUNK_BUDGET_GZIP below, document the reason in the
+        # PR body, and link the bundle-visualizer (`web-bundle-stats`
+        # artifact, PR #176) to confirm where the new mass landed.
+        if: always()
+        run: |
+          set -euo pipefail
+          DIST=apps/web/dist/assets
+          INDEX=apps/web/dist/index.html
+          # 300 kB gzip per-chunk cap. Today's heaviest lazy chunk is
+          # `exceljs.min-*.js` at ~265 kB gzip (PR #179), so 300 kB
+          # gives ~12% headroom for routine exceljs patch updates
+          # without flaking CI.
+          LAZY_CHUNK_BUDGET_GZIP=$((300 * 1024))  # 307200 bytes = 300 kB
+          if [ ! -d "$DIST" ] || [ ! -f "$INDEX" ]; then
+            echo "::warning::no $DIST or $INDEX; skipping lazy bundle summary"
+            exit 0
+          fi
+
+          # Re-detect the eager entry the same way the eager step does
+          # so this step is independent (`if: always()` runs even if
+          # the eager step failed, so we can't rely on it exporting
+          # state).
+          ENTRY=$(grep -oE '<script[^>]+src="[^"]+/assets/[^"]+\.js"' "$INDEX" \
+            | head -1 \
+            | grep -oE '/assets/[^"]+\.js' \
+            | sed 's|/assets/||')
+
+          BUDGET_KB=$((LAZY_CHUNK_BUDGET_GZIP / 1024))
+
+          # First pass: compute gzip size of every non-eager .js file
+          # into a temp manifest (filename<tab>gzip_bytes), and tally
+          # totals.
+          MANIFEST=$(mktemp)
+          TOTAL_GZ=0
+          CHUNK_COUNT=0
+          for f in "$DIST"/*.js; do
+            [ -e "$f" ] || continue
+            bn=$(basename "$f")
+            if [ "$bn" = "$ENTRY" ]; then
+              continue
+            fi
+            gz=$(gzip -c -9 "$f" | wc -c)
+            printf '%s\t%s\n' "$gz" "$bn" >> "$MANIFEST"
+            TOTAL_GZ=$((TOTAL_GZ + gz))
+            CHUNK_COUNT=$((CHUNK_COUNT + 1))
+          done
+          TOTAL_KB=$(awk -v b="$TOTAL_GZ" 'BEGIN{printf "%.1f", b/1024}')
+
+          # Second pass: format step summary with top 10 chunks by gzip
+          # size, and collect any over-cap files for hard CI failure.
+          OVER_CAP=$(awk -F'\t' -v cap="$LAZY_CHUNK_BUDGET_GZIP" '$1 > cap' "$MANIFEST")
+
+          {
+            echo
+            echo "### Lazy chunks (per-chunk budget enforced)"
+            echo
+            echo "Total lazy bytes (gzip est.): ${TOTAL_KB} kB across ${CHUNK_COUNT} chunks. Per-chunk cap: ${BUDGET_KB} kB gzip."
+            echo
+            echo "Top 10 lazy chunks by gzip size:"
+            echo
+            echo "| chunk | gzip est. | budget (gzip) | status |"
+            echo "| ----- | --------- | ------------- | ------ |"
+            sort -k1,1nr "$MANIFEST" | head -10 | while IFS=$'\t' read -r gz bn; do
+              gz_kb=$(awk -v b="$gz" 'BEGIN{printf "%.2f", b/1024}')
+              if [ "$gz" -le "$LAZY_CHUNK_BUDGET_GZIP" ]; then
+                status="✅ under cap"
+              else
+                status="❌ over cap"
+              fi
+              echo "| \`$bn\` | ${gz_kb} kB | ${BUDGET_KB} kB | $status |"
+            done
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+          if [ -n "$OVER_CAP" ]; then
+            echo "$OVER_CAP" | while IFS=$'\t' read -r gz bn; do
+              gz_kb=$(awk -v b="$gz" 'BEGIN{printf "%.2f", b/1024}')
+              echo "::error::lazy chunk $bn is ${gz_kb} kB gzip, over the ${BUDGET_KB} kB per-chunk cap. See ci.yml 'Lazy chunk size summary + budget enforcement' for the rationale + bump procedure."
+            done
+            rm -f "$MANIFEST"
+            exit 1
+          fi
+          rm -f "$MANIFEST"
+          echo "::notice::all ${CHUNK_COUNT} lazy chunks under the ${BUDGET_KB} kB per-chunk gzip cap; total lazy ${TOTAL_KB} kB"
+
       - name: Smoke check backend can start
         env:
           NODE_ENV: production
