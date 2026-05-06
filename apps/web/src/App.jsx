@@ -1,8 +1,17 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
-import AppShell from './components/layout/AppShell';
 import LoginPage from './pages/LoginPage';
+
+// AppShell composes Sidebar + Header + the menu-groups data file (which
+// pulls 38 lucide-react icons in via static imports). All of that is
+// post-auth UI — unauthenticated visitors landing on /login don't need
+// any of it. Lazy-loading it keeps the eager bundle smaller for the
+// /login first-paint case and the cost (an extra round-trip on first
+// authenticated navigation, behind the existing <Suspense fallback>)
+// is paid after the user has clicked "login" so it's perceived as part
+// of the auth flow rather than as initial-load latency.
+const AppShell = lazy(() => import('./components/layout/AppShell'));
 
 // LoginPage stays eager because it's the most common entry point — every
 // unauthenticated user lands there. SignupPage / ForgotPasswordPage /
