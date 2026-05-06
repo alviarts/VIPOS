@@ -364,15 +364,43 @@ fail loudly, just not on noise.
 
 ### Tier 1 — no founder input needed
 
-- **`CartesianChart` (recharts) chunk size** — still 334 kB pre-gzip,
-  101 kB gzip. Carried over unchanged from previous handoff. Recharts'
-  `sideEffects: false` already lets Rollup tree-shake the barrel
-  optimally; the chunk is dominated by internal cross-references. The
-  yellow-path deep-imports investigation in the prior session yielded
-  0 byte savings. Meaningful reduction requires a chart-lib migration
-  (e.g., uPlot, visx, vanilla SVG). Risk: yellow / red depending on
-  visual parity. Estimate: 4-8 hours (per-chart rewrite). **No new
-  work added this session — same status as carry-over.**
+- ~~**`CartesianChart` (recharts) chunk size**~~ — **✅ DONE this
+  session (PR #159)**. Replaced both `RevenueChart` (area) and
+  `TopProductChart` (horizontal bar) with vanilla SVG. Net win:
+  −377 kB pre-gzip / −113.7 kB gzip across the lazy chunks (96%
+  reduction). 38 transitive `recharts` deps removed from the
+  lockfile. `CartesianChart-*.js` no longer exists in `dist/`.
+- **Eager bundle reduction (Sentry SDK lazy init)** — the eager
+  bundle is currently ~590 kB raw / ~185 kB gzip on `main`. The
+  largest single piece is `index-*.js` (377 kB / 123 kB gzip,
+  React + Router + AuthContext + AppShell + LoginPage + axios)
+  followed by `index.es-*.js` (156 kB / 52 kB gzip, Sentry SDK).
+  Sentry could be deferred via the lazy-loader pattern
+  (`Sentry.lazy()` from `@sentry/react`) so the SDK only downloads
+  _after_ the first paint, while still capturing errors via a
+  small synchronous error-buffer shim. Risk: yellow (touches
+  global error handling, needs careful test on Sentry recording
+  end-to-end). Estimate: 2-3 hours.
+- **Bundle-size budget enforcement** — PR #165 added an
+  informational-only bundle-size summary. Future PR can pin
+  per-chunk caps (e.g. eager `index-*.js < 400 kB raw`) to fail
+  CI on regressions. Currently no agreed baseline; needs founder
+  buy-in on what the cap should be (Tier 2 input).
+
+### Tier 1 (operational) — deploy/CI hardening done this session
+
+Non-feature wins layered on top of PR #102's disk probe:
+
+- PR #160: deploy smoke `--retry 5 --retry-delay 3 --retry-connrefused
+--max-time 30` + `sleep 5→10` (fixes 4-min smoke hang seen on PR
+  #159's deploy run 25445961488).
+- PR #162: deploy smoke `/api/v1/health/backup` informationally
+  (catch-22-safe).
+- PR #163: ssh-keyscan retry + 10-sec timeout cap (fixes the
+  intermittent SSH-key-setup-step failure pattern on Azure runners).
+- PR #165: CI bundle-size summary in step summary.
+
+No more known operational flakes in the deploy pipeline.
 
 ### Tier 2 — blocked on founder input
 
@@ -394,6 +422,17 @@ ticked here.)
 - **PR #1** (`VIPOS @ /vipos: Majoo API analysis + Section 19
 features`, original initial PR) — still open from project genesis.
   Same status as before; can be closed at founder's convenience.
+- **`xlsx@0.18.5` high CVEs (Prototype Pollution + ReDoS)** —
+  `npm audit --omit=dev` reports 1 high-severity vuln in the
+  production tree. SheetJS moved newer versions off the npm
+  registry in 2023 (`<0.20.2` advisory has no npm upgrade path);
+  options are: (a) live with it (xlsx is only used for export
+  flows on user-uploaded data, low practical risk — the ReDoS is
+  exploitable only via specifically-crafted input), (b) migrate
+  to `exceljs` (similar API, smaller install, on npm; medium
+  refactor across export pages), (c) drop xlsx entirely
+  (`Workbook.xlsx.writeBuffer()` server-side via `exceljs` on
+  the backend). Founder decision needed before migration.
 
 ## Files modified this session
 
