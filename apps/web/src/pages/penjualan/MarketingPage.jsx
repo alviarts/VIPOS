@@ -1,7 +1,7 @@
 // Halaman Marketing (P1-11) — list campaign, list template, ledger kredit per
 // channel + tombol top-up. Untuk buat campaign baru pakai CampaignBuilder
 // (5-step wizard).
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import {
   Megaphone,
   Plus,
@@ -19,7 +19,11 @@ import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { ConfirmationDialog, EmptyState, FilterTabs, PageHeader } from '../../components/ui';
-import CampaignBuilder from '../../components/marketing/CampaignBuilder';
+
+// CampaignBuilder = 5-step wizard (~30 kB pre-gzip), used only when user
+// clicks 'Buat Campaign'. Lazy-load it so the MarketingPage chunk stays
+// small for users who only browse campaigns / templates / saldo.
+const CampaignBuilder = lazy(() => import('../../components/marketing/CampaignBuilder'));
 
 const TABS = [
   { id: 'campaigns', label: 'Campaigns' },
@@ -753,15 +757,19 @@ export default function MarketingPage() {
         </div>
       )}
 
-      <CampaignBuilder
-        open={showBuilder}
-        onClose={() => setShowBuilder(false)}
-        onCreated={() => load()}
-        customerGroups={groups}
-        customerTags={tags}
-        templates={templates}
-        balances={balances}
-      />
+      {showBuilder && (
+        <Suspense fallback={null}>
+          <CampaignBuilder
+            open={showBuilder}
+            onClose={() => setShowBuilder(false)}
+            onCreated={() => load()}
+            customerGroups={groups}
+            customerTags={tags}
+            templates={templates}
+            balances={balances}
+          />
+        </Suspense>
+      )}
 
       {showTemplate && (
         <TemplateDialog
