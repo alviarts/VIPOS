@@ -102,7 +102,7 @@ function Spinner() {
   );
 }
 
-function ProtectedRoute({ children }) {
+export function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) {
     return <Spinner />;
