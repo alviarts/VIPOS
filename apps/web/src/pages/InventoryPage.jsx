@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Plus,
@@ -23,7 +23,14 @@ import {
   FilterTabs,
   PageHeader,
 } from '../components/ui';
-import ProductMovementHistoryDialog from '../components/inventory/ProductMovementHistoryDialog';
+
+// Lazy-load ProductMovementHistoryDialog — most inventory visits don't
+// open the per-product history view. Mounted on demand keyed on
+// {historyProduct} so the chunk only fetches when the user clicks
+// the History icon.
+const ProductMovementHistoryDialog = lazy(
+  () => import('../components/inventory/ProductMovementHistoryDialog')
+);
 
 const TIPE_LABEL = {
   stok_in: 'Stok Masuk',
@@ -335,10 +342,12 @@ export default function InventoryPage() {
       />
 
       {historyProduct && (
-        <ProductMovementHistoryDialog
-          product={historyProduct}
-          onClose={() => setHistoryProduct(null)}
-        />
+        <Suspense fallback={null}>
+          <ProductMovementHistoryDialog
+            product={historyProduct}
+            onClose={() => setHistoryProduct(null)}
+          />
+        </Suspense>
       )}
     </div>
   );
