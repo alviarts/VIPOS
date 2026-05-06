@@ -6,23 +6,25 @@ mode. Devin session:
 
 Successor to `2026-05-06-phase1-ac-completion-and-bundle-split.md` (which
 captured PRs #112–#119 / per-AC ticks + initial route-level
-`React.lazy`). This doc starts at PR #122 and ends at PR #133, covering
-six Tier-1 perf items + three test-coverage items that were ready to
-execute autonomously this session.
+`React.lazy`). This doc starts at PR #122 and ends at PR #135, covering
+seven Tier-1 perf items + three test-coverage items + one read-only
+audit, all ready to execute autonomously this session.
 
 ## TL;DR
 
-Nine green/yellow PRs merged in one continuous run while resolving an
-expired-PAT incident. **`apps/web` lazy chunks ≥ 400 kB previously**
-(`ReportFilterBar` 717 kB and `DashboardPage` 417 kB) **both shrunk to
-~10–31 kB by lifting their heavy deps into per-feature dynamic imports**
-(`xlsx`, `jspdf`, `jspdf-autotable`, `recharts`), with chart prefetch +
-bar-skeleton + Export busy spinner polishing the resulting UX. Test
-coverage on the touched surface area went from 14 files / 82 tests to
-**16 files / 103 tests** (+1 file ExportButtons regression, +1 file
-exportTable.js regression, plus jsdom matchMedia/ResizeObserver
-stubs in shared setup). The eager bundle stays at 401 kB / gzip 130 kB
-— login fast-path unaffected.
+Ten green/yellow PRs (and four handoff doc amends) merged in one
+continuous run while resolving an expired-PAT incident. **`apps/web`
+lazy chunks ≥ 400 kB previously** (`ReportFilterBar` 717 kB and
+`DashboardPage` 417 kB) **both shrunk to ~10–31 kB by lifting their
+heavy deps into per-feature dynamic imports** (`xlsx`, `jspdf`,
+`jspdf-autotable`, `recharts`), with chart prefetch + bar-skeleton +
+Export busy spinner + Export dropdown-open prefetch polishing the
+resulting UX. Test coverage on the touched surface area went from 14
+files / 82 tests to **16 files / 105 tests** (+1 file ExportButtons
+regression with prefetch tests, +1 file exportTable.js regression,
+plus jsdom matchMedia/ResizeObserver stubs in shared setup). The
+eager bundle stays at 401 kB / gzip 130 kB — login fast-path
+unaffected.
 
 Net effect:
 
@@ -73,9 +75,11 @@ Prod state at close (post-PR #129 deploy):
 | #131 | `test(web): add ExportButtons regression tests for disabled, dropdown, sync, busy, error paths` | green  | merged (`7d07608`); deploy success |
 | #132 | `test(web): stub matchMedia, ResizeObserver, IntersectionObserver in test setup`                | green  | merged (`d6c7752`); deploy success |
 | #133 | `test(web): add exportTable.js regression tests for csv/json/formatValue`                       | green  | merged (`c7bab47`); deploy success |
-| #134 | `docs(handoff): amend with PRs #131-#133 (test coverage)` (this PR)                             | green  | pending merge                      |
+| #134 | `docs(handoff): amend with PRs #131-#133 (test coverage)`                                       | green  | merged (`677ba64`); deploy success |
+| #135 | `perf(reports): prefetch xlsx + jspdf chunks when ExportButtons dropdown opens`                 | green  | merged (`e744878`); deploy success |
+| #136 | `docs(handoff): amend with PR #135 (export prefetch) + Reports audit` (this PR)                 | green  | pending merge                      |
 
-(All twelve merged via REST API squash with `GITHUB_PAT_VIPOS` — see
+(All fourteen merged via REST API squash with `GITHUB_PAT_VIPOS` — see
 **Critical infrastructure context** below for the PAT rotation incident
 that gated PR #122.)
 
@@ -296,24 +300,91 @@ Test suite total after #133: **16 files / 103 tests** passing (was
 
 Risk: green (test-only, no source/dep changes).
 
+### PR #135 — prefetch xlsx + jspdf on ExportButtons dropdown open
+
+After PR #122 + #128, the export flow looked like: user clicks the
+trigger → dropdown opens → user picks 'Export Excel' → component flips
+`busy=true` and starts `import('xlsx')` → spinner + `Memuat…` shown
+during the 430 kB download → resolved → `XLSX.writeFile` runs. The
+chunk download itself is the dominant latency (\~hundreds of ms on
+slow networks).
+
+Mitigation strategy: kick off `import('xlsx')` + `import('jspdf')` +
+`import('jspdf-autotable')` the moment the user opens the dropdown.
+That's a much stronger signal of intent-to-export than mount-time
+prefetch (which would waste bandwidth on users who never export). By
+the time the user picks a format and clicks, the chunks are in the
+module cache and the export starts instantly.
+
+Implementation:
+
+- `useEffect` watches the `open` state. On first transition to `true`,
+  fire-and-forget `import()` for the chunks corresponding to the
+  formats actually present in the `formats` prop.
+- `useRef(false)` gates the prefetch so it only fires once per
+  component instance, even on re-open.
+- `formats={['csv', 'json']}` → no heavy chunk prefetch (correct).
+  `formats={['csv', 'xlsx']}` → only `xlsx` prefetches.
+- Errors are swallowed (`.catch(() => {})`) — prefetch is pure
+  optimization. If the chunk fails to load, the eventual real export
+  click will retry the `import()` and surface the error via
+  `toast.error` (existing PR #122 behaviour).
+
+Bundle delta:
+
+- `ReportFilterBar-*.js`: 9.99 kB → 10.59 kB (+0.60 kB pre-gzip for
+  the prefetch effect). On VPS: `ReportFilterBar-D424vjzO.js` =
+  10,983 bytes.
+- `xlsx-*.js`, `jspdf*.js`, `jspdf.plugin.autotable-*.js` chunks
+  unchanged in size or laziness.
+
+Test coverage: 2 new cases added to `ExportButtons.test.jsx` — one
+exercising the open/close/re-open cycle (idempotent `useRef` guard),
+one verifying that CSV/JSON-only `formats` prop doesn't prefetch (the
+heavy formats aren't even in the menu). Mocks `xlsx`, `jspdf`,
+`jspdf-autotable` via `vi.mock` so jsdom doesn't try to load real
+libraries. Suite total: 16 files / 105 tests passing (+2 vs #133).
+
+Risk: green (conservative trigger gated on user-intent click,
+idempotent, errors swallowed, full test coverage). Bundle eager
+unchanged at 401 kB / gzip 130 kB.
+
+### Reports child-page jspdf/xlsx audit (no PR — verification only)
+
+Verified (via `grep -n '(xlsx|jspdf|jspdf-autotable|XLSX|jsPDF)'` over
+`apps/web/src/**/*.{js,jsx}`) that no Reports child page or component
+re-imports xlsx/jspdf statically. The only runtime references are:
+
+- `apps/web/src/utils/exportTable.js` — dynamic `import('xlsx')` /
+  `import('jspdf')` (PR #122).
+- `apps/web/src/components/reports/ExportButtons.jsx` — dynamic
+  prefetch (PR #135).
+- `apps/web/src/__tests__/ExportButtons.test.jsx` — `vi.mock` stubs
+  for the prefetch tests.
+- `apps/web/src/pages/reports/ScheduledReportsPage.jsx:21` — string
+  literal `'xlsx'` in a select option label (not an import).
+
+No regressions: every Reports surface keeps the heavy chunks lazy.
+Audit task (Tier-1, 30 min estimate) closed.
+
 ## Production state at close
 
 ### VPS
 
 ```
 Host: 103.74.5.44 (xserver.local)
-Repo: /var/www/vipos @ git HEAD c7bab47 (PR #133)
+Repo: /var/www/vipos @ git HEAD e744878 (PR #135)
 Disk: 35 GB / 49 GB used (71%)
 RAM: 22% used / 3.8 GB total
 Swap: 4% used
-GH Actions deploy runs (this session): success for #122-#133
+GH Actions deploy runs (this session): success for #122-#135
 ```
 
-**Note**: PRs #131-#133 are test-only — they don't change production
-runtime behaviour. The deploy pipeline still re-builds + ships every
-merge, so VPS git HEAD advances (currently `c7bab47`), but the
-production bundles remain functionally equivalent to the post-#129
-state. No user-visible difference between #129 and #133 deploys.
+**Note**: PRs #131-#134 were test/docs-only and didn't change runtime
+behaviour. PR #135 is a small (+0.60 kB) `ReportFilterBar` perf
+improvement (export prefetch) — user-visible only as 'Export click
+feels instant after dropdown is open'. VPS git HEAD now `e744878`;
+bundles match #135 build output.
 
 ### pm2 (post-deploy)
 
@@ -449,13 +520,11 @@ new script.
 - **`<ChartFallback>` visual matching** — ✅ shipped in PR #129
   (bar-skeleton with `animate-pulse` + Y-axis line). Carried over only
   for changelog context.
-- **xlsx / jspdf preload on Reports navigation** — when
-  `ReportFilterBar` mounts, optionally fire-and-forget
-  `import('xlsx')` + `import('jspdf')` + `import('jspdf-autotable')`
-  so the first Export click feels instant. Trade-off: extra background
-  bandwidth (~850 kB) for users who never export. Defer until we have
-  telemetry on how often `/reports/*` users actually export. Risk:
-  yellow. Estimate: 1 hour + measurement.
+- **xlsx / jspdf preload on Reports navigation** — ✅ shipped in PR
+  #135 with a stronger trigger: prefetch on dropdown-open instead of
+  page-mount. Avoids the bandwidth-waste trade-off entirely (only
+  users who _intentionally_ open the export menu pay the cost).
+  Carried over only for changelog context.
 - **`CartesianChart` (recharts) chunk size** — still 334 kB pre-gzip,
   101 kB gzip. recharts itself has no easy split; if telemetry shows
   users care, consider migrating to a lighter chart lib (e.g. uPlot,
@@ -474,10 +543,10 @@ new script.
   `apps/web/src/__tests__/setup.js`). Future tests can mount
   `react-hot-toast Toaster` / recharts `ResponsiveContainer` without
   per-file polyfills.
-- **Other `/reports/*` page chunks** — audit other Reports child pages
-  to ensure none of them re-import jspdf/xlsx statically (they don't
-  today; #122 confirmed via build, but worth a regression check after
-  any refactor). Risk: green. Estimate: 30 min.
+- **Other `/reports/*` page chunks** — ✅ verified clean this session
+  (no PR — read-only audit; see "Reports child-page jspdf/xlsx audit"
+  section above). Re-run the same `grep` after any future Reports
+  refactor.
 - **`DashboardPage` test coverage** — opportunistic. With #132's
   shared jsdom polyfills, a smoke test that renders `DashboardPage`
   inside a `MemoryRouter` + `QueryClientProvider` and asserts the
@@ -513,19 +582,20 @@ unless ticked here.)
 apps/web/src/__tests__/OnboardingPage.test.jsx     |  4 ++--    PR #123
 apps/web/src/__tests__/ProductTabs.test.jsx        |  2 +-      PR #123
 apps/web/src/__tests__/Sidebar.test.jsx            |  2 +-      PR #123
-apps/web/src/__tests__/ExportButtons.test.jsx      | 161 +++    PR #131 (new file)
-apps/web/src/__tests__/exportTable.test.js         | 214 +++    PR #133 (new file)
+apps/web/src/__tests__/ExportButtons.test.jsx      | 218 +++    PR #131 (new), #135 (+57)
+apps/web/src/__tests__/exportTable.test.js         | 214 +++    PR #133 (new)
 apps/web/src/__tests__/setup.js                    |  48 +++    PR #132
-apps/web/src/components/reports/ExportButtons.jsx  |  42 +++    PRs #122, #128
+apps/web/src/components/reports/ExportButtons.jsx  |  73 +++    PRs #122, #128, #135
 apps/web/src/pages/DashboardPage.jsx               |  57 +++    PRs #124, #126, #129
 apps/web/src/utils/exportTable.js                  |  23 ++-    PR #122
-docs/handoff/2026-05-06-tier1-perf-followups.md    | (this file + 3 amends)   handoff PRs #125, #127, #130, #134
+docs/handoff/2026-05-06-tier1-perf-followups.md    | (this file + 4 amends)   handoff PRs #125, #127, #130, #134, #136
 ```
 
-Total: 9 source files, ~550 insertions / 25 deletions across PRs
-#122–#133. Plus 4 handoff doc PRs (#125 initial, #127 post-#126 amend,
+Total: 9 source files, ~640 insertions / 25 deletions across PRs
+#122–#135. Plus 5 handoff doc PRs (#125 initial, #127 post-#126 amend,
 #130 final amend with #128 + #129 + post-deploy prod state, #134 amend
-with #131-#133 test coverage).
+with #131-#133 test coverage, #136 amend with #135 export prefetch +
+Reports audit).
 
 ## Smoke test infrastructure
 
@@ -547,8 +617,8 @@ Existing `vi.mock('../components/charts/RevenueChart', ...)` pattern in
 `DashboardPage.test.jsx` continues to work with `React.lazy` after PR
 #124.
 
-Test suite now: **16 files / 103 tests passing** (was 14 / 82 at
-session start; +2 files, +21 tests).
+Test suite now: **16 files / 105 tests passing** (was 14 / 82 at
+session start; +2 files, +23 tests).
 
 ## Operational notes for next session
 
