@@ -169,7 +169,7 @@ Catatan:
 
 ---
 
-### P0-04: Type-safe API contract (OpenAPI + Zod)  `[done]`
+### P0-04: Type-safe API contract (OpenAPI + Zod) `[done]`
 
 > PR: [#9](https://github.com/alviarts/VIPOS/pull/9) (merged 2026-05-03), session: https://app.devin.ai/sessions/25c7eea136d1457c8c4dda8d16819659
 
@@ -178,6 +178,7 @@ Catatan:
 **Dependencies**: P0-01
 
 **Outputs**:
+
 - `packages/shared/src/schemas/{resource}.ts` — Zod schemas per resource (auth, products, categories, customers, finance, inventory)
 - `packages/shared/src/index.ts` — barrel export, TypeScript types derived via `z.infer`
 - Backend `apps/backend/src/middleware/validate.js` — Zod validation middleware (safeParse → 400 dengan field-level details)
@@ -186,6 +187,7 @@ Catatan:
 - `GET /api/docs` (Swagger UI) + `GET /api/docs.json` (OpenAPI spec, di-generate runtime dari Zod registry)
 
 **Acceptance criteria**:
+
 - [x] 6 existing resources (auth, products, categories, customers, finance, inventory) punya Zod schema
 - [x] Backend reject invalid request body dengan 400 + error detail (field path + message + code)
 - [x] Web client dapat type-safe call ke backend via `import type { ProductCreate, LoginRequest } from '@vipos/shared'`
@@ -197,7 +199,7 @@ Catatan:
 
 ---
 
-### P0-05: Testing framework  `[done]`
+### P0-05: Testing framework `[done]`
 
 > PR: [#11](https://github.com/alviarts/VIPOS/pull/11) (merged 2026-05-03; replaces auto-closed #10), session: https://app.devin.ai/sessions/25c7eea136d1457c8c4dda8d16819659 + https://app.devin.ai/sessions/8546e9f2afa1429f8a23153a782e872a
 
@@ -206,6 +208,7 @@ Catatan:
 **Dependencies**: P0-01, P0-04
 
 **Outputs**:
+
 - `packages/shared/vitest.config.ts` + `packages/shared/src/__tests__/schemas.test.ts` (25 tests)
 - `apps/backend/vitest.config.js` + `apps/backend/src/__tests__/{auth,products,finance,inventory}.test.mjs` (28 tests pakai Supertest)
 - `apps/backend/src/app.js` — refactor: extract Express app builder dari `src/index.js` supaya bisa di-import dari tests tanpa auto-listen.
@@ -214,6 +217,7 @@ Catatan:
 - `package.json` test scripts per workspace + root `npm test --workspaces --if-present` jalankan semua.
 
 **Acceptance criteria**:
+
 - [x] `npm test` jalan di setiap workspace + root → 60 tests passed (25 shared + 28 backend + 7 web)
 - [x] Coverage report generated (`npm run test:coverage` di tiap workspace, v8 provider)
 - [x] CI jalankan tests + fail kalau test fail (existing workflow `npm test --workspaces --if-present` from P0-02 sekarang hits real test suites)
@@ -226,11 +230,15 @@ Catatan:
 
 ## Definition of Done — Phase 0
 
-- [ ] Monorepo working
-- [ ] CI/CD enabled, every PR auto-checked
-- [ ] Lint/format/git hooks enforced
-- [ ] Type-safe API contract foundation
-- [ ] Testing framework ready
+All five P0-XX subsystems above are marked `[done]` with their PR
+references logged. Mirror that here so the top-level status reflects
+reality.
+
+- [x] Monorepo working (P0-01)
+- [x] CI/CD enabled, every PR auto-checked (P0-02)
+- [x] Lint/format/git hooks enforced (P0-03)
+- [x] Type-safe API contract foundation (P0-04)
+- [x] Testing framework ready (P0-05)
 
 Setelah Phase 0 selesai, Phase 1 (web dashboard) bisa dijalankan dengan banyak Devin paralel karena setiap task punya:
 
