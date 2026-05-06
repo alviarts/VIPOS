@@ -3,7 +3,6 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
-import { AuthContext } from '../context/AuthContext';
 import { PermissionProvider, ROLES, TIERS } from '../context/PermissionContext';
 
 // AuthContext doesn't export the raw context, but useAuth wraps useContext(AuthContext).

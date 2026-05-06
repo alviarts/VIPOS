@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Eye, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Eye, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import api from '../utils/api';
 import { formatCurrency, formatDateTime } from '../utils/format';
 import toast from 'react-hot-toast';

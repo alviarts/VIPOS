@@ -189,7 +189,6 @@ for (const table of tables) {
   const sqliteSelectList = cols.map((c) => `"${c}"`).join(', ');
   const BATCH = 500;
 
-  let inserted = 0;
   let offset = 0;
   while (offset < sqliteCount) {
     const rows = sqlite
@@ -215,7 +214,6 @@ for (const table of tables) {
     const sql = `INSERT INTO "${table}" (${colList}) VALUES ${placeholders.join(', ')}`;
     await pgClient.query(sql, values);
 
-    inserted += rows.length;
     offset += rows.length;
   }
 

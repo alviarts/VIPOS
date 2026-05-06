@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, DollarSign, ShoppingCart } from 'lucide-react';
+import { TrendingUp, DollarSign, ShoppingCart } from 'lucide-react';
 import api from '../utils/api';
-import { formatCurrency, formatDate } from '../utils/format';
+import { formatCurrency } from '../utils/format';
 
 export default function ReportsPage() {
   const [period, setPeriod] = useState('7');

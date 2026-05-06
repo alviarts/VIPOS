@@ -12,7 +12,6 @@ import {
   Coins,
 } from 'lucide-react';
 import api from '../utils/api';
-import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatDate } from '../utils/format';
 import {
@@ -30,9 +29,6 @@ const TIPE_LABEL = {
 };
 
 export default function FinancePage() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
-
   const [tab, setTab] = useState('transactions');
   const [accounts, setAccounts] = useState([]);
   const [transactions, setTransactions] = useState([]);

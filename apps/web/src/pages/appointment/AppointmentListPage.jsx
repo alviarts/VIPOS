@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../utils/api';
-import { useAuth } from '../../context/AuthContext';
 import { EmptyState, FilterTabs, PageHeader, ConfirmationDialog } from '../../components/ui';
 import AppointmentForm from '../../components/appointment/AppointmentForm';
 
@@ -278,7 +277,6 @@ function AppointmentDetailDialog({
 }
 
 export default function AppointmentListPage() {
-  const { user } = useAuth();
   const [tab, setTab] = useState('all');
   const [staffFilter, setStaffFilter] = useState('');
   const [dateFrom, setDateFrom] = useState(() => new Date().toISOString().slice(0, 10));

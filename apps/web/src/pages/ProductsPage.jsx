@@ -10,7 +10,6 @@ import {
   Upload,
   Star,
   ChevronDown,
-  MoreVertical,
 } from 'lucide-react';
 import api from '../utils/api';
 import { formatCurrency } from '../utils/format';
@@ -24,12 +23,6 @@ import {
   FilterTabs,
   PageHeader,
 } from '../components/ui';
-
-const FILTERS = [
-  { id: 'all', label: 'Semua' },
-  { id: 'shown', label: 'Tampil di Menu' },
-  { id: 'hidden', label: 'Tidak Tampil di Menu' },
-];
 
 export default function ProductsPage() {
   const { user } = useAuth();
