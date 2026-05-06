@@ -2,12 +2,13 @@
 
 Closed: 2026-05-06 ~14:55 UTC. Re-closed: 2026-05-06 ~15:10 UTC by
 amend PR after merging PR #155 (CI build-smoke follow-up to PR #102).
-Re-closed: 2026-05-06 ~15:30 UTC by this amend PR after merging
-PR #157 (deploy-smoke follow-up: informational `/api/v1/health/disk`
-curl in `deploy-vps.yml` post-pm2-boot). The disk-health probe is
-now defended at three layers: unit tests (PR #102), build-smoke
-backend boot (PR #155), and live deploy smoke (PR #157). Prepared
-by Devin in continuous-automation mode. Devin session:
+Re-closed: 2026-05-06 ~15:30 UTC by amend PR #158 after merging
+PR #157 (deploy-smoke follow-up). Re-closed: 2026-05-06 ~16:10 UTC
+by this amend PR after merging **PR #159** (recharts → vanilla SVG
+chart migration; −377 kB / −113.7 kB gzip; **96% bundle reduction**)
+and **PR #160** (deploy smoke retry + max-time cap; fixes the 4-min
+hang seen on PR #159's deploy run 25445961488). Prepared by Devin
+in continuous-automation mode. Devin session:
 <https://app.devin.ai/sessions/37291d97f04c45c18b7731c7cfd44e7f>
 
 Successor to `2026-05-06-tier1-perf-followups.md` (which was re-closed at
@@ -45,32 +46,37 @@ total_bytes, free_bytes, used_bytes, used_percent}}`. Returns 503
 - Zero behaviour change to existing routes, frontend bundles, deploy
   pipeline, or any other surface.
 
-Prod state at close (post-PR #153 deploy):
+Prod state at close (post-PR #160 deploy at ~16:06 UTC):
 
-- Backend HEAD `8124af1` (PR #153 squash-merge SHA on `main`).
-- `pm2 list` → `vipos-backend` (online, 101.8 MB, ~10 min uptime since
-  PR #102's deploy at 14:44:30Z; pm2 not restarted by PR #153 because
-  it's CI-config-only), `vipos-worker` (online, 55.2 MB, ~10 min
-  uptime), `finance-bot-tg` (online, 6d uptime, 67.7 MB),
-  `pm2-logrotate` (online).
-- `/api/v1/health/disk` → `{"status":"ok","mount":"/var/backups/vipos","threshold_percent":90,"fs":{"used_percent":71.16,...}}` (verified
+- Backend HEAD `d44215c` (PR #160 squash-merge SHA on `main`).
+- `pm2 list` → `vipos-backend` (online, 99.9 MB, ~2 min uptime since
+  PR #160's deploy), `vipos-worker` (online, 55.3 MB, ~2 min uptime),
+  `finance-bot-tg` (online, 6d uptime, 68.5 MB), `pm2-logrotate`
+  (online).
+- `/api/v1/health/disk` → `{"status":"ok","mount":"/var/backups/vipos","threshold_percent":90,"fs":{"used_percent":71.06,...}}` (verified
   via SSH `curl localhost:3001/api/v1/health/disk` and via public
   `http://103.74.5.44/vipos/api/v1/health/disk`).
-- `/api/health` (existing) → expected ok / db ok / redis ok (unchanged
-  this session — verified by deploy workflow's smoke step in CI).
-- VPS: disk 35 GB / 49 GB (71%), well under the new probe's 90%
+- `/api/health` (existing) → 200 (verified via deploy 25446623776's
+  retry-enabled smoke step).
+- VPS: disk 35 GB / 49 GB (72%), well under the probe's 90%
   default threshold.
-- `tools/scripts/deploy.sh` untouched in both PRs — no
+- Frontend chunks live: `RevenueChart-BGwmECCc.js` (9.5 kB),
+  `TopProductChart-Cw-m8AsT.js` (3.29 kB), `useChartSize-668n_Adz.js`
+  (0.85 kB). NO `CartesianChart-*.js` (recharts gone, confirmed via
+  `ls apps/web/dist/assets/`).
+- `tools/scripts/deploy.sh` untouched in all 6 PRs this session — no
   `workflow_dispatch` chicken-egg needed.
 
 ## All PRs merged this session
 
-| PR   | Branch                                    | Subject                                                                  | Risk   | Status                                                                                 |
-| ---- | ----------------------------------------- | ------------------------------------------------------------------------ | ------ | -------------------------------------------------------------------------------------- |
-| #102 | `devin/1778050459-health-disk`            | feat(backend): `/api/health/disk` usage probe with 90% threshold default | yellow | merged `f8f41c7`; deploy 25442332939 ✅; endpoint verified live (used_percent 71.16)   |
-| #153 | `devin/1778078818-ci-test-timeout`        | ci(test): bump timeout-minutes 10 → 15 for apt-archive flake headroom    | green  | merged `8124af1`; deploy 25442876914 ✅ (no pm2 restart needed; CI-config-only change) |
-| #155 | `devin/1778079934-ci-smoke-disk-health`   | ci(smoke): also curl `/api/v1/health/disk` after backend boot            | green  | merged `26b0828`; CI 3/3 ✅ (smoke step verified the new probe returns 200 ok)         |
-| #157 | `devin/1778080968-deploy-smoke-disk-info` | ci(deploy): informational `/api/v1/health/disk` curl in live smoke       | green  | merged `0856eca`; deploy 25444751281 ✅; deploy log shows `disk     HTTP 200` line     |
+| PR   | Branch                                         | Subject                                                                        | Risk   | Status                                                                                                                                                                          |
+| ---- | ---------------------------------------------- | ------------------------------------------------------------------------------ | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #102 | `devin/1778050459-health-disk`                 | feat(backend): `/api/health/disk` usage probe with 90% threshold default       | yellow | merged `f8f41c7`; deploy 25442332939 ✅; endpoint verified live (used_percent 71.16)                                                                                            |
+| #153 | `devin/1778078818-ci-test-timeout`             | ci(test): bump timeout-minutes 10 → 15 for apt-archive flake headroom          | green  | merged `8124af1`; deploy 25442876914 ✅ (no pm2 restart needed; CI-config-only change)                                                                                          |
+| #155 | `devin/1778079934-ci-smoke-disk-health`        | ci(smoke): also curl `/api/v1/health/disk` after backend boot                  | green  | merged `26b0828`; CI 3/3 ✅ (smoke step verified the new probe returns 200 ok)                                                                                                  |
+| #157 | `devin/1778080968-deploy-smoke-disk-info`      | ci(deploy): informational `/api/v1/health/disk` curl in live smoke             | green  | merged `0856eca`; deploy 25444751281 ✅; deploy log shows `disk     HTTP 200` line                                                                                              |
+| #159 | `devin/1778081933-cartesian-chart-vanilla-svg` | perf(web): replace recharts with vanilla SVG charts (−377 kB / −113.7 kB gzip) | yellow | merged `2bf09ab`; deploy 25445961488 (smoke flaked, see PR #160 RCA); production verified healthy via SSH (new chart bundle live, no CartesianChart-\*.js, pm2 backend 99.9 MB) |
+| #160 | `devin/1778083192-deploy-smoke-retry`          | ci(deploy): retry + cap smoke-curl timeouts (run 25445961488 4-min hang)       | green  | merged `d44215c`; deploy 25446623776 ✅; smoke now `frontend HTTP 200` / `health HTTP 200` / `disk HTTP 200` in <2 sec total                                                    |
 
 PR #102 was open from a previous Devin session (author: `alviarts`,
 opened 2026-05-06 06:58 UTC, head commit `4ed5731`). It had passed
@@ -108,6 +114,55 @@ near-full disk would create a catch-22 where the disk-cleanup fix
 can't ship. Confirmed in deploy run 25444751281: log line
 `disk     HTTP 200` printed alongside the existing `frontend HTTP
 200` + `health   HTTP 200`.
+
+## PR #159 — recharts → vanilla SVG chart migration
+
+The two dashboard charts (`RevenueChart` area + `TopProductChart`
+horizontal bar) were the only consumers of `recharts`. Their lazy
+chunks pulled in the entire shared `CartesianChart-*.js` chunk
+(334.55 kB / 101.58 kB gzip) plus per-chart wrappers. Replaced both
+components with hand-rolled SVG + scales:
+
+| chunk           | before                   | after                  | delta                      |
+| --------------- | ------------------------ | ---------------------- | -------------------------- |
+| RevenueChart    | 24.79 kB / 7.98 kB gzip  | 9.11 kB / 3.58 kB gzip | −15.7 / −4.4 kB            |
+| TopProductChart | 29.66 kB / 9.23 kB gzip  | 2.90 kB / 1.51 kB gzip | −26.8 / −7.7 kB            |
+| CartesianChart  | 334.55 kB / 101.58 kB gz | (gone)                 | −334.5 / −101.6 kB         |
+| **total**       | **389 kB / 118.8 kB gz** | **12 kB / 5.1 kB gz**  | **−377 / −113.7 kB (96%)** |
+
+New shared hook: `apps/web/src/components/charts/useChartSize.js`
+(40 lines) wraps `ResizeObserver` + seeds initial size from
+`getBoundingClientRect`. jsdom's `ResizeObserver` is already a
+no-op stub in `apps/web/src/__tests__/setup.js`; charts short-circuit
+to their empty-state placeholder when width/height are 0, which keeps
+existing test mocks honest. Visual contract preserved:
+mint-green stroke `#04C99E` + linear gradient fill (`RevenueChart`),
+right-rounded bars (`TopProductChart`), tooltip cards, empty-state
+copy. 6 new regression tests pin the migration
+(`RevenueChart.test.jsx`, `TopProductChart.test.jsx`).
+
+38 transitive `recharts` deps removed from `package-lock.json`.
+
+## PR #160 — deploy smoke retry + timeout cap
+
+PR #159's deploy run (25445961488) failed the smoke step with
+`health HTTP 000` after the curl hung for **4 minutes 11 seconds**
+(15:52:53 → 15:57:12). Backend logs on the VPS showed the pm2
+process actually came online at 15:52:51 — 2 seconds _before_ the
+smoke step started — so the curl was racing nginx's upstream-pool
+refresh window, not a real backend outage. Single-shot `curl -fsS`
+had no retry and no `--max-time` cap, so one transient `000` /
+connect-refused stalled the runner for the full default until
+`set -e` failed the job.
+
+Fix: all three smoke curls (frontend, health, disk) now use
+`--retry 5 --retry-delay 3 --retry-connrefused --max-time 30`,
+plus initial `sleep 5 → sleep 10` for a bit more cold-restart
+headroom. Disk curl keeps trailing `|| true` (catch-22 prevention
+from PR #157). Deploy run 25446623776 confirmed the fix:
+`frontend HTTP 200` (16:06:26.13) → `health HTTP 200`
+(16:06:26.76) → `disk HTTP 200` (16:06:27.27) — all three in
+~1.6 sec total.
 
 ## Root cause analysis: PR #102's first CI run cancelled
 
@@ -283,12 +338,20 @@ docs/runbook/deploy-checklist.md                      |   4 ++   PR #102
 .github/workflows/ci.yml                              |   7 ++   PR #153 (test job timeout)
 .github/workflows/ci.yml                              |  11 ++   PR #155 (build smoke step + DISK_HEALTH_MOUNT env)
 .github/workflows/deploy-vps.yml                      |   8 ++   PR #157 (deploy smoke informational curl)
-docs/handoff/2026-05-06-disk-health-and-ci-timeout-fix.md | (this file)  handoff PR + 2 amends
+.github/workflows/deploy-vps.yml                      |  17 +/- 5  PR #160 (smoke retry + max-time cap)
+apps/web/package.json                                 |   1 −   PR #159 (recharts dep removed)
+apps/web/src/components/charts/useChartSize.js        |  43 ++  PR #159 (new ResizeObserver hook)
+apps/web/src/components/charts/RevenueChart.jsx       | 211 +/- 55  PR #159 (rewrite)
+apps/web/src/components/charts/TopProductChart.jsx    | 170 +/- 35  PR #159 (rewrite)
+apps/web/src/__tests__/RevenueChart.test.jsx          |  67 ++  PR #159 (regression tests)
+apps/web/src/__tests__/TopProductChart.test.jsx       |  73 ++  PR #159 (regression tests)
+package-lock.json                                     | −400      PR #159 (38 transitive recharts deps removed)
+docs/handoff/2026-05-06-disk-health-and-ci-timeout-fix.md | (this file)  handoff PR + 3 amends
 ```
 
-Total: 7 source/config files + 1 new handoff doc (with two amends),
-~424 insertions / ~10 deletions across PRs #102 + #153 + #155 +
-#157 + handoff PR + 2 amend PRs.
+Total: 13 source/config files + 1 new handoff doc (with three amends),
+~1024 insertions / ~510 deletions across PRs #102 + #153 + #155 +
+#157 + #159 + #160 + handoff PR + 3 amend PRs.
 
 ## Operational notes for next session
 
