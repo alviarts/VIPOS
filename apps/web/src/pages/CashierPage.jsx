@@ -10,7 +10,6 @@ import {
   QrCode,
   X,
   Check,
-  Printer,
   Package,
 } from 'lucide-react';
 import api from '../utils/api';
