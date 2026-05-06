@@ -1,12 +1,13 @@
 # VIPOS Sesi Handoff — 2026-05-06 (Tier-1 perf follow-ups)
 
-Closed: 2026-05-06 ~14:10 UTC (re-closed by bot-wa-delete amend;
-previously ~13:35 UTC after PR #143–#145 amend, ~13:00 UTC after PR
-#141 amend, and ~10:50 UTC at the original close). Prepared by Devin in continuous-
+Closed: 2026-05-06 ~14:30 UTC (re-closed by PR #148 + xlsx audit
+amend; previously ~14:10 UTC after bot-wa-delete amend, ~13:35 UTC
+after PR #143–#145 amend, ~13:00 UTC after PR #141 amend, and
+~10:50 UTC at the original close). Prepared by Devin in continuous-
 automation mode. Devin sessions:
 
 - Original close: <https://app.devin.ai/sessions/52c2da66635d43a9a7c774b05036ae66>
-- 2026-05-06 #141 + #143–#145 + bot-wa-delete amend: <https://app.devin.ai/sessions/5a13e29449674f47bb2d035b5636542b>
+- 2026-05-06 #141 + #143–#145 + bot-wa-delete + #148 amend: <https://app.devin.ai/sessions/5a13e29449674f47bb2d035b5636542b>
 
 Successor to `2026-05-06-phase1-ac-completion-and-bundle-split.md` (which
 captured PRs #112–#119 / per-AC ticks + initial route-level
@@ -31,13 +32,13 @@ to ~10–31 kB by lifting their heavy deps into per-feature dynamic
 imports** (`xlsx`, `jspdf`, `jspdf-autotable`, `recharts`), with chart
 prefetch + bar-skeleton + Export busy spinner + Export dropdown-open
 prefetch polishing the resulting UX. Test coverage on the touched
-surface area went from 14 files / 82 tests to **20 files / 109 tests**
+surface area went from 14 files / 82 tests to **21 files / 113 tests**
 (+1 file ExportButtons regression with prefetch tests, +1 file
 exportTable.js regression, +1 file DashboardChartFallback Suspense
 regression, +3 files for the lazy-dialog contracts of
 `CustomerImportDialog`, `ProductMovementHistoryDialog`,
-`CampaignBuilder`, plus jsdom matchMedia/ResizeObserver stubs in shared
-setup).
+`CampaignBuilder`, +1 file for the `<ProtectedRoute>` auth-guard
+contract, plus jsdom matchMedia/ResizeObserver stubs in shared setup).
 The eager bundle dropped to **387 kB / gzip 127 kB** (was 401 kB / gzip
 130 kB at session start; PR #137 lazy-loaded three uncommon auth
 pages). Login fast-path unaffected.
@@ -63,8 +64,8 @@ Net effect:
 
 Prod state at close (post-PR #145 deploy):
 
-- Backend HEAD `9bde4ff` (PR #145 squash-merge SHA on `main`; PR #146
-  - this PR are doc-only and don't change the bundle).
+- Backend HEAD `73e1e4d` (PR #148 squash-merge SHA on `main`; PR #146
+  - #147 + this PR are doc-only and don't change the bundle).
 - `pm2 list` → `vipos-backend` (online, 100.3 MB, ~4 min uptime),
   `vipos-worker` (online, 55.4 MB, ~4 min uptime), `finance-bot-tg`
   (online, 5d uptime, 67.6 MB), `pm2-logrotate` (online, 34.3 MB).
@@ -108,7 +109,9 @@ Prod state at close (post-PR #145 deploy):
 | #144 | `test(web): add ProductMovementHistoryDialog lazy-load contract test`                           | green  | merged (`3f3751d`); deploy success |
 | #145 | `test(web): add CampaignBuilder lazy-load contract test`                                        | green  | merged (`9bde4ff`); deploy success |
 | #146 | `docs(handoff): amend with PRs #143/#144/#145 (lazy-dialog regression tests)`                   | green  | merged (`aa88abe`); deploy success |
-| #147 | `docs(handoff): record bot-wa pm2 delete + drop from VIPOS backlog (not VIPOS scope)` (this PR) | green  | pending merge                      |
+| #147 | `docs(handoff): record bot-wa pm2 delete + drop from VIPOS backlog (not VIPOS scope)`           | green  | merged (`37203f1`); deploy success |
+| #148 | `test(web): add ProtectedRoute auth-guard regression test`                                      | green  | merged (`73e1e4d`); deploy success |
+| #149 | `docs(handoff): amend with PR #148 + xlsx (SheetJS) audit finding` (this PR)                    | green  | pending merge                      |
 
 (All twenty-three merged via REST API squash with `GITHUB_PAT_VIPOS` —
 see **Critical infrastructure context** below for the PAT rotation
@@ -531,6 +534,60 @@ Bundle / behaviour: zero source changes to `CustomersPage`,
 
 Risk: green (all three are test-only additions).
 
+### PR #148 — `<ProtectedRoute>` auth-guard regression test
+
+`<ProtectedRoute>` is the single component every authenticated route
+in `App.jsx` is wrapped in (`/onboarding`, `/`, and all 50+ child
+routes hanging off the `<AppShell>` `<Outlet>`). Its job is small but
+security-critical:
+
+| `useAuth()` state            | Render                                  |
+| ---------------------------- | --------------------------------------- |
+| `loading=true`               | `<Spinner />` (h-12 w-12, animate-spin) |
+| `loading=false, user=null`   | `<Navigate to="/login" />`              |
+| `loading=false, user=truthy` | children                                |
+
+A regression here would either (a) leak protected pages to
+unauthenticated users, or (b) bounce authenticated users to `/login`
+on every refresh. Both are P0-class bugs.
+
+Implementation in `apps/web/src/__tests__/ProtectedRoute.test.jsx`
+(4 tests, 139 LOC):
+
+1. **Spinner during loading** — asserts `.animate-spin` is in the DOM
+   and neither the guarded children nor the `/login` sentinel renders.
+2. **Redirect to `/login` when auth resolved with no user** — asserts
+   the `/login` route's element is rendered and the guarded children
+   are not.
+3. **Children render when auth resolved with a user** — mirror of (2).
+4. **Loading→authenticated transition does not flash `/login`** —
+   realistic refresh-while-logged-in flow. Initial render has
+   `loading=true` (spinner), then re-render with
+   `loading=false, user=present` must NOT briefly show the `/login`
+   redirect.
+
+Test surface:
+
+- `vi.mock('../context/AuthContext', ...)` and
+  `vi.mock('./context/AuthContext', ...)` both wired to the same
+  `useAuthMock` so each test can `mockReturnValue(...)` independently.
+  Both relative path forms are mocked because `App.jsx` and the test
+  file resolve the import differently from their respective
+  directories.
+- `MemoryRouter` + `/login` sentinel route lets the test observe
+  `<Navigate>`'s redirect outcome via the rendered element rather than
+  navigation history.
+
+Source change: a single-character edit in `apps/web/src/App.jsx`
+(`function ProtectedRoute(...)` → `export function ProtectedRoute(...)`)
+to make the component testable in isolation. No behavior change; eager
+bundle byte-identical (`index-DmntnoNG.js` 387.26 kB pre-gzip).
+
+Test suite delta: 20 files / 109 tests → **21 files / 113 tests** (+1
+file, +4 tests).
+
+Risk: green (one-line `export` keyword addition + new test file).
+
 ## Production state at close
 
 ### VPS
@@ -879,7 +936,36 @@ use `npm run test --workspace=apps/web`) so the workspace's
    `pm2 delete bot-wa && pm2 save` on VPS; `pm2 dump` saved at
    `/root/.pm2/dump.pm2`. Future Devin sessions: bot-wa is **not** part of
    VIPOS scope; do not re-add it to backlogs.
-9. **Don't touch `alviarts/finance-bot` repo from VIPOS sessions.** That
-   repo lives at `/root/finance-bot/` on the VPS but has nothing to do
-   with this monorepo. If you need to make changes there, use a separate
-   Devin session scoped to that repo.
+9. **`npm audit` flags 1 high-severity `xlsx` (SheetJS) vuln — non-exploitable in VIPOS.** Two advisories in `node_modules/xlsx`:
+   - GHSA-4r6h-8v6p-xvw6 (Prototype Pollution in SheetJS) — requires
+     parsing a crafted `.xlsx` file via `XLSX.read(...)` /
+     `XLSX.readFile(...)`.
+   - GHSA-5pgg-2g8v-p4x9 (SheetJS ReDoS) — same; requires parsing
+     untrusted strings through SheetJS reader APIs.
+
+   Both have "No fix available" via `npm audit fix` because SheetJS
+   removed their package from npm; the patched build is hosted at
+   `https://cdn.sheetjs.com/`. **VIPOS is not vulnerable**: the only
+   call sites use write-side APIs (`XLSX.utils.aoa_to_sheet`,
+   `book_new`, `book_append_sheet`, `writeFile` in
+   `apps/web/src/utils/exportTable.js`); there is **no** `XLSX.read`
+   anywhere in `apps/web/src/`. CSV import in
+   `CustomerImportDialog.jsx` uses a custom RFC4180 parser (no xlsx).
+
+   Verification one-liner for future sessions:
+   `grep -rn "XLSX\\.read\\|xlsx.*read" apps/web/src/` → expect 0 matches.
+
+   Migration options if SheetJS is ever needed in a read context:
+   (a) pin to the SheetJS CDN tarball via
+   `package.json` `"xlsx": "https://cdn.sheetjs.com/xlsx-X.Y.Z/xlsx-X.Y.Z.tgz"`,
+   (b) switch to ExcelJS (different API, broader feature set, npm-published).
+
+   Do not silence the audit (e.g. via `audit-level=critical` in
+   `.npmrc`) — the visible warning is a useful signal that future
+   contributors should re-check this finding before adding any
+   xlsx-read code path.
+
+10. **Don't touch `alviarts/finance-bot` repo from VIPOS sessions.** That
+    repo lives at `/root/finance-bot/` on the VPS but has nothing to do
+    with this monorepo. If you need to make changes there, use a separate
+    Devin session scoped to that repo.
