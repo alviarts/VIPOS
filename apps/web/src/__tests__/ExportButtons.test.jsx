@@ -38,11 +38,14 @@ vi.mock('react-hot-toast', () => ({
 // Mock the heavy lazy chunks the component prefetches when the dropdown
 // opens. We don't actually need the libraries; we just need vi to count
 // the dynamic-import call so we can assert the prefetch fires.
-const xlsxModuleMock = vi.hoisted(() => ({ default: {}, utils: {}, writeFile: vi.fn() }));
+const exceljsModuleMock = vi.hoisted(() => ({
+  default: { Workbook: vi.fn() },
+  Workbook: vi.fn(),
+}));
 const jspdfModuleMock = vi.hoisted(() => ({ default: vi.fn() }));
 const autotableModuleMock = vi.hoisted(() => ({ default: vi.fn() }));
 
-vi.mock('xlsx', () => xlsxModuleMock);
+vi.mock('exceljs', () => exceljsModuleMock);
 vi.mock('jspdf', () => jspdfModuleMock);
 vi.mock('jspdf-autotable', () => autotableModuleMock);
 
@@ -170,13 +173,16 @@ describe('ExportButtons', () => {
     consoleSpy.mockRestore();
   });
 
-  // PR #135: prefetch heavy export chunks (xlsx + jspdf + autotable) when
+  // PR #135: prefetch heavy export chunks (exceljs + jspdf + autotable) when
   // dropdown opens, so first export click feels instant.
-  it('prefetches xlsx + jspdf chunks when dropdown opens (formats=default)', async () => {
+  it('prefetches exceljs + jspdf chunks when dropdown opens (formats=default)', async () => {
     render(<ExportButtons {...baseProps} />);
 
-    // Sanity: nothing prefetched before the dropdown opens.
-    expect(xlsxModuleMock.writeFile).not.toHaveBeenCalled();
+    // Sanity: nothing prefetched before the dropdown opens. The exceljs
+    // mock's Workbook constructor should not have been instantiated yet —
+    // prefetch is `import('exceljs')`, which warms the module cache but
+    // does not call `new Workbook()` (that happens inside exportXlsx).
+    expect(exceljsModuleMock.Workbook).not.toHaveBeenCalled();
 
     await act(async () => {
       fireEvent.click(screen.getByTestId('report-export-trigger'));
@@ -196,7 +202,7 @@ describe('ExportButtons', () => {
     expect(screen.getByText('Export PDF')).toBeInTheDocument();
   });
 
-  it('does not prefetch xlsx when formats omits xlsx + pdf', async () => {
+  it('does not prefetch exceljs when formats omits xlsx + pdf', async () => {
     // CSV/JSON-only — no need to prefetch the heavy chunks at all.
     render(<ExportButtons {...baseProps} formats={['csv', 'json']} />);
 
