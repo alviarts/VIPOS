@@ -91,6 +91,6 @@ describe('Sidebar', () => {
     const sidebar = screen.getByTestId('vipos-sidebar');
     expect(sidebar).toHaveAttribute('data-collapsed', 'true');
     // No item label "Kas & Bank" should be visible (groups are collapsed).
-    expect(screen.queryByText('Kas & Bank')).toBeNull();
+    expect(screen.queryByText('Kas & Bank')).not.toBeInTheDocument();
   });
 });
