@@ -3,6 +3,7 @@
 // Pakai sebagai child di ReportTemplate. Memanggil util di
 // `apps/web/src/utils/exportTable.js`. Bisa di-disable kalau rows kosong.
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import { Download, FileSpreadsheet, FileText, Code2, ChevronDown } from 'lucide-react';
 import { exportCsv, exportXlsx, exportPdf, exportJson } from '../../utils/exportTable';
 
@@ -16,16 +17,31 @@ export default function ExportButtons({
   formats = ['csv', 'xlsx', 'pdf', 'json'],
 }) {
   const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
   const safeRows = Array.isArray(rows) ? rows : [];
-  const isDisabled = disabled || safeRows.length === 0;
+  const isDisabled = disabled || safeRows.length === 0 || busy;
 
-  const handleExport = (fmt) => {
+  const handleExport = async (fmt) => {
     setOpen(false);
     const opts = { filename, title, subtitle, columns, rows: safeRows };
-    if (fmt === 'csv') exportCsv(opts);
-    else if (fmt === 'xlsx') exportXlsx(opts);
-    else if (fmt === 'pdf') exportPdf(opts);
-    else if (fmt === 'json') exportJson(opts);
+    try {
+      if (fmt === 'csv') exportCsv(opts);
+      else if (fmt === 'json') exportJson(opts);
+      else if (fmt === 'xlsx') {
+        setBusy(true);
+        await exportXlsx(opts);
+      } else if (fmt === 'pdf') {
+        setBusy(true);
+        await exportPdf(opts);
+      }
+    } catch (err) {
+      // Dynamic import (xlsx / jspdf chunk) bisa gagal karena network /
+      // browser cache miss. Surface ke user supaya tidak silent.
+      console.error('Export gagal:', err);
+      toast.error(`Export ${fmt.toUpperCase()} gagal: ${err?.message || 'unknown error'}`);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
