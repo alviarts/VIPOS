@@ -3,14 +3,22 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import AppShell from './components/layout/AppShell';
 import LoginPage from './pages/LoginPage';
-import SignupPage from './pages/SignupPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
 
-// Lazy-load the rest of the app behind ProtectedRoute. Auth pages above
-// stay eager so login/signup/forgot/reset paths never wait on a code-split
-// chunk. Everything below renders inside <Suspense fallback> so the user
-// sees a spinner while the chunk fetches.
+// LoginPage stays eager because it's the most common entry point — every
+// unauthenticated user lands there. SignupPage / ForgotPasswordPage /
+// ResetPasswordPage are uncommon (signup is rare for an existing tenant
+// app, password recovery is a long-tail flow) so they're lazy-loaded
+// behind the same <Suspense fallback> as the protected routes below.
+// First navigation to /signup, /forgot-password, /reset-password fetches
+// a per-page chunk; subsequent visits hit the module cache.
+const SignupPage = lazy(() => import('./pages/SignupPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
+
+// Lazy-load the rest of the app behind ProtectedRoute. LoginPage above
+// stays eager so the login path never waits on a code-split chunk.
+// Everything below renders inside <Suspense fallback> so the user sees a
+// spinner while the chunk fetches.
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage'));
 const ChangePasswordPage = lazy(() => import('./pages/ChangePasswordPage'));
 const Setup2FAPage = lazy(() => import('./pages/Setup2FAPage'));
