@@ -20,7 +20,19 @@
  *     `src/jobs/`. Keep it that way so unit tests can import jobs without
  *     starting workers.
  */
-require('dotenv').config();
+// Load `.env` with `override: true` so that the file's values win over any
+// stale env that pm2 may have cached when the supervisor was first
+// started (P2-08 RCA, 2026-05-06). Without this flag, dotenv's default
+// "first wins" semantics let pre-existing process.env entries silently
+// shadow rotated credentials, e.g. a stale DIRECT_URL that survived a
+// `pm2 restart vipos-worker --update-env` because pm2's stored env had
+// captured the old value at first boot. The worker then runs with the
+// stale URL and pg_dump fails with `password authentication failed for
+// user "postgres"` even though the on-disk .env is correct. Override
+// makes .env the unambiguous source of truth for every env var the
+// worker reads, which is exactly the contract this file is intended to
+// honor.
+require('dotenv').config({ override: true });
 
 const { startWorkers } = require('./jobs');
 const { child } = require('./lib/logger');
