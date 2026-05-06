@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Download,
@@ -17,7 +17,11 @@ import toast from 'react-hot-toast';
 import { formatCurrency, formatDate } from '../utils/format';
 import { ConfirmationDialog, EmptyState, PageHeader, Pagination } from '../components/ui';
 import CustomerFormPage from '../components/customers/CustomerFormPage';
-import CustomerImportDialog from '../components/customers/CustomerImportDialog';
+
+// Lazy-load CustomerImportDialog — bulk-import is rare and the dialog
+// is 298 lines. Mounted only when {showImport && ...} so the chunk
+// only fetches when the user clicks 'Import'.
+const CustomerImportDialog = lazy(() => import('../components/customers/CustomerImportDialog'));
 
 const initForm = () => ({
   kode: '',
@@ -499,13 +503,15 @@ export default function CustomersPage() {
       )}
 
       {showImport && (
-        <CustomerImportDialog
-          onClose={() => setShowImport(false)}
-          onDone={() => {
-            setShowImport(false);
-            loadCustomers();
-          }}
-        />
+        <Suspense fallback={null}>
+          <CustomerImportDialog
+            onClose={() => setShowImport(false)}
+            onDone={() => {
+              setShowImport(false);
+              loadCustomers();
+            }}
+          />
+        </Suspense>
       )}
 
       <ConfirmationDialog
