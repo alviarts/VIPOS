@@ -102,14 +102,14 @@
 
 **Acceptance criteria**:
 
-- [ ] KPI cards: pendapatan today/MTD, transaksi count, avg ticket, item terjual
-- [ ] Chart pendapatan 30 hari terakhir (Recharts)
-- [ ] Chart top 10 produk
-- [ ] Quick action tiles: New Sale, Add Product, View Reports
-- [ ] Outlet filter (kalau owner punya > 1 outlet, tampilkan filter)
-- [ ] Date range picker
-- [ ] Loading skeleton state
-- [ ] Empty state kalau no data
+- [x] KPI cards: pendapatan today/MTD, transaksi count, avg ticket, item terjual — `apps/web/src/components/dashboard/KpiCards.jsx` renders 4 cards (Pendapatan, Transaksi, Avg. Ticket, Item Terjual) with `today` sub-line; data from `/dashboard/summary`.
+- [x] Chart pendapatan 30 hari terakhir (Recharts) — `apps/web/src/components/charts/RevenueChart.jsx` consumes `/dashboard/sales-trend` series.
+- [x] Chart top 10 produk — `apps/web/src/components/charts/TopProductChart.jsx`; `DashboardPage.jsx` requests `/dashboard/top-products` with `params: { limit: 10 }`.
+- [x] Quick action tiles: New Sale, Add Product, View Reports — `apps/web/src/components/dashboard/QuickActions.jsx` renders 4 tiles (Kasir Baru, Tambah Produk, Lihat Laporan, Pelanggan) — exceeds AC.
+- [x] Outlet filter (only when > 1 outlet) — `DashboardPage.jsx` guards with `{outlets?.length > 1 && (...)}` and reads `useOutlet()` for active outlet + switch.
+- [x] Date range picker — `apps/web/src/components/dashboard/DateRangePicker.jsx` mounted in `DashboardPage.jsx`; `value=range` drives all three API params.
+- [x] Loading skeleton state — `apps/web/src/components/dashboard/DashboardSkeleton.jsx` rendered while `loading && !summary`.
+- [x] Empty state kalau no data — `RevenueChart.jsx` shows "Belum ada data penjualan untuk rentang ini." when series is empty; `TopProductChart.jsx` shows "Belum ada produk yang terjual.".
 
 **Reference**: `docs/v2/menus/penjualan/pos_dashboard.md`
 
