@@ -135,15 +135,15 @@
 
 **Acceptance criteria**:
 
-- [ ] List produk dengan filter (kategori, status, search), pagination
-- [ ] Tambah produk wizard 5 tab semua working
-- [ ] Tab Varian: tambah opsi (Ukuran/Warna/dll) + price modifier per opsi
-- [ ] Tab Resep: pilih bahan baku + qty per produksi 1 unit
-- [ ] Tab majoo Order: harga online (markup), aktif/non-aktif di e-menu
-- [ ] Edit + Delete produk
-- [ ] Bulk import CSV (placeholder, full di P1-15)
-- [ ] Image upload (max 4 foto, drag-reorder)
-- [ ] Validation per field (Zod schema)
+- [x] List produk dengan filter (kategori, status, search), pagination — `apps/web/src/pages/ProductsPage.jsx` keeps `search`, `filter` (all/shown/hidden), `categoryFilter`, `page`, `pageSize` in state and combines them in a `useMemo` filter pipeline.
+- [x] Tambah produk wizard 5 tab semua working — `apps/web/src/components/ProductWizardForm.jsx` `TABS = [info, varian, ekstra, resep, order]` (5 tabs), all unlocked since P1-04.
+- [x] Tab Varian: tambah opsi (Ukuran/Warna/dll) + price modifier per opsi — `apps/web/src/components/products/tabs/TabVariant.jsx` editor with `group_name`, `option_label`, `price_modifier`, `stock`, `is_default` per row.
+- [x] Tab Resep: pilih bahan baku + qty per produksi 1 unit — `apps/web/src/components/products/tabs/TabRecipe.jsx` rows of `{ ingredient_id, qty, unit }`; backend route `apps/backend/src/routes/product-recipe.js`.
+- [x] Tab majoo Order: harga online (markup), aktif/non-aktif di e-menu — `apps/web/src/components/products/tabs/TabMajooOrder.jsx` with `price_online` markup % calc + `is_online_active` toggle.
+- [x] Edit + Delete produk — `ProductsPage.jsx` opens the same wizard with `initialData`; backend `apps/backend/src/routes/products.js` exposes `PUT /:id` and `DELETE /:id` (admin-only).
+- [x] Bulk import CSV (placeholder, full di P1-15) — `apps/web/src/pages/pengaturan/ImportExportPage.jsx` supports `products: 'Produk'` entity import.
+- [x] Image upload (max 4 foto, drag-reorder) — `apps/web/src/components/products/ImageUploader.jsx` `MAX_IMAGES = 4`, HTML5 drag-and-drop reorder via `setDragIndex` / `reorder(from, to)`.
+- [x] Validation per field — `ProductWizardForm.jsx` `validateInfo()` enforces required fields (`name`, `sku`, `category_id`, `price`) with per-field error rendering via the `Field` component; backend uses `packages/shared/src/schemas/products.ts` `ProductSchema` (Zod) on `POST /products` and `PUT /products/:id`.
 
 **Reference**: `docs/v2/menus/penjualan/produk_master.md`
 
