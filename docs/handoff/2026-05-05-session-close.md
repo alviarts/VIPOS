@@ -37,10 +37,17 @@ Prod state at close:
 | #92 | `docs(handoff): worker-reload follow-up`                  | green  | merged                                  |
 | #93 | `docs(runbook): env-rotation footgun in deploy-checklist` | green  | merged                                  |
 | #94 | `docs(env): clarify backup/S3/restore-test env vars`      | green  | merged                                  |
+| #96 | `docs: retire VPS PAT backup; single source of truth`     | green  | merged (post-close consolidation)       |
+| #97 | `feat(backend): /api/health/backup freshness probe`       | yellow | merged + verified live (200 ok)         |
 
 (The "verified" suffix means I SSH'd VPS post-merge and confirmed
 the change took effect: pm2 process state, `/api/health`, R2 bucket
 contents, dist.pre-\* count, etc.)
+
+PRs #96 + #97 were added after the original session-close at ~21:40
+UTC. See § "Post-close consolidation: PAT single source of truth"
+and § "Post-close addition: /api/health/backup probe (PR #97)" below
+for the rationale + verification details.
 
 ## Two operational fixes worth re-stating
 
@@ -167,6 +174,53 @@ VPS. File no longer present. Devin org-scope secret remains the single
 source of truth. If the secret store ever becomes unavailable, regenerate
 the PAT from `github.com/settings/tokens` and re-save org-scope.
 
+### Post-close addition: /api/health/backup probe (PR #97)
+
+The 2026-05-05 silent-failure pattern (worker producing zero-byte dumps
+for ~12h before anyone noticed) motivated a permanent monitoring hook.
+PR #97 adds `GET /api/v1/health/backup` (and the legacy `/api/health/backup`
+alias) which returns:
+
+- **200 + `status:"ok"`** when the newest local dump is non-empty AND
+  fresh (within `BACKUP_FRESHNESS_THRESHOLD_HOURS`, default 25h)
+- **503 + `status:"stale"`** when the newest dump is past threshold
+- **503 + `status:"corrupt"`** when the newest dump is zero-byte
+  (the exact failure mode from today)
+- **503 + `status:"no_backups"`** when the dir is empty
+- **503 + `status:"no_backup_dir"`** when `BACKUP_DIR` doesn't exist
+
+Live verification post-merge:
+
+```
+$ curl -sS -w 'HTTP %{http_code}\n' http://localhost:3001/api/v1/health/backup
+{
+  "status":"ok",
+  "timestamp":"2026-05-06T06:23:28.800Z",
+  "threshold_hours":25,
+  "backup_dir":"/var/backups/vipos",
+  "dump":{
+    "path":"/var/backups/vipos/vipos-2026-05-05T115944Z.dump",
+    "age_hours":18.396,
+    "size_bytes":575656,
+    "mtime":"2026-05-05T11:59:44.776Z"
+  }
+}HTTP 200
+```
+
+Both paths (v1 + legacy alias) return identical JSON. 12 unit + HTTP
+integration tests in `apps/backend/src/__tests__/health-backup.test.mjs`
+cover all five outcomes.
+
+Related fix in same PR: rate-limit `SKIP_PATHS` was previously exact-match
+(`/health`, `/api/health`, `/api/v1/health`), so `/api/v1/health/backup`
+would have been rate-limited. Added `SKIP_PREFIXES` for `/health/`,
+`/api/health/`, `/api/v1/health/` so any `/health/*` sub-probe is
+auto-skipped.
+
+Next step (out of scope for this PR): wire up the founder's monitoring
+provider (Uptime Kuma / BetterUptime / etc.) to poll the new endpoint
+and alert on 503.
+
 ## Outstanding backlog
 
 ### Tier 1 — autonomous (Devin can pick + execute next session)
@@ -176,10 +230,13 @@ the PAT from `github.com/settings/tokens` and re-save org-scope.
       _should_ fire correctly. Verify by `ls /var/backups/vipos/` and
       `aws s3 ls s3://vipos-backup/vipos/2026/05/` after 02:01 UTC.
       If it fails, re-investigate worker env propagation.
-- [ ] **Backup-freshness health endpoint.** Add `/api/health/backup`
-      that 503s when no successful `db-backup` job in the last 25h.
-      Code change to `apps/backend/src/routes/health.js` + tests.
-      Risk: yellow. ~1-2h with tests.
+- [x] ~~**Backup-freshness health endpoint.**~~ DONE in PR #97 (post-close).
+      `/api/health/backup` + `/api/v1/health/backup` return 503 when
+      no fresh dump (>25h) or zero-byte dump exists. Verified live.
+- [ ] **Wire monitoring provider to poll `/api/health/backup`.** Out of
+      scope for code (provider config). Recommend Uptime Kuma (self-host
+      on the VPS) or BetterUptime (free tier). Founder picks; Devin
+      configures.
 - [ ] **Phase 2 acceptance-criteria checkboxes.** `phase_2_backend.md`
       has `[done]` task headers but unticked `- [ ]` AC checkboxes
       across P2-01..P2-08. Pure doc cleanup.
