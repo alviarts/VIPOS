@@ -44,10 +44,10 @@ async function latestAudit({ entity, entity_id, action }) {
 
 async function countAudit({ entity, action }) {
   const r = await runAsSystem(() =>
-    queryFn(
-      `SELECT COUNT(*)::int AS c FROM audit_logs WHERE entity = $1 AND action = $2`,
-      [entity, action]
-    )
+    queryFn(`SELECT COUNT(*)::int AS c FROM audit_logs WHERE entity = $1 AND action = $2`, [
+      entity,
+      action,
+    ])
   );
   return r.rows[0].c;
 }
@@ -188,11 +188,14 @@ describe('transactions void instrumentation', () => {
       price: 10000,
       stock: 5,
     });
-    const tx = await request(app).post('/api/transactions').set(auth()).send({
-      items: [{ product_id: product.body.id, price: 10000, quantity: 1 }],
-      payment_amount: 10000,
-      payment_method: 'cash',
-    });
+    const tx = await request(app)
+      .post('/api/transactions')
+      .set(auth())
+      .send({
+        items: [{ product_id: product.body.id, price: 10000, quantity: 1 }],
+        payment_amount: 10000,
+        payment_method: 'cash',
+      });
     expect(tx.status).toBe(201);
     const txId = tx.body.id;
     const v = await request(app).post(`/api/transactions/${txId}/void`).set(auth());
@@ -238,15 +241,12 @@ describe('finance cash account / transaction instrumentation', () => {
   });
 
   it('POST /api/finance/transactions writes action=create', async () => {
-    const res = await request(app)
-      .post('/api/finance/transactions')
-      .set(auth())
-      .send({
-        tipe: 'pemasukan',
-        account_id: accountId,
-        jumlah: 50000,
-        keterangan: 'Audit pemasukan',
-      });
+    const res = await request(app).post('/api/finance/transactions').set(auth()).send({
+      tipe: 'pemasukan',
+      account_id: accountId,
+      jumlah: 50000,
+      keterangan: 'Audit pemasukan',
+    });
     expect(res.status).toBe(201);
     const txId = res.body.id;
     const row = await latestAudit({

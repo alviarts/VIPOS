@@ -304,8 +304,8 @@ Regression-tested via `apps/backend/src/__tests__/dotenv-override.test.mjs`
       Investigated 2026-05-06 ~06:30 UTC: the cron _did_ fire (Redis
       `bull:db-backup:repeat:db-backup-daily:1778007600000` recorded
       `processedOn=02:00:06.929` UTC, `failedReason="pg_dump exited
-  with code 1: ... password authentication failed for user
-  'postgres'"`). Same shape as the 2026-05-05 19:00 UTC failures.
+with code 1: ... password authentication failed for user
+'postgres'"`). Same shape as the 2026-05-05 19:00 UTC failures.
       Two-cause analysis: (1) the cron _did_ run; (2) the worker's
       `process.env.DIRECT_URL` was still stale despite the post-PR #91
       `--update-env` reloads — pm2's stored env never had `DIRECT_URL`

@@ -492,8 +492,7 @@ router.put(
 
 router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const before = (await query('SELECT * FROM customers WHERE id = $1', [req.params.id]))
-      .rows[0];
+    const before = (await query('SELECT * FROM customers WHERE id = $1', [req.params.id])).rows[0];
     const used = (
       await query('SELECT COUNT(*) as count FROM transactions WHERE customer_id = $1', [
         req.params.id,
@@ -501,8 +500,7 @@ router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
     ).rows[0];
     if (Number(used.count) > 0) {
       await query('UPDATE customers SET is_active = 0 WHERE id = $1', [req.params.id]);
-      const after = (await query('SELECT * FROM customers WHERE id = $1', [req.params.id]))
-        .rows[0];
+      const after = (await query('SELECT * FROM customers WHERE id = $1', [req.params.id])).rows[0];
       await safeLogAudit(req, {
         entity: 'customer',
         entity_id: req.params.id,

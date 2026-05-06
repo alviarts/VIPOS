@@ -49,9 +49,7 @@ function lookupLabel(segment, fullPath) {
     if (group.id === segment) return group.label;
   }
   // Fallback: title-case the slug.
-  return segment
-    .replace(/[-_]/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return segment.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export default function Breadcrumb() {
@@ -85,10 +83,7 @@ export default function Breadcrumb() {
                 {c.label}
               </span>
             ) : (
-              <Link
-                to={c.path}
-                className="text-gray-500 transition-colors hover:text-primary-600"
-              >
+              <Link to={c.path} className="text-gray-500 transition-colors hover:text-primary-600">
                 {c.label}
               </Link>
             )}

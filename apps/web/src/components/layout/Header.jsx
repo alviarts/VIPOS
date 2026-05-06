@@ -57,9 +57,7 @@ export default function Header({ onOpenMobileSidebar, notificationCount = 0 }) {
             data-testid="notification-bell"
             className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100"
             aria-label={
-              notificationCount > 0
-                ? `${notificationCount} notifikasi belum dibaca`
-                : 'Notifikasi'
+              notificationCount > 0 ? `${notificationCount} notifikasi belum dibaca` : 'Notifikasi'
             }
           >
             <Bell className="h-5 w-5" />

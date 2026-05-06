@@ -30,22 +30,25 @@ function loadInitialOutlet(outlets) {
 export function OutletProvider({ children, outlets = MOCK_OUTLETS }) {
   const [activeOutlet, setActiveOutlet] = useState(() => loadInitialOutlet(outlets));
 
-  const switchOutlet = useCallback((outletId) => {
-    const next = outlets.find((o) => o.id === outletId);
-    if (!next) return;
-    setActiveOutlet(next);
-    try {
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(STORAGE_KEY, next.id);
+  const switchOutlet = useCallback(
+    (outletId) => {
+      const next = outlets.find((o) => o.id === outletId);
+      if (!next) return;
+      setActiveOutlet(next);
+      try {
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(STORAGE_KEY, next.id);
+        }
+      } catch {
+        /* localStorage unavailable */
       }
-    } catch {
-      /* localStorage unavailable */
-    }
-  }, [outlets]);
+    },
+    [outlets]
+  );
 
   const value = useMemo(
     () => ({ outlets, activeOutlet, switchOutlet }),
-    [outlets, activeOutlet, switchOutlet],
+    [outlets, activeOutlet, switchOutlet]
   );
 
   return <OutletContext.Provider value={value}>{children}</OutletContext.Provider>;

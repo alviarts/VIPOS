@@ -1,13 +1,5 @@
 // VIPOS — Horizontal bar chart for top products (Recharts).
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { formatCurrency } from '../../utils/format';
 
 function CustomTooltip({ active, payload }) {
@@ -32,13 +24,16 @@ export default function TopProductChart({ data = [] }) {
   }
 
   // Recharts renders top-down; we want descending (largest at top).
-  const chartData = [...data]
-    .sort((a, b) => a.total_sold - b.total_sold);
+  const chartData = [...data].sort((a, b) => a.total_sold - b.total_sold);
 
   return (
     <div className="h-64 w-full min-w-0">
       <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-        <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 24, left: 8, bottom: 0 }}>
+        <BarChart
+          data={chartData}
+          layout="vertical"
+          margin={{ top: 4, right: 24, left: 8, bottom: 0 }}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" horizontal={false} />
           <XAxis type="number" stroke="#9CA3AF" fontSize={11} tickLine={false} axisLine={false} />
           <YAxis

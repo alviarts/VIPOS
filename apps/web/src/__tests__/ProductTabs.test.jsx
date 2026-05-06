@@ -25,7 +25,7 @@ describe('TabVariant', () => {
       <TabVariant
         variants={[{ group_name: 'Warna', option_label: 'Merah', price_modifier: 0 }]}
         onChange={() => {}}
-      />,
+      />
     );
     expect(screen.getByDisplayValue('Warna')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Merah')).toBeInTheDocument();
@@ -50,7 +50,7 @@ describe('TabRecipe', () => {
         onChange={onChange}
         products={products}
         productId={1}
-      />,
+      />
     );
     const select = screen.getByRole('combobox');
     expect(select).toBeInTheDocument();
@@ -61,13 +61,25 @@ describe('TabRecipe', () => {
 
 describe('TabMajooOrder', () => {
   it('renders the markup hint when price_online > base price', () => {
-    render(<TabMajooOrder form={{ price_online: 12000, is_online_active: true }} onChange={() => {}} basePrice="10000" />);
+    render(
+      <TabMajooOrder
+        form={{ price_online: 12000, is_online_active: true }}
+        onChange={() => {}}
+        basePrice="10000"
+      />
+    );
     expect(screen.getByText(/Markup \+20%/)).toBeInTheDocument();
   });
 
   it('toggles is_online_active', () => {
     const onChange = vi.fn();
-    render(<TabMajooOrder form={{ price_online: '', is_online_active: false }} onChange={onChange} basePrice={1000} />);
+    render(
+      <TabMajooOrder
+        form={{ price_online: '', is_online_active: false }}
+        onChange={onChange}
+        basePrice={1000}
+      />
+    );
     fireEvent.click(screen.getByRole('checkbox'));
     expect(onChange).toHaveBeenCalledWith({ is_online_active: true });
   });

@@ -56,7 +56,11 @@ export default function RevenueChart({ data = [] }) {
           />
           <YAxis
             tickFormatter={(v) =>
-              v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}jt` : v >= 1_000 ? `${(v / 1_000).toFixed(0)}rb` : v
+              v >= 1_000_000
+                ? `${(v / 1_000_000).toFixed(1)}jt`
+                : v >= 1_000
+                  ? `${(v / 1_000).toFixed(0)}rb`
+                  : v
             }
             stroke="#9CA3AF"
             fontSize={11}

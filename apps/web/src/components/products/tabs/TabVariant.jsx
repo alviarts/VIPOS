@@ -72,7 +72,9 @@ export default function TabVariant({ variants = [], onChange }) {
                     <input
                       type="number"
                       value={v.price_modifier ?? 0}
-                      onChange={(e) => update(i, { price_modifier: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        update(i, { price_modifier: parseFloat(e.target.value) || 0 })
+                      }
                       className="input-field w-28"
                     />
                   </td>

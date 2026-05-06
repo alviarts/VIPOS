@@ -7,7 +7,7 @@ function renderAt(path) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Breadcrumb />
-    </MemoryRouter>,
+    </MemoryRouter>
   );
 }
 

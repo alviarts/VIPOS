@@ -34,7 +34,9 @@ export default function OutletSwitcher() {
       >
         <Store className="h-4 w-4 text-primary-500" />
         <span className="max-w-[140px] truncate">{activeOutlet.name}</span>
-        <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown
+          className={`h-4 w-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+        />
       </button>
 
       {open && (

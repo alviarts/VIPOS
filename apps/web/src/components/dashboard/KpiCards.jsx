@@ -54,11 +54,11 @@ export default function KpiCards({ summary, loading }) {
               >
                 {c.value}
               </p>
-              {c.sub && (
-                <p className="mt-1 truncate text-xs text-gray-500">{c.sub}</p>
-              )}
+              {c.sub && <p className="mt-1 truncate text-xs text-gray-500">{c.sub}</p>}
             </div>
-            <div className={`flex h-10 w-10 flex-none items-center justify-center rounded-lg ${c.tone}`}>
+            <div
+              className={`flex h-10 w-10 flex-none items-center justify-center rounded-lg ${c.tone}`}
+            >
               <Icon className="h-5 w-5" />
             </div>
           </div>

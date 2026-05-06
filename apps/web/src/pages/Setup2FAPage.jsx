@@ -15,16 +15,23 @@ export default function Setup2FAPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    api.get('/auth/me').then((res) => {
-      setEnabled(Boolean(res.data.user?.totp_enabled));
-    }).catch(() => { /* ignored — useAuth handles it */ });
+    api
+      .get('/auth/me')
+      .then((res) => {
+        setEnabled(Boolean(res.data.user?.totp_enabled));
+      })
+      .catch(() => {
+        /* ignored — useAuth handles it */
+      });
   }, []);
 
   useEffect(() => {
     if (setupData?.otpauth_url) {
-      QRCode.toDataURL(setupData.otpauth_url).then(setQrDataUrl).catch(() => {
-        setQrDataUrl('');
-      });
+      QRCode.toDataURL(setupData.otpauth_url)
+        .then(setQrDataUrl)
+        .catch(() => {
+          setQrDataUrl('');
+        });
     }
   }, [setupData]);
 
@@ -131,13 +138,16 @@ export default function Setup2FAPage() {
           <form onSubmit={handleVerify} className="space-y-4">
             <ol className="space-y-3 text-sm text-gray-600">
               <li>
-                <span className="font-medium text-gray-900">1.</span> Buka authenticator app (Google Authenticator, Authy, 1Password, dll).
+                <span className="font-medium text-gray-900">1.</span> Buka authenticator app (Google
+                Authenticator, Authy, 1Password, dll).
               </li>
               <li>
-                <span className="font-medium text-gray-900">2.</span> Scan QR code di bawah, atau masukkan secret manual.
+                <span className="font-medium text-gray-900">2.</span> Scan QR code di bawah, atau
+                masukkan secret manual.
               </li>
               <li>
-                <span className="font-medium text-gray-900">3.</span> Masukkan 6 digit kode dari app untuk verifikasi.
+                <span className="font-medium text-gray-900">3.</span> Masukkan 6 digit kode dari app
+                untuk verifikasi.
               </li>
             </ol>
 
