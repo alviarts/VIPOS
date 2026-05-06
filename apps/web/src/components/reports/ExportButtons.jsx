@@ -2,10 +2,31 @@
 //
 // Pakai sebagai child di ReportTemplate. Memanggil util di
 // `apps/web/src/utils/exportTable.js`. Bisa di-disable kalau rows kosong.
-import { useState } from 'react';
+//
+// xlsx (~430 kB) + jspdf (~390 kB) + jspdf-autotable adalah lazy chunks
+// (lihat exportTable.js). Default-nya, chunk baru di-fetch saat user
+// klik 'Export Excel' / 'Export PDF', yang artinya ada delay perceptible
+// di first-click. Untuk masking delay tersebut, kita prefetch chunk-nya
+// sekali user buka dropdown — itu adalah signal yang sangat kuat user
+// akan klik salah satu format dalam waktu dekat. Prefetch idempotent:
+// `import()` cache-nya di module map, jadi panggilan berikutnya gratis.
+import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Download, FileSpreadsheet, FileText, Code2, ChevronDown, Loader2 } from 'lucide-react';
 import { exportCsv, exportXlsx, exportPdf, exportJson } from '../../utils/exportTable';
+
+// Fire-and-forget prefetch utama. Errors di-swallow karena prefetch
+// adalah pure optimization — kalau gagal, real export click akan retry
+// dan surface error ke user via toast.
+function prefetchExportChunks(formats) {
+  if (formats.includes('xlsx')) {
+    import('xlsx').catch(() => {});
+  }
+  if (formats.includes('pdf')) {
+    import('jspdf').catch(() => {});
+    import('jspdf-autotable').catch(() => {});
+  }
+}
 
 export default function ExportButtons({
   filename,
@@ -18,8 +39,20 @@ export default function ExportButtons({
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const prefetched = useRef(false);
   const safeRows = Array.isArray(rows) ? rows : [];
   const isDisabled = disabled || safeRows.length === 0 || busy;
+
+  // Prefetch heavy export chunks on first dropdown open. Idempotent via
+  // the `prefetched` ref — `import()` is also internally cached, but
+  // gating with the ref avoids re-walking the formats array each time
+  // the dropdown re-opens.
+  useEffect(() => {
+    if (open && !prefetched.current) {
+      prefetched.current = true;
+      prefetchExportChunks(formats);
+    }
+  }, [open, formats]);
 
   const handleExport = async (fmt) => {
     setOpen(false);
