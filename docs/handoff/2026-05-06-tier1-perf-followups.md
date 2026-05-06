@@ -1,23 +1,25 @@
 # VIPOS Sesi Handoff — 2026-05-06 (Tier-1 perf follow-ups)
 
-Closed: 2026-05-06 ~10:30 UTC. Prepared by Devin in continuous-automation
+Closed: 2026-05-06 ~10:50 UTC. Prepared by Devin in continuous-automation
 mode. Devin session:
 <https://app.devin.ai/sessions/52c2da66635d43a9a7c774b05036ae66>
 
 Successor to `2026-05-06-phase1-ac-completion-and-bundle-split.md` (which
 captured PRs #112–#119 / per-AC ticks + initial route-level
-`React.lazy`). This doc starts at PR #122 and ends at PR #126, covering
-the four Tier-1 backlog items that were ready to execute autonomously
+`React.lazy`). This doc starts at PR #122 and ends at PR #129, covering
+six Tier-1 backlog items that were ready to execute autonomously
 this session.
 
 ## TL;DR
 
-Four green/yellow PRs merged in one continuous run while resolving an
+Six green/yellow PRs merged in one continuous run while resolving an
 expired-PAT incident. **`apps/web` lazy chunks ≥ 400 kB previously**
 (`ReportFilterBar` 717 kB and `DashboardPage` 417 kB) **both shrunk to
 ~10–31 kB by lifting their heavy deps into per-feature dynamic imports**
-(`xlsx`, `jspdf`, `jspdf-autotable`, `recharts`). The eager bundle stays
-at 401 kB / gzip 130 kB — login fast-path unaffected.
+(`xlsx`, `jspdf`, `jspdf-autotable`, `recharts`), with chart prefetch +
+bar-skeleton + Export busy spinner polishing the resulting UX. The
+eager bundle stays at 401 kB / gzip 130 kB — login fast-path
+unaffected.
 
 Net effect:
 
@@ -38,16 +40,16 @@ Net effect:
 - Zero behaviour change to backend, auth pages, or any non-Reports /
   non-Dashboard surface.
 
-Prod state at close (post-PR #124 deploy):
+Prod state at close (post-PR #129 deploy):
 
-- Backend HEAD `230ae23` (PR #124 squash-merge SHA on `main`).
-- `pm2 list` → `vipos-backend` (online, 98.2 MB, 102s uptime),
-  `vipos-worker` (online, 55.2 MB, 100s uptime), `finance-bot-tg`
+- Backend HEAD `c74f36e` (PR #129 squash-merge SHA on `main`).
+- `pm2 list` → `vipos-backend` (online, 100.5 MB, 116s uptime),
+  `vipos-worker` (online, 55.1 MB, 114s uptime), `finance-bot-tg`
   (online, 5d uptime), `pm2-logrotate` (online), `bot-wa` (stopped —
   pre-existing, untouched this session).
-- `/api/health` → `{"status":"ok","db":{"ok":true},"redis":{"ok":true}}`.
-- Web bundle: `apps/web/dist/assets/index-C55kLxdg.js` = **401,696 bytes
-  pre-gzip** (eager, unchanged from PR #119 baseline).
+- `/api/health` → `{"status":"ok","db":{"ok":true,"latency_ms":33},"redis":{"ok":true,"latency_ms":9}}`.
+- Web bundle: `apps/web/dist/assets/index-v4U4f4Zx.js` = **401,710 bytes
+  pre-gzip** (eager, +14 bytes from #119 baseline).
 - VPS: disk 35 GB / 49 GB (71%), RAM 22% used / 3.8 GB total.
 - `tools/scripts/deploy.sh` untouched in every PR — no
   `workflow_dispatch` chicken-egg needed.
@@ -59,8 +61,14 @@ Prod state at close (post-PR #124 deploy):
 | #122 | `perf(web): dynamic-import xlsx + jspdf in exportTable; ReportFilterBar 717kB→10kB`          | yellow | merged (`c5f4d71`); deploy success |
 | #123 | `test(web): replace .toBeNull() with .not.toBeInTheDocument() on DOM queries`                | green  | merged (`cd90a15`); deploy success |
 | #124 | `perf(web): lazy-load recharts via React.lazy on dashboard charts; DashboardPage 417kB→31kB` | yellow | merged (`230ae23`); deploy success |
+| #125 | `docs(handoff): close 2026-05-06 Tier-1 perf follow-ups session` (this doc, initial draft)   | green  | merged (`8e76507`); deploy success |
+| #126 | `perf(web): prefetch dashboard chart chunks in useEffect to mask Suspense fallback`          | green  | merged (`00982c2`); deploy success |
+| #127 | `docs(handoff): amend 2026-05-06 Tier-1 perf doc with PR #126 (chart prefetch)`              | green  | merged (`1e16b39`); deploy success |
+| #128 | `feat(reports): show inline spinner + 'Memuat…' on Export button while xlsx/pdf chunk loads` | green  | merged (`998aad2`); deploy success |
+| #129 | `feat(dashboard): use bar-skeleton for ChartFallback instead of flat placeholder`            | green  | merged (`c74f36e`); deploy success |
+| #130 | `docs(handoff): final amend with PRs #128, #129 + post-deploy prod state` (this PR)          | green  | pending merge                      |
 
-(All three merged via REST API squash with `GITHUB_PAT_VIPOS` — see
+(All eight merged via REST API squash with `GITHUB_PAT_VIPOS` — see
 **Critical infrastructure context** below for the PAT rotation incident
 that gated PR #122.)
 
@@ -170,28 +178,72 @@ in `DashboardPage.test.jsx` continues to intercept the prefetch dynamic
 import via vitest hoisting. All 14 web test files / 82 tests still
 green.
 
+### PR #128 — Export button busy spinner
+
+Follow-up to #122. Pre-#122 the xlsx + jspdf libs were eager so Export
+clicks were instant; post-#122 the disabled-only state (`opacity-50`)
+gives no progress feedback while the dynamic import is in flight. On
+slow networks users may think the click didn't register and click
+again.
+
+Fix: in `apps/web/src/components/reports/ExportButtons.jsx`, the Export
+trigger now renders a `Loader2` spinner (lucide-react) + 'Memuat…'
+label when `busy=true`, plus `aria-busy` for screen readers. Icons get
+`aria-hidden="true"` since the visible text already conveys state. CSV
+/ JSON exports stay synchronous; the spinner only shows for xlsx + PDF
+(the formats with dynamic imports).
+
+Bundle delta: `ReportFilterBar-*.js` 9.99 → 10.23 kB (+0.24 kB for the
+`Loader2` import + branch).
+
+Risk: green (visual-only enhancement; no behaviour change to Export
+flow, no new props or API surface).
+
+### PR #129 — ChartFallback bar-skeleton
+
+Follow-up to #124 + #126. The `ChartFallback` placeholder used to be a
+flat gray box with the text 'Memuat grafik…'. It now renders a
+bar-chart skeleton: faint Y-axis line on the left + 12 bars of varying
+height + Tailwind `animate-pulse` shimmer.
+
+While #126's prefetch makes the fallback rarely visible on warm loads,
+this PR makes the cold-load / slow-network experience smoother — the
+placeholder now visually grounds the user to the chart layout that's
+about to appear, instead of the page reflowing from a flat box to a
+chart.
+
+A11y: outer `<div>` keeps `role="status"` + `aria-label={label}` so
+screen readers announce the loading state per chart card. Each bar
+`<div>` is `aria-hidden="true"` (decorative). The 'Memuat grafik…'
+text is preserved via an `sr-only` `<span>` for screen readers.
+
+Bundle delta: `DashboardPage-*.js` 31.00 → 31.28 kB (+0.28 kB for the
+bars array + map). On VPS: `DashboardPage-CgDFt8pc.js` = 31,675 bytes.
+
+Risk: green.
+
 ## Production state at close
 
 ### VPS
 
 ```
 Host: 103.74.5.44 (xserver.local)
-Repo: /var/www/vipos @ git HEAD 230ae23 (PR #124)
+Repo: /var/www/vipos @ git HEAD c74f36e (PR #129)
 Disk: 35 GB / 49 GB used (71%)
 RAM: 22% used / 3.8 GB total
 Swap: 4% used
-GH Actions deploy run for 230ae23: success (run id 25429273526)
+GH Actions deploy run for c74f36e: success (run id 25430603228)
 ```
 
 ### pm2 (post-deploy)
 
-| ID  | Process        | Status  | Uptime | Mem     |
-| --- | -------------- | ------- | ------ | ------- |
-| 0   | pm2-logrotate  | online  | ~3d    | 35.0 MB |
-| 1   | finance-bot-tg | online  | 5d     | 68.1 MB |
-| 2   | bot-wa         | stopped | —      | 0 B     |
-| 4   | vipos-backend  | online  | 102s   | 98.2 MB |
-| 5   | vipos-worker   | online  | 100s   | 55.2 MB |
+| ID  | Process        | Status  | Uptime | Mem      |
+| --- | -------------- | ------- | ------ | -------- |
+| 0   | pm2-logrotate  | online  | ~3d    | 35.0 MB  |
+| 1   | finance-bot-tg | online  | 5d     | 67.0 MB  |
+| 2   | bot-wa         | stopped | —      | 0 B      |
+| 4   | vipos-backend  | online  | 116s   | 100.5 MB |
+| 5   | vipos-worker   | online  | 114s   | 55.1 MB  |
 
 `bot-wa` remains stopped (pre-existing state from prior sessions; not in
 scope for this run — see Tier-2 backlog).
@@ -202,25 +254,24 @@ scope for this run — see Tier-2 backlog).
 {
   "status": "ok",
   "version": "1.0.0",
-  "timestamp": "2026-05-06T10:01:14.911Z",
-  "db": { "ok": true, "latency_ms": 41 },
+  "db": { "ok": true, "latency_ms": 33 },
   "redis": { "ok": true, "latency_ms": 9 }
 }
 ```
 
 ### Web bundle (`apps/web/dist/assets/`)
 
-| Chunk                                | Bytes   | Notes                                          |
-| ------------------------------------ | ------- | ---------------------------------------------- |
-| `index-C55kLxdg.js` (eager)          | 401,696 | Unchanged vs PR #119 baseline (login fast).    |
-| `DashboardPage-D2lqPaiA.js`          | 31,220  | Was 416,800 before PR #124.                    |
-| `ReportFilterBar-D6BGnC0N.js`        | 10,381  | Was 716,700 before PR #122.                    |
-| `RevenueChart-BivSj-A0.js`           | 25,178  | Lazy.                                          |
-| `TopProductChart-Cf2laVYN.js`        | 30,047  | Lazy.                                          |
-| `CartesianChart-BWQVwfSP.js`         | 334,943 | Lazy; recharts shared, fetched on first chart. |
-| `xlsx-Cwq4KIDV.js`                   | 429,926 | Lazy; first Export Excel click.                |
-| `jspdf.es.min-De2JR0Kj.js`           | 390,978 | Lazy; first Export PDF click.                  |
-| `jspdf.plugin.autotable-DcrDlGgF.js` | 31,489  | Lazy; first Export PDF click.                  |
+| Chunk                                | Bytes   | Notes                                           |
+| ------------------------------------ | ------- | ----------------------------------------------- |
+| `index-v4U4f4Zx.js` (eager)          | 401,710 | +14 bytes vs PR #119 baseline (login fast).     |
+| `DashboardPage-CgDFt8pc.js`          | 31,675  | Was 416,800 before PR #124 (incl. #126 + #129). |
+| `ReportFilterBar-BjUvSO2e.js`        | 10,625  | Was 716,700 before PR #122 (incl. #128).        |
+| `RevenueChart-BivSj-A0.js`           | 25,178  | Lazy.                                           |
+| `TopProductChart-Cf2laVYN.js`        | 30,047  | Lazy.                                           |
+| `CartesianChart-BWQVwfSP.js`         | 334,943 | Lazy; recharts shared, fetched on first chart.  |
+| `xlsx-Cwq4KIDV.js`                   | 429,926 | Lazy; first Export Excel click.                 |
+| `jspdf.es.min-De2JR0Kj.js`           | 390,978 | Lazy; first Export PDF click.                   |
+| `jspdf.plugin.autotable-DcrDlGgF.js` | 31,489  | Lazy; first Export PDF click.                   |
 
 ### Sentry
 
@@ -246,7 +297,7 @@ scope for this run — see Tier-2 backlog).
 documented in `docs/v3/workflow/devin_continuous_automation.md` §4
 (`HOME=/tmp/empty-home GIT_CONFIG_NOSYSTEM=1 GIT_ASKPASS=...
 git push https://github.com/alviarts/VIPOS.git <branch>`) is what was
-used for all three PRs. **Confirmed working** with the freshly rotated
+used for all eight PRs. **Confirmed working** with the freshly rotated
 PAT — push throughput normal, no rate-limit issues.
 
 ### `git_pr` tool returns 403 (REST API still required)
@@ -277,7 +328,7 @@ When this session started, both `GITHUB_PAT_VIPOS` and the legacy
 `GITHUB_PAT` (proton-telegram-bot scope) returned `401 Bad credentials`
 against `api.github.com`, blocking the entire push / PR / merge path.
 Founder rotated `GITHUB_PAT_VIPOS` mid-session via the Devin secrets UI
-(`should_save=true`, `save_scope=org`). All three PRs were pushed +
+(`should_save=true`, `save_scope=org`). All eight PRs were pushed +
 opened + merged with the new PAT. **Future Devin sessions: the new PAT
 is in org-scope; just reference `${GITHUB_PAT_VIPOS}` and continue.**
 
@@ -329,11 +380,21 @@ new script.
   bandwidth (~850 kB) for users who never export. Defer until we have
   telemetry on how often `/reports/*` users actually export. Risk:
   yellow. Estimate: 1 hour + measurement.
-- **Export busy-state UX in `ExportButtons`** — when xlsx/PDF chunk is
-  downloading, the Export trigger is disabled (opacity-50) but doesn't
-  show a spinner or text change. Users on slow networks may wonder if
-  the click registered. Add an inline spinner + 'Memuat…' label when
-  `busy=true`. Risk: green. Estimate: 30 min.
+- **`CartesianChart` (recharts) chunk size** — still 334 kB pre-gzip,
+  101 kB gzip. recharts itself has no easy split; if telemetry shows
+  users care, consider migrating to a lighter chart lib (e.g. uPlot,
+  visx, or vanilla SVG components). Risk: yellow / red depending on
+  visual parity. Estimate: 4–8 hours (chart-by-chart rewrite).
+- **`ExportButtons` test coverage** — `apps/web/src/__tests__/` has no
+  test for `ExportButtons.jsx`. Add a minimal vitest + RTL test that
+  mounts with rows + `formats={['csv']}` and clicks the trigger to
+  confirm `exportCsv` is called (mock the util module), plus one
+  busy-state test for the new spinner branch from #128. Risk: green.
+  Estimate: 30 min.
+- **Other `/reports/*` page chunks** — audit other Reports child pages
+  to ensure none of them re-import jspdf/xlsx statically (they don't
+  today; #122 confirmed via build, but worth a regression check after
+  any refactor). Risk: green. Estimate: 30 min.
 
 ### Tier 2 — blocked on founder input
 
@@ -363,14 +424,15 @@ unless ticked here.)
 apps/web/src/__tests__/OnboardingPage.test.jsx    |  4 ++--   PR #123
 apps/web/src/__tests__/ProductTabs.test.jsx       |  2 +-     PR #123
 apps/web/src/__tests__/Sidebar.test.jsx           |  2 +-     PR #123
-apps/web/src/components/reports/ExportButtons.jsx | 28 ++++++++++++++++-----     PR #122
-apps/web/src/pages/DashboardPage.jsx              | 39 ++++++++++++++++++++++++++   PRs #124, #126
+apps/web/src/components/reports/ExportButtons.jsx | 42 ++++++++++++++++-----     PRs #122, #128
+apps/web/src/pages/DashboardPage.jsx              | 57 ++++++++++++++++++++++++++   PRs #124, #126, #129
 apps/web/src/utils/exportTable.js                 | 23 +++++++++++++----    PR #122
-docs/handoff/2026-05-06-tier1-perf-followups.md   | (this file + post-#126 amend)   handoff PRs #125, #127
+docs/handoff/2026-05-06-tier1-perf-followups.md   | (this file + 2 amends)   handoff PRs #125, #127, #130
 ```
 
-Total: 6 source files, ~80 insertions / 19 deletions across PRs
-#122–#126.
+Total: 6 source files, ~120 insertions / 25 deletions across PRs
+#122–#129. Plus 3 handoff doc PRs (#125 initial, #127 post-#126 amend,
+#130 final amend with #128 + #129 + post-deploy prod state).
 
 ## Smoke test infrastructure
 
