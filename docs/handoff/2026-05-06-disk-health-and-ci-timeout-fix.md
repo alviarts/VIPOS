@@ -1,9 +1,14 @@
 # VIPOS Sesi Handoff — 2026-05-06 (disk-health probe + CI timeout fix)
 
 Closed: 2026-05-06 ~14:55 UTC. Re-closed: 2026-05-06 ~15:10 UTC by
-this amend PR after merging PR #155 (CI smoke-check follow-up to
-PR #102, see updated PR table + Files modified). Prepared by Devin
-in continuous-automation mode. Devin session: <https://app.devin.ai/sessions/37291d97f04c45c18b7731c7cfd44e7f>
+amend PR after merging PR #155 (CI build-smoke follow-up to PR #102).
+Re-closed: 2026-05-06 ~15:30 UTC by this amend PR after merging
+PR #157 (deploy-smoke follow-up: informational `/api/v1/health/disk`
+curl in `deploy-vps.yml` post-pm2-boot). The disk-health probe is
+now defended at three layers: unit tests (PR #102), build-smoke
+backend boot (PR #155), and live deploy smoke (PR #157). Prepared
+by Devin in continuous-automation mode. Devin session:
+<https://app.devin.ai/sessions/37291d97f04c45c18b7731c7cfd44e7f>
 
 Successor to `2026-05-06-tier1-perf-followups.md` (which was re-closed at
 ~14:50 UTC by PR #152). This doc covers the next continuous-automation
@@ -60,11 +65,12 @@ Prod state at close (post-PR #153 deploy):
 
 ## All PRs merged this session
 
-| PR   | Branch                                  | Subject                                                                  | Risk   | Status                                                                                 |
-| ---- | --------------------------------------- | ------------------------------------------------------------------------ | ------ | -------------------------------------------------------------------------------------- |
-| #102 | `devin/1778050459-health-disk`          | feat(backend): `/api/health/disk` usage probe with 90% threshold default | yellow | merged `f8f41c7`; deploy 25442332939 ✅; endpoint verified live (used_percent 71.16)   |
-| #153 | `devin/1778078818-ci-test-timeout`      | ci(test): bump timeout-minutes 10 → 15 for apt-archive flake headroom    | green  | merged `8124af1`; deploy 25442876914 ✅ (no pm2 restart needed; CI-config-only change) |
-| #155 | `devin/1778079934-ci-smoke-disk-health` | ci(smoke): also curl `/api/v1/health/disk` after backend boot            | green  | merged `26b0828`; CI 3/3 ✅ (smoke step verified the new probe returns 200 ok)         |
+| PR   | Branch                                    | Subject                                                                  | Risk   | Status                                                                                 |
+| ---- | ----------------------------------------- | ------------------------------------------------------------------------ | ------ | -------------------------------------------------------------------------------------- |
+| #102 | `devin/1778050459-health-disk`            | feat(backend): `/api/health/disk` usage probe with 90% threshold default | yellow | merged `f8f41c7`; deploy 25442332939 ✅; endpoint verified live (used_percent 71.16)   |
+| #153 | `devin/1778078818-ci-test-timeout`        | ci(test): bump timeout-minutes 10 → 15 for apt-archive flake headroom    | green  | merged `8124af1`; deploy 25442876914 ✅ (no pm2 restart needed; CI-config-only change) |
+| #155 | `devin/1778079934-ci-smoke-disk-health`   | ci(smoke): also curl `/api/v1/health/disk` after backend boot            | green  | merged `26b0828`; CI 3/3 ✅ (smoke step verified the new probe returns 200 ok)         |
+| #157 | `devin/1778080968-deploy-smoke-disk-info` | ci(deploy): informational `/api/v1/health/disk` curl in live smoke       | green  | merged `0856eca`; deploy 25444751281 ✅; deploy log shows `disk     HTTP 200` line     |
 
 PR #102 was open from a previous Devin session (author: `alviarts`,
 opened 2026-05-06 06:58 UTC, head commit `4ed5731`). It had passed
@@ -91,6 +97,17 @@ Set `DISK_HEALTH_MOUNT: /tmp` in the smoke env so the probe sees a
 real low-usage filesystem (else the default `./var/backups` doesn't
 exist on the runner and the probe returns 503 `no_mount`, failing
 `curl -fsS`).
+
+PR #157 is the third PR-#102 follow-up. Adds a non-blocking curl
+to `/api/v1/health/disk` in the deploy-vps workflow's post-deploy
+smoke step (right after the existing frontend + `/api/health` curls).
+Deliberately uses `curl -sS ... || true` (no `-f`, no fail-on-error)
+so a 503 `status:high_usage` response shows up in the deploy log
+but does not block the deploy itself — blocking deploys on a
+near-full disk would create a catch-22 where the disk-cleanup fix
+can't ship. Confirmed in deploy run 25444751281: log line
+`disk     HTTP 200` printed alongside the existing `frontend HTTP
+200` + `health   HTTP 200`.
 
 ## Root cause analysis: PR #102's first CI run cancelled
 
@@ -265,12 +282,13 @@ apps/backend/src/app.js                               |   3 ++   PR #102
 docs/runbook/deploy-checklist.md                      |   4 ++   PR #102
 .github/workflows/ci.yml                              |   7 ++   PR #153 (test job timeout)
 .github/workflows/ci.yml                              |  11 ++   PR #155 (build smoke step + DISK_HEALTH_MOUNT env)
-docs/handoff/2026-05-06-disk-health-and-ci-timeout-fix.md | (this file)  handoff PR + amend PR
+.github/workflows/deploy-vps.yml                      |   8 ++   PR #157 (deploy smoke informational curl)
+docs/handoff/2026-05-06-disk-health-and-ci-timeout-fix.md | (this file)  handoff PR + 2 amends
 ```
 
-Total: 6 source/config files + 1 new handoff doc (with one amend),
-~416 insertions / ~10 deletions across PRs #102 + #153 + #155 +
-handoff PR + amend PR.
+Total: 7 source/config files + 1 new handoff doc (with two amends),
+~424 insertions / ~10 deletions across PRs #102 + #153 + #155 +
+#157 + handoff PR + 2 amend PRs.
 
 ## Operational notes for next session
 
