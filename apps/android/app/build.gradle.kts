@@ -113,6 +113,11 @@ dependencies {
     implementation(project(":core:network"))
     implementation(project(":core:database"))
 
+    // P3-03a: feature modules. `:feature:auth` carries the data
+    // layer (Retrofit AuthApi + DataStore-backed TokenStorage +
+    // AuthRepository); the LoginScreen UI lands in P3-03b.
+    implementation(project(":feature:auth"))
+
     implementation(libs.androidx.core.ktx)
     // Backport of the SplashScreen APIs (P3-01e) — provides a
     // consistent splash window across API 21..31+ and lets us swap
