@@ -99,6 +99,30 @@ export default [
         'warn',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
       ],
+      // PR #168: lock in PR #159's recharts→vanilla SVG migration. The
+      // 334 kB CartesianChart chunk is gone; let's not reintroduce it
+      // accidentally by `import { LineChart } from 'recharts'` somewhere
+      // new. Same idea for any other heavy-lib that was deliberately
+      // dropped — extend this list in subsequent PRs as needed.
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'recharts',
+              message:
+                'recharts was removed in PR #159 (−113.7 kB gzip). Use the vanilla-SVG charts in src/components/charts/ instead.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['recharts/*'],
+              message:
+                'recharts was removed in PR #159 (−113.7 kB gzip). Use the vanilla-SVG charts in src/components/charts/ instead.',
+            },
+          ],
+        },
+      ],
     },
   },
 
