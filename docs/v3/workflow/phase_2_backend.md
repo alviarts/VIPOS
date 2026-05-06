@@ -277,13 +277,17 @@
 
 ## Definition of Done — Phase 2
 
-- [ ] Postgres production-ready
-- [ ] Multi-tenant data isolation tested
-- [ ] Audit log mature
-- [ ] Background jobs handle async work
-- [ ] Observability mature
-- [ ] Security hardening done
-- [ ] API versioned + documented
-- [ ] Backup + DR runbook ready
+All eight P2-XX subsystems above are marked `[done]` with their AC
+checkboxes ticked individually. Mirror that here so the top-level
+status reflects reality.
+
+- [x] Postgres production-ready (P2-01a/b)
+- [x] Multi-tenant data isolation tested (P2-02)
+- [x] Audit log mature (P2-03)
+- [x] Background jobs handle async work (P2-04)
+- [x] Observability mature (P2-05)
+- [x] Security hardening done (P2-06)
+- [x] API versioned + documented (P2-07)
+- [x] Backup + DR runbook ready (P2-08)
 
 Backend siap support beban Phase 3 (Android sync), Phase 4 (full feature), Phase 5 (sub-apps webhook).
