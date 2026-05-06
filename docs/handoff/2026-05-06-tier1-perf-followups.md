@@ -1,12 +1,12 @@
 # VIPOS Sesi Handoff — 2026-05-06 (Tier-1 perf follow-ups)
 
-Closed: 2026-05-06 ~13:35 UTC (re-closed by 2026-05-06 #143–#145
-lazy-dialog-test batch amend; previously ~13:00 UTC after PR #141 amend
-and ~10:50 UTC at the original close). Prepared by Devin in continuous-
+Closed: 2026-05-06 ~14:10 UTC (re-closed by bot-wa-delete amend;
+previously ~13:35 UTC after PR #143–#145 amend, ~13:00 UTC after PR
+#141 amend, and ~10:50 UTC at the original close). Prepared by Devin in continuous-
 automation mode. Devin sessions:
 
 - Original close: <https://app.devin.ai/sessions/52c2da66635d43a9a7c774b05036ae66>
-- 2026-05-06 #141 + #143–#145 amend: <https://app.devin.ai/sessions/5a13e29449674f47bb2d035b5636542b>
+- 2026-05-06 #141 + #143–#145 + bot-wa-delete amend: <https://app.devin.ai/sessions/5a13e29449674f47bb2d035b5636542b>
 
 Successor to `2026-05-06-phase1-ac-completion-and-bundle-split.md` (which
 captured PRs #112–#119 / per-AC ticks + initial route-level
@@ -63,11 +63,15 @@ Net effect:
 
 Prod state at close (post-PR #145 deploy):
 
-- Backend HEAD `9bde4ff` (PR #145 squash-merge SHA on `main`).
-- `pm2 list` → `vipos-backend` (online, 98.7 MB, ~3 min uptime),
-  `vipos-worker` (online, 55.6 MB, ~3 min uptime), `finance-bot-tg`
-  (online, 5d uptime, 67.3 MB), `pm2-logrotate` (online, 34.5 MB),
-  `bot-wa` (stopped — pre-existing, untouched this session).
+- Backend HEAD `9bde4ff` (PR #145 squash-merge SHA on `main`; PR #146
+  - this PR are doc-only and don't change the bundle).
+- `pm2 list` → `vipos-backend` (online, 100.3 MB, ~4 min uptime),
+  `vipos-worker` (online, 55.4 MB, ~4 min uptime), `finance-bot-tg`
+  (online, 5d uptime, 67.6 MB), `pm2-logrotate` (online, 34.3 MB).
+  `bot-wa` was deleted this session at founder's instruction
+  (`pm2 delete bot-wa && pm2 save`); it belonged to the separate
+  `alviarts/finance-bot` repo, not VIPOS — see investigation report in
+  the operational notes.
 - `/api/health` → `{"status":"ok","version":"1.0.0","db":{"ok":true,"latency_ms":22},"redis":{"enabled":true,"ok":true,"latency_ms":5}}`.
 - Web bundle: `apps/web/dist/assets/index-D9b7i2zC.js` = **387,757 bytes
   pre-gzip** (eager). Byte-identical to the post-#141 build (PRs #143,
@@ -103,14 +107,17 @@ Prod state at close (post-PR #145 deploy):
 | #143 | `test(web): add CustomerImportDialog lazy-load contract test`                                   | green  | merged (`37ccc60`); deploy success |
 | #144 | `test(web): add ProductMovementHistoryDialog lazy-load contract test`                           | green  | merged (`3f3751d`); deploy success |
 | #145 | `test(web): add CampaignBuilder lazy-load contract test`                                        | green  | merged (`9bde4ff`); deploy success |
-| #146 | `docs(handoff): amend with PRs #143/#144/#145 (lazy-dialog regression tests)` (this PR)         | green  | pending merge                      |
+| #146 | `docs(handoff): amend with PRs #143/#144/#145 (lazy-dialog regression tests)`                   | green  | merged (`aa88abe`); deploy success |
+| #147 | `docs(handoff): record bot-wa pm2 delete + drop from VIPOS backlog (not VIPOS scope)` (this PR) | green  | pending merge                      |
 
-(All twenty-two merged via REST API squash with `GITHUB_PAT_VIPOS` —
+(All twenty-three merged via REST API squash with `GITHUB_PAT_VIPOS` —
 see **Critical infrastructure context** below for the PAT rotation
 incident that gated PR #122. PRs #139, #140 were merged from a separate
 session and are intentionally not described in detail in this doc; see
 those PRs for context, but the lazy-load boundaries they introduced are
-regression-tested by PRs #143/#144/#145 added in this amend session.)
+regression-tested by PRs #143/#144/#145 added in this amend session. PR
+#147 also captures the operational `pm2 delete bot-wa` step — see Tier-1
+backlog and Operational notes §8–9.)
 
 ### PR #122 — split xlsx + jspdf out of ReportFilterBar
 
@@ -546,18 +553,19 @@ test-only — production bundles match the post-#137 build output
 byte-for-byte (387,757 bytes eager, +8 bytes vs the original PR #137
 baseline due to PRs #139 + #140 lazy dialogs).
 
-### pm2 (post-deploy, PR #145)
+### pm2 (post-deploy, PR #145 + bot-wa delete)
 
-| ID  | Process        | Status  | Uptime | Mem     |
-| --- | -------------- | ------- | ------ | ------- |
-| 0   | pm2-logrotate  | online  | ~3d    | 34.5 MB |
-| 1   | finance-bot-tg | online  | 5d     | 67.3 MB |
-| 2   | bot-wa         | stopped | —      | 0 B     |
-| 4   | vipos-backend  | online  | ~3 min | 98.7 MB |
-| 5   | vipos-worker   | online  | ~3 min | 55.6 MB |
+| ID  | Process        | Status | Uptime | Mem      |
+| --- | -------------- | ------ | ------ | -------- |
+| 0   | pm2-logrotate  | online | ~3d    | 34.3 MB  |
+| 1   | finance-bot-tg | online | 5d     | 67.6 MB  |
+| 4   | vipos-backend  | online | ~4 min | 100.3 MB |
+| 5   | vipos-worker   | online | ~4 min | 55.4 MB  |
 
-`bot-wa` remains stopped (pre-existing state from prior sessions; not in
-scope for this run — see Tier-2 backlog).
+`bot-wa` (id 2) was deleted from pm2 this session at founder's instruction;
+it was a stopped process from the separate `alviarts/finance-bot` repo
+(WhatsApp twin of the still-online `finance-bot-tg`). VIPOS has zero
+dependency on it. See Operational notes §9 below for the rationale.
 
 ### `/api/health`
 
@@ -663,16 +671,16 @@ new script.
 
 ### Tier 1 — no founder input needed
 
-- **`bot-wa` pm2 entry stopped** — pre-existing state since at least
-  the 2026-05-05 cryptominer cleanup. Three options for the next session:
-  - (a) Investigate WA bot codebase under `apps/`, fix or remove
-    accordingly, and PR the change.
-  - (b) Permanently `pm2 delete bot-wa` if the founder confirms it's
-    deprecated (this is a **Tier-2** ask once it requires founder
-    decision; just leave it alone otherwise).
-  - (c) No-op — keep status quo. **Recommendation**: leave it stopped
-    until the founder explicitly asks to revisit. Risk: green / yellow.
-    Estimate: 0.5–2 hours depending on path.
+- **`bot-wa` pm2 entry** — ✅ deleted this session
+  (`pm2 delete bot-wa && pm2 save`). Was never VIPOS scope: belonged to
+  the separate `alviarts/finance-bot` repo (WhatsApp twin of
+  `finance-bot-tg`, sharing logic via `processMessage()` in
+  `src/commands.js`). Last known state: stopped after Baileys session
+  was invalidated by WhatsApp (403 disconnect loop in 2026-05-03 logs).
+  Telegram bot (`finance-bot-tg`) remains online and provides feature
+  parity for the Google Sheets finance-tracking use case. Future
+  sessions should not see `bot-wa` in `pm2 list` and should not list it
+  in VIPOS handoff backlog.
 - **`<ChartFallback>` visual matching** — ✅ shipped in PR #129
   (bar-skeleton with `animate-pulse` + Y-axis line). Carried over only
   for changelog context.
@@ -756,8 +764,6 @@ unless ticked here.)
   (proton-telegram-bot scope) in the Devin secret store. It 401s now
   and isn't needed for VIPOS work. Founder can revoke + delete from
   org-scope secrets at leisure.
-- **Decision on `bot-wa`** — see Tier-1 above; once founder clarifies
-  intent it becomes Tier-1.
 
 ## Files modified this session
 
@@ -863,6 +869,17 @@ use `npm run test --workspace=apps/web`) so the workspace's
    25428634682, 25428990633, 25429273526 succeed end-to-end this
    session). No manual step needed unless `tools/scripts/deploy.sh`
    itself was modified.
-8. **`bot-wa` is intentionally untouched.** Multiple sessions have left
-   it `stopped`. Don't restart or delete without explicit founder
-   instruction — risk of unexpected webhook traffic / billing surprise.
+8. **`bot-wa` was deleted this session.** Previously stopped pm2 entry
+   pointing to `/root/finance-bot/src/bot-wa.js`, which belongs to the
+   separate `alviarts/finance-bot` repo. Read-only investigation in this
+   session confirmed: zero VIPOS code/data/deploy dependency, last activity
+   was a 403 disconnect loop on 2026-05-03 (Baileys session invalidated by
+   WhatsApp), Telegram twin `finance-bot-tg` covers the same use case.
+   Founder approved Option A (delete). Performed via
+   `pm2 delete bot-wa && pm2 save` on VPS; `pm2 dump` saved at
+   `/root/.pm2/dump.pm2`. Future Devin sessions: bot-wa is **not** part of
+   VIPOS scope; do not re-add it to backlogs.
+9. **Don't touch `alviarts/finance-bot` repo from VIPOS sessions.** That
+   repo lives at `/root/finance-bot/` on the VPS but has nothing to do
+   with this monorepo. If you need to make changes there, use a separate
+   Devin session scoped to that repo.
