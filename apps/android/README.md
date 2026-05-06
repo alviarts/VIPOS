@@ -14,17 +14,32 @@ This module was bootstrapped in **PR P3-01a**. Currently:
 
 Subsequent sub-PRs in the P3-01 series will add:
 
-| Sub-PR     | Status         | Adds                                                                                    |
-| ---------- | -------------- | --------------------------------------------------------------------------------------- |
-| P3-01a     | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow              |
-| P3-01b     | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)               |
-| P3-01e     | done (PR #187) | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                      |
-| P3-01c     | done (PR #188) | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database` |
-| P3-01d     | done (PR #189) | Build flavors (`dev` / `staging` / `prod`) + per-flavor `BuildConfig` + CI matrix       |
-| P3-01f     | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)  |
-| P3-02      | done (PR #191) | Real Material 3 design system — full ColorScheme (light + dark), typography, shapes     |
-| P3-05      | done (PR #193) | Network client — OkHttp + Retrofit + kotlinx-serialization wired through Hilt           |
-| **P3-03a** | this PR        | Auth feature data layer — `AuthApi` + `TokenStorage` (DataStore) + `AuthRepository`     |
+| Sub-PR    | Status         | Adds                                                                                    |
+| --------- | -------------- | --------------------------------------------------------------------------------------- |
+| P3-01a    | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow              |
+| P3-01b    | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)               |
+| P3-01e    | done (PR #187) | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                      |
+| P3-01c    | done (PR #188) | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database` |
+| P3-01d    | done (PR #189) | Build flavors (`dev` / `staging` / `prod`) + per-flavor `BuildConfig` + CI matrix       |
+| P3-01f    | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)  |
+| P3-02     | done (PR #191) | Real Material 3 design system — full ColorScheme (light + dark), typography, shapes     |
+| P3-05     | done (PR #193) | Network client — OkHttp + Retrofit + kotlinx-serialization wired through Hilt           |
+| P3-03a    | done (PR #194) | Auth feature data layer — `AuthApi` + `TokenStorage` (DataStore) + `AuthRepository`     |
+| **P3-04** | this PR        | Room database scaffold — `VIPOSDatabase` + `KeyValueCacheEntity` + DAO + Hilt providers |
+
+### Database (`:core:database`)
+
+After **P3-04** the database module ships a real Room scaffold:
+
+- **`VIPOSDatabase`** — `@Database(entities = [KeyValueCacheEntity::class], version = 1, exportSchema = true)` — root of the persistence graph. Versioning rules documented in the class kdoc; bump version + add `Migration` for every schema change.
+- **`entity/KeyValueCacheEntity`** — generic `(key TEXT PK, value TEXT, updated_at INTEGER)` row. Lives in this module to exercise the Room → KSP → Hilt wiring end-to-end. Real Phase 3 entities (products, transactions, …) drop into the same module in P3-06+.
+- **`dao/KeyValueCacheDao`** — exposes both blocking-suspend (`get(key)`) and reactive (`observe(key)`) readers plus an atomic `@Upsert` writer.
+- **`schemas/id.alviarts.vipos.core.database.VIPOSDatabase/1.json`** — auto-exported by KSP. **Do not edit by hand.** Subsequent schema changes export new files (`2.json`, …); a CI guard (lands in a follow-up) will reject PRs that change `1.json` in place.
+- **Hilt providers in `:app/AppModule`** — `provideVIPOSDatabase(@ApplicationContext)` and `provideKeyValueCacheDao(database)`. Builder defaults are deliberate: no `fallbackToDestructiveMigration()` (every change MUST ship an explicit migration), no `allowMainThreadQueries()` (suspend / Flow only).
+
+| Token         | Pinned version |
+| ------------- | -------------- |
+| androidx.room | 2.6.1          |
 
 ### Auth feature (`:feature:auth`)
 
