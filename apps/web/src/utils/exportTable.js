@@ -3,10 +3,11 @@
 // Supports CSV (built-in), Excel xlsx (SheetJS), dan PDF (jsPDF + autoTable).
 // Bertekstur "rows of {key→value}" + "columns metadata" (key, label, format).
 // Format hook: 'currency' | 'number' | 'date' | 'datetime' | passthrough.
+//
+// xlsx (SheetJS) + jspdf + jspdf-autotable di-load via dynamic import supaya
+// bundle awal Reports tidak nyangkut ~700kB lib export. Lib baru ditarik
+// pertama kali user klik tombol Export Excel/PDF.
 
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { formatCurrency, formatDate, formatDateTime, formatNumber } from './format';
 
 function formatCell(value, type) {
@@ -59,7 +60,8 @@ export function exportCsv({ filename, columns, rows }) {
   downloadBlob(blob, filename.endsWith('.csv') ? filename : `${filename}.csv`);
 }
 
-export function exportXlsx({ filename, columns, rows, sheetName = 'Report' }) {
+export async function exportXlsx({ filename, columns, rows, sheetName = 'Report' }) {
+  const XLSX = await import('xlsx');
   const aoa = [
     columns.map((c) => c.label),
     ...rows.map((row) => columns.map((c) => rawCell(row[c.key], c.format))),
@@ -76,7 +78,18 @@ export function exportXlsx({ filename, columns, rows, sheetName = 'Report' }) {
   XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`);
 }
 
-export function exportPdf({ filename, title, subtitle, columns, rows, orientation = 'landscape' }) {
+export async function exportPdf({
+  filename,
+  title,
+  subtitle,
+  columns,
+  rows,
+  orientation = 'landscape',
+}) {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ]);
   const doc = new jsPDF({ orientation, unit: 'pt', format: 'a4' });
   doc.setFontSize(14);
   doc.text(title || 'Laporan', 40, 40);
