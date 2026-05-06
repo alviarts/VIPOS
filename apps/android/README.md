@@ -14,14 +14,14 @@ This module was bootstrapped in **PR P3-01a**. Currently:
 
 Subsequent sub-PRs in the P3-01 series will add:
 
-| Sub-PR    | Status        | Adds                                                                                    |
-| --------- | ------------- | --------------------------------------------------------------------------------------- |
-| P3-01a    | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow              |
-| P3-01b    | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)               |
-| **P3-01e** | this PR       | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                     |
-| P3-01c    | pending       | Modular split — `:core:designsystem`, `:core:network`, `:core:database`, `:core:common` |
-| P3-01d    | pending       | Build flavors (`dev` / `staging` / `prod`) + ProGuard rules + signing                   |
-| P3-01f    | blocked       | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)  |
+| Sub-PR     | Status         | Adds                                                                                    |
+| ---------- | -------------- | --------------------------------------------------------------------------------------- |
+| P3-01a     | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow              |
+| P3-01b     | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)               |
+| **P3-01e** | this PR        | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                      |
+| P3-01c     | pending        | Modular split — `:core:designsystem`, `:core:network`, `:core:database`, `:core:common` |
+| P3-01d     | pending        | Build flavors (`dev` / `staging` / `prod`) + ProGuard rules + signing                   |
+| P3-01f     | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)  |
 
 ### Branding
 
