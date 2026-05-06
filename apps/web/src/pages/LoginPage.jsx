@@ -2,7 +2,12 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Store, Eye, EyeOff, ShieldCheck } from 'lucide-react';
-import toast from 'react-hot-toast';
+// LoginPage is the only eager page (every unauthenticated user lands
+// here), so importing `toast` directly from `react-hot-toast` would
+// pull the library back into the eager bundle. The lazy wrapper at
+// `../utils/toast` keeps the eager surface tiny — first toast call
+// triggers a one-shot dynamic import.
+import toast from '../utils/toast';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
