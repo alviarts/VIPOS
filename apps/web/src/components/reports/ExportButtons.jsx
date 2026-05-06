@@ -3,7 +3,7 @@
 // Pakai sebagai child di ReportTemplate. Memanggil util di
 // `apps/web/src/utils/exportTable.js`. Bisa di-disable kalau rows kosong.
 //
-// xlsx (~430 kB) + jspdf (~390 kB) + jspdf-autotable adalah lazy chunks
+// exceljs + jspdf (~390 kB) + jspdf-autotable adalah lazy chunks
 // (lihat exportTable.js). Default-nya, chunk baru di-fetch saat user
 // klik 'Export Excel' / 'Export PDF', yang artinya ada delay perceptible
 // di first-click. Untuk masking delay tersebut, kita prefetch chunk-nya
@@ -20,7 +20,7 @@ import { exportCsv, exportXlsx, exportPdf, exportJson } from '../../utils/export
 // dan surface error ke user via toast.
 function prefetchExportChunks(formats) {
   if (formats.includes('xlsx')) {
-    import('xlsx').catch(() => {});
+    import('exceljs').catch(() => {});
   }
   if (formats.includes('pdf')) {
     import('jspdf').catch(() => {});
@@ -68,7 +68,7 @@ export default function ExportButtons({
         await exportPdf(opts);
       }
     } catch (err) {
-      // Dynamic import (xlsx / jspdf chunk) bisa gagal karena network /
+      // Dynamic import (exceljs / jspdf chunk) bisa gagal karena network /
       // browser cache miss. Surface ke user supaya tidak silent.
       console.error('Export gagal:', err);
       toast.error(`Export ${fmt.toUpperCase()} gagal: ${err?.message || 'unknown error'}`);

@@ -113,12 +113,22 @@ export default [
               message:
                 'recharts was removed in PR #159 (−113.7 kB gzip). Use the vanilla-SVG charts in src/components/charts/ instead.',
             },
+            {
+              name: 'xlsx',
+              message:
+                'xlsx (SheetJS) was removed due to unfixable high-severity CVEs (GHSA-4r6h-8v6p-xvw6 Prototype Pollution + GHSA-5pgg-2g8v-p4x9 ReDoS). Use exportXlsx() from src/utils/exportTable.js (exceljs-backed) instead.',
+            },
           ],
           patterns: [
             {
               group: ['recharts/*'],
               message:
                 'recharts was removed in PR #159 (−113.7 kB gzip). Use the vanilla-SVG charts in src/components/charts/ instead.',
+            },
+            {
+              group: ['xlsx/*'],
+              message:
+                'xlsx (SheetJS) was removed due to unfixable high-severity CVEs. Use exportXlsx() from src/utils/exportTable.js (exceljs-backed) instead.',
             },
           ],
         },
