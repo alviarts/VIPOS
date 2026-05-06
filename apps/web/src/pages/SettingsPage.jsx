@@ -24,6 +24,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only fetch
   }, []);
 
   const loadData = async () => {

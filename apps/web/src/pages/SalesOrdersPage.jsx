@@ -56,6 +56,7 @@ export default function SalesOrdersPage() {
   }
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load() reads filterStatus directly; effect intentionally re-runs only on [filterStatus]
   }, [filterStatus]);
 
   async function remove() {

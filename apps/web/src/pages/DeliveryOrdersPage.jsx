@@ -38,6 +38,7 @@ export default function DeliveryOrdersPage() {
   }
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load() reads filterStatus directly; effect intentionally re-runs only on [filterStatus]
   }, [filterStatus]);
 
   useEffect(() => {

@@ -14,6 +14,7 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadData() reads page + dateFilter directly; effect intentionally re-runs only on those
   }, [page, dateFilter]);
 
   const loadData = async () => {
