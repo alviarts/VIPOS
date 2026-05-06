@@ -1,37 +1,43 @@
 # VIPOS Sesi Handoff — 2026-05-06 (Tier-1 perf follow-ups)
 
-Closed: 2026-05-06 ~13:00 UTC (re-closed by 2026-05-06 #141 amend; was
-~10:50 UTC at the original close). Prepared by Devin in continuous-
+Closed: 2026-05-06 ~13:35 UTC (re-closed by 2026-05-06 #143–#145
+lazy-dialog-test batch amend; previously ~13:00 UTC after PR #141 amend
+and ~10:50 UTC at the original close). Prepared by Devin in continuous-
 automation mode. Devin sessions:
 
 - Original close: <https://app.devin.ai/sessions/52c2da66635d43a9a7c774b05036ae66>
-- 2026-05-06 #141 amend: <https://app.devin.ai/sessions/5a13e29449674f47bb2d035b5636542b>
+- 2026-05-06 #141 + #143–#145 amend: <https://app.devin.ai/sessions/5a13e29449674f47bb2d035b5636542b>
 
 Successor to `2026-05-06-phase1-ac-completion-and-bundle-split.md` (which
 captured PRs #112–#119 / per-AC ticks + initial route-level
-`React.lazy`). This doc starts at PR #122 and ends at PR #141, covering
-eight Tier-1 perf items + four test-coverage items + one read-only
+`React.lazy`). This doc starts at PR #122 and ends at PR #145, covering
+eight Tier-1 perf items + seven test-coverage items + one read-only
 audit, all executed autonomously across the original 2026-05-06 session
-plus the #141 amend session. PRs #139 and #140 were merged from a
-separate Devin session between #138's amend and the #141 amend; their
-impact on `apps/web` (lazy-loaded `CustomerImportDialog`,
-`ProductMovementHistoryDialog`, and `CampaignBuilder`) is not described
-here — see those PRs directly for context.
+plus the #141 + #143–#145 amend session. PRs #139 and #140 (lazy-load
+`CustomerImportDialog`, `ProductMovementHistoryDialog`, and
+`CampaignBuilder`) were merged from a separate Devin session between
+#138's amend and the #141 amend; their **regression tests are added
+this amend session** as PRs #143–#145 (see breakdowns below).
 
 ## TL;DR
 
-Eleven green/yellow PRs (and six handoff doc amends, including this
-#141 amend) merged in one continuous run while resolving an expired-
-PAT incident. **`apps/web` lazy chunks ≥ 400 kB previously**
+Eleven green/yellow PRs (and seven handoff doc amends, including this
+#143–#145 amend) merged in one continuous run while resolving an
+expired-PAT incident, plus three lazy-dialog regression tests for the
+react.lazy() boundaries PRs #139 + #140 added (`CustomerImportDialog`,
+`ProductMovementHistoryDialog`, `CampaignBuilder`). **`apps/web` lazy chunks ≥ 400 kB previously**
 (`ReportFilterBar` 717 kB and `DashboardPage` 417 kB) **both shrunk
 to ~10–31 kB by lifting their heavy deps into per-feature dynamic
 imports** (`xlsx`, `jspdf`, `jspdf-autotable`, `recharts`), with chart
 prefetch + bar-skeleton + Export busy spinner + Export dropdown-open
 prefetch polishing the resulting UX. Test coverage on the touched
-surface area went from 14 files / 82 tests to **17 files / 106 tests**
+surface area went from 14 files / 82 tests to **20 files / 109 tests**
 (+1 file ExportButtons regression with prefetch tests, +1 file
 exportTable.js regression, +1 file DashboardChartFallback Suspense
-regression, plus jsdom matchMedia/ResizeObserver stubs in shared setup).
+regression, +3 files for the lazy-dialog contracts of
+`CustomerImportDialog`, `ProductMovementHistoryDialog`,
+`CampaignBuilder`, plus jsdom matchMedia/ResizeObserver stubs in shared
+setup).
 The eager bundle dropped to **387 kB / gzip 127 kB** (was 401 kB / gzip
 130 kB at session start; PR #137 lazy-loaded three uncommon auth
 pages). Login fast-path unaffected.
@@ -55,23 +61,21 @@ Net effect:
 - Zero behaviour change to backend, auth pages, or any non-Reports /
   non-Dashboard surface.
 
-Prod state at close (post-PR #141 deploy):
+Prod state at close (post-PR #145 deploy):
 
-- Backend HEAD `5cb739b` (PR #141 squash-merge SHA on `main`).
-- `pm2 list` → `vipos-backend` (online, 131.9 MB, 48s uptime),
-  `vipos-worker` (online, 54.9 MB, 47s uptime), `finance-bot-tg`
-  (online, 5d uptime, 67.5 MB), `pm2-logrotate` (online, 33.8 MB),
+- Backend HEAD `9bde4ff` (PR #145 squash-merge SHA on `main`).
+- `pm2 list` → `vipos-backend` (online, 98.7 MB, ~3 min uptime),
+  `vipos-worker` (online, 55.6 MB, ~3 min uptime), `finance-bot-tg`
+  (online, 5d uptime, 67.3 MB), `pm2-logrotate` (online, 34.5 MB),
   `bot-wa` (stopped — pre-existing, untouched this session).
-- `/api/health` → `{"status":"ok","version":"1.0.0","db":{"ok":true,"latency_ms":6},"redis":{"enabled":true,"ok":true,"latency_ms":3}}`.
-- Web bundle: `apps/web/dist/assets/index-DZdAP2Xe.js` = **387,757 bytes
-  pre-gzip** (eager). Source-side this matches the pre-#141 main build
-  byte-for-byte (PR #141 is test-only); the +8-byte filename-hash drift
-  vs the original close's 387,749 bytes baseline reflects the lazy-
-  loaded dialog work in PRs #139 + #140.
-- VPS: disk 35 GB / 49 GB (72%), RAM 701 MiB used / 3.8 GiB total
-  (~18%), swap 193 MiB / 4.5 GiB (~4%).
-- `tools/scripts/deploy.sh` untouched in every PR (incl. #141) — no
-  `workflow_dispatch` chicken-egg needed.
+- `/api/health` → `{"status":"ok","version":"1.0.0","db":{"ok":true,"latency_ms":22},"redis":{"enabled":true,"ok":true,"latency_ms":5}}`.
+- Web bundle: `apps/web/dist/assets/index-D9b7i2zC.js` = **387,757 bytes
+  pre-gzip** (eager). Byte-identical to the post-#141 build (PRs #143,
+  #144, #145 are all test-only — no production code touched).
+- VPS: disk 35 GB / 49 GB (71%), RAM 672 MiB used / 3.8 GiB total
+  (~17%), swap left near previous run.
+- `tools/scripts/deploy.sh` untouched in every PR (incl. #143/#144/#145)
+  — no `workflow_dispatch` chicken-egg needed.
 
 ## All PRs merged this session
 
@@ -95,13 +99,18 @@ Prod state at close (post-PR #141 deploy):
 | #137 | `perf(web): lazy-load SignupPage + ForgotPasswordPage + ResetPasswordPage`                      | green  | merged (`82ff723`); deploy success |
 | #138 | `docs(handoff): amend with PR #137 (lazy auth pages)`                                           | green  | merged (`ec29d80`); deploy success |
 | #141 | `test(web): add DashboardChartFallback Suspense regression for /dashboard charts`               | green  | merged (`5cb739b`); deploy success |
-| #142 | `docs(handoff): amend with PR #141 (DashboardChartFallback regression test)` (this PR)          | green  | pending merge                      |
+| #142 | `docs(handoff): amend with PR #141 (DashboardChartFallback regression test)`                    | green  | merged (`ff33a79`); deploy success |
+| #143 | `test(web): add CustomerImportDialog lazy-load contract test`                                   | green  | merged (`37ccc60`); deploy success |
+| #144 | `test(web): add ProductMovementHistoryDialog lazy-load contract test`                           | green  | merged (`3f3751d`); deploy success |
+| #145 | `test(web): add CampaignBuilder lazy-load contract test`                                        | green  | merged (`9bde4ff`); deploy success |
+| #146 | `docs(handoff): amend with PRs #143/#144/#145 (lazy-dialog regression tests)` (this PR)         | green  | pending merge                      |
 
-(All eighteen merged via REST API squash with `GITHUB_PAT_VIPOS` — see
-**Critical infrastructure context** below for the PAT rotation incident
-that gated PR #122. PRs #139, #140 were merged from a separate session
-and are intentionally not described in this doc; see those PRs for
-details.)
+(All twenty-two merged via REST API squash with `GITHUB_PAT_VIPOS` —
+see **Critical infrastructure context** below for the PAT rotation
+incident that gated PR #122. PRs #139, #140 were merged from a separate
+session and are intentionally not described in detail in this doc; see
+those PRs for context, but the lazy-load boundaries they introduced are
+regression-tested by PRs #143/#144/#145 added in this amend session.)
 
 ### PR #122 — split xlsx + jspdf out of ReportFilterBar
 
@@ -463,35 +472,89 @@ code. `apps/web` build output is byte-identical to pre-#141 main.
 
 Risk: green (test-only addition).
 
+### PRs #143 / #144 / #145 — lazy-dialog regression tests for PRs #139 + #140
+
+PRs #139 + #140 (separate Devin session, between #138 and #141) wrapped
+three dialogs in `React.lazy()`:
+
+- `CustomerImportDialog` (298 LOC) on `CustomersPage` — admin-only
+  bulk-import dialog, mounted under `{showImport && <Suspense
+fallback={null}>}` on the `Impor` button.
+- `ProductMovementHistoryDialog` (127 LOC) on `InventoryPage` —
+  per-product history view, mounted under `{historyProduct && <Suspense
+fallback={null}>}` on the History icon button per movement row.
+- `CampaignBuilder` (~30 kB pre-gzip, 5-step wizard) on `MarketingPage`
+  — admin-only, gated by `tab === 'campaigns'`, mounted under
+  `{showBuilder && <Suspense fallback={null}>}` on the `Buat Campaign`
+  header button.
+
+All three use `<Suspense fallback={null}>` (no skeleton UI), so the
+test pattern from PR #141 (assert visible `<ChartFallback>` while the
+lazy chunk is in-flight) doesn't fit — there's no fallback DOM to
+inspect. Instead, PRs #143/#144/#145 each assert the _post-resolve_
+mount path end-to-end:
+
+1. Page mounts; the dialog is **not** in the DOM (lazy chunk not yet
+   requested because the visibility flag is still `false`/`null`).
+2. Click the page's trigger button (Impor / History / Buat Campaign).
+3. The dynamic `import(...)` resolves through the test's **real
+   (unmocked) module graph** — the dialog component is _not_ mocked.
+4. Assert the dialog header + at least one piece of internal real-
+   module content (`Pilih file CSV...`, `Riwayat Stok` subtitle,
+   wizard channel cards) is visible.
+5. Click the close (X) button; assert the dialog disappears.
+
+Each test mocks `../utils/api` (no network), `../context/AuthContext`
+(admin role gates the buttons), and `react-hot-toast` (trims noise).
+The `ProductMovementHistoryDialog` test also stubs the dialog's own
+`/inventory/movements/<id>` fetch to return `[]`, so the empty-state
+copy `Belum ada pergerakan stok untuk produk ini.` shows up — that
+also confirms the dialog's `useEffect(() => api.get(...))` ran end-to-
+end, not just the static shell.
+
+Test suite delta:
+
+- PR #143: 17 files / 106 tests → **18 files / 107 tests** (+1).
+- PR #144: 18 files / 107 tests → **19 files / 108 tests** (+1).
+- PR #145: 19 files / 108 tests → **20 files / 109 tests** (+1).
+
+Bundle / behaviour: zero source changes to `CustomersPage`,
+`InventoryPage`, `MarketingPage`, or any of the dialog components.
+`apps/web` build output is byte-identical to post-#141 main.
+
+Risk: green (all three are test-only additions).
+
 ## Production state at close
 
 ### VPS
 
 ```
 Host: 103.74.5.44 (xserver.local)
-Repo: /var/www/vipos @ git HEAD 5cb739b (PR #141)
-Disk: 35 GB / 49 GB used (72%)
-RAM: 701 MiB / 3.8 GiB used (~18%)
-Swap: 193 MiB / 4.5 GiB used (~4%)
-GH Actions deploy runs (this session): success for #122-#137 + #141
-  (#139 + #140 also succeeded but were merged from a separate session).
+Repo: /var/www/vipos @ git HEAD 9bde4ff (PR #145)
+Disk: 35 GB / 49 GB used (71%)
+RAM: 672 MiB / 3.8 GiB used (~17%)
+Swap: ~near previous run
+GH Actions deploy runs (this session): success for #122-#137 + #141 +
+  #143-#145 (#139 + #140 also succeeded but were merged from a separate
+  session).
 ```
 
 **Note**: PR #137 shrunk the eager bundle from 401.21 kB to 387.25 kB
-by lazy-loading three uncommon auth pages. VPS git HEAD now `5cb739b`
-(PR #141 squash-merge SHA, +8 bytes vs PR #137 baseline due to PRs
-#139 + #140 lazy dialogs). PR #141 itself is test-only — production
-bundles match the pre-#141 build output byte-for-byte.
+by lazy-loading three uncommon auth pages. VPS git HEAD now `9bde4ff`
+(PR #145 squash-merge SHA). PR #141 + PRs #143/#144/#145 are all
+test-only — production bundles match the post-#137 build output
+byte-for-byte (387,757 bytes eager, +8 bytes vs the original PR #137
+baseline due to PRs #139 + #140 lazy dialogs).
 
-### pm2 (post-deploy)
+### pm2 (post-deploy, PR #145)
 
-| ID  | Process        | Status  | Uptime | Mem      |
-| --- | -------------- | ------- | ------ | -------- |
-| 0   | pm2-logrotate  | online  | ~3d    | 33.8 MB  |
-| 1   | finance-bot-tg | online  | 5d     | 67.5 MB  |
-| 2   | bot-wa         | stopped | —      | 0 B      |
-| 4   | vipos-backend  | online  | 48s    | 131.9 MB |
-| 5   | vipos-worker   | online  | 47s    | 54.9 MB  |
+| ID  | Process        | Status  | Uptime | Mem     |
+| --- | -------------- | ------- | ------ | ------- |
+| 0   | pm2-logrotate  | online  | ~3d    | 34.5 MB |
+| 1   | finance-bot-tg | online  | 5d     | 67.3 MB |
+| 2   | bot-wa         | stopped | —      | 0 B     |
+| 4   | vipos-backend  | online  | ~3 min | 98.7 MB |
+| 5   | vipos-worker   | online  | ~3 min | 55.6 MB |
 
 `bot-wa` remains stopped (pre-existing state from prior sessions; not in
 scope for this run — see Tier-2 backlog).
@@ -502,16 +565,16 @@ scope for this run — see Tier-2 backlog).
 {
   "status": "ok",
   "version": "1.0.0",
-  "db": { "ok": true, "latency_ms": 6 },
-  "redis": { "enabled": true, "ok": true, "latency_ms": 3 }
+  "db": { "ok": true, "latency_ms": 22 },
+  "redis": { "enabled": true, "ok": true, "latency_ms": 5 }
 }
 ```
 
 ### Web bundle (`apps/web/dist/assets/`)
 
-| Chunk                       | Bytes   | Notes                                                                  |
-| --------------------------- | ------- | ---------------------------------------------------------------------- |
-| `index-DZdAP2Xe.js` (eager) | 387,757 | +8 bytes vs PR #137 baseline (387,749) — PRs #139 + #140 lazy dialogs. |
+| Chunk                       | Bytes   | Notes                                                                                                                      |
+| --------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `index-D9b7i2zC.js` (eager) | 387,757 | Byte-identical to post-#141 build (PRs #143/#144/#145 are test-only). +8 bytes vs original PR #137 baseline (#139 + #140). |
 
 (Lazy-chunk fingerprints rotate per build with the dialog/page splits;
 the Tier-1 size reductions captured in the per-PR sections above are
@@ -651,6 +714,28 @@ new script.
   `TopProductChart`); the `Metode Pembayaran` card is a list, not a
   chart, so no Suspense fallback there. Carried over only for
   changelog context.
+- **Lazy-dialog regression tests for PRs #139 + #140** — ✅ shipped
+  in PRs #143/#144/#145 (`CustomerImportDialogLazy.test.jsx`,
+  `ProductMovementHistoryDialogLazy.test.jsx`,
+  `CampaignBuilderLazy.test.jsx`, 1 case each). Each test triggers the
+  page's lazy boundary by clicking the trigger button (Impor / History
+  / Buat Campaign), waits for the real (unmocked) dialog module to
+  resolve, asserts the dialog content is in the DOM, then clicks the
+  close button and asserts the dialog disappears. All three dialogs
+  use `<Suspense fallback={null}>` so there's no skeleton UI to
+  inspect; the assertion is on post-resolve mount instead.
+- **Yellow-path `CartesianChart` deep-imports investigation** —
+  attempted in this amend session, **0 byte savings**. Swapped
+  `from 'recharts'` barrel imports for per-symbol entry points
+  (`recharts/es6/cartesian/Area`, `recharts/es6/chart/AreaChart`, etc.)
+  on `RevenueChart.jsx` + `TopProductChart.jsx`; rebuilt; the shared
+  chunk landed at 334.54 kB (vs 334.55 kB before). Root cause: recharts
+  already declares `sideEffects: false` so Rollup tree-shakes the
+  barrel optimally; chunk size is dominated by internal cross-
+  references inside the recharts components themselves. Branch deleted,
+  no PR opened. Conclusion: meaningful CartesianChart reduction
+  requires a chart-lib migration (yellow/red — see Tier-1 entry above)
+  or accepting the current size.
 
 ### Tier 2 — blocked on founder input
 
@@ -688,15 +773,19 @@ apps/web/src/pages/DashboardPage.jsx               |  57 +++    PRs #124, #126, 
 apps/web/src/utils/exportTable.js                  |  23 ++-    PR #122
 apps/web/src/App.jsx                               |  22 ++-    PR #137
 apps/web/src/__tests__/DashboardChartFallback.test.jsx | 111 +++ PR #141 (new)
-docs/handoff/2026-05-06-tier1-perf-followups.md    | (this file + 6 amends)   handoff PRs #125, #127, #130, #134, #136, #138, #142
+apps/web/src/__tests__/CustomerImportDialogLazy.test.jsx | 123 +++ PR #143 (new)
+apps/web/src/__tests__/ProductMovementHistoryDialogLazy.test.jsx | 160 +++ PR #144 (new)
+apps/web/src/__tests__/CampaignBuilderLazy.test.jsx | 138 +++ PR #145 (new)
+docs/handoff/2026-05-06-tier1-perf-followups.md    | (this file + 7 amends)   handoff PRs #125, #127, #130, #134, #136, #138, #142, #146
 ```
 
-Total: 11 source/test files, ~770 insertions / 32 deletions across PRs
-#122–#141. Plus 7 handoff doc PRs (#125 initial, #127 post-#126 amend,
-#130 final amend with #128 + #129 + post-deploy prod state, #134 amend
-with #131-#133 test coverage, #136 amend with #135 export prefetch +
-Reports audit, #138 amend with #137 lazy auth pages, #142 amend with
-#141 DashboardChartFallback regression test).
+Total: 14 source/test files, ~1,191 insertions / 32 deletions across
+PRs #122–#145. Plus 8 handoff doc PRs (#125 initial, #127 post-#126
+amend, #130 final amend with #128 + #129 + post-deploy prod state,
+#134 amend with #131-#133 test coverage, #136 amend with #135 export
+prefetch + Reports audit, #138 amend with #137 lazy auth pages, #142
+amend with #141 DashboardChartFallback regression test, #146 amend
+with PRs #143/#144/#145 lazy-dialog regression tests).
 
 ## Smoke test infrastructure
 
@@ -718,13 +807,28 @@ Existing `vi.mock('../components/charts/RevenueChart', ...)` pattern in
 `DashboardPage.test.jsx` continues to work with `React.lazy` after PR
 #124.
 
-Test suite now: **17 files / 106 tests passing** (was 14 / 82 at
-session start; +3 files, +24 tests). PR #141's
+Test suite now: **20 files / 109 tests passing** (was 14 / 82 at
+session start; +6 files, +27 tests). PR #141's
 `DashboardChartFallback.test.jsx` mocks the chart modules with
 `new Promise(() => {})` to pin the page in its suspended state for the
 lifetime of the test — a clean variation on the `vi.hoisted` resolve-
 handle pattern from PR #131 when post-resolution assertions aren't
 needed.
+
+PRs #143/#144/#145 introduced the **complementary** pattern: they do
+_not_ mock the lazy dialog component, so the test exercises the real
+`React.lazy()` resolution path end-to-end. Each test renders the page,
+asserts the dialog is initially absent (chunk not yet requested),
+clicks the trigger button, awaits the dialog header via
+`screen.findByRole('heading', ...)`, asserts at least one piece of
+internal real-module content is present, and finally clicks the close
+button to assert teardown. `userEvent.setup()` must be called _after_
+`render(...)` to avoid `prepareDocument` crashes in user-event 14 with
+the project's vitest 2.x + jsdom config; this is the documented
+workaround for the existing repo setup. **When run from repo root,
+`vitest` picks up the wrong config** — always cd into `apps/web/` (or
+use `npm run test --workspace=apps/web`) so the workspace's
+`vitest.config.js` is loaded.
 
 ## Operational notes for next session
 
