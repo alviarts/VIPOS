@@ -133,6 +133,18 @@ See [`disaster_recovery.md`](./disaster_recovery.md) §1–2. At minimum:
 > ```bash
 > pm2 restart vipos-backend vipos-worker --update-env
 > ```
+>
+> **Belt-and-braces (PR #100, 2026-05-06)**: both `src/index.js` and
+> `src/worker.js` now load dotenv with `{ override: true }`, so `.env`
+> wins over any pre-existing `process.env` value the supervisor may have
+> captured at first boot. This eliminates the silent-stale-env mode that
+> caused the 2026-05-05 / 2026-05-06 02:00 UTC `db-backup` auth failures
+> even after `--update-env` restarts: pm2's stored env was missing
+> `DIRECT_URL` entirely, so `--update-env` was a no-op for that key, and
+> the dotenv default ("first wins") then preserved whatever the parent
+> shell happened to leak in. Override flips the precedence so the file
+> on disk is unambiguously authoritative. The contract is regression-tested
+> in `apps/backend/src/__tests__/dotenv-override.test.mjs`.
 
 ### 2.6 Sentry DSNs set
 

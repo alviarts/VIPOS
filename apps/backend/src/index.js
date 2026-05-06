@@ -1,4 +1,8 @@
-require('dotenv').config();
+// Load `.env` with `override: true` so the file is the authoritative
+// source of truth for every env var the API process reads, even if pm2
+// (or another supervisor) cached stale values when first started. See
+// `worker.js` for the long-form rationale and the 2026-05-06 P2-08 RCA.
+require('dotenv').config({ override: true });
 const { buildApp } = require('./app');
 const { initDatabase } = require('./db/init');
 const { logger } = require('./lib/logger');
