@@ -12,11 +12,15 @@ hang seen on PR #159's deploy run 25445961488). Re-closed: 2026-05-06
 `/api/v1/health/backup` informational curl) and **PR #163** (deploy
 ssh-keyscan retry + 10-sec timeout cap; fixes the SSH-key-setup
 failure pattern seen on runs 25445248136 + 25447094832). Re-closed:
-2026-05-06 ~16:48 UTC by this amend PR after merging **PR #165**
+2026-05-06 ~16:48 UTC by amend PR #166 after merging **PR #165**
 (CI build job prints bundle-size summary in GH Actions step
-summary; non-blocking informational, surfaces eager-bundle bloat
-for PR reviewers). Prepared by Devin in continuous-automation mode.
-Devin session:
+summary). Re-closed: 2026-05-06 ~16:54 UTC by amend PR #167
+refreshing the **Outstanding Backlog** section. **Final close:
+2026-05-06 ~17:05 UTC** by this amend PR after founder said
+`pause` and PR #168 (eslint: ban recharts imports to lock in
+PR #159 win) merged. **10 source PRs + 8 handoff PRs total
+this session, all merged to `main`, all production-verified.**
+Prepared by Devin in continuous-automation mode. Devin session:
 <https://app.devin.ai/sessions/37291d97f04c45c18b7731c7cfd44e7f>
 
 Successor to `2026-05-06-tier1-perf-followups.md` (which was re-closed at
@@ -54,13 +58,16 @@ total_bytes, free_bytes, used_bytes, used_percent}}`. Returns 503
 - Zero behaviour change to existing routes, frontend bundles, deploy
   pipeline, or any other surface.
 
-Prod state at close (post-PR #165 deploy at ~16:48 UTC):
+Prod state at close (post-PR #168 merge at ~17:00 UTC):
 
-- Backend HEAD `2c4aa58` (PR #165 squash-merge SHA on `main`).
-  PR #165 is CI-only; no runtime change vs PR #164 (`7fb8c87`,
-  handoff doc amend) or PR #163 (`8c08c14`, ssh-keyscan retry)
-  before that. The PR #163 deploy run (25447713648) is the most
-  recent run that actually touched `pm2`.
+- Backend HEAD on `main`: `40fee27` (PR #168 squash-merge SHA;
+  eslint-config-only, no runtime change). The most recent run
+  that actually touched `pm2` is PR #163's deploy 25447713648.
+  The intervening PRs (#164 handoff doc, #165 CI bundle summary,
+  #166 handoff doc, #167 handoff doc, #168 eslint config) are
+  all CI/docs-only — they trigger `deploy-vps.yml` but its
+  `deploy.sh` does an idempotent rebuild + pm2 restart anyway,
+  the bytes shipped to users are bit-identical to PR #163.
 - `pm2 list` → `vipos-backend` (online), `vipos-worker` (online),
   `finance-bot-tg` (online, 6d uptime), `pm2-logrotate` (online).
 - `/api/v1/health/disk` → `{"status":"ok","mount":"/var/backups/vipos","threshold_percent":90,"fs":{"used_percent":71,...}}`.
@@ -69,12 +76,17 @@ Prod state at close (post-PR #165 deploy at ~16:48 UTC):
   retry-enabled smoke step + `frontend/health/disk/backup HTTP 200`).
 - VPS: disk 35 GB / 49 GB (72%), well under the probe's 90% default
   threshold.
-- Frontend chunks live: `RevenueChart-BGwmECCc.js` (9.5 kB),
-  `TopProductChart-Cw-m8AsT.js` (3.29 kB), `useChartSize-668n_Adz.js`
-  (0.85 kB). NO `CartesianChart-*.js` (recharts gone, confirmed via
-  `ls apps/web/dist/assets/`).
-- `tools/scripts/deploy.sh` untouched in all 8 PRs this session — no
-  `workflow_dispatch` chicken-egg needed.
+- Frontend chunks live: `RevenueChart-D9kWJIYN.js`,
+  `TopProductChart-nuuviQzT.js`, `useChartSize-WWlrsv4Q.js`
+  (hashes invalidated on PR #168 rebuild; content-equivalent
+  to PR #159's vanilla-SVG output). NO `CartesianChart-*.js`
+  (recharts gone, confirmed via `ls apps/web/dist/assets/`).
+- Eager bundle: `index-NaSF-_Hn.js` + `index.es-vE9le4CN.js`
+  - `index-L_3sWqZY.css` (CSS hash unchanged so the actual
+    styles are bit-identical; only the JS hashes flipped on the
+    rebuild).
+- `tools/scripts/deploy.sh` untouched in all 10 source PRs this
+  session — no `workflow_dispatch` chicken-egg needed.
 
 ## All PRs merged this session
 
@@ -89,6 +101,7 @@ Prod state at close (post-PR #165 deploy at ~16:48 UTC):
 | #162 | `devin/1778084064-deploy-smoke-backup`         | ci(deploy): smoke `/api/v1/health/backup` informationally                      | green  | merged `5e8b51a`; deploy 25447362897 ✅; smoke now `frontend/health/disk/backup HTTP 200` in ~1.5 sec total                                                                     |
 | #163 | `devin/1778084511-deploy-ssh-keyscan-retry`    | ci(deploy): retry ssh-keyscan on transient runner-to-VPS flake                 | green  | merged `8c08c14`; deploy 25447713648 ✅                                                                                                                                         |
 | #165 | `devin/1778085581-ci-bundle-size-summary`      | ci(build): print web bundle size summary in step summary                       | green  | merged `2c4aa58`; deploy 25448632619 ✅; build job step summary now lists top-15 chunks + eager-bundle table                                                                    |
+| #168 | `devin/1778086715-eslint-ban-recharts`         | chore(lint): ban recharts imports to lock in PR #159 win                       | green  | merged `40fee27`; CI 3/3 ✅; eslint flags any future `import 'recharts'` with the configured guidance message                                                                   |
 
 PR #102 was open from a previous Devin session (author: `alviarts`,
 opened 2026-05-06 06:58 UTC, head commit `4ed5731`). It had passed
@@ -232,6 +245,20 @@ there's no agreed baseline yet. Future PR can pin per-chunk budgets
 makes regressions visible to reviewers without forcing them to
 rebuild locally.
 
+## PR #168 — eslint ban on recharts imports
+
+Locks in PR #159's win. PR #159 dropped the `recharts` dependency
+entirely (−113.7 kB gzip across the lazy chart chunks; −38 transitive
+deps from the lockfile). Without an eslint guard, a future PR could
+trivially re-add recharts via `import { LineChart } from 'recharts'`
+on some new dashboard component, silently undoing the win.
+
+Adds a `no-restricted-imports` rule in the `apps/web` ESLint block
+that flags both bare `recharts` and any `recharts/*` deep imports
+with a message that points future contributors at the vanilla-SVG
+charts in `src/components/charts/`. Backend / shared rules untouched.
+Any future heavy-lib bans extend the same `paths`/`patterns` array.
+
 ## Root cause analysis: PR #102's first CI run cancelled
 
 **Symptom**: PR #102's CI run 25421076324 finished as `cancelled` —
@@ -370,6 +397,8 @@ fail loudly, just not on noise.
   −377 kB pre-gzip / −113.7 kB gzip across the lazy chunks (96%
   reduction). 38 transitive `recharts` deps removed from the
   lockfile. `CartesianChart-*.js` no longer exists in `dist/`.
+  PR #168 added an eslint `no-restricted-imports` rule so a
+  future contributor can't accidentally re-add `recharts`.
 - **Eager bundle reduction (Sentry SDK lazy init)** — the eager
   bundle is currently ~590 kB raw / ~185 kB gzip on `main`. The
   largest single piece is `index-*.js` (377 kB / 123 kB gzip,
@@ -456,9 +485,10 @@ package-lock.json                                     | −400      PR #159 (38 
 docs/handoff/2026-05-06-disk-health-and-ci-timeout-fix.md | (this file)  handoff PR + 3 amends
 ```
 
-Total: 14 source/config files + 1 new handoff doc (with five amends),
-~1103 insertions / ~516 deletions across PRs #102 + #153 + #155 +
-#157 + #159 + #160 + #162 + #163 + #165 + handoff PR + 5 amend PRs.
+Total: 15 source/config files + 1 new handoff doc (with seven amends),
+~1127 insertions / ~516 deletions across PRs #102 + #153 + #155 +
+#157 + #159 + #160 + #162 + #163 + #165 + #168 + handoff PR +
+7 amend PRs.
 
 ## Operational notes for next session
 
