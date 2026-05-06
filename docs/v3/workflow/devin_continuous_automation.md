@@ -84,11 +84,18 @@ yang butuh downtime > 5 detik.
 
 | File                            | Content                                                        |
 | ------------------------------- | -------------------------------------------------------------- |
-| `/root/.vipos-github-pat`       | GitHub PAT (40+ chars). Backup jika Devin secret store down.   |
 | `/root/.vipos-sentry-build.env` | `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, dst.      |
 | `/root/.vipos-pg-pwd`           | Postgres superuser pwd (`DIRECT_URL`). 32 chars post-rotation. |
 | `/root/.vipos-app-pwd`          | Postgres `vipos_app` pwd (`DATABASE_URL`). 32 chars post-rot.  |
 | `/root/.vipos-redis-pwd`        | Redis pwd (`REDIS_URL`). 48 chars.                             |
+
+**Note**: `GITHUB_PAT_VIPOS` is **only** in the Devin org-scope secret
+store — there is intentionally no VPS backup. The 2026-05-05 cryptominer
+incident showed that a VPS compromise can read root-owned files; a PAT
+on disk would have been an extra attack surface for zero benefit, since
+the PAT is only ever used from Devin VMs (which auto-inject the secret).
+If the Devin secret store ever becomes unavailable, regenerate the PAT
+from `github.com/settings/tokens` and re-save org-scope.
 
 **SSH access**:
 

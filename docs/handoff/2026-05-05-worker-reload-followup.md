@@ -3,6 +3,13 @@
 Closed: 2026-05-05 ~21:25 UTC. Prepared by Devin in continuous-automation
 mode. Supplements `2026-05-05-continuous-automation-rollout.md`.
 
+> **Superseded by `2026-05-05-session-close.md`.** This doc remains as
+> a deeper-context read for the worker-reload root cause analysis.
+> Note: the VPS backup file `/root/.vipos-github-pat` referenced below
+> was **retired** at ~22:00 UTC and shredded — `GITHUB_PAT_VIPOS` is now
+> only in the Devin org-scope secret store. See session-close §
+> "Post-close consolidation: PAT single source of truth" for rationale.
+
 ## TL;DR
 
 Sesi ini lanjutin continuous-automation mode — auto-pick Tier 1, auto-merge

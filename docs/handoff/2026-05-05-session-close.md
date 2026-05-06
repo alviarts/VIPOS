@@ -116,15 +116,15 @@ Next scheduled upload: 2026-05-06 02:00 UTC (BullMQ db-backup, custom format ~57
 
 ### Credentials / secret store state
 
-| Item                            | Where                                                  | Health                                    |
-| ------------------------------- | ------------------------------------------------------ | ----------------------------------------- |
-| `GITHUB_PAT_VIPOS`              | Devin org-scope secret + VPS `/root/.vipos-github-pat` | both 41-char, mode 600, used this session |
-| `/root/.vipos-pg-pwd`           | VPS                                                    | 32-char, matches current `DIRECT_URL`     |
-| `/root/.vipos-app-pwd`          | VPS                                                    | 32-char, matches current `DATABASE_URL`   |
-| `/root/.vipos-redis-pwd`        | VPS                                                    | 48-char, matches `REDIS_URL`              |
-| `/root/.vipos-sentry-build.env` | VPS                                                    | unchanged; deploy.sh sources this         |
-| Postgres `postgres` superuser   | rotated 2026-05-05 ~17:22 UTC                          | live + verified via pg_dump               |
-| Postgres `vipos_app` app user   | rotated 2026-05-05 ~17:22 UTC                          | live + verified via API health            |
+| Item                            | Where                                           | Health                                                                                                                                     |
+| ------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GITHUB_PAT_VIPOS`              | Devin org-scope secret (single source of truth) | 41-char, used this session — VPS backup file shredded 2026-05-05 ~22:00 UTC per founder consolidation decision (see post-close note below) |
+| `/root/.vipos-pg-pwd`           | VPS                                             | 32-char, matches current `DIRECT_URL`                                                                                                      |
+| `/root/.vipos-app-pwd`          | VPS                                             | 32-char, matches current `DATABASE_URL`                                                                                                    |
+| `/root/.vipos-redis-pwd`        | VPS                                             | 48-char, matches `REDIS_URL`                                                                                                               |
+| `/root/.vipos-sentry-build.env` | VPS                                             | unchanged; deploy.sh sources this                                                                                                          |
+| Postgres `postgres` superuser   | rotated 2026-05-05 ~17:22 UTC                   | live + verified via pg_dump                                                                                                                |
+| Postgres `vipos_app` app user   | rotated 2026-05-05 ~17:22 UTC                   | live + verified via API health                                                                                                             |
 
 ## Critical infrastructure context (carry-forward)
 
@@ -146,6 +146,26 @@ Default operating mode untuk Devin sesi VIPOS. Auto-pick Tier 1,
 auto-merge risk≤yellow, push setiap selesai, handoff doc tiap akhir
 sesi. Stop hanya kalau founder bilang `pause`. Detail di
 `docs/v3/workflow/devin_continuous_automation.md`.
+
+### Post-close consolidation: PAT single source of truth
+
+After the original session-close at ~21:40 UTC, founder asked which
+storage (Devin org-scope secret vs. VPS file backup) to use as the
+canonical home for `GITHUB_PAT_VIPOS`. Decision: **Devin org-scope only**,
+no VPS backup. Rationale:
+
+- VPS can be compromised (the 2026-05-05 cryptominer incident demonstrated
+  this concretely — root-owned files were readable for ~17h).
+- A PAT on disk is an extra attack surface for zero benefit, since the
+  PAT is only ever used from Devin VMs (which auto-inject the secret
+  from the org-scope vault).
+- Cognition-managed vault is encrypted at rest and survives VPS rotation
+  / wipe.
+
+Action taken at ~22:00 UTC: `shred -uvz /root/.vipos-github-pat` on the
+VPS. File no longer present. Devin org-scope secret remains the single
+source of truth. If the secret store ever becomes unavailable, regenerate
+the PAT from `github.com/settings/tokens` and re-save org-scope.
 
 ## Outstanding backlog
 

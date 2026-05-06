@@ -2,6 +2,14 @@
 
 Closed: 2026-05-05 ~21:00 UTC. Devin session URL: see PR description (auto-appended).
 
+> **Superseded by `2026-05-05-session-close.md`.** This doc remains as
+> a deeper-context read for the rollout TL;DR.
+> Note: the VPS backup file `/root/.vipos-github-pat` referenced
+> throughout this doc was **retired** at ~22:00 UTC and shredded —
+> `GITHUB_PAT_VIPOS` is now only in the Devin org-scope secret store.
+> See session-close § "Post-close consolidation: PAT single source of
+> truth" for rationale.
+
 ## TL;DR
 
 Founder mengaktifkan **continuous automation mode** untuk semua Devin sesi
