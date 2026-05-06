@@ -49,6 +49,8 @@ class MainActivity : ComponentActivity() {
                     BootstrapScreen(
                         appName = appConfig.appName,
                         versionName = appConfig.versionName,
+                        environment = appConfig.environment,
+                        apiBaseUrl = appConfig.apiBaseUrl,
                     )
                 }
             }
@@ -60,6 +62,8 @@ class MainActivity : ComponentActivity() {
 private fun BootstrapScreen(
     appName: String,
     versionName: String,
+    environment: String,
+    apiBaseUrl: String,
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -79,8 +83,13 @@ private fun BootstrapScreen(
                 style = MaterialTheme.typography.bodyLarge,
             )
             Text(
-                text = "v$versionName",
+                text = "v$versionName • $environment",
                 style = MaterialTheme.typography.labelMedium,
+            )
+            Text(
+                text = apiBaseUrl,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
     }
@@ -90,6 +99,11 @@ private fun BootstrapScreen(
 @Composable
 private fun BootstrapScreenPreview() {
     VIPOSTheme {
-        BootstrapScreen(appName = "VIPOS", versionName = "0.0.1")
+        BootstrapScreen(
+            appName = "VIPOS",
+            versionName = "0.0.1-dev",
+            environment = "dev",
+            apiBaseUrl = "http://10.0.2.2:3001",
+        )
     }
 }

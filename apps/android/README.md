@@ -19,9 +19,35 @@ Subsequent sub-PRs in the P3-01 series will add:
 | P3-01a     | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow              |
 | P3-01b     | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)               |
 | P3-01e     | done (PR #187) | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                      |
-| **P3-01c** | this PR        | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database` |
-| P3-01d     | pending        | Build flavors (`dev` / `staging` / `prod`) + ProGuard rules + signing                   |
+| P3-01c     | done (PR #188) | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database` |
+| **P3-01d** | this PR        | Build flavors (`dev` / `staging` / `prod`) + per-flavor `BuildConfig` + CI matrix       |
 | P3-01f     | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)  |
+
+### Build flavors
+
+After P3-01d the `:app` module ships three product flavors along the
+`environment` dimension:
+
+| Flavor    | applicationId               | versionName suffix | API base URL           |
+| --------- | --------------------------- | ------------------ | ---------------------- |
+| `dev`     | `id.alviarts.vipos.dev`     | `-dev`             | `http://10.0.2.2:3001` |
+| `staging` | `id.alviarts.vipos.staging` | `-staging`         | `http://103.74.5.44`   |
+| `prod`    | `id.alviarts.vipos`         | _(none)_           | `https://vipos.id`     |
+
+- The distinct `applicationId` values mean dev / staging / prod APKs
+  can coexist on the same device without uninstall churn.
+- `BuildConfig.ENVIRONMENT` and `BuildConfig.API_BASE_URL` are
+  injected per flavor and surfaced through `AppConfig`
+  (`:core:common`) into the bootstrap UI so the active flavor is
+  visually obvious on a device.
+- Build any flavor locally with the matching task:
+  `./gradlew :app:assembleDevDebug` / `:app:assembleStagingDebug` /
+  `:app:assembleProdDebug`. CI builds dev + staging on every push and
+  uploads both APKs as artifacts.
+- Release signing (and R8 / `isMinifyEnabled = true`) is intentionally
+  deferred — `proguard-rules.pro` is wired into `release` builds so
+  custom keep rules can land alongside the eventual signing config in
+  a follow-up sub-PR.
 
 ### Module structure
 

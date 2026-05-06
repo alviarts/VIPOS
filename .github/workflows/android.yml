@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   android-build:
-    name: build (apps/android assembleDebug)
+    name: build (apps/android assembleDevDebug + assembleStagingDebug)
     runs-on: ubuntu-latest
     timeout-minutes: 25
     defaults:
@@ -56,16 +56,34 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: assembleDebug
-        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+      - name: assembleDevDebug + assembleStagingDebug
+        # P3-01d: build the two flavors most likely to be sideloaded
+        # off CI: dev (emulator-targeted, points at host loopback for
+        # the local backend) and staging (points at the VPS endpoint
+        # so the founder / engineers can validate against staging
+        # without spinning up the local stack). Prod is intentionally
+        # deferred — its build is gated on signing config which is
+        # not part of the bootstrap series.
+        run: ./gradlew :app:assembleDevDebug :app:assembleStagingDebug --no-daemon --stacktrace
 
-      - name: Upload debug APK
-        # Surfaces the APK as a CI artifact so reviewers can sideload
-        # it onto a tablet without setting up a local Android dev env.
-        # 7-day retention keeps storage cost trivial.
+      - name: Upload dev debug APK
+        # Surfaces the dev-flavor APK as a CI artifact so reviewers
+        # can sideload it onto an emulator without setting up a local
+        # Android dev env. 7-day retention keeps storage cost trivial.
         uses: actions/upload-artifact@v4
         with:
-          name: vipos-android-debug-apk
-          path: apps/android/app/build/outputs/apk/debug/app-debug.apk
+          name: vipos-android-dev-debug-apk
+          path: apps/android/app/build/outputs/apk/dev/debug/app-dev-debug.apk
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Upload staging debug APK
+        # Staging APK targets the VPS endpoint, so it is the artifact
+        # the founder reaches for when validating against the live
+        # backend without dev-machine plumbing.
+        uses: actions/upload-artifact@v4
+        with:
+          name: vipos-android-staging-debug-apk
+          path: apps/android/app/build/outputs/apk/staging/debug/app-staging-debug.apk
           retention-days: 7
           if-no-files-found: error
