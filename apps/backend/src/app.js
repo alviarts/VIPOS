@@ -28,6 +28,7 @@ const { apiRateLimit } = require('./lib/rate-limit');
 const { logger } = require('./lib/logger');
 const { router: healthRouter } = require('./routes/health');
 const { router: healthBackupRouter } = require('./routes/health-backup');
+const { router: healthDiskRouter } = require('./routes/health-disk');
 const { router: metricsRouter } = require('./routes/metrics');
 
 /**
@@ -203,6 +204,10 @@ function mountVersionedRoutes(parent) {
   // independently and treat a stale-backup alert distinctly from
   // the application-up alert).
   parent.use('/health/backup', healthBackupRouter);
+  // Disk-usage probe on the BACKUP_DIR mount. Pairs with /health/backup:
+  // that one catches "the job stopped firing", this one catches "the
+  // disk filled up so the next job will fail".
+  parent.use('/health/disk', healthDiskRouter);
 }
 
 /**
