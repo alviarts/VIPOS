@@ -1,29 +1,38 @@
 # VIPOS Sesi Handoff — 2026-05-06 (Tier-1 perf follow-ups)
 
-Closed: 2026-05-06 ~10:50 UTC. Prepared by Devin in continuous-automation
-mode. Devin session:
-<https://app.devin.ai/sessions/52c2da66635d43a9a7c774b05036ae66>
+Closed: 2026-05-06 ~13:00 UTC (re-closed by 2026-05-06 #141 amend; was
+~10:50 UTC at the original close). Prepared by Devin in continuous-
+automation mode. Devin sessions:
+
+- Original close: <https://app.devin.ai/sessions/52c2da66635d43a9a7c774b05036ae66>
+- 2026-05-06 #141 amend: <https://app.devin.ai/sessions/5a13e29449674f47bb2d035b5636542b>
 
 Successor to `2026-05-06-phase1-ac-completion-and-bundle-split.md` (which
 captured PRs #112–#119 / per-AC ticks + initial route-level
-`React.lazy`). This doc starts at PR #122 and ends at PR #137, covering
-eight Tier-1 perf items + three test-coverage items + one read-only
-audit, all ready to execute autonomously this session.
+`React.lazy`). This doc starts at PR #122 and ends at PR #141, covering
+eight Tier-1 perf items + four test-coverage items + one read-only
+audit, all executed autonomously across the original 2026-05-06 session
+plus the #141 amend session. PRs #139 and #140 were merged from a
+separate Devin session between #138's amend and the #141 amend; their
+impact on `apps/web` (lazy-loaded `CustomerImportDialog`,
+`ProductMovementHistoryDialog`, and `CampaignBuilder`) is not described
+here — see those PRs directly for context.
 
 ## TL;DR
 
-Eleven green/yellow PRs (and five handoff doc amends) merged in one
-continuous run while resolving an expired-PAT incident. **`apps/web`
-lazy chunks ≥ 400 kB previously** (`ReportFilterBar` 717 kB and
-`DashboardPage` 417 kB) **both shrunk to ~10–31 kB by lifting their
-heavy deps into per-feature dynamic imports** (`xlsx`, `jspdf`,
-`jspdf-autotable`, `recharts`), with chart prefetch + bar-skeleton +
-Export busy spinner + Export dropdown-open prefetch polishing the
-resulting UX. Test coverage on the touched surface area went from 14
-files / 82 tests to **16 files / 105 tests** (+1 file ExportButtons
-regression with prefetch tests, +1 file exportTable.js regression,
-plus jsdom matchMedia/ResizeObserver stubs in shared setup). The
-eager bundle dropped to **387 kB / gzip 127 kB** (was 401 kB / gzip
+Eleven green/yellow PRs (and six handoff doc amends, including this
+#141 amend) merged in one continuous run while resolving an expired-
+PAT incident. **`apps/web` lazy chunks ≥ 400 kB previously**
+(`ReportFilterBar` 717 kB and `DashboardPage` 417 kB) **both shrunk
+to ~10–31 kB by lifting their heavy deps into per-feature dynamic
+imports** (`xlsx`, `jspdf`, `jspdf-autotable`, `recharts`), with chart
+prefetch + bar-skeleton + Export busy spinner + Export dropdown-open
+prefetch polishing the resulting UX. Test coverage on the touched
+surface area went from 14 files / 82 tests to **17 files / 106 tests**
+(+1 file ExportButtons regression with prefetch tests, +1 file
+exportTable.js regression, +1 file DashboardChartFallback Suspense
+regression, plus jsdom matchMedia/ResizeObserver stubs in shared setup).
+The eager bundle dropped to **387 kB / gzip 127 kB** (was 401 kB / gzip
 130 kB at session start; PR #137 lazy-loaded three uncommon auth
 pages). Login fast-path unaffected.
 
@@ -46,18 +55,22 @@ Net effect:
 - Zero behaviour change to backend, auth pages, or any non-Reports /
   non-Dashboard surface.
 
-Prod state at close (post-PR #129 deploy):
+Prod state at close (post-PR #141 deploy):
 
-- Backend HEAD `c74f36e` (PR #129 squash-merge SHA on `main`).
-- `pm2 list` → `vipos-backend` (online, 100.5 MB, 116s uptime),
-  `vipos-worker` (online, 55.1 MB, 114s uptime), `finance-bot-tg`
-  (online, 5d uptime), `pm2-logrotate` (online), `bot-wa` (stopped —
-  pre-existing, untouched this session).
-- `/api/health` → `{"status":"ok","db":{"ok":true,"latency_ms":33},"redis":{"ok":true,"latency_ms":9}}`.
-- Web bundle: `apps/web/dist/assets/index-v4U4f4Zx.js` = **401,710 bytes
-  pre-gzip** (eager, +14 bytes from #119 baseline).
-- VPS: disk 35 GB / 49 GB (71%), RAM 22% used / 3.8 GB total.
-- `tools/scripts/deploy.sh` untouched in every PR — no
+- Backend HEAD `5cb739b` (PR #141 squash-merge SHA on `main`).
+- `pm2 list` → `vipos-backend` (online, 131.9 MB, 48s uptime),
+  `vipos-worker` (online, 54.9 MB, 47s uptime), `finance-bot-tg`
+  (online, 5d uptime, 67.5 MB), `pm2-logrotate` (online, 33.8 MB),
+  `bot-wa` (stopped — pre-existing, untouched this session).
+- `/api/health` → `{"status":"ok","version":"1.0.0","db":{"ok":true,"latency_ms":6},"redis":{"enabled":true,"ok":true,"latency_ms":3}}`.
+- Web bundle: `apps/web/dist/assets/index-DZdAP2Xe.js` = **387,757 bytes
+  pre-gzip** (eager). Source-side this matches the pre-#141 main build
+  byte-for-byte (PR #141 is test-only); the +8-byte filename-hash drift
+  vs the original close's 387,749 bytes baseline reflects the lazy-
+  loaded dialog work in PRs #139 + #140.
+- VPS: disk 35 GB / 49 GB (72%), RAM 701 MiB used / 3.8 GiB total
+  (~18%), swap 193 MiB / 4.5 GiB (~4%).
+- `tools/scripts/deploy.sh` untouched in every PR (incl. #141) — no
   `workflow_dispatch` chicken-egg needed.
 
 ## All PRs merged this session
@@ -80,11 +93,15 @@ Prod state at close (post-PR #129 deploy):
 | #135 | `perf(reports): prefetch xlsx + jspdf chunks when ExportButtons dropdown opens`                 | green  | merged (`e744878`); deploy success |
 | #136 | `docs(handoff): amend with PR #135 (export prefetch) + Reports audit`                           | green  | merged (`88badfc`); deploy success |
 | #137 | `perf(web): lazy-load SignupPage + ForgotPasswordPage + ResetPasswordPage`                      | green  | merged (`82ff723`); deploy success |
-| #138 | `docs(handoff): amend with PR #137 (lazy auth pages)` (this PR)                                 | green  | pending merge                      |
+| #138 | `docs(handoff): amend with PR #137 (lazy auth pages)`                                           | green  | merged (`ec29d80`); deploy success |
+| #141 | `test(web): add DashboardChartFallback Suspense regression for /dashboard charts`               | green  | merged (`5cb739b`); deploy success |
+| #142 | `docs(handoff): amend with PR #141 (DashboardChartFallback regression test)` (this PR)          | green  | pending merge                      |
 
-(All sixteen merged via REST API squash with `GITHUB_PAT_VIPOS` — see
+(All eighteen merged via REST API squash with `GITHUB_PAT_VIPOS` — see
 **Critical infrastructure context** below for the PAT rotation incident
-that gated PR #122.)
+that gated PR #122. PRs #139, #140 were merged from a separate session
+and are intentionally not described in this doc; see those PRs for
+details.)
 
 ### PR #122 — split xlsx + jspdf out of ReportFilterBar
 
@@ -403,32 +420,78 @@ is the same one used for every other lazy boundary.
 Risk: green (route-level code split, three uncommon paths, fallback
 Suspense already wired).
 
+### PR #141 — DashboardChartFallback Suspense regression test
+
+Pins the cold-cache behaviour PR #124 (lazy `recharts`) + PR #129
+(`ChartFallback` bar-skeleton) ship: while the lazy chart chunks are
+still in-flight, both chart cards in `DashboardPage` render their
+`ChartFallback` with the correct `aria-label` and `role="status"`
+semantics for assistive tech.
+
+Implementation in `apps/web/src/__tests__/DashboardChartFallback.test.jsx`
+(1 test, 111 LOC):
+
+- Mocks `RevenueChart` and `TopProductChart` with never-resolving module
+  promises (`new Promise(() => {})`), so the page is held in its
+  suspended state for the lifetime of the test.
+- Mocks `../utils/api` with an `apiGetMock` that resolves the four
+  `/dashboard/*` endpoints (`summary`, `sales-trend`, `top-products`,
+  `payment-methods`) with deterministic stub data, and mocks
+  `../context/OutletContext`'s `useOutlet` so the page exits its
+  loading skeleton without needing a `QueryClientProvider`.
+- Renders `DashboardPage` inside a `MemoryRouter`, waits for the
+  `Dashboard Penjualan` heading + `Tren Pendapatan` / `Top 10 Produk`
+  / `Metode Pembayaran` card titles (page body, not skeleton), then
+  asserts:
+  - `getByLabelText('Memuat tren pendapatan')` and
+    `getByLabelText('Memuat top produk')` both present.
+  - Exactly two `role="status"` elements (the third 'Metode Pembayaran'
+    card is a list, not a chart).
+  - Each `role="status"` element contains the visually-hidden
+    `Memuat grafik…` SR copy.
+
+The matching post-resolution path (charts mount, fallbacks tear down)
+is already covered by the existing `DashboardPage.test.jsx`, which
+mocks the chart modules synchronously — so this new file complements
+it without duplicating coverage.
+
+Test suite delta: 16 files / 105 tests → **17 files / 106 tests**.
+
+Bundle / behaviour: zero source changes to `DashboardPage.jsx`,
+`RevenueChart.jsx`, `TopProductChart.jsx`, or any other production
+code. `apps/web` build output is byte-identical to pre-#141 main.
+
+Risk: green (test-only addition).
+
 ## Production state at close
 
 ### VPS
 
 ```
 Host: 103.74.5.44 (xserver.local)
-Repo: /var/www/vipos @ git HEAD 82ff723 (PR #137)
-Disk: 35 GB / 49 GB used (71%)
-RAM: 22% used / 3.8 GB total
-Swap: 4% used
-GH Actions deploy runs (this session): success for #122-#137
+Repo: /var/www/vipos @ git HEAD 5cb739b (PR #141)
+Disk: 35 GB / 49 GB used (72%)
+RAM: 701 MiB / 3.8 GiB used (~18%)
+Swap: 193 MiB / 4.5 GiB used (~4%)
+GH Actions deploy runs (this session): success for #122-#137 + #141
+  (#139 + #140 also succeeded but were merged from a separate session).
 ```
 
 **Note**: PR #137 shrunk the eager bundle from 401.21 kB to 387.25 kB
-by lazy-loading three uncommon auth pages. VPS git HEAD now `82ff723`;
-production bundles match the #137 build output.
+by lazy-loading three uncommon auth pages. VPS git HEAD now `5cb739b`
+(PR #141 squash-merge SHA, +8 bytes vs PR #137 baseline due to PRs
+#139 + #140 lazy dialogs). PR #141 itself is test-only — production
+bundles match the pre-#141 build output byte-for-byte.
 
 ### pm2 (post-deploy)
 
 | ID  | Process        | Status  | Uptime | Mem      |
 | --- | -------------- | ------- | ------ | -------- |
-| 0   | pm2-logrotate  | online  | ~3d    | 35.0 MB  |
-| 1   | finance-bot-tg | online  | 5d     | 67.0 MB  |
+| 0   | pm2-logrotate  | online  | ~3d    | 33.8 MB  |
+| 1   | finance-bot-tg | online  | 5d     | 67.5 MB  |
 | 2   | bot-wa         | stopped | —      | 0 B      |
-| 4   | vipos-backend  | online  | 46s    | 132.6 MB |
-| 5   | vipos-worker   | online  | 45s    | 55.0 MB  |
+| 4   | vipos-backend  | online  | 48s    | 131.9 MB |
+| 5   | vipos-worker   | online  | 47s    | 54.9 MB  |
 
 `bot-wa` remains stopped (pre-existing state from prior sessions; not in
 scope for this run — see Tier-2 backlog).
@@ -439,24 +502,20 @@ scope for this run — see Tier-2 backlog).
 {
   "status": "ok",
   "version": "1.0.0",
-  "db": { "ok": true, "latency_ms": 33 },
-  "redis": { "ok": true, "latency_ms": 9 }
+  "db": { "ok": true, "latency_ms": 6 },
+  "redis": { "enabled": true, "ok": true, "latency_ms": 3 }
 }
 ```
 
 ### Web bundle (`apps/web/dist/assets/`)
 
-| Chunk                                | Bytes   | Notes                                           |
-| ------------------------------------ | ------- | ----------------------------------------------- |
-| `index-v4U4f4Zx.js` (eager)          | 401,710 | +14 bytes vs PR #119 baseline (login fast).     |
-| `DashboardPage-CgDFt8pc.js`          | 31,675  | Was 416,800 before PR #124 (incl. #126 + #129). |
-| `ReportFilterBar-BjUvSO2e.js`        | 10,625  | Was 716,700 before PR #122 (incl. #128).        |
-| `RevenueChart-BivSj-A0.js`           | 25,178  | Lazy.                                           |
-| `TopProductChart-Cf2laVYN.js`        | 30,047  | Lazy.                                           |
-| `CartesianChart-BWQVwfSP.js`         | 334,943 | Lazy; recharts shared, fetched on first chart.  |
-| `xlsx-Cwq4KIDV.js`                   | 429,926 | Lazy; first Export Excel click.                 |
-| `jspdf.es.min-De2JR0Kj.js`           | 390,978 | Lazy; first Export PDF click.                   |
-| `jspdf.plugin.autotable-DcrDlGgF.js` | 31,489  | Lazy; first Export PDF click.                   |
+| Chunk                       | Bytes   | Notes                                                                  |
+| --------------------------- | ------- | ---------------------------------------------------------------------- |
+| `index-DZdAP2Xe.js` (eager) | 387,757 | +8 bytes vs PR #137 baseline (387,749) — PRs #139 + #140 lazy dialogs. |
+
+(Lazy-chunk fingerprints rotate per build with the dialog/page splits;
+the Tier-1 size reductions captured in the per-PR sections above are
+unaffected.)
 
 ### Sentry
 
@@ -581,12 +640,17 @@ new script.
   (no PR — read-only audit; see "Reports child-page jspdf/xlsx audit"
   section above). Re-run the same `grep` after any future Reports
   refactor.
-- **`DashboardPage` test coverage** — opportunistic. With #132's
-  shared jsdom polyfills, a smoke test that renders `DashboardPage`
-  inside a `MemoryRouter` + `QueryClientProvider` and asserts the
-  three chart cards mount their `ChartFallback` `role="status"`
-  before the lazy chunk resolves becomes feasible. Risk: green.
-  Estimate: 1 hour.
+- **`DashboardPage` test coverage** — ✅ shipped in PR #141
+  (`DashboardChartFallback.test.jsx`, 1 case). Mounts `DashboardPage`
+  inside a `MemoryRouter` and asserts both chart cards render their
+  `ChartFallback` `role="status"` while the lazy chart chunks are in-
+  flight (chart modules mocked with never-resolving promises). The
+  matching post-resolution path is already covered by
+  `DashboardPage.test.jsx`. Note: handoff originally said "three chart
+  cards" but only two are lazy charts (`RevenueChart` +
+  `TopProductChart`); the `Metode Pembayaran` card is a list, not a
+  chart, so no Suspense fallback there. Carried over only for
+  changelog context.
 
 ### Tier 2 — blocked on founder input
 
@@ -623,14 +687,16 @@ apps/web/src/components/reports/ExportButtons.jsx  |  73 +++    PRs #122, #128, 
 apps/web/src/pages/DashboardPage.jsx               |  57 +++    PRs #124, #126, #129
 apps/web/src/utils/exportTable.js                  |  23 ++-    PR #122
 apps/web/src/App.jsx                               |  22 ++-    PR #137
-docs/handoff/2026-05-06-tier1-perf-followups.md    | (this file + 5 amends)   handoff PRs #125, #127, #130, #134, #136, #138
+apps/web/src/__tests__/DashboardChartFallback.test.jsx | 111 +++ PR #141 (new)
+docs/handoff/2026-05-06-tier1-perf-followups.md    | (this file + 6 amends)   handoff PRs #125, #127, #130, #134, #136, #138, #142
 ```
 
-Total: 10 source files, ~660 insertions / 32 deletions across PRs
-#122–#137. Plus 6 handoff doc PRs (#125 initial, #127 post-#126 amend,
+Total: 11 source/test files, ~770 insertions / 32 deletions across PRs
+#122–#141. Plus 7 handoff doc PRs (#125 initial, #127 post-#126 amend,
 #130 final amend with #128 + #129 + post-deploy prod state, #134 amend
 with #131-#133 test coverage, #136 amend with #135 export prefetch +
-Reports audit, #138 amend with #137 lazy auth pages).
+Reports audit, #138 amend with #137 lazy auth pages, #142 amend with
+#141 DashboardChartFallback regression test).
 
 ## Smoke test infrastructure
 
@@ -652,8 +718,13 @@ Existing `vi.mock('../components/charts/RevenueChart', ...)` pattern in
 `DashboardPage.test.jsx` continues to work with `React.lazy` after PR
 #124.
 
-Test suite now: **16 files / 105 tests passing** (was 14 / 82 at
-session start; +2 files, +23 tests).
+Test suite now: **17 files / 106 tests passing** (was 14 / 82 at
+session start; +3 files, +24 tests). PR #141's
+`DashboardChartFallback.test.jsx` mocks the chart modules with
+`new Promise(() => {})` to pin the page in its suspended state for the
+lifetime of the test — a clean variation on the `vi.hoisted` resolve-
+handle pattern from PR #131 when post-resolution assertions aren't
+needed.
 
 ## Operational notes for next session
 
