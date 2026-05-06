@@ -22,7 +22,24 @@ Subsequent sub-PRs in the P3-01 series will add:
 | P3-01c    | done (PR #188) | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database` |
 | P3-01d    | done (PR #189) | Build flavors (`dev` / `staging` / `prod`) + per-flavor `BuildConfig` + CI matrix       |
 | P3-01f    | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)  |
-| **P3-02** | this PR        | Real Material 3 design system — full ColorScheme (light + dark), typography, shapes     |
+| P3-02     | done (PR #191) | Real Material 3 design system — full ColorScheme (light + dark), typography, shapes     |
+| **P3-05** | this PR        | Network client — OkHttp + Retrofit + kotlinx-serialization wired through Hilt           |
+
+### Network client (`:core:network`)
+
+After **P3-05** the network module ships an honest OkHttp + Retrofit + kotlinx-serialization stack:
+
+- **`NetworkClientFactory`** (Hilt-free) — `provideOkHttpClient(loggingEnabled)` and `provideRetrofit(baseUrl, okHttp, json)` factory methods plus a shared `Json` codec configured with `ignoreUnknownKeys = true` / `coerceInputValues = true` / `isLenient = true` (defends against backend nullability / additive drift).
+- **`api/HealthApi`** + **`api/HealthResponse`** — smallest-possible Retrofit interface hitting `GET /api/v1/health`. Exists to prove the wiring compiles and instantiates end-to-end; **not** called on cold-start.
+- **Hilt providers in `:app/AppModule`** — wires `Json` / `OkHttpClient` / `Retrofit` / `HealthApi` singletons keyed off `AppConfig.apiBaseUrl` (P3-01d). HTTP body logging is auto-enabled for dev + staging flavors and auto-disabled for prod.
+- The networking primitives are exposed as `api` (not `implementation`) deps from `:core:network` so the Hilt processor in `:app` can resolve `@Provides` return types.
+
+| Token        | Pinned version                                   |
+| ------------ | ------------------------------------------------ |
+| OkHttp       | 4.12.0                                           |
+| Retrofit     | 2.11.0                                           |
+| converter    | retrofit2:converter-kotlinx-serialization 2.11.0 |
+| kotlinx-json | 1.6.3                                            |
 
 ### Design system (`:core:designsystem`)
 
