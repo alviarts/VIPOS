@@ -61,7 +61,28 @@ jobs:
           psql -h localhost -U test -d vipos_test -f apps/backend/scripts/setup-app-role.sql
 
       - name: Build all workspaces
+        # BUNDLE_VISUALIZER=1 makes vite.config.js emit
+        # `apps/web/dist/stats.html` (rollup-plugin-visualizer treemap).
+        # The plugin runs as a final post-bundle write — empirical
+        # overhead on this build is <1 s — so we just always enable it
+        # in CI rather than gating per-PR. The artifact is uploaded
+        # below for click-through inspection from the run summary.
+        env:
+          BUNDLE_VISUALIZER: "1"
         run: npm run build
+
+      - name: Upload bundle visualizer treemap
+        # Always upload (`if: always()`) so reviewers can see the
+        # treemap even when a downstream step (e.g. budget enforcement)
+        # fails — the treemap is the primary tool for diagnosing
+        # *why* the budget was tripped.
+        if: always() && hashFiles('apps/web/dist/stats.html') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-bundle-stats
+          path: apps/web/dist/stats.html
+          retention-days: 30
+          if-no-files-found: ignore
 
       - name: Bundle size summary + budget enforcement
         # PR #165: surface the web build's chunk sizes in the GH Actions
