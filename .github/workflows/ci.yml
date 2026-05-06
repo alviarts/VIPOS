@@ -63,28 +63,95 @@ jobs:
       - name: Build all workspaces
         run: npm run build
 
-      - name: Bundle size summary
-        # PR #165: surface the web build's chunk sizes in GH Actions
+      - name: Bundle size summary + budget enforcement
+        # PR #165: surface the web build's chunk sizes in the GH Actions
         # step summary so PR reviewers spot eager-bundle bloat without
-        # re-running the build locally. Lists the top 15 chunks by raw
-        # byte size + the eager bundle alone (index-*.js + index.es-*.js
-        # if present + the main CSS). Non-blocking — informational only;
-        # we don't fail CI on a size regression because there's no
-        # baseline to compare against (yet). The next time someone wants
-        # bundle-size budgets they can pin specific chunks here with
-        # `[ "$bytes" -lt "$budget" ] || exit 1`.
+        # re-running the build locally.
+        #
+        # PR #170 (Sentry SDK lazy-load) split the Sentry SDK out of the
+        # main eager `index-*.js` into its own dynamic-import chunk that
+        # *also* gets a Vite-default `index-*.js` filename. Globbing
+        # `index-*.js` therefore now matches BOTH the eager entry chunk
+        # *and* the lazy Sentry chunk, which makes the old "eager
+        # bundle" table misleading. Detect the actual eager entry by
+        # parsing the `<script src=…>` tag in `dist/index.html` (Vite
+        # only ever emits one entry script per build) — anything not
+        # referenced from `dist/index.html` is lazy by definition.
+        #
+        # Bundle-size budget (founder-approved 2026-05-06): the eager
+        # entry chunk's gzip size MUST stay below 110 kB. Today's
+        # measured eager chunk is ~102 kB gzip post-PR-170, so 110 kB
+        # gives ~8 kB of headroom for routine dep updates without
+        # flaking CI. Crossing the cap is intentionally a hard CI
+        # failure — the win from PR #170 (-25 kB gzip) is worth a
+        # regression guardrail. Bumping the cap is a deliberate act:
+        # edit BUDGET_GZIP below and document the reason in the PR
+        # body. CSS budgets and lazy-chunk budgets are intentionally
+        # not pinned yet — add them here when there's a concrete
+        # regression worth guarding against.
         if: always()
         run: |
           set -euo pipefail
           DIST=apps/web/dist/assets
+          INDEX=apps/web/dist/index.html
+          BUDGET_GZIP=$((110 * 1024))  # 112640 bytes = 110 kB gzip cap
           if [ ! -d "$DIST" ]; then
             echo "::warning::no $DIST directory; skipping bundle summary"
             exit 0
           fi
+          if [ ! -f "$INDEX" ]; then
+            echo "::error::expected $INDEX after build; cannot detect eager entry chunk"
+            exit 1
+          fi
+
+          # Vite emits exactly one `<script type="module" src="…/assets/<entry>.js">`
+          # in dist/index.html. Extract the basename so we can size it
+          # specifically (and exclude lazy chunks that share the
+          # `index-*.js` filename pattern).
+          ENTRY=$(grep -oE '<script[^>]+src="[^"]+/assets/[^"]+\.js"' "$INDEX" \
+            | head -1 \
+            | grep -oE '/assets/[^"]+\.js' \
+            | sed 's|/assets/||')
+          ENTRY_CSS=$(grep -oE '<link[^>]+href="[^"]+/assets/[^"]+\.css"' "$INDEX" \
+            | head -1 \
+            | grep -oE '/assets/[^"]+\.css' \
+            | sed 's|/assets/||' || true)
+
+          if [ -z "${ENTRY:-}" ] || [ ! -f "$DIST/$ENTRY" ]; then
+            echo "::error::failed to detect eager entry chunk from $INDEX (got '${ENTRY:-<empty>}')"
+            exit 1
+          fi
+
+          ENTRY_RAW=$(stat -c '%s' "$DIST/$ENTRY")
+          ENTRY_GZ=$(gzip -c -9 "$DIST/$ENTRY" | wc -c)
+          ENTRY_RAW_KB=$(awk -v b="$ENTRY_RAW" 'BEGIN{printf "%.2f", b/1024}')
+          ENTRY_GZ_KB=$(awk -v b="$ENTRY_GZ" 'BEGIN{printf "%.2f", b/1024}')
+          BUDGET_GZ_KB=$(awk -v b="$BUDGET_GZIP" 'BEGIN{printf "%.0f", b/1024}')
+
           {
             echo "## Web bundle (apps/web/dist/assets)"
             echo
-            echo "### Top 15 chunks by raw size"
+            echo "### Eager entry chunk (initial download — budget enforced)"
+            echo
+            echo "Detected from \`apps/web/dist/index.html\`: \`$ENTRY\`"
+            echo
+            echo "| chunk | raw | gzip est. | budget (gzip) | status |"
+            echo "| ----- | --- | --------- | ------------- | ------ |"
+            if [ "$ENTRY_GZ" -le "$BUDGET_GZIP" ]; then
+              status="✅ under cap"
+            else
+              status="❌ over cap"
+            fi
+            echo "| \`$ENTRY\` | ${ENTRY_RAW_KB} kB | ${ENTRY_GZ_KB} kB | ${BUDGET_GZ_KB} kB | $status |"
+            if [ -n "${ENTRY_CSS:-}" ] && [ -f "$DIST/$ENTRY_CSS" ]; then
+              CSS_RAW=$(stat -c '%s' "$DIST/$ENTRY_CSS")
+              CSS_GZ=$(gzip -c -9 "$DIST/$ENTRY_CSS" | wc -c)
+              CSS_RAW_KB=$(awk -v b="$CSS_RAW" 'BEGIN{printf "%.2f", b/1024}')
+              CSS_GZ_KB=$(awk -v b="$CSS_GZ" 'BEGIN{printf "%.2f", b/1024}')
+              echo "| \`$ENTRY_CSS\` | ${CSS_RAW_KB} kB | ${CSS_GZ_KB} kB | (no cap yet) | ℹ️ informational |"
+            fi
+            echo
+            echo "### Top 15 chunks by raw size (informational)"
             echo
             echo "| chunk | raw | gzip est. |"
             echo "| ----- | --- | --------- |"
@@ -95,22 +162,13 @@ jobs:
               gz_kb=$(awk -v b="$gz" 'BEGIN{printf "%.2f", b/1024}')
               echo "| \`$(basename "$f")\` | ${raw_kb} kB | ${gz_kb} kB |"
             done
-            echo
-            echo "### Eager bundle (initial download)"
-            echo
-            echo "| chunk | raw | gzip est. |"
-            echo "| ----- | --- | --------- |"
-            for pat in 'index-*.js' 'index.es-*.js' 'index-*.css'; do
-              for f in "$DIST"/$pat; do
-                [ -e "$f" ] || continue
-                raw=$(stat -c '%s' "$f")
-                gz=$(gzip -c -9 "$f" | wc -c)
-                raw_kb=$(awk -v b="$raw" 'BEGIN{printf "%.2f", b/1024}')
-                gz_kb=$(awk -v b="$gz" 'BEGIN{printf "%.2f", b/1024}')
-                echo "| \`$(basename "$f")\` | ${raw_kb} kB | ${gz_kb} kB |"
-              done
-            done
           } | tee -a "$GITHUB_STEP_SUMMARY"
+
+          if [ "$ENTRY_GZ" -gt "$BUDGET_GZIP" ]; then
+            echo "::error file=apps/web/src/main.jsx::eager entry chunk $ENTRY is ${ENTRY_GZ} bytes gzip (${ENTRY_GZ_KB} kB), over the ${BUDGET_GZIP}-byte (${BUDGET_GZ_KB} kB) cap. See ci.yml 'Bundle size summary + budget enforcement' for the rationale + bump procedure."
+            exit 1
+          fi
+          echo "::notice::eager entry chunk $ENTRY is ${ENTRY_GZ_KB} kB gzip (cap ${BUDGET_GZ_KB} kB)"
 
       - name: Smoke check backend can start
         env:
