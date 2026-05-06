@@ -463,12 +463,12 @@
 
 **Acceptance criteria**:
 
-- [ ] Master karyawan: form lengkap (KTP, NPWP, dst), dokumen, foto
-- [ ] Payroll: setup struktur, hitung otomatis, generate payslip, bank transfer file
-- [ ] Permissions: assign role + per-employee override
-- [ ] Attendance: lihat log, manual entry, geofence config
-- [ ] Schedule: shift template, assign per karyawan, swap workflow
-- [ ] Approval workflow: setup chain (purchase, finance) Prime+ only
+- [x] Master karyawan: form lengkap (KTP, NPWP, dst), dokumen, foto — `apps/web/src/pages/karyawan/EmployeesPage.jsx` form fields include `nik_ktp`, `npwp`, `address_ktp`, `photo_url`; document upload via `POST /employee/:id/document` + delete via `DELETE /employee/:id/document/:docId`.
+- [x] Payroll: setup struktur, hitung otomatis, generate payslip, bank transfer file — `apps/web/src/pages/karyawan/PayrollPage.jsx` shows total_gross / total_net per run, payslip list per run, and bank file download via `GET /api/v1/payroll-run/:id/bank-file`; backend route `apps/backend/src/routes/payroll.js`.
+- [x] Permissions: assign role + per-employee override — `apps/web/src/pages/karyawan/PermissionsPage.jsx` keeps `overrides` state keyed by permission_key on top of `defaultGranted(role, key)`.
+- [x] Attendance: lihat log, manual entry, geofence config — `apps/web/src/pages/karyawan/AttendancePage.jsx` 3 tabs (`logs`, `manual`, `geofence`); backend route `apps/backend/src/routes/attendance.js`.
+- [x] Schedule: shift template, assign per karyawan, swap workflow — `apps/web/src/pages/karyawan/SchedulePage.jsx` 3 tabs (`shifts`, calendar grid assignment, `swap`); backend route `apps/backend/src/routes/schedule.js`.
+- [x] Approval workflow: setup chain (purchase, finance) Prime+ only — `apps/web/src/pages/karyawan/ApprovalWorkflowPage.jsx` 4 domain tabs (`purchase`, `finance`, plus cuti & lembur); backend route `apps/backend/src/routes/approval-chain.js` (gated as Prime+ feature in subtitle).
 
 **Reference**: `docs/v2/menus/karyawan/*.md`
 
