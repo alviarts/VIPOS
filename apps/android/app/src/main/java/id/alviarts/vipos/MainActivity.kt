@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -30,6 +31,12 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var appConfig: AppConfig
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // P3-01e: install the system splash window before
+        // super.onCreate() so the Theme.VIPOS.Splash background is
+        // shown for the duration of the JVM warm-up, then transparently
+        // transitions to Theme.VIPOS once Compose mounts.
+        installSplashScreen()
+
         super.onCreate(savedInstanceState)
         setContent {
             VIPOSPlaceholderTheme {
