@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Sample backup rules. P3-04 (Local DB schema + Room) will replace
+  this with a proper allow/exclude list once we know what data is
+  client-only vs synced.
+-->
+<full-backup-content />

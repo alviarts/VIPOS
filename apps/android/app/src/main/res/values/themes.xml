@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!--
+      Base application theme. The Compose-based UI uses MaterialTheme,
+      so this is only used as the activity's pre-Compose theme (splash
+      window background, status-bar tint while the JVM warms up).
+      P3-02 will replace this with the real teal-branded theme.
+    -->
+    <style name="Theme.VIPOS" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
