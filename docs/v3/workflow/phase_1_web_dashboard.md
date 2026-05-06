@@ -618,9 +618,13 @@
 
 ## Definition of Done — Phase 1
 
-- [ ] Semua 11 menu group ada di web dashboard
-- [ ] Auth lengkap (login, refresh, 2FA, password reset)
-- [ ] Layout shell mature (responsive, role-aware)
-- [ ] Owner bisa kelola seluruh bisnis dari laptop tanpa fitur missing critical
+All eighteen P1-XX subsystems above are marked `[done]` with their PR
+references logged. Mirror that here so the top-level status reflects
+reality.
+
+- [x] Semua 11 menu group ada di web dashboard (P1-01, P1-18)
+- [x] Auth lengkap (login, refresh, 2FA, password reset) (P1-02)
+- [x] Layout shell mature (responsive, role-aware) (P1-01)
+- [x] Owner bisa kelola seluruh bisnis dari laptop tanpa fitur missing critical (P1-03 .. P1-17)
 
 Setelah Phase 1 done, Phase 3 (Android Kasir) bisa start dengan confidence backend & data model sudah validated di web.
