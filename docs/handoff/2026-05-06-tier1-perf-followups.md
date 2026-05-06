@@ -6,20 +6,23 @@ mode. Devin session:
 
 Successor to `2026-05-06-phase1-ac-completion-and-bundle-split.md` (which
 captured PRs #112–#119 / per-AC ticks + initial route-level
-`React.lazy`). This doc starts at PR #122 and ends at PR #129, covering
-six Tier-1 backlog items that were ready to execute autonomously
-this session.
+`React.lazy`). This doc starts at PR #122 and ends at PR #133, covering
+six Tier-1 perf items + three test-coverage items that were ready to
+execute autonomously this session.
 
 ## TL;DR
 
-Six green/yellow PRs merged in one continuous run while resolving an
+Nine green/yellow PRs merged in one continuous run while resolving an
 expired-PAT incident. **`apps/web` lazy chunks ≥ 400 kB previously**
 (`ReportFilterBar` 717 kB and `DashboardPage` 417 kB) **both shrunk to
 ~10–31 kB by lifting their heavy deps into per-feature dynamic imports**
 (`xlsx`, `jspdf`, `jspdf-autotable`, `recharts`), with chart prefetch +
-bar-skeleton + Export busy spinner polishing the resulting UX. The
-eager bundle stays at 401 kB / gzip 130 kB — login fast-path
-unaffected.
+bar-skeleton + Export busy spinner polishing the resulting UX. Test
+coverage on the touched surface area went from 14 files / 82 tests to
+**16 files / 103 tests** (+1 file ExportButtons regression, +1 file
+exportTable.js regression, plus jsdom matchMedia/ResizeObserver
+stubs in shared setup). The eager bundle stays at 401 kB / gzip 130 kB
+— login fast-path unaffected.
 
 Net effect:
 
@@ -56,19 +59,23 @@ Prod state at close (post-PR #129 deploy):
 
 ## All PRs merged this session
 
-| PR   | Subject                                                                                      | Risk   | Status                             |
-| ---- | -------------------------------------------------------------------------------------------- | ------ | ---------------------------------- |
-| #122 | `perf(web): dynamic-import xlsx + jspdf in exportTable; ReportFilterBar 717kB→10kB`          | yellow | merged (`c5f4d71`); deploy success |
-| #123 | `test(web): replace .toBeNull() with .not.toBeInTheDocument() on DOM queries`                | green  | merged (`cd90a15`); deploy success |
-| #124 | `perf(web): lazy-load recharts via React.lazy on dashboard charts; DashboardPage 417kB→31kB` | yellow | merged (`230ae23`); deploy success |
-| #125 | `docs(handoff): close 2026-05-06 Tier-1 perf follow-ups session` (this doc, initial draft)   | green  | merged (`8e76507`); deploy success |
-| #126 | `perf(web): prefetch dashboard chart chunks in useEffect to mask Suspense fallback`          | green  | merged (`00982c2`); deploy success |
-| #127 | `docs(handoff): amend 2026-05-06 Tier-1 perf doc with PR #126 (chart prefetch)`              | green  | merged (`1e16b39`); deploy success |
-| #128 | `feat(reports): show inline spinner + 'Memuat…' on Export button while xlsx/pdf chunk loads` | green  | merged (`998aad2`); deploy success |
-| #129 | `feat(dashboard): use bar-skeleton for ChartFallback instead of flat placeholder`            | green  | merged (`c74f36e`); deploy success |
-| #130 | `docs(handoff): final amend with PRs #128, #129 + post-deploy prod state` (this PR)          | green  | pending merge                      |
+| PR   | Subject                                                                                         | Risk   | Status                             |
+| ---- | ----------------------------------------------------------------------------------------------- | ------ | ---------------------------------- |
+| #122 | `perf(web): dynamic-import xlsx + jspdf in exportTable; ReportFilterBar 717kB→10kB`             | yellow | merged (`c5f4d71`); deploy success |
+| #123 | `test(web): replace .toBeNull() with .not.toBeInTheDocument() on DOM queries`                   | green  | merged (`cd90a15`); deploy success |
+| #124 | `perf(web): lazy-load recharts via React.lazy on dashboard charts; DashboardPage 417kB→31kB`    | yellow | merged (`230ae23`); deploy success |
+| #125 | `docs(handoff): close 2026-05-06 Tier-1 perf follow-ups session` (this doc, initial draft)      | green  | merged (`8e76507`); deploy success |
+| #126 | `perf(web): prefetch dashboard chart chunks in useEffect to mask Suspense fallback`             | green  | merged (`00982c2`); deploy success |
+| #127 | `docs(handoff): amend 2026-05-06 Tier-1 perf doc with PR #126 (chart prefetch)`                 | green  | merged (`1e16b39`); deploy success |
+| #128 | `feat(reports): show inline spinner + 'Memuat…' on Export button while xlsx/pdf chunk loads`    | green  | merged (`998aad2`); deploy success |
+| #129 | `feat(dashboard): use bar-skeleton for ChartFallback instead of flat placeholder`               | green  | merged (`c74f36e`); deploy success |
+| #130 | `docs(handoff): final amend with PRs #128, #129 + post-deploy prod state`                       | green  | merged (`55bd5c8`); deploy success |
+| #131 | `test(web): add ExportButtons regression tests for disabled, dropdown, sync, busy, error paths` | green  | merged (`7d07608`); deploy success |
+| #132 | `test(web): stub matchMedia, ResizeObserver, IntersectionObserver in test setup`                | green  | merged (`d6c7752`); deploy success |
+| #133 | `test(web): add exportTable.js regression tests for csv/json/formatValue`                       | green  | merged (`c7bab47`); deploy success |
+| #134 | `docs(handoff): amend with PRs #131-#133 (test coverage)` (this PR)                             | green  | pending merge                      |
 
-(All eight merged via REST API squash with `GITHUB_PAT_VIPOS` — see
+(All twelve merged via REST API squash with `GITHUB_PAT_VIPOS` — see
 **Critical infrastructure context** below for the PAT rotation incident
 that gated PR #122.)
 
@@ -222,18 +229,91 @@ bars array + map). On VPS: `DashboardPage-CgDFt8pc.js` = 31,675 bytes.
 
 Risk: green.
 
+### PR #131 — ExportButtons regression tests
+
+Added `apps/web/src/__tests__/ExportButtons.test.jsx` (6 cases). Pins
+existing public behaviour for the component touched by #122 + #128:
+
+1. Disabled trigger when `rows.length === 0`.
+2. Disabled trigger when `disabled` prop is `true`.
+3. `formats={['csv', 'xlsx']}` filters dropdown to 2 items.
+4. CSV click calls `exportCsv` synchronously without flipping busy.
+5. XLSX click flips busy + shows `Memuat…` spinner during pending
+   `import('xlsx')`; clears after resolve.
+6. PDF rejection calls `toast.error(/Export PDF gagal/i)` and clears
+   busy state.
+
+Mocks `../utils/exportTable` (4 fns) via `vi.hoisted`, and mocks
+`react-hot-toast` to a `{ error, success }` stub so the real `Toaster`
+(which calls `matchMedia`) doesn't load. `console.error` is silenced
+during the expected catch path.
+
+Risk: green (test-only, no source/dep changes).
+
+### PR #132 — jsdom global stubs in shared test setup
+
+Added permissive stubs for `window.matchMedia`, `window.ResizeObserver`,
+and `window.IntersectionObserver` to `apps/web/src/__tests__/setup.js`.
+jsdom doesn't ship them, and several deps (react-hot-toast `Toaster`,
+recharts `ResponsiveContainer`, headlessui) call them at render time.
+Future tests that want to assert real toast UX or mount a chart
+container no longer need per-file polyfills.
+
+Stub semantics: `matchMedia` returns `{ matches: false, … }` so tests
+don't accidentally depend on real media-query state.
+`ResizeObserver` + `IntersectionObserver` are no-op classes (with
+`takeRecords` returning `[]` for the latter). All three are guarded
+with `typeof === 'undefined'` so future jsdom upgrades won't be
+overwritten.
+
+Risk: green (test-infrastructure only, no production bundle impact).
+
+### PR #133 — exportTable.js regression tests
+
+Added `apps/web/src/__tests__/exportTable.test.js` (15 cases) for the
+sync helpers in the util touched by #122. `exportXlsx` / `exportPdf`
+behavioural coverage stays in #131 via integration mocks since their
+dynamic imports are heavy to mock at the unit level.
+
+- `exportCsv` (7): UTF-8 BOM, `.csv` extension append, comma + nested
+  double-quote escaping (`"Klasik"` → `""Klasik""`), newline
+  preservation as quoted field, raw numeric cells (no `Rp` prefix in
+  CSV), empty-string for `null`/`undefined`, `text/csv;charset=utf-8`
+  content-type.
+- `exportJson` (3): pretty-printed indent, explicit-`.json` filename
+  preservation, `application/json` content-type.
+- `formatValue` (5): currency/number/date dispatch, unknown-type
+  passthrough, `null`/`undefined` → empty string.
+
+`setupBlobCapture()` monkey-patches `window.Blob` with a
+`CapturingBlob` subclass that retains the original `parts` array
+(jsdom's `Blob.text()` isn't reliable across versions) plus stubs
+`URL.createObjectURL` + `HTMLAnchorElement.prototype.click` to
+capture the download filename without actually downloading.
+
+Test suite total after #133: **16 files / 103 tests** passing (was
+14 / 82 at session start; +2 files / +21 tests this session).
+
+Risk: green (test-only, no source/dep changes).
+
 ## Production state at close
 
 ### VPS
 
 ```
 Host: 103.74.5.44 (xserver.local)
-Repo: /var/www/vipos @ git HEAD c74f36e (PR #129)
+Repo: /var/www/vipos @ git HEAD c7bab47 (PR #133)
 Disk: 35 GB / 49 GB used (71%)
 RAM: 22% used / 3.8 GB total
 Swap: 4% used
-GH Actions deploy run for c74f36e: success (run id 25430603228)
+GH Actions deploy runs (this session): success for #122-#133
 ```
+
+**Note**: PRs #131-#133 are test-only — they don't change production
+runtime behaviour. The deploy pipeline still re-builds + ships every
+merge, so VPS git HEAD advances (currently `c7bab47`), but the
+production bundles remain functionally equivalent to the post-#129
+state. No user-visible difference between #129 and #133 deploys.
 
 ### pm2 (post-deploy)
 
@@ -242,8 +322,8 @@ GH Actions deploy run for c74f36e: success (run id 25430603228)
 | 0   | pm2-logrotate  | online  | ~3d    | 35.0 MB  |
 | 1   | finance-bot-tg | online  | 5d     | 67.0 MB  |
 | 2   | bot-wa         | stopped | —      | 0 B      |
-| 4   | vipos-backend  | online  | 116s   | 100.5 MB |
-| 5   | vipos-worker   | online  | 114s   | 55.1 MB  |
+| 4   | vipos-backend  | online  | 46s    | 132.6 MB |
+| 5   | vipos-worker   | online  | 45s    | 55.0 MB  |
 
 `bot-wa` remains stopped (pre-existing state from prior sessions; not in
 scope for this run — see Tier-2 backlog).
@@ -366,13 +446,9 @@ new script.
   - (c) No-op — keep status quo. **Recommendation**: leave it stopped
     until the founder explicitly asks to revisit. Risk: green / yellow.
     Estimate: 0.5–2 hours depending on path.
-- **`<ChartFallback>` visual matching** — current placeholder is a flat
-  gray block with 'Memuat grafik…'. Could swap for a skeleton that
-  mimics the actual chart axes / grid (Tailwind `animate-pulse` on bar
-  shapes) so first-paint is even smoother. PR #126 already prefetches
-  the recharts chunk on `DashboardPage` mount, so the fallback is
-  rarely visible — this is mostly belt-and-suspenders. Risk: green.
-  Estimate: 30 min.
+- **`<ChartFallback>` visual matching** — ✅ shipped in PR #129
+  (bar-skeleton with `animate-pulse` + Y-axis line). Carried over only
+  for changelog context.
 - **xlsx / jspdf preload on Reports navigation** — when
   `ReportFilterBar` mounts, optionally fire-and-forget
   `import('xlsx')` + `import('jspdf')` + `import('jspdf-autotable')`
@@ -385,16 +461,29 @@ new script.
   users care, consider migrating to a lighter chart lib (e.g. uPlot,
   visx, or vanilla SVG components). Risk: yellow / red depending on
   visual parity. Estimate: 4–8 hours (chart-by-chart rewrite).
-- **`ExportButtons` test coverage** — `apps/web/src/__tests__/` has no
-  test for `ExportButtons.jsx`. Add a minimal vitest + RTL test that
-  mounts with rows + `formats={['csv']}` and clicks the trigger to
-  confirm `exportCsv` is called (mock the util module), plus one
-  busy-state test for the new spinner branch from #128. Risk: green.
-  Estimate: 30 min.
+- **`ExportButtons` test coverage** — ✅ shipped in PR #131
+  (`ExportButtons.test.jsx`, 6 cases covering disabled / dropdown /
+  sync-csv / async-xlsx busy / pdf rejection toast). Carried over only
+  for changelog context.
+- **`exportTable.js` test coverage** — ✅ shipped in PR #133
+  (`exportTable.test.js`, 15 cases covering CSV escaping, BOM,
+  filename suffixes, JSON pretty-print, `formatValue` dispatch).
+  Carried over only for changelog context.
+- **jsdom test setup polyfills** — ✅ shipped in PR #132 (matchMedia,
+  ResizeObserver, IntersectionObserver in shared
+  `apps/web/src/__tests__/setup.js`). Future tests can mount
+  `react-hot-toast Toaster` / recharts `ResponsiveContainer` without
+  per-file polyfills.
 - **Other `/reports/*` page chunks** — audit other Reports child pages
   to ensure none of them re-import jspdf/xlsx statically (they don't
   today; #122 confirmed via build, but worth a regression check after
   any refactor). Risk: green. Estimate: 30 min.
+- **`DashboardPage` test coverage** — opportunistic. With #132's
+  shared jsdom polyfills, a smoke test that renders `DashboardPage`
+  inside a `MemoryRouter` + `QueryClientProvider` and asserts the
+  three chart cards mount their `ChartFallback` `role="status"`
+  before the lazy chunk resolves becomes feasible. Risk: green.
+  Estimate: 1 hour.
 
 ### Tier 2 — blocked on founder input
 
@@ -421,27 +510,45 @@ unless ticked here.)
 ## Files modified this session
 
 ```
-apps/web/src/__tests__/OnboardingPage.test.jsx    |  4 ++--   PR #123
-apps/web/src/__tests__/ProductTabs.test.jsx       |  2 +-     PR #123
-apps/web/src/__tests__/Sidebar.test.jsx           |  2 +-     PR #123
-apps/web/src/components/reports/ExportButtons.jsx | 42 ++++++++++++++++-----     PRs #122, #128
-apps/web/src/pages/DashboardPage.jsx              | 57 ++++++++++++++++++++++++++   PRs #124, #126, #129
-apps/web/src/utils/exportTable.js                 | 23 +++++++++++++----    PR #122
-docs/handoff/2026-05-06-tier1-perf-followups.md   | (this file + 2 amends)   handoff PRs #125, #127, #130
+apps/web/src/__tests__/OnboardingPage.test.jsx     |  4 ++--    PR #123
+apps/web/src/__tests__/ProductTabs.test.jsx        |  2 +-      PR #123
+apps/web/src/__tests__/Sidebar.test.jsx            |  2 +-      PR #123
+apps/web/src/__tests__/ExportButtons.test.jsx      | 161 +++    PR #131 (new file)
+apps/web/src/__tests__/exportTable.test.js         | 214 +++    PR #133 (new file)
+apps/web/src/__tests__/setup.js                    |  48 +++    PR #132
+apps/web/src/components/reports/ExportButtons.jsx  |  42 +++    PRs #122, #128
+apps/web/src/pages/DashboardPage.jsx               |  57 +++    PRs #124, #126, #129
+apps/web/src/utils/exportTable.js                  |  23 ++-    PR #122
+docs/handoff/2026-05-06-tier1-perf-followups.md    | (this file + 3 amends)   handoff PRs #125, #127, #130, #134
 ```
 
-Total: 6 source files, ~120 insertions / 25 deletions across PRs
-#122–#129. Plus 3 handoff doc PRs (#125 initial, #127 post-#126 amend,
-#130 final amend with #128 + #129 + post-deploy prod state).
+Total: 9 source files, ~550 insertions / 25 deletions across PRs
+#122–#133. Plus 4 handoff doc PRs (#125 initial, #127 post-#126 amend,
+#130 final amend with #128 + #129 + post-deploy prod state, #134 amend
+with #131-#133 test coverage).
 
 ## Smoke test infrastructure
 
-No new Playwright / smoke scripts introduced this session. Existing
-infrastructure under `apps/web/src/__tests__/` (vitest + RTL + jsdom)
-unchanged in shape; one PR (#123) just migrated three matcher sites.
+No new Playwright / smoke scripts introduced this session. Vitest + RTL
+
+- jsdom infrastructure under `apps/web/src/__tests__/` was extended:
+
+* PR #131 added `ExportButtons.test.jsx` (6 cases, integration-style
+  mocks via `vi.hoisted`).
+* PR #132 added permissive jsdom polyfills for `matchMedia`,
+  `ResizeObserver`, and `IntersectionObserver` to the shared
+  `setup.js` so future tests don't need per-file workarounds.
+* PR #133 added `exportTable.test.js` (15 cases) using a
+  `setupBlobCapture()` helper that monkey-patches `window.Blob` +
+  `URL.createObjectURL` + `HTMLAnchorElement.prototype.click` to
+  capture downloads without disk I/O.
+
 Existing `vi.mock('../components/charts/RevenueChart', ...)` pattern in
 `DashboardPage.test.jsx` continues to work with `React.lazy` after PR
 #124.
+
+Test suite now: **16 files / 103 tests passing** (was 14 / 82 at
+session start; +2 files, +21 tests).
 
 ## Operational notes for next session
 
