@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.hilt.android)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -71,6 +73,13 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+
+    // Hilt DI (P3-01b). KSP is the modern annotation processor — kapt
+    // is deprecated for Hilt since 2.48. Hilt's own consumer ProGuard
+    // rules ship with the runtime AAR; no manual proguard config
+    // needed for the Hilt graph itself.
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
