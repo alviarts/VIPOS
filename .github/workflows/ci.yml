@@ -76,6 +76,10 @@ jobs:
           # check just needs a valid value so the app can boot — the
           # actual deploy supplies the real production allowlist.
           CORS_ALLOWLIST: http://localhost:3001
+          # PR #102: point the disk-health probe at /tmp so the smoke
+          # curl below returns status:ok (else mount default resolves to
+          # ./var/backups which doesn't exist on the runner → 503).
+          DISK_HEALTH_MOUNT: /tmp
         run: |
           # Boot the backend in the background, hit /api/health, then kill it.
           # Proves the production entry point still resolves the new monorepo
@@ -89,6 +93,13 @@ jobs:
             sleep 1
           done
           curl -fsS http://localhost:3001/api/health || { echo "health check failed"; cat /tmp/backend.log; exit 1; }
+          # PR #102 follow-up: also smoke-test the new /api/v1/health/disk
+          # route mounting. Catches regressions where someone removes the
+          # `parent.use('/health/disk', ...)` line in app.js but doesn't
+          # update unit tests. The probe returns 200 + status:ok when
+          # DISK_HEALTH_MOUNT (/tmp here) is below the 90% threshold.
+          curl -fsS http://localhost:3001/api/v1/health/disk \
+            || { echo "disk health check failed"; cat /tmp/backend.log; exit 1; }
           pkill -f "node src/index.js" || true
 
   lint:
