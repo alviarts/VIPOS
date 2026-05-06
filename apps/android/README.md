@@ -14,16 +14,34 @@ This module was bootstrapped in **PR P3-01a**. Currently:
 
 Subsequent sub-PRs in the P3-01 series will add:
 
-| Sub-PR    | Status         | Adds                                                                                    |
-| --------- | -------------- | --------------------------------------------------------------------------------------- |
-| P3-01a    | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow              |
-| P3-01b    | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)               |
-| P3-01e    | done (PR #187) | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                      |
-| P3-01c    | done (PR #188) | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database` |
-| P3-01d    | done (PR #189) | Build flavors (`dev` / `staging` / `prod`) + per-flavor `BuildConfig` + CI matrix       |
-| P3-01f    | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)  |
-| P3-02     | done (PR #191) | Real Material 3 design system — full ColorScheme (light + dark), typography, shapes     |
-| **P3-05** | this PR        | Network client — OkHttp + Retrofit + kotlinx-serialization wired through Hilt           |
+| Sub-PR     | Status         | Adds                                                                                    |
+| ---------- | -------------- | --------------------------------------------------------------------------------------- |
+| P3-01a     | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow              |
+| P3-01b     | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)               |
+| P3-01e     | done (PR #187) | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                      |
+| P3-01c     | done (PR #188) | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database` |
+| P3-01d     | done (PR #189) | Build flavors (`dev` / `staging` / `prod`) + per-flavor `BuildConfig` + CI matrix       |
+| P3-01f     | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)  |
+| P3-02      | done (PR #191) | Real Material 3 design system — full ColorScheme (light + dark), typography, shapes     |
+| P3-05      | done (PR #193) | Network client — OkHttp + Retrofit + kotlinx-serialization wired through Hilt           |
+| **P3-03a** | this PR        | Auth feature data layer — `AuthApi` + `TokenStorage` (DataStore) + `AuthRepository`     |
+
+### Auth feature (`:feature:auth`)
+
+After **P3-03a** the auth module ships the data-layer scaffold (UI lands in P3-03b):
+
+- **`data/AuthApi`** — Retrofit interface for `POST /api/v1/auth/login` + `POST /api/v1/auth/logout`.
+- **`data/AuthDto`** — `LoginRequestDto`, `LoginResponseDto` (covers both happy-path + 2FA-challenge shapes via nullable fields), `AuthUserDto`, `LogoutRequestDto` — all `@Serializable` with snake_case `@SerialName`.
+- **`domain/TokenStorage`** + **`data/DataStoreTokenStorage`** — DataStore Preferences-backed atomic store for `accessToken` / `refreshToken` / `accessExpiresAtEpochSec`. Survives process death + app upgrades; encrypted-at-rest by the OS userdata partition.
+- **`domain/AuthRepository`** — `suspend fun login(username, password, rememberMe): LoginResult` with full error branching (`Success` / `Requires2FA` / `Failure`); persists tokens before returning.
+- **`di/AuthModule`** — Hilt `@Module` that provides `AuthApi` from the application-scoped `Retrofit` (P3-05) and `TokenStorage` backed by the application context. Discovered automatically by `:app`'s Hilt KSP processor — no `:app/AppModule` registration required.
+
+The 2FA continuation (`POST /api/v1/auth/login/2fa`), the LoginScreen Compose UI, the LoginViewModel state machine, and the navigation wiring all land in P3-03b.
+
+| Token                          | Pinned version |
+| ------------------------------ | -------------- |
+| androidx.datastore-preferences | 1.1.1          |
+| kotlinx-coroutines-android     | 1.8.1          |
 
 ### Network client (`:core:network`)
 

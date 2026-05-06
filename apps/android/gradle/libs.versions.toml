@@ -28,6 +28,16 @@ okhttp = "4.12.0"
 retrofit = "2.11.0"
 kotlinxSerialization = "1.6.3"
 
+# Persistence (P3-03a). DataStore Preferences is the modern
+# replacement for SharedPreferences and is the recommended store
+# for small key/value data such as auth tokens.
+datastore = "1.1.1"
+
+# Coroutines (P3-03a). The auth repository exposes Flow<...> APIs
+# and uses suspend functions to talk to OkHttp. The version is
+# whatever is current with Kotlin 1.9.24.
+kotlinxCoroutines = "1.8.1"
+
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
@@ -50,6 +60,10 @@ okhttp-logging-interceptor = { group = "com.squareup.okhttp3", name = "logging-i
 retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
 retrofit-kotlinx-serialization-converter = { group = "com.squareup.retrofit2", name = "converter-kotlinx-serialization", version.ref = "retrofit" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+
+# P3-03a persistence + coroutines (auth token storage).
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
