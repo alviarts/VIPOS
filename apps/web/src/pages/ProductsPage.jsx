@@ -66,7 +66,7 @@ export default function ProductsPage() {
       ]);
       setProducts(prodRes.data);
       setCategories(catRes.data);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal memuat data');
     } finally {
       setLoading(false);

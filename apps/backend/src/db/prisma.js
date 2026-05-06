@@ -18,7 +18,7 @@
 let PrismaClient;
 try {
   ({ PrismaClient } = require('@prisma/client'));
-} catch (err) {
+} catch (_err) {
   // Module not found di environment yang belum `npx prisma generate`.
   // Lazy throw saat dipakai, supaya import statement tidak crash test
   // suite yang masih pakai SQLite.

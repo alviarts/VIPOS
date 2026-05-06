@@ -14,7 +14,7 @@ function authenticateToken(req, res, next) {
   let decoded;
   try {
     decoded = jwt.verify(token, JWT_SECRET);
-  } catch (err) {
+  } catch (_err) {
     return res.status(403).json({ error: 'Token tidak valid' });
   }
 

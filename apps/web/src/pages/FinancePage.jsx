@@ -62,7 +62,7 @@ export default function FinancePage() {
       setAccounts(accRes.data);
       setTransactions(txRes.data);
       setSummary(sumRes.data);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal memuat keuangan');
     }
   };

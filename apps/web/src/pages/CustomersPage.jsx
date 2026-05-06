@@ -82,7 +82,7 @@ export default function CustomersPage() {
       if (filterFlag === 'has_points') params.set('has_points', 'true');
       const res = await api.get(`/customers?${params.toString()}`);
       setCustomers(res.data);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal memuat pelanggan');
     }
   }
@@ -91,7 +91,7 @@ export default function CustomersPage() {
     try {
       const res = await api.get('/customer-groups');
       setGroups(res.data);
-    } catch (err) {
+    } catch (_err) {
       // Optional master, ignore.
     }
   }
@@ -100,7 +100,7 @@ export default function CustomersPage() {
     try {
       const res = await api.get('/customer-tags');
       setTags(res.data);
-    } catch (err) {
+    } catch (_err) {
       // Optional master, ignore.
     }
   }
@@ -248,7 +248,7 @@ export default function CustomersPage() {
       a.remove();
       URL.revokeObjectURL(url);
       toast.success('Berhasil diekspor');
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal ekspor');
     }
   }

@@ -63,7 +63,7 @@ export default function SubscriptionPage() {
       });
       setCurrent(code);
       toast.success(`Pilihan plan ${code.toUpperCase()} disimpan. Tim sales akan menghubungi.`);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal simpan');
     }
   }
@@ -79,7 +79,7 @@ export default function SubscriptionPage() {
       });
       toast.success(`Voucher ${voucher} terdaftar — menunggu validasi.`);
       setVoucher('');
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal klaim');
     }
   }

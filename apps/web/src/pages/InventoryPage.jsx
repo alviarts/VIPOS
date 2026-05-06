@@ -71,7 +71,7 @@ export default function InventoryPage() {
       setMovements(movRes.data);
       setProducts(prodRes.data);
       setSummary(sumRes.data);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal memuat inventori');
     }
   };

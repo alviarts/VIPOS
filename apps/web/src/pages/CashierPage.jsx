@@ -42,7 +42,7 @@ export default function CashierPage() {
       ]);
       setProducts(prodRes.data);
       setCategories(catRes.data);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal memuat data');
     }
   };

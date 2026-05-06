@@ -75,7 +75,7 @@ function ReceiptTab() {
       );
       await Promise.all(ops);
       toast.success('Pengaturan disimpan');
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal');
     } finally {
       setSaving(false);

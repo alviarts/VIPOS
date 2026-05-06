@@ -24,7 +24,7 @@ export default function TransactionsPage() {
       const res = await api.get('/transactions', { params });
       setTransactions(res.data.data);
       setPagination(res.data.pagination);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal memuat data');
     } finally {
       setLoading(false);
@@ -35,7 +35,7 @@ export default function TransactionsPage() {
     try {
       const res = await api.get(`/transactions/${id}`);
       setDetail(res.data);
-    } catch (err) {
+    } catch (_err) {
       toast.error('Gagal memuat detail');
     }
   };
