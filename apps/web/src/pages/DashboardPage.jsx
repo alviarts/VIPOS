@@ -52,6 +52,15 @@ export default function DashboardPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // Mulai unduh chunk recharts paralel dengan API fetches. Modul
+    // dynamic-import di-cache oleh bundler, jadi React.lazy di atas pakai
+    // promise yang sama saat render — Suspense fallback nyaris tidak
+    // kelihatan di koneksi normal.
+    import('../components/charts/RevenueChart');
+    import('../components/charts/TopProductChart');
+  }, []);
+
+  useEffect(() => {
     if (!range.start || !range.end) return;
     let cancelled = false;
     setLoading(true);
