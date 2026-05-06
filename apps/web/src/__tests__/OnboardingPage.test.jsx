@@ -129,7 +129,9 @@ describe('OnboardingPage — step 1 (welcome / preset cards)', () => {
     renderPage();
     await waitFor(() => expect(apiGetMock).toHaveBeenCalled());
     // No template cards, but skip button still present.
-    await waitFor(() => expect(screen.queryByTestId('onboarding-template-fnb')).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByTestId('onboarding-template-fnb')).not.toBeInTheDocument()
+    );
     expect(screen.getByTestId('onboarding-skip')).toBeInTheDocument();
   });
 });

@@ -54,7 +54,7 @@ describe('TabRecipe', () => {
     );
     const select = screen.getByRole('combobox');
     expect(select).toBeInTheDocument();
-    expect(screen.queryByRole('option', { name: /Kopi/ })).toBeNull();
+    expect(screen.queryByRole('option', { name: /Kopi/ })).not.toBeInTheDocument();
     expect(screen.getByRole('option', { name: /Susu/ })).toBeInTheDocument();
   });
 });
