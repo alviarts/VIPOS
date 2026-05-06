@@ -14,18 +14,19 @@ This module was bootstrapped in **PR P3-01a**. Currently:
 
 Subsequent sub-PRs in the P3-01 series will add:
 
-| Sub-PR    | Status         | Adds                                                                                    |
-| --------- | -------------- | --------------------------------------------------------------------------------------- |
-| P3-01a    | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow              |
-| P3-01b    | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)               |
-| P3-01e    | done (PR #187) | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                      |
-| P3-01c    | done (PR #188) | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database` |
-| P3-01d    | done (PR #189) | Build flavors (`dev` / `staging` / `prod`) + per-flavor `BuildConfig` + CI matrix       |
-| P3-01f    | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)  |
-| P3-02     | done (PR #191) | Real Material 3 design system — full ColorScheme (light + dark), typography, shapes     |
-| P3-05     | done (PR #193) | Network client — OkHttp + Retrofit + kotlinx-serialization wired through Hilt           |
-| P3-03a    | done (PR #194) | Auth feature data layer — `AuthApi` + `TokenStorage` (DataStore) + `AuthRepository`     |
-| **P3-04** | this PR        | Room database scaffold — `VIPOSDatabase` + `KeyValueCacheEntity` + DAO + Hilt providers |
+| Sub-PR     | Status         | Adds                                                                                    |
+| ---------- | -------------- | --------------------------------------------------------------------------------------- |
+| P3-01a     | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow              |
+| P3-01b     | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)               |
+| P3-01e     | done (PR #187) | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                      |
+| P3-01c     | done (PR #188) | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database` |
+| P3-01d     | done (PR #189) | Build flavors (`dev` / `staging` / `prod`) + per-flavor `BuildConfig` + CI matrix       |
+| P3-01f     | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)  |
+| P3-02      | done (PR #191) | Real Material 3 design system — full ColorScheme (light + dark), typography, shapes     |
+| P3-05      | done (PR #193) | Network client — OkHttp + Retrofit + kotlinx-serialization wired through Hilt           |
+| P3-03a     | done (PR #194) | Auth feature data layer — `AuthApi` + `TokenStorage` (DataStore) + `AuthRepository`     |
+| P3-04      | done (PR #195) | Room database scaffold — `VIPOSDatabase` + `KeyValueCacheEntity` + DAO + Hilt providers |
+| **P3-03b** | this PR        | LoginScreen Compose + `LoginViewModel` + replaces bootstrap surface in `MainActivity`   |
 
 ### Database (`:core:database`)
 
@@ -43,15 +44,19 @@ After **P3-04** the database module ships a real Room scaffold:
 
 ### Auth feature (`:feature:auth`)
 
-After **P3-03a** the auth module ships the data-layer scaffold (UI lands in P3-03b):
+After **P3-03a + P3-03b** the auth module ships the full username/password login flow:
 
 - **`data/AuthApi`** — Retrofit interface for `POST /api/v1/auth/login` + `POST /api/v1/auth/logout`.
 - **`data/AuthDto`** — `LoginRequestDto`, `LoginResponseDto` (covers both happy-path + 2FA-challenge shapes via nullable fields), `AuthUserDto`, `LogoutRequestDto` — all `@Serializable` with snake_case `@SerialName`.
 - **`domain/TokenStorage`** + **`data/DataStoreTokenStorage`** — DataStore Preferences-backed atomic store for `accessToken` / `refreshToken` / `accessExpiresAtEpochSec`. Survives process death + app upgrades; encrypted-at-rest by the OS userdata partition.
 - **`domain/AuthRepository`** — `suspend fun login(username, password, rememberMe): LoginResult` with full error branching (`Success` / `Requires2FA` / `Failure`); persists tokens before returning.
 - **`di/AuthModule`** — Hilt `@Module` that provides `AuthApi` from the application-scoped `Retrofit` (P3-05) and `TokenStorage` backed by the application context. Discovered automatically by `:app`'s Hilt KSP processor — no `:app/AppModule` registration required.
+- **`ui/LoginUiState`** — single immutable state object (`username` / `password` / `rememberMe` / `authStatus` / `errorMessage`) + sealed `AuthStatus` (`Idle` / `Submitting` / `Authenticated` / `Requires2FA`).
+- **`ui/LoginViewModel`** — `@HiltViewModel` that wraps `AuthRepository.login()`, exposes a single `StateFlow<LoginUiState>`, and handles all branch translation (HttpException → `errorMessage`, `Success` → `Authenticated`, etc.).
+- **`ui/LoginScreen`** — full Material 3 Compose UI: VIPOS branding, username + password text fields with proper IME actions + password masking, "Ingat saya" checkbox, primary submit button with inline progress indicator, error banner using `errorContainer` color role.
+- **`ui/AuthRoute`** — entry composable used by `MainActivity` (and the eventual nav graph in P3-08). Resolves the `LoginViewModel` through `hiltViewModel()` and switches between the form, the post-auth surface, and the 2FA placeholder based on `authStatus`.
 
-The 2FA continuation (`POST /api/v1/auth/login/2fa`), the LoginScreen Compose UI, the LoginViewModel state machine, and the navigation wiring all land in P3-03b.
+The 2FA challenge UI (`POST /api/v1/auth/login/2fa`) and the navigation graph (login → home transition) land in **P3-03c** + **P3-08**.
 
 | Token                          | Pinned version |
 | ------------------------------ | -------------- |
