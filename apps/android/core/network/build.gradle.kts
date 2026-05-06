@@ -1,6 +1,10 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    // P3-05: kotlinx-serialization is the JSON codec for the network
+    // stack. The plugin generates the @Serializable companion
+    // serializers at compile time.
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -19,4 +23,24 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+}
+
+dependencies {
+    // OkHttp + Retrofit + kotlinx-serialization. The factory in
+    // NetworkClientFactory.kt is intentionally framework-agnostic
+    // (no Hilt) — the `:app` module provides the singletons via
+    // its AppModule and feature modules consume the resulting
+    // OkHttpClient / Retrofit / Json directly through Hilt.
+    //
+    // These are exposed as `api` (rather than `implementation`)
+    // because the public surface of `:core:network` returns
+    // `OkHttpClient`, `Retrofit`, and `Json` directly — consumers
+    // (including the Hilt processor running in `:app`) need them
+    // on their compile classpath to resolve the return types of
+    // `@Provides` methods.
+    api(libs.okhttp)
+    api(libs.okhttp.logging.interceptor)
+    api(libs.retrofit)
+    api(libs.retrofit.kotlinx.serialization.converter)
+    api(libs.kotlinx.serialization.json)
 }
