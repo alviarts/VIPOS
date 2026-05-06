@@ -194,6 +194,7 @@ function OpnameDetail({ id }) {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load() reads id directly; effect intentionally re-runs only on [id]
   }, [id]);
 
   async function load() {

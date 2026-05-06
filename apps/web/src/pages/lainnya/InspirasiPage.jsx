@@ -27,6 +27,7 @@ export default function InspirasiPage() {
 
   useEffect(() => {
     void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load() reads category + tab directly; effect intentionally re-runs only on those
   }, [category, tab]);
 
   async function load() {

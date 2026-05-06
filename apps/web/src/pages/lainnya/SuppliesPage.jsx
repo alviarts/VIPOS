@@ -63,6 +63,7 @@ export default function SuppliesPage() {
 
   useEffect(() => {
     void loadProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadProducts() reads activeCat + search directly; effect intentionally re-runs only on those
   }, [activeCat, search]);
 
   async function loadCategories() {

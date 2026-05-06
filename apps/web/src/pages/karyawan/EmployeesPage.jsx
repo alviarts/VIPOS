@@ -79,6 +79,7 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadAll() reads statusTab + search directly; effect intentionally re-runs only on those
   }, [statusTab, search]);
 
   async function loadAll() {

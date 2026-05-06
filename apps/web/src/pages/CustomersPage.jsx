@@ -67,6 +67,7 @@ export default function CustomersPage() {
 
   useEffect(() => {
     loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only fetch
   }, []);
 
   async function loadAll() {

@@ -12,6 +12,7 @@ export default function ReportsPage() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadData() reads period directly; effect intentionally re-runs only on [period]
   }, [period]);
 
   const loadData = async () => {

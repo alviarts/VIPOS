@@ -194,6 +194,7 @@ export default function CommissionsPage() {
   useEffect(() => {
     if (tab === 'assignments') loadAssignments();
     if (tab === 'report') loadReport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load fns read tab/filterEmployee/reportFrom/reportTo/groupBy directly; effect re-runs only on those
   }, [tab, filterEmployee, reportFrom, reportTo, groupBy]);
 
   async function loadGroups() {

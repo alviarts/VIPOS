@@ -39,6 +39,7 @@ export default function JournalPage() {
   useEffect(() => {
     loadJournals();
     loadAccounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load fns read filterFrom + filterTo directly; effect intentionally re-runs only on those
   }, [filterFrom, filterTo]);
 
   async function loadJournals() {
