@@ -35,6 +35,10 @@ const DEFAULT_API_WINDOW_MS = 60 * 1000; // 1 minute
 const DEFAULT_API_MAX = 100;
 
 const SKIP_PATHS = new Set(['/metrics', '/health', '/api/health', '/api/v1/health']);
+// Prefixes that should also skip the limiter — covers sub-paths like
+// `/api/v1/health/backup` (and any future `/health/*` probes) without
+// having to enumerate them one-by-one.
+const SKIP_PREFIXES = ['/health/', '/api/health/', '/api/v1/health/'];
 
 let RedisStoreCache;
 let sharedConnectionFactory;
@@ -171,7 +175,8 @@ function apiRateLimit(opts = {}) {
       ((req) => {
         const url = req.originalUrl || req.url || '';
         const path = url.split('?')[0];
-        return SKIP_PATHS.has(path);
+        if (SKIP_PATHS.has(path)) return true;
+        return SKIP_PREFIXES.some((prefix) => path.startsWith(prefix));
       }),
     keyGenerator:
       opts.keyGenerator ??
@@ -209,6 +214,7 @@ module.exports = {
   hasRedis,
   buildRedisStore,
   SKIP_PATHS,
+  SKIP_PREFIXES,
   DEFAULT_LOGIN_WINDOW_MS,
   DEFAULT_LOGIN_MAX,
   DEFAULT_API_WINDOW_MS,

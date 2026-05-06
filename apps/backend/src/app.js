@@ -27,6 +27,7 @@ const { configureTrustProxy, helmetMiddleware, corsMiddleware } = require('./lib
 const { apiRateLimit } = require('./lib/rate-limit');
 const { logger } = require('./lib/logger');
 const { router: healthRouter } = require('./routes/health');
+const { router: healthBackupRouter } = require('./routes/health-backup');
 const { router: metricsRouter } = require('./routes/metrics');
 
 /**
@@ -198,6 +199,10 @@ function mountVersionedRoutes(parent) {
   // Exposed under each version namespace plus the legacy alias so
   // external monitors keep working without modification.
   parent.use('/health', healthRouter);
+  // Backup-freshness probe (separate path so monitors can poll it
+  // independently and treat a stale-backup alert distinctly from
+  // the application-up alert).
+  parent.use('/health/backup', healthBackupRouter);
 }
 
 /**
