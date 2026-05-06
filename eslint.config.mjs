@@ -62,7 +62,28 @@ export default [
       ...react.configs['jsx-runtime'].rules,
       ...reactHooks.configs.recommended.rules,
       ...jsxA11y.configs.recommended.rules,
-      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      'react-refresh/only-export-components': [
+        'warn',
+        {
+          allowConstantExport: true,
+          // Hooks + contexts colocated with their provider component, plus a
+          // few report-helper functions colocated with their input components.
+          // Splitting these into separate files would force ~40 import-path
+          // updates across the app for zero production impact (this rule is
+          // about HMR fast-refresh, not runtime behaviour).
+          allowExportNames: [
+            'useAuth',
+            'AuthContext',
+            'useOutlet',
+            'MOCK_OUTLETS',
+            'usePermission',
+            'ROLES',
+            'TIERS',
+            'filtersToParams',
+            'defaultDateRange',
+          ],
+        },
+      ],
       // React-specific allowances
       'react/prop-types': 'off', // pakai TS / Zod nanti di P0-04
       // Disable a11y rules yang terlalu strict untuk POS app yang internal-use
