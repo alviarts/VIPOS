@@ -68,6 +68,12 @@ androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graph
 androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+# P3-06: a small, curated set of Material symbols (Add, ArrowBack,
+# Refresh, Remove, etc.) shipped as a separate artifact from
+# `material3` so apps that don't use icons don't pay the size
+# cost. Version is managed by the compose BOM, hence no explicit
+# version.ref here.
+androidx-compose-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core" }
 
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }

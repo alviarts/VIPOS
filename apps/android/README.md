@@ -14,22 +14,24 @@ This module was bootstrapped in **PR P3-01a**. Currently:
 
 Subsequent sub-PRs in the P3-01 series will add:
 
-| Sub-PR     | Status         | Adds                                                                                    |
-| ---------- | -------------- | --------------------------------------------------------------------------------------- |
-| P3-01a     | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow              |
-| P3-01b     | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)               |
-| P3-01e     | done (PR #187) | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                      |
-| P3-01c     | done (PR #188) | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database` |
-| P3-01d     | done (PR #189) | Build flavors (`dev` / `staging` / `prod`) + per-flavor `BuildConfig` + CI matrix       |
-| P3-01f     | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)  |
-| P3-02      | done (PR #191) | Real Material 3 design system — full ColorScheme (light + dark), typography, shapes     |
-| P3-05      | done (PR #193) | Network client — OkHttp + Retrofit + kotlinx-serialization wired through Hilt           |
-| P3-03a     | done (PR #194) | Auth feature data layer — `AuthApi` + `TokenStorage` (DataStore) + `AuthRepository`     |
-| P3-04      | done (PR #195) | Room database scaffold — `VIPOSDatabase` + `KeyValueCacheEntity` + DAO + Hilt providers |
-| P3-03b     | done (PR #196) | LoginScreen Compose + `LoginViewModel` + replaces bootstrap surface in `MainActivity`   |
-| P3-08      | done (PR #197) | Navigation graph — `VIPOSNavHost` + `:feature:home` placeholder + login → home wiring   |
-| P3-03d     | done (PR #199) | Auto-login restoration — persist user snapshot in DataStore + `SessionGate` skips login |
-| **P3-03c** | this PR        | 2FA challenge UI — `TwoFactorScreen` + `verify2fa` API + Login → TwoFactor → Home wire  |
+| Sub-PR    | Status         | Adds                                                                                     |
+| --------- | -------------- | ---------------------------------------------------------------------------------------- |
+| P3-01a    | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow               |
+| P3-01b    | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)                |
+| P3-01e    | done (PR #187) | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                       |
+| P3-01c    | done (PR #188) | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database`  |
+| P3-01d    | done (PR #189) | Build flavors (`dev` / `staging` / `prod`) + per-flavor `BuildConfig` + CI matrix        |
+| P3-01f    | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)   |
+| P3-02     | done (PR #191) | Real Material 3 design system — full ColorScheme (light + dark), typography, shapes      |
+| P3-05     | done (PR #193) | Network client — OkHttp + Retrofit + kotlinx-serialization wired through Hilt            |
+| P3-03a    | done (PR #194) | Auth feature data layer — `AuthApi` + `TokenStorage` (DataStore) + `AuthRepository`      |
+| P3-04     | done (PR #195) | Room database scaffold — `VIPOSDatabase` + `KeyValueCacheEntity` + DAO + Hilt providers  |
+| P3-03b    | done (PR #196) | LoginScreen Compose + `LoginViewModel` + replaces bootstrap surface in `MainActivity`    |
+| P3-08     | done (PR #197) | Navigation graph — `VIPOSNavHost` + `:feature:home` placeholder + login → home wiring    |
+| P3-03d    | done (PR #199) | Auto-login restoration — persist user snapshot in DataStore + `SessionGate` skips login  |
+| P3-03c    | done (PR #200) | 2FA challenge UI — `TwoFactorScreen` + `verify2fa` API + Login → TwoFactor → Home wire   |
+| P3-09     | done (PR #202) | Schema-export-diff CI guard — fails CI when Room KSP regenerates schema JSON uncommitted |
+| **P3-06** | this PR        | First-cut kasir POS — `:feature:pos` catalogue/cart + OkHttp `AuthInterceptor` Bearer    |
 
 ### Database (`:core:database`)
 
@@ -66,13 +68,28 @@ The 2FA challenge UI (`POST /api/v1/auth/login/2fa`) and the navigation graph (l
 | androidx.datastore-preferences | 1.1.1          |
 | kotlinx-coroutines-android     | 1.8.1          |
 
+### POS feature (`:feature:pos`)
+
+After **P3-06** the POS module ships the first-cut kasir catalogue + cart UI — the first authenticated feature in the app:
+
+- **`data/PosApi`** — Retrofit interface for `GET /api/v1/products`. The `Authorization: Bearer …` header is NOT declared on the method signature; it's stamped automatically by `AuthInterceptor` in `:core:network`.
+- **`data/PosDto`** — `ProductDto` + `ProductsPageDto` mirror the backend's snake_case response shape exactly. Every field is nullable / has a default so additive backend drift doesn't crash the parser.
+- **`data/PosRepository`** — wraps the API call in `Result`, drops malformed rows (no name / negative price / soft-deleted), sorts the result by name (case-insensitive) so the LazyColumn order is stable across requests.
+- **`domain/Product`** + **`domain/CartItem`** — UI-shape value types. `CartItem.lineTotalIdr` does whole-rupiah integer math so subtotals never drift.
+- **`ui/PosCatalogueViewModel`** — auto-loads on init, exposes a single `PosCatalogueUiState` `StateFlow`. Cart operations (`addToCart` / `increment` / `decrement` / `removeFromCart` / `clearCart`) are pure transforms over the running state; quantity-zero lines are auto-removed so the cart never carries phantom rows.
+- **`ui/PosCatalogueScreen`** — `Scaffold` with a `TopAppBar` (back + manual-refresh actions), a `LazyColumn` of products with per-row "Tambah" buttons, and a pinned cart panel showing per-line steppers + a running subtotal in `Rp` formatting. The screen handles the full `Idle` / `Loading` / `Loaded` / `Failed` lifecycle including a retry CTA on failure.
+- **Hilt wiring** — `di/PosModule` provides `PosApi` from the application-scoped `Retrofit`. `PosRepository` is `@Singleton`-annotated for constructor injection. The screen is reached from `HomeScreen`'s "Buka kasir" CTA via the `Pos` destination registered in `:app/navigation/VIPOSDestinations`.
+
+The full kasir UX (responsive catalogue grid, modifier sheets, payment picker) lands across **P3-07** / **P3-08** / **P3-09** as separate sub-PRs.
+
 ### Network client (`:core:network`)
 
 After **P3-05** the network module ships an honest OkHttp + Retrofit + kotlinx-serialization stack:
 
-- **`NetworkClientFactory`** (Hilt-free) — `provideOkHttpClient(loggingEnabled)` and `provideRetrofit(baseUrl, okHttp, json)` factory methods plus a shared `Json` codec configured with `ignoreUnknownKeys = true` / `coerceInputValues = true` / `isLenient = true` (defends against backend nullability / additive drift).
+- **`NetworkClientFactory`** (Hilt-free) — `provideOkHttpClient(loggingEnabled, applicationInterceptors)` and `provideRetrofit(baseUrl, okHttp, json)` factory methods plus a shared `Json` codec configured with `ignoreUnknownKeys = true` / `coerceInputValues = true` / `isLenient = true` (defends against backend nullability / additive drift). The interceptor list parameter (added in P3-06) lets the production wiring inject `AuthInterceptor` without dragging Hilt into this module.
+- **`AuthInterceptor`** — request-side OkHttp interceptor that stamps `Authorization: Bearer <accessToken>` on every authenticated endpoint (added in P3-06). Skips when the request already carries an `Authorization` header (so `/auth/logout`'s explicit `@Header` wins) and when the path matches an unauthenticated suffix (`/auth/login`, `/auth/login/2fa`, `/auth/refresh`, `/health`). Pulls the token via a synchronous callback so the module stays Hilt-free; `:app/AppModule` bridges from `TokenStorage.read()` through `runBlocking`. The 401-response counterpart (clear session + bounce to login) lands in P3-03f as a separate OkHttp `Authenticator`.
 - **`api/HealthApi`** + **`api/HealthResponse`** — smallest-possible Retrofit interface hitting `GET /api/v1/health`. Exists to prove the wiring compiles and instantiates end-to-end; **not** called on cold-start.
-- **Hilt providers in `:app/AppModule`** — wires `Json` / `OkHttpClient` / `Retrofit` / `HealthApi` singletons keyed off `AppConfig.apiBaseUrl` (P3-01d). HTTP body logging is auto-enabled for dev + staging flavors and auto-disabled for prod.
+- **Hilt providers in `:app/AppModule`** — wires `Json` / `OkHttpClient` / `Retrofit` / `HealthApi` singletons keyed off `AppConfig.apiBaseUrl` (P3-01d). HTTP body logging is auto-enabled for dev + staging flavors and auto-disabled for prod. P3-06 also wires the `AuthInterceptor` from this module so every authenticated request shares the same Bearer-injection codepath.
 - The networking primitives are exposed as `api` (not `implementation`) deps from `:core:network` so the Hilt processor in `:app` can resolve `@Provides` return types.
 
 | Token        | Pinned version                                   |
@@ -125,8 +142,11 @@ After P3-01c the project graph is:
 :app
 ├── :core:common         (shared value types — AppConfig)
 ├── :core:designsystem   (VIPOSTheme + Material 3 color scheme)
-├── :core:network        (placeholder; OkHttp/Retrofit primitives in P3-05)
-└── :core:database       (placeholder; Room primitives in P3-04)
+├── :core:network        (OkHttp / Retrofit / AuthInterceptor)
+├── :core:database       (Room — VIPOSDatabase + KeyValueCacheEntity)
+├── :feature:auth        (login / 2FA / TokenStorage / AuthRepository)
+├── :feature:home        (post-auth landing surface)
+└── :feature:pos         (P3-06 — kasir catalogue + cart UI)
 ```
 
 - `:core:*` modules are AGP `library` modules (`com.android.library`).

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  P3-06: AndroidManifest for the `:feature:pos` library module.
+
+  Library modules don't declare an `<application>` element — the
+  consuming `:app` module merges its own manifest with this one at
+  build time. This file is intentionally empty (no permissions,
+  no activities) because the POS surface is a Compose destination
+  reached through the existing nav graph in `:app`.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
