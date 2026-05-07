@@ -66,6 +66,15 @@ jobs:
         # not part of the bootstrap series.
         run: ./gradlew :app:assembleDevDebug :app:assembleStagingDebug --no-daemon --stacktrace
 
+      - name: Unit tests (:core:network + :app)
+        # P3-10: the first unit-test coverage on the Android side.
+        # Keeps the surface explicit (rather than `:app:test` which
+        # transitively pulls every module's test task) so adding
+        # new test sources is a deliberate edit to this file.
+        # Junit XML reports surface inline as PR annotations via
+        # GitHub's standard test-results integration.
+        run: ./gradlew :core:network:testDebugUnitTest :app:testDevDebugUnitTest --no-daemon --stacktrace
+
       - name: Verify Room schema exports are committed
         # P3-09: schema-export-diff guard. The Room KSP processor
         # (configured in apps/android/core/database/build.gradle.kts via

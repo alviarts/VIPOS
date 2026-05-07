@@ -170,4 +170,15 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    // P3-10: unit tests for the reactive `SessionViewModel`
+    // (P3-03d + P3-03f). The VM owns a `viewModelScope`-rooted
+    // Flow; `kotlinx-coroutines-test` lets the test inject a
+    // `StandardTestDispatcher` so the Flow's emissions run
+    // deterministically, and Turbine asserts against them
+    // without the manual `toList(buffer)` + `advanceUntilIdle`
+    // dance.
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
 }
