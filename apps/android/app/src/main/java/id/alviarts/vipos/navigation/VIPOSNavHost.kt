@@ -10,6 +10,7 @@ import androidx.navigation.navArgument
 import id.alviarts.vipos.feature.auth.ui.AuthRoute
 import id.alviarts.vipos.feature.auth.ui.twofactor.TwoFactorRoute
 import id.alviarts.vipos.feature.home.ui.HomeRoute
+import id.alviarts.vipos.feature.pos.ui.PosCatalogueRoute
 
 /**
  * Root nav graph (P3-08 + P3-03c).
@@ -120,6 +121,20 @@ fun VIPOSNavHost(
                         launchSingleTop = true
                     }
                 },
+                onOpenPos = {
+                    navController.navigate(VIPOSDestination.Pos.route) {
+                        // Multiple taps on "Buka kasir" should NOT
+                        // pile new POS destinations onto the back
+                        // stack — single-top + restoreState makes
+                        // a re-entry feel native.
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+        composable(VIPOSDestination.Pos.route) {
+            PosCatalogueRoute(
+                onBack = { navController.popBackStack() },
             )
         }
     }

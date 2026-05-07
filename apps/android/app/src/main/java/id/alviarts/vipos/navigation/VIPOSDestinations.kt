@@ -50,4 +50,17 @@ sealed interface VIPOSDestination {
         fun routeFor(displayName: String): String =
             "home/${Uri.encode(displayName)}"
     }
+
+    /**
+     * P3-06: POS (kasir) catalogue + cart screen. Reached from
+     * Home via the "Buka kasir" CTA. The catalogue itself is
+     * fetched via an authenticated `GET /api/v1/products` so
+     * cold-navigating here without a session would land on a
+     * 401-driven session bounce (full handling in P3-03f);
+     * SessionGate ensures we never reach this destination
+     * without a restored session in the happy path.
+     */
+    data object Pos : VIPOSDestination {
+        override val route: String = "pos"
+    }
 }

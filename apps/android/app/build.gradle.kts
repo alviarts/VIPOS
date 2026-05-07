@@ -121,6 +121,18 @@ dependencies {
     // in P3-06; for now this module ships a placeholder
     // HomeScreen that the nav graph routes to after login.
     implementation(project(":feature:home"))
+    // P3-06: kasir POS catalogue + cart UI. First authenticated
+    // feature in the app — exercises the AuthInterceptor by
+    // calling `GET /api/v1/products` through the shared Retrofit.
+    implementation(project(":feature:pos"))
+
+    // P3-06: `:app/AppModule` uses `runBlocking { tokenStorage.read() }`
+    // to bridge the suspending TokenStorage API to the synchronous
+    // contract expected by OkHttp's `AuthInterceptor`. Pull in the
+    // coroutines core via the android artifact (which itself
+    // transitively brings core) so the import resolves at compile
+    // time — feature-module `implementation` deps don't propagate.
+    implementation(libs.kotlinx.coroutines.android)
 
     implementation(libs.androidx.core.ktx)
     // Backport of the SplashScreen APIs (P3-01e) — provides a

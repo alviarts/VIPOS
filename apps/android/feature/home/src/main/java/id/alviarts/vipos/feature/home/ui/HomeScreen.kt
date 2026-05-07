@@ -36,6 +36,7 @@ import id.alviarts.vipos.core.designsystem.theme.VIPOSTheme
 fun HomeRoute(
     displayName: String,
     onLogout: () -> Unit,
+    onOpenPos: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -51,6 +52,7 @@ fun HomeRoute(
         displayName = displayName,
         isLoggingOut = uiState.isLoggingOut,
         onLogoutClick = viewModel::logout,
+        onOpenPosClick = onOpenPos,
     )
 }
 
@@ -59,6 +61,7 @@ internal fun HomeScreen(
     displayName: String,
     isLoggingOut: Boolean,
     onLogoutClick: () -> Unit,
+    onOpenPosClick: () -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -82,12 +85,22 @@ internal fun HomeScreen(
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "Layar kasir akan mendarat di P3-06.",
+                text = "Pilih menu untuk mulai bertransaksi.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(32.dp))
             Button(
+                onClick = onOpenPosClick,
+                enabled = !isLoggingOut,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 360.dp),
+            ) {
+                Text("Buka kasir")
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
                 onClick = onLogoutClick,
                 enabled = !isLoggingOut,
                 modifier = Modifier
@@ -104,21 +117,6 @@ internal fun HomeScreen(
                     Text("Keluar")
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = {
-                    // Reserved for a future "switch user" gesture
-                    // (P3-08 follow-up). Today this is a no-op so
-                    // the visual hierarchy of the home screen
-                    // stays consistent with later iterations.
-                },
-                enabled = false,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 360.dp),
-            ) {
-                Text("Ganti pengguna")
-            }
         }
     }
 }
@@ -131,6 +129,7 @@ private fun HomeScreenPreview() {
             displayName = "Kasir Satu",
             isLoggingOut = false,
             onLogoutClick = {},
+            onOpenPosClick = {},
         )
     }
 }

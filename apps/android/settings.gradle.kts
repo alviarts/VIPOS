@@ -36,3 +36,11 @@ include(":feature:auth")
 // UI lands in P3-06; for now this module ships a placeholder
 // HomeScreen that the nav graph routes to after login.
 include(":feature:home")
+// P3-06: POS (kasir) catalogue + cart UI. Hosts the first
+// authenticated feature in the app — the `:feature:pos`
+// catalogue screen calls `GET /api/v1/products` through the
+// shared Retrofit / OkHttp client decorated by the new
+// `AuthInterceptor` (in `:core:network`) which injects
+// `Authorization: Bearer <accessToken>` from the persisted
+// `TokenStorage` session bundle.
+include(":feature:pos")

@@ -11,8 +11,11 @@ import id.alviarts.vipos.BuildConfig
 import id.alviarts.vipos.core.common.AppConfig
 import id.alviarts.vipos.core.database.VIPOSDatabase
 import id.alviarts.vipos.core.database.dao.KeyValueCacheDao
+import id.alviarts.vipos.core.network.AuthInterceptor
 import id.alviarts.vipos.core.network.NetworkClientFactory
 import id.alviarts.vipos.core.network.api.HealthApi
+import id.alviarts.vipos.feature.auth.domain.TokenStorage
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -65,12 +68,30 @@ object AppModule {
      * Single shared [OkHttpClient]. Logging is enabled for
      * non-prod flavors so engineers can inspect request/response
      * bodies via logcat without touching the prod-flavor build.
+     *
+     * P3-06: the [AuthInterceptor] is installed application-side
+     * (before the logging interceptor) so every authenticated
+     * endpoint — starting with `:feature:pos`'s
+     * `GET /api/v1/products` — carries `Authorization: Bearer …`
+     * automatically. The interceptor pulls the access token from
+     * [TokenStorage] via `runBlocking`, which is acceptable here
+     * because OkHttp dispatches interceptors on its own thread
+     * pool (never the main thread) and the DataStore-backed
+     * token read is a local-disk roundtrip.
      */
     @Provides
     @Singleton
-    fun provideOkHttpClient(config: AppConfig): OkHttpClient =
+    fun provideOkHttpClient(
+        config: AppConfig,
+        tokenStorage: TokenStorage,
+    ): OkHttpClient =
         NetworkClientFactory.provideOkHttpClient(
             loggingEnabled = config.environment != "prod",
+            applicationInterceptors = listOf(
+                AuthInterceptor {
+                    runBlocking { tokenStorage.read()?.tokens?.accessToken }
+                },
+            ),
         )
 
     /**

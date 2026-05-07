@@ -1,6 +1,7 @@
 package id.alviarts.vipos.core.network
 
 import kotlinx.serialization.json.Json
+import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -54,12 +55,24 @@ object NetworkClientFactory {
      *   pass `BuildConfig.DEBUG` (or, more precisely, only `true`
      *   for the `dev` and `staging` flavors) to avoid leaking
      *   request/response bodies into production logs.
+     * @param applicationInterceptors application-layer
+     *   [Interceptor]s installed BEFORE the logging interceptor so
+     *   their request rewrites (e.g. P3-06's [AuthInterceptor]
+     *   stamping `Authorization: Bearer …`) appear in the log
+     *   output as the on-the-wire shape. Order is preserved.
      */
-    fun provideOkHttpClient(loggingEnabled: Boolean): OkHttpClient {
+    fun provideOkHttpClient(
+        loggingEnabled: Boolean,
+        applicationInterceptors: List<Interceptor> = emptyList(),
+    ): OkHttpClient {
         val builder = OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
+
+        for (interceptor in applicationInterceptors) {
+            builder.addInterceptor(interceptor)
+        }
 
         if (loggingEnabled) {
             val logging = HttpLoggingInterceptor().apply {
