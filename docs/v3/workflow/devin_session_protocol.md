@@ -132,7 +132,7 @@ Gunakan urutan ini saat ngusulin plan ke founder, bukan urutan task ID di phase 
 Gw (Devin) harus melalui dec gate ini di tiap awal sesi sebelum eksekusi:
 
 1. **Read latest handoff doc** (`docs/handoff/<latest>.md`) → kalau ada perubahan §5 outstanding follow-ups, sync ke checklist §3 di atas.
-2. **SSH ke VPS** (kalau lo punya `VPS_PASSWORD`) dan run verifikasi command di §3b. Bandingkan dengan apa yang doc claim.
+2. **SSH ke VPS** (kalau lo punya `VPS_SSH_PASSWORD`) dan run verifikasi command di §3b. Bandingkan dengan apa yang doc claim.
 3. **Cek `pm2 jlist`** di VPS — Phase 2 prod-side complete = minimal `vipos-backend` + `vipos-worker` two processes online.
 4. **Cek `phase_2_backend.md` Definition of Done** — kalau ada `[ ]` yang harusnya `[x]`, surface ke founder before mulai task baru.
 5. **Lapor balik ke founder** dalam 1 message dengan: `(state ringkasan max 5 bullet) + (next priority gw recommend) + (apa yang gw butuh dari lo, kalau ada)`. Block on founder approval.
@@ -143,8 +143,8 @@ Gw (Devin) harus melalui dec gate ini di tiap awal sesi sebelum eksekusi:
 
 | Quirk                                                                                | Trigger                                                                | Workaround                                                                                                                                                                                      |
 | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `git push` 403 dari proxy                                                            | Push lewat default `git push` setelah Devin commit                     | `TMP_HOME=$(mktemp -d) HOME=$TMP_HOME GIT_ASKPASS=/tmp/git-askpass.sh git push https://alviarts@github.com/alviarts/VIPOS.git <branch>` (script `git-askpass.sh` echo `$GITHUB_PAT`)            |
-| `git_pr(action="create")` returns "Resource not accessible by personal access token" | Devin tool layer scoped read-only di proxy                             | Direct REST API: `curl -X POST -H "Authorization: token $GITHUB_PAT" https://api.github.com/repos/alviarts/VIPOS/pulls -d @body.json`                                                           |
+| `git push` 403 dari proxy                                                            | Push lewat default `git push` setelah Devin commit                     | `TMP_HOME=$(mktemp -d) HOME=$TMP_HOME GIT_ASKPASS=/tmp/git-askpass.sh git push https://alviarts@github.com/alviarts/VIPOS.git <branch>` (script `git-askpass.sh` echo `$GIT_PAT`)               |
+| `git_pr(action="create")` returns "Resource not accessible by personal access token" | Devin tool layer scoped read-only di proxy                             | Direct REST API: `curl -X POST -H "Authorization: token $GIT_PAT" https://api.github.com/repos/alviarts/VIPOS/pulls -d @body.json`                                                              |
 | `git_comment` tool returns same 403                                                  | Same proxy scope                                                       | Direct REST API: `curl -X POST ... /repos/alviarts/VIPOS/issues/<n>/comments`                                                                                                                   |
 | Backend `pm2 restart` health check fail-immediate                                    | Backend butuh ~7-9s buat init Sentry + Prisma + listen                 | Wait full boot. Sample probe: `for i in $(seq 1 12); do sleep 1; curl -fsS http://127.0.0.1:3001/api/health && break; done` (note: `:3001/health` returns SPA HTML fallback, bukan JSON health) |
 | Frontend bundle lama nyangkut                                                        | `git pull` di VPS gak otomatis rebuild Vite output di `apps/web/dist/` | After `git pull`: `cd apps/web && npm run build` (output otomatis ke `dist/` yang nginx serve)                                                                                                  |
@@ -156,8 +156,8 @@ Gw (Devin) harus melalui dec gate ini di tiap awal sesi sebelum eksekusi:
 
 | Secret name                          | Scope | Purpose                                               |
 | ------------------------------------ | ----- | ----------------------------------------------------- |
-| `VPS_PASSWORD`                       | org   | Root SSH ke VPS `103.74.5.44`                         |
-| `GITHUB_PAT`                         | org   | Direct REST API ke GitHub (`repo` scope) bypass proxy |
+| `VPS_SSH_PASSWORD`                   | org   | Root SSH ke VPS `103.74.5.44`                         |
+| `GIT_PAT`                            | org   | Direct REST API ke GitHub (`repo` scope) bypass proxy |
 | `VIPOS_SENTRY_DSN_BACKEND`           | org   | Sentry DSN backend init                               |
 | `VIPOS_SENTRY_DSN_FRONTEND`          | org   | Sentry DSN frontend init (Vite-injected)              |
 | _(belum ada)_ `R2_ACCOUNT_ID`        | org   | Cloudflare R2 backup target                           |
@@ -165,6 +165,8 @@ Gw (Devin) harus melalui dec gate ini di tiap awal sesi sebelum eksekusi:
 | _(belum ada)_ `R2_SECRET_ACCESS_KEY` | org   | R2 IAM secret                                         |
 | _(belum ada)_ `R2_BUCKET`            | org   | Bucket name (`vipos-backup`)                          |
 | _(belum ada)_ `SENTRY_AUTH_TOKEN`    | org   | Source-maps upload via `@sentry/vite-plugin`          |
+
+> **Legacy alias note**: handoff lama / PR historis (sebelum PR #212) refer ke `GITHUB_PAT_VIPOS` (atau `GITHUB_PAT`) dan `VPS_PASSWORD`. Itu nama lama yang dipakai sebelum dialigning ke canonical `GIT_PAT` / `VPS_SSH_PASSWORD`. Detail naming history + recipe `export GITHUB_PAT_VIPOS="$GIT_PAT"` di `devin_continuous_automation.md` §3.
 
 Saat lo butuh credential baru, **selalu** offer 3 opsi via `secrets` tool: skip, temporary-this-session, permanent-org. Founder strongly prefers permanent-org untuk credential yang akan reused sesi-sesi selanjutnya.
 
@@ -220,4 +222,4 @@ Kalau interpretasi `gas` ambigu (tidak ada top recommendation eksplisit), **jang
 
 ---
 
-_Last updated: 2026-05-05 by Devin session that completed Phase 2 source-map upload (PR #81 → release `vipos-web@758582f` symbolicated). Update di tempat ini saat status §3 berubah._
+_Last updated: 2026-05-07 by Devin sesi continuous-automation Tier-1 follow-ups — sweep stale `GITHUB_PAT_VIPOS` / `VPS_PASSWORD` refs in §4-§6 to align with canonical `GIT_PAT` / `VPS_SSH_PASSWORD` (PR #212 baseline). Update di tempat ini saat status §3 berubah._

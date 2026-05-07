@@ -24,8 +24,9 @@ Mode: AUTO-CONTINUATION. Pilih task next sendiri berdasarkan workflow doc.
 
 LANGKAH 0 — Setup environment:
 1. cd /home/ubuntu/repos/VIPOS && git fetch && git checkout main && git pull
-2. Verify secrets tersedia: echo "GITHUB_PAT len=${#GITHUB_PAT}, VPS_PASSWORD len=${#VPS_PASSWORD}"
+2. Verify secrets tersedia: echo "GIT_PAT len=${#GIT_PAT}, VPS_SSH_PASSWORD len=${#VPS_SSH_PASSWORD}"
    (length > 0 berarti env vars terpasang). Kalau kosong, message user — JANGAN lanjut.
+   (Catatan: legacy alias `GITHUB_PAT_VIPOS` / `VPS_PASSWORD` masih dipakai di handoff lama; detail di docs/v3/workflow/devin_continuous_automation.md §3.)
 3. Install sshpass kalau belum (untuk akses VPS): sudo apt-get install -y sshpass
 
 LANGKAH 1 — Identify next task:
@@ -73,7 +74,7 @@ LANGKAH 4 — Test:
 
 LANGKAH 5 — Buka PR:
 1. Push final: git push origin devin/{{task-ID}}-{{slug}}
-   (Kalau 403 via Devin proxy, fallback: git push "https://x-access-token:${GITHUB_PAT}@github.com/alviarts/VIPOS.git" devin/{{task-ID}}-{{slug}})
+   (Kalau 403 via Devin proxy, fallback: git push "https://x-access-token:${GIT_PAT}@github.com/alviarts/VIPOS.git" devin/{{task-ID}}-{{slug}})
 2. Buat PR ke main pakai template docs/v3/workflow/templates/pr_template.md.
    Title: {type}(P{X}-{nn}): {title}
 3. Wait CI pass (kalau sudah ada CI). Kalau gagal, fix + push commit baru.
@@ -93,13 +94,13 @@ KONVENSI YANG WAJIB DIIKUTI:
 - VIPOS standalone — tidak proxy ke Majoo, hanya pinjam pola UI/struktur API.
 - JANGAN push langsung ke main — selalu via PR.
 - JANGAN modifikasi docs/v2/* (frozen analysis).
-- JANGAN tulis nilai literal ${GITHUB_PAT} atau ${VPS_PASSWORD} di code/commit/message — selalu pakai env var reference.
+- JANGAN tulis nilai literal ${GIT_PAT} atau ${VPS_SSH_PASSWORD} di code/commit/message — selalu pakai env var reference.
 - Tailwind primary color: teal #04C99E
 
 PRODUCTION INFO:
 - Live URL: http://103.74.5.44/vipos/
 - Backend: port 3001, JWT_SECRET dari env, default user admin/admin123
-- VPS access: sshpass -p "${VPS_PASSWORD}" ssh -o StrictHostKeyChecking=no root@103.74.5.44 "<cmd>"
+- VPS access: sshpass -p "${VPS_SSH_PASSWORD}" ssh -o StrictHostKeyChecking=no root@103.74.5.44 "<cmd>"
 - Deploy path: /var/www/vipos
 - pm2 service: vipos-backend
 
