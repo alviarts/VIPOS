@@ -57,6 +57,21 @@ data class LogoutRequestDto(
 )
 
 /**
+ * Wire-shape for the refresh-token rotation request (P3-03e).
+ *
+ * The backend's POST /api/v1/auth/refresh accepts the persisted
+ * refresh token, revokes it, and issues a fresh access + refresh
+ * token pair (response shape identical to /login — [LoginResponseDto]
+ * is reused). The old refresh token cannot be reused after a
+ * successful rotation; this is enforced server-side via
+ * `replaced_by` linkage in the `refresh_tokens` table.
+ */
+@Serializable
+data class RefreshRequestDto(
+    @SerialName("refresh_token") val refreshToken: String,
+)
+
+/**
  * Wire-shape for the 2FA continuation request (P3-03c).
  *
  * The backend's POST /api/v1/auth/login/2fa expects the

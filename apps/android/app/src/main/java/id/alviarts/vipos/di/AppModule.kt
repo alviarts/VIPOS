@@ -13,8 +13,10 @@ import id.alviarts.vipos.core.database.VIPOSDatabase
 import id.alviarts.vipos.core.database.dao.KeyValueCacheDao
 import id.alviarts.vipos.core.network.AuthInterceptor
 import id.alviarts.vipos.core.network.NetworkClientFactory
+import id.alviarts.vipos.core.network.RefreshTokenAuthenticator
 import id.alviarts.vipos.core.network.SessionInvalidationInterceptor
 import id.alviarts.vipos.core.network.api.HealthApi
+import id.alviarts.vipos.feature.auth.domain.AuthRepository
 import id.alviarts.vipos.feature.auth.domain.TokenStorage
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -86,10 +88,31 @@ object AppModule {
      *    mid-session without any explicit nav code at the call
      *    site.
      *
-     * Both interceptors use `runBlocking` to bridge the suspending
-     * [TokenStorage] API to OkHttp's synchronous interceptor
-     * contract. This is acceptable because OkHttp dispatches
-     * interceptors on its own thread pool (never the main
+     * One [okhttp3.Authenticator] is installed:
+     *
+     *  - **[RefreshTokenAuthenticator]** (P3-03e) — runs on every
+     *    401, exchanges the persisted refresh token for a fresh
+     *    access + refresh pair, and returns a retried request
+     *    with the new Bearer. If refresh fails the original 401
+     *    propagates and `SessionInvalidationInterceptor` clears
+     *    the session.
+     *
+     * The Authenticator delegates to [AuthRepository.refresh] via
+     * a `dagger.Lazy<AuthRepository>` to break the DI cycle:
+     * AuthRepository depends on AuthApi which depends on
+     * Retrofit which depends on this very [OkHttpClient]. Lazy
+     * defers the AuthRepository instantiation until the first
+     * 401 actually fires — by which time the entire graph is
+     * fully built. The [AuthRepository.refresh] call itself
+     * goes through this same OkHttpClient, but
+     * [AuthInterceptor]/[SessionInvalidationInterceptor]/[RefreshTokenAuthenticator]
+     * all skip `/auth/refresh` so there's no recursion.
+     *
+     * Bridging callbacks use `runBlocking` to translate the
+     * suspending [TokenStorage] / [AuthRepository] APIs into the
+     * synchronous contract OkHttp expects. This is acceptable
+     * because OkHttp dispatches interceptors + the
+     * Authenticator on its own thread pool (never the main
      * thread), and DataStore reads/writes are local-disk
      * roundtrips.
      */
@@ -98,6 +121,7 @@ object AppModule {
     fun provideOkHttpClient(
         config: AppConfig,
         tokenStorage: TokenStorage,
+        authRepository: dagger.Lazy<AuthRepository>,
     ): OkHttpClient =
         NetworkClientFactory.provideOkHttpClient(
             loggingEnabled = config.environment != "prod",
@@ -109,6 +133,9 @@ object AppModule {
                     runBlocking { tokenStorage.clear() }
                 },
             ),
+            authenticator = RefreshTokenAuthenticator {
+                runBlocking { authRepository.get().refresh() }
+            },
         )
 
     /**
