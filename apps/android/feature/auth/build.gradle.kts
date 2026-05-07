@@ -77,4 +77,12 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+
+    // P3-03e: unit tests for AuthRepository.refresh(). MockWebServer
+    // backs a real Retrofit-built [AuthApi] (so the test exercises
+    // the production wire-mapping); kotlinx-coroutines-test drives
+    // the suspend boundary deterministically.
+    testImplementation(libs.junit)
+    testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

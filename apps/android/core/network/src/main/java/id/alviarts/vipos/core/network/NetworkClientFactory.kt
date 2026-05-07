@@ -1,6 +1,7 @@
 package id.alviarts.vipos.core.network
 
 import kotlinx.serialization.json.Json
+import okhttp3.Authenticator
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -60,10 +61,21 @@ object NetworkClientFactory {
      *   their request rewrites (e.g. P3-06's [AuthInterceptor]
      *   stamping `Authorization: Bearer …`) appear in the log
      *   output as the on-the-wire shape. Order is preserved.
+     * @param authenticator optional [Authenticator] (typically
+     *   P3-03e's [RefreshTokenAuthenticator]) installed via
+     *   `OkHttpClient.Builder#authenticator`. OkHttp invokes it
+     *   on a 401 response, gets a chance to mutate the request,
+     *   and transparently retries with the returned [okhttp3.Request].
+     *   Returning `null` from the authenticator propagates the
+     *   401 unchanged. Pass `null` here for any client that
+     *   itself participates in the auth flow (e.g. a
+     *   refresh-only client must NOT have an authenticator,
+     *   otherwise it would recurse on its own 401).
      */
     fun provideOkHttpClient(
         loggingEnabled: Boolean,
         applicationInterceptors: List<Interceptor> = emptyList(),
+        authenticator: Authenticator? = null,
     ): OkHttpClient {
         val builder = OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
@@ -72,6 +84,10 @@ object NetworkClientFactory {
 
         for (interceptor in applicationInterceptors) {
             builder.addInterceptor(interceptor)
+        }
+
+        if (authenticator != null) {
+            builder.authenticator(authenticator)
         }
 
         if (loggingEnabled) {

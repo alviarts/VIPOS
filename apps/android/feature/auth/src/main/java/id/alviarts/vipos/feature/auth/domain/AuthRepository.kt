@@ -5,6 +5,7 @@ import id.alviarts.vipos.feature.auth.data.AuthUserDto
 import id.alviarts.vipos.feature.auth.data.LoginRequestDto
 import id.alviarts.vipos.feature.auth.data.LoginResponseDto
 import id.alviarts.vipos.feature.auth.data.LogoutRequestDto
+import id.alviarts.vipos.feature.auth.data.RefreshRequestDto
 import id.alviarts.vipos.feature.auth.data.Verify2FARequestDto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -189,6 +190,62 @@ class AuthRepository @Inject constructor(
             message = "Tidak bisa terhubung ke server",
             throwable = e,
         )
+    }
+
+    /**
+     * Rotate the persisted refresh token (P3-03e).
+     *
+     * Calls POST `/api/v1/auth/refresh` with the persisted
+     * refresh token and, on success, atomically replaces the
+     * persisted [AuthSession] with the freshly-issued access +
+     * refresh pair (the user identity is reused since the
+     * backend's response carries the same `user` summary as
+     * /login).
+     *
+     * Returns the new access token on success, or `null` on:
+     *  - No persisted session — there's nothing to refresh.
+     *  - Backend 401 — refresh token revoked / expired / unknown.
+     *    The persisted session is **not** cleared here; that's
+     *    `SessionInvalidationInterceptor`'s job (driven by the
+     *    Authenticator returning `null`, which lets the original
+     *    401 propagate to the caller's interceptor chain).
+     *  - Network error or any other HTTP status — refresh failed
+     *    transiently; caller decides whether to retry or surface
+     *    the error.
+     *  - Malformed response (missing token / refresh_token in the
+     *    /refresh body, which would be a backend bug).
+     *
+     * The wire-call runs on the caller's coroutine context.
+     * Production wiring threads this through
+     * [id.alviarts.vipos.core.network.RefreshTokenAuthenticator]
+     * via `runBlocking` on OkHttp's IO dispatcher.
+     */
+    suspend fun refresh(): String? {
+        val session = tokenStorage.read() ?: return null
+        return try {
+            val response = api.refresh(
+                RefreshRequestDto(refreshToken = session.tokens.refreshToken),
+            )
+            val newAccess = response.token ?: return null
+            val newRefresh = response.refreshToken ?: return null
+            tokenStorage.save(
+                AuthSession(
+                    tokens = AuthTokens(
+                        accessToken = newAccess,
+                        refreshToken = newRefresh,
+                        accessExpiresAtEpochSec =
+                            (System.currentTimeMillis() / 1000) +
+                                (response.expiresIn ?: ACCESS_TOKEN_TTL_FALLBACK_SEC),
+                    ),
+                    user = response.user?.toDomain() ?: session.user,
+                ),
+            )
+            newAccess
+        } catch (_: HttpException) {
+            null
+        } catch (_: IOException) {
+            null
+        }
     }
 
     /**

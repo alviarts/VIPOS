@@ -14,26 +14,27 @@ This module was bootstrapped in **PR P3-01a**. Currently:
 
 Subsequent sub-PRs in the P3-01 series will add:
 
-| Sub-PR    | Status         | Adds                                                                                     |
-| --------- | -------------- | ---------------------------------------------------------------------------------------- |
-| P3-01a    | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow               |
-| P3-01b    | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)                |
-| P3-01e    | done (PR #187) | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                       |
-| P3-01c    | done (PR #188) | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database`  |
-| P3-01d    | done (PR #189) | Build flavors (`dev` / `staging` / `prod`) + per-flavor `BuildConfig` + CI matrix        |
-| P3-01f    | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)   |
-| P3-02     | done (PR #191) | Real Material 3 design system — full ColorScheme (light + dark), typography, shapes      |
-| P3-05     | done (PR #193) | Network client — OkHttp + Retrofit + kotlinx-serialization wired through Hilt            |
-| P3-03a    | done (PR #194) | Auth feature data layer — `AuthApi` + `TokenStorage` (DataStore) + `AuthRepository`      |
-| P3-04     | done (PR #195) | Room database scaffold — `VIPOSDatabase` + `KeyValueCacheEntity` + DAO + Hilt providers  |
-| P3-03b    | done (PR #196) | LoginScreen Compose + `LoginViewModel` + replaces bootstrap surface in `MainActivity`    |
-| P3-08     | done (PR #197) | Navigation graph — `VIPOSNavHost` + `:feature:home` placeholder + login → home wiring    |
-| P3-03d    | done (PR #199) | Auto-login restoration — persist user snapshot in DataStore + `SessionGate` skips login  |
-| P3-03c    | done (PR #200) | 2FA challenge UI — `TwoFactorScreen` + `verify2fa` API + Login → TwoFactor → Home wire   |
-| P3-09     | done (PR #202) | Schema-export-diff CI guard — fails CI when Room KSP regenerates schema JSON uncommitted |
-| P3-06     | done (PR #203) | First-cut kasir POS — `:feature:pos` catalogue/cart + OkHttp `AuthInterceptor` Bearer    |
-| P3-03f    | done (PR #204) | 401 → session invalidation — `SessionInvalidationInterceptor` + reactive `SessionGate`   |
-| **P3-10** | this PR        | First-cut unit-test coverage — interceptors + `SessionViewModel` + CI test step          |
+| Sub-PR     | Status         | Adds                                                                                     |
+| ---------- | -------------- | ---------------------------------------------------------------------------------------- |
+| P3-01a     | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow               |
+| P3-01b     | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)                |
+| P3-01e     | done (PR #187) | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                       |
+| P3-01c     | done (PR #188) | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database`  |
+| P3-01d     | done (PR #189) | Build flavors (`dev` / `staging` / `prod`) + per-flavor `BuildConfig` + CI matrix        |
+| P3-01f     | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)   |
+| P3-02      | done (PR #191) | Real Material 3 design system — full ColorScheme (light + dark), typography, shapes      |
+| P3-05      | done (PR #193) | Network client — OkHttp + Retrofit + kotlinx-serialization wired through Hilt            |
+| P3-03a     | done (PR #194) | Auth feature data layer — `AuthApi` + `TokenStorage` (DataStore) + `AuthRepository`      |
+| P3-04      | done (PR #195) | Room database scaffold — `VIPOSDatabase` + `KeyValueCacheEntity` + DAO + Hilt providers  |
+| P3-03b     | done (PR #196) | LoginScreen Compose + `LoginViewModel` + replaces bootstrap surface in `MainActivity`    |
+| P3-08      | done (PR #197) | Navigation graph — `VIPOSNavHost` + `:feature:home` placeholder + login → home wiring    |
+| P3-03d     | done (PR #199) | Auto-login restoration — persist user snapshot in DataStore + `SessionGate` skips login  |
+| P3-03c     | done (PR #200) | 2FA challenge UI — `TwoFactorScreen` + `verify2fa` API + Login → TwoFactor → Home wire   |
+| P3-09      | done (PR #202) | Schema-export-diff CI guard — fails CI when Room KSP regenerates schema JSON uncommitted |
+| P3-06      | done (PR #203) | First-cut kasir POS — `:feature:pos` catalogue/cart + OkHttp `AuthInterceptor` Bearer    |
+| P3-03f     | done (PR #204) | 401 → session invalidation — `SessionInvalidationInterceptor` + reactive `SessionGate`   |
+| P3-10      | done (PR #205) | First-cut unit-test coverage — interceptors + `SessionViewModel` + CI test step          |
+| **P3-03e** | this PR        | Refresh-token rotation — OkHttp `RefreshTokenAuthenticator` + `AuthRepository.refresh()` |
 
 ### Database (`:core:database`)
 
@@ -90,9 +91,10 @@ After **P3-05** the network module ships an honest OkHttp + Retrofit + kotlinx-s
 
 - **`NetworkClientFactory`** (Hilt-free) — `provideOkHttpClient(loggingEnabled, applicationInterceptors)` and `provideRetrofit(baseUrl, okHttp, json)` factory methods plus a shared `Json` codec configured with `ignoreUnknownKeys = true` / `coerceInputValues = true` / `isLenient = true` (defends against backend nullability / additive drift). The interceptor list parameter (added in P3-06) lets the production wiring inject `AuthInterceptor` without dragging Hilt into this module.
 - **`AuthInterceptor`** — request-side OkHttp interceptor that stamps `Authorization: Bearer <accessToken>` on every authenticated endpoint (added in P3-06). Skips when the request already carries an `Authorization` header (so `/auth/logout`'s explicit `@Header` wins) and when the path matches an unauthenticated suffix (`/auth/login`, `/auth/login/2fa`, `/auth/refresh`, `/health`). Pulls the token via a synchronous callback so the module stays Hilt-free; `:app/AppModule` bridges from `TokenStorage.read()` through `runBlocking`.
-- **`SessionInvalidationInterceptor`** — response-side OkHttp interceptor (added in P3-03f) that fires a callback on every 401 from an authenticated endpoint. Production wiring in `:app/AppModule` clears `TokenStorage` from the callback; `SessionViewModel` observes the resulting Flow emission and `SessionGate` rebuilds the nav graph rooted at `Login`, bouncing the user mid-session. Skips 401s from `/auth/login`, `/auth/login/2fa`, and `/auth/refresh` — those are credential-rejection 401s, not session-expiry 401s, and the LoginViewModel / TwoFactorViewModel handle them locally. Once the refresh-token rotation flow lands (P3-03e) this interceptor will defer the clear/bounce to a refresh attempt before invalidating.
+- **`SessionInvalidationInterceptor`** — response-side OkHttp interceptor (added in P3-03f) that fires a callback on every 401 from an authenticated endpoint. Production wiring in `:app/AppModule` clears `TokenStorage` from the callback; `SessionViewModel` observes the resulting Flow emission and `SessionGate` rebuilds the nav graph rooted at `Login`, bouncing the user mid-session. Skips 401s from `/auth/login`, `/auth/login/2fa`, and `/auth/refresh` — those are credential-rejection 401s, not session-expiry 401s, and the LoginViewModel / TwoFactorViewModel handle them locally. With **P3-03e** the interceptor only sees a 401 if `RefreshTokenAuthenticator` already tried + failed to refresh — so a callback firing means the persisted session is genuinely dead.
+- **`RefreshTokenAuthenticator`** — OkHttp [`Authenticator`](https://square.github.io/okhttp/4.x/okhttp/okhttp3/-authenticator/) (added in P3-03e) that runs on every 401, calls `AuthRepository.refresh()`, and returns the original request rebuilt with a fresh `Authorization: Bearer <newAccessToken>`. OkHttp transparently retries with the rebuilt request; the application interceptors see only the final response (200 on success, original 401 on failure). Skips loop attempts (`response.priorResponse != null`), the auth bootstrap paths (`/auth/login`, `/auth/login/2fa`, `/auth/refresh`), and the case where the refresh callback returns `null`. Production wiring in `:app/AppModule` uses `dagger.Lazy<AuthRepository>` to break the DI cycle (`OkHttpClient` → `AuthRepository` → `AuthApi` → `Retrofit` → `OkHttpClient`).
 - **`api/HealthApi`** + **`api/HealthResponse`** — smallest-possible Retrofit interface hitting `GET /api/v1/health`. Exists to prove the wiring compiles and instantiates end-to-end; **not** called on cold-start.
-- **Hilt providers in `:app/AppModule`** — wires `Json` / `OkHttpClient` / `Retrofit` / `HealthApi` singletons keyed off `AppConfig.apiBaseUrl` (P3-01d). HTTP body logging is auto-enabled for dev + staging flavors and auto-disabled for prod. P3-06 + P3-03f wire `AuthInterceptor` and `SessionInvalidationInterceptor` from this module so every authenticated request shares the same Bearer-injection + 401-handling codepath.
+- **Hilt providers in `:app/AppModule`** — wires `Json` / `OkHttpClient` / `Retrofit` / `HealthApi` singletons keyed off `AppConfig.apiBaseUrl` (P3-01d). HTTP body logging is auto-enabled for dev + staging flavors and auto-disabled for prod. P3-06 + P3-03f + P3-03e wire `AuthInterceptor`, `SessionInvalidationInterceptor`, and `RefreshTokenAuthenticator` from this module so every authenticated request shares the same Bearer-injection + 401-refresh + session-invalidation codepath.
 - The networking primitives are exposed as `api` (not `implementation`) deps from `:core:network` so the Hilt processor in `:app` can resolve `@Provides` return types.
 
 | Token        | Pinned version                                   |
@@ -232,11 +234,13 @@ First run downloads ~500 MB of Gradle + AGP + Compose dependencies and takes ~1.
 
 ## Testing
 
-After **P3-10** the Android side has its first unit-test coverage:
+After **P3-10** + **P3-03e** the Android side has unit-test coverage on the auth surface:
 
 - **`:core:network/AuthInterceptorTest`** — drives [`AuthInterceptor`](core/network/src/main/java/id/alviarts/vipos/core/network/AuthInterceptor.kt) through a real `MockWebServer` and asserts the outgoing request shape: Bearer is injected when token is non-blank and the path is authenticated, the explicit caller-provided header (e.g. logout's `@Header`) wins over the interceptor, and unauthenticated paths (`/auth/login`, `/auth/login/2fa`, `/auth/refresh`, `/health`) skip injection.
 - **`:core:network/SessionInvalidationInterceptorTest`** — covers the response-side counterpart: the callback fires exactly once on a 401 from an authenticated path, doesn't fire on 200/403/500, and is skipped on 401 from auth/login/2fa/refresh paths. A pairing test composes both interceptors so the integration matches what `:app/AppModule` wires.
 - **`:app/SessionViewModelTest`** — exercises the reactive `tokenStorage.sessions` observation landed in P3-03f using a `FakeTokenStorage` + Turbine. Covers cold-start (Loading → Restored / NotRestored), expired-token edge cases (token expires within the 10s safety margin), and the runtime transitions (Restored → NotRestored on session-clear, NotRestored → Restored on login).
+- **`:core:network/RefreshTokenAuthenticatorTest`** — P3-03e coverage. MockWebServer-driven; covers happy-path 401 → refresh → retry with new Bearer, refresh callback returning null → 401 propagates, the `/auth/{login,login/2fa,refresh}` skip-list, the `priorResponse` loop guard, non-401 statuses (200/403/500) never invoking refresh, and integration with `AuthInterceptor` so the retry carries the freshly-rotated token rather than the stale one.
+- **`:feature:auth/AuthRepositoryRefreshTest`** — P3-03e coverage of the `AuthRepository.refresh()` method itself (the bridge between the Authenticator and `TokenStorage`). MockWebServer-backed Retrofit so the JSON-decode path is exercised end-to-end. Covers: no persisted session → returns null without an API call; happy-path rotation persists new tokens atomically; backend 401 leaves the persisted session intact (`SessionInvalidationInterceptor` is what clears, not the repository); malformed bodies (missing `token` / `refresh_token`) treated as failure; network errors swallowed; user identity reused when the backend omits the `user` field; `expires_in` falls back to 900s.
 
 Run locally:
 
@@ -262,7 +266,7 @@ The same task runs in CI as a separate step in `.github/workflows/android.yml` a
 2. Installs Android SDK via `android-actions/setup-android@v3`.
 3. Caches `~/.gradle/{caches,wrapper}` keyed by `*.gradle*` + `libs.versions.toml`.
 4. Runs `./gradlew :app:assembleDevDebug :app:assembleStagingDebug --no-daemon --stacktrace`.
-5. **P3-10**: runs `./gradlew :core:network:testDebugUnitTest :app:testDevDebugUnitTest` so the interceptor + `SessionViewModel` regressions surface as PR failures rather than runtime bugs.
+5. **P3-10 + P3-03e**: runs `./gradlew :core:network:testDebugUnitTest :feature:auth:testDebugUnitTest :app:testDevDebugUnitTest` so the interceptor / Authenticator / `AuthRepository.refresh()` / `SessionViewModel` regressions surface as PR failures rather than runtime bugs.
 6. **P3-09**: verifies `core/database/schemas/` is clean vs. HEAD so a Room schema bump without a committed JSON fails the build.
 7. Uploads the dev + staging debug APKs as 7-day-retention artifacts.
 
