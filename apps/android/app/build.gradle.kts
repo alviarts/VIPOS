@@ -142,6 +142,14 @@ dependencies {
     // and currently routes between login + home.
     implementation(libs.androidx.navigation.compose)
 
+    // P3-03d: SessionGate (in :app/navigation) needs the
+    // Compose-Hilt-ViewModel bridge — `hiltViewModel()` resolves
+    // its `@HiltViewModel` SessionViewModel; `lifecycle-runtime-compose`
+    // ships `collectAsStateWithLifecycle` (separate artifact from
+    // `lifecycle-viewmodel-compose`).
+    implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+
     // Hilt DI (P3-01b). KSP is the modern annotation processor — kapt
     // is deprecated for Hilt since 2.48. Hilt's own consumer ProGuard
     // rules ship with the runtime AAR; no manual proguard config

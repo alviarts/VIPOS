@@ -13,16 +13,16 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Repository facade for the auth feature (P3-03a).
+ * Repository facade for the auth feature (P3-03a + P3-03d).
  *
  * Encapsulates the network call → token persistence → DTO
- * mapping pipeline so call-sites (LoginViewModel in P3-03b) deal
- * only in domain types.
+ * mapping pipeline so call-sites (LoginViewModel in P3-03b,
+ * SessionViewModel in P3-03d) deal only in domain types.
  *
- * The class is `@Singleton` because the persisted token snapshot
- * is logically global to the app — multiple LoginViewModels
- * across the lifecycle of the process must agree on whether a
- * user is currently authenticated.
+ * The class is `@Singleton` because the persisted session
+ * snapshot is logically global to the app — multiple
+ * ViewModels across the lifecycle of the process must agree on
+ * whether a user is currently authenticated.
  */
 @Singleton
 class AuthRepository @Inject constructor(
@@ -31,19 +31,50 @@ class AuthRepository @Inject constructor(
 ) {
 
     /** Whether a user appears to be authenticated based on the
-     *  persisted token snapshot. Does NOT validate the token
+     *  persisted session snapshot. Does NOT validate the token
      *  against the backend — call-sites that need that should
      *  fire a refresh-token rotation. */
     val isAuthenticated: Flow<Boolean> =
-        tokenStorage.tokens.map { it != null }
+        tokenStorage.sessions.map { it != null }
+
+    /**
+     * Cold-start auto-login (P3-03d).
+     *
+     * Reads the persisted session bundle once. Returns the user
+     * snapshot if the bundle is present **and** the access token
+     * has not yet expired (with a small safety margin so we
+     * don't hand a request a token that expires mid-flight).
+     *
+     * On expired tokens: today this returns `null` and forces a
+     * fresh login. The refresh-token rotation flow (re-issuing
+     * an access token from the persisted refresh token) lands as
+     * its own follow-up — keeping that out of cold-start avoids
+     * blocking the splash → home transition behind a network
+     * round-trip in the common-case fast path.
+     *
+     * On corrupt or partial bundles (e.g., older installs that
+     * never wrote the user fields): [TokenStorage] returns null
+     * and the user lands on the login screen exactly once.
+     */
+    suspend fun restoreSession(): AuthUser? {
+        val session = tokenStorage.read() ?: return null
+        val nowSec = System.currentTimeMillis() / 1000
+        val expiresAt = session.tokens.accessExpiresAtEpochSec
+        return if (expiresAt - nowSec >= ACCESS_TOKEN_RESTORE_MARGIN_SEC) {
+            session.user
+        } else {
+            null
+        }
+    }
 
     /**
      * Attempt a username/password login.
      *
-     * On [LoginResult.Success] the access + refresh tokens are
-     * already persisted to [TokenStorage] before this returns —
-     * no extra wiring is required for subsequent authenticated
-     * requests to find them.
+     * On [LoginResult.Success] the access + refresh tokens **and**
+     * the user snapshot are persisted to [TokenStorage] before
+     * this returns — no extra wiring is required for subsequent
+     * authenticated requests to find them or for the next cold
+     * start to skip the login screen via [restoreSession].
      *
      * Network failures (`IOException`) and HTTP errors
      * (`HttpException`) are caught and converted into
@@ -64,13 +95,16 @@ class AuthRepository @Inject constructor(
         response.toLoginResult().also { result ->
             if (result is LoginResult.Success) {
                 tokenStorage.save(
-                    AuthTokens(
-                        accessToken = result.accessToken,
-                        refreshToken = response.refreshToken
-                            ?: error("Backend returned token without refresh_token"),
-                        accessExpiresAtEpochSec =
-                            (System.currentTimeMillis() / 1000) +
-                                (response.expiresIn ?: ACCESS_TOKEN_TTL_FALLBACK_SEC),
+                    AuthSession(
+                        tokens = AuthTokens(
+                            accessToken = result.accessToken,
+                            refreshToken = response.refreshToken
+                                ?: error("Backend returned token without refresh_token"),
+                            accessExpiresAtEpochSec =
+                                (System.currentTimeMillis() / 1000) +
+                                    (response.expiresIn ?: ACCESS_TOKEN_TTL_FALLBACK_SEC),
+                        ),
+                        user = result.user,
                     ),
                 )
             }
@@ -96,11 +130,11 @@ class AuthRepository @Inject constructor(
      * standard expiry sweep regardless.
      */
     suspend fun logout(): Boolean {
-        val tokens = tokenStorage.read() ?: return true
+        val session = tokenStorage.read() ?: return true
         return try {
             api.logout(
-                bearer = "Bearer ${tokens.accessToken}",
-                request = LogoutRequestDto(refreshToken = tokens.refreshToken),
+                bearer = "Bearer ${session.tokens.accessToken}",
+                request = LogoutRequestDto(refreshToken = session.tokens.refreshToken),
             )
             true
         } catch (_: HttpException) {
@@ -136,5 +170,11 @@ class AuthRepository @Inject constructor(
          *  default in `apps/backend/src/utils/tokens.js`
          *  (`ACCESS_TOKEN_TTL_SECONDS = 900` ≈ 15 minutes). */
         const val ACCESS_TOKEN_TTL_FALLBACK_SEC = 900L
+
+        /** Don't restore a session whose access token expires
+         *  within this margin — the next request would race the
+         *  refresh flow. Ten seconds is plenty for the splash →
+         *  home navigation to settle. */
+        const val ACCESS_TOKEN_RESTORE_MARGIN_SEC = 10L
     }
 }

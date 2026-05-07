@@ -3,13 +3,14 @@ package id.alviarts.vipos.feature.auth.domain
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Persistent storage for auth tokens (P3-03a).
+ * Persistent storage for the authenticated session bundle
+ * (P3-03a + P3-03d).
  *
- * The contract is intentionally tiny: callers can read the
- * current snapshot, observe changes through a [Flow], or update
- * the whole token bundle atomically. The repository decides
- * which token to read for which call (access for `Authorization`
- * headers, refresh for token-rotation flows).
+ * "Session" = access + refresh tokens + the authenticated user
+ * snapshot. The whole bundle is persisted atomically so that on
+ * cold-start [P3-03d's auto-login restoration] can reconstitute
+ * a logged-in `AuthUser` without an extra `/api/v1/users/me`
+ * round-trip.
  *
  * Two implementations live in this module:
  *
@@ -23,16 +24,16 @@ import kotlinx.coroutines.flow.Flow
  */
 interface TokenStorage {
 
-    /** Latest snapshot of the persisted tokens, or `null` when no
+    /** Latest snapshot of the persisted session, or `null` when no
      *  user is authenticated. Suspending so DataStore can hit disk. */
-    suspend fun read(): AuthTokens?
+    suspend fun read(): AuthSession?
 
-    /** Cold flow that emits whenever the persisted tokens change.
+    /** Cold flow that emits whenever the persisted session changes.
      *  Use this in ViewModels for reactive auth-state UI. */
-    val tokens: Flow<AuthTokens?>
+    val sessions: Flow<AuthSession?>
 
     /** Atomically replace the persisted bundle. */
-    suspend fun save(tokens: AuthTokens)
+    suspend fun save(session: AuthSession)
 
     /** Clear everything — call on logout or 401-driven session
      *  invalidation. */
@@ -41,9 +42,21 @@ interface TokenStorage {
 
 /**
  * Plain-data bundle persisted by [TokenStorage]. The shape mirrors
- * what the backend's `/api/v1/auth/login` response carries except
- * for the user object, which is held separately by the ViewModel
- * layer for now.
+ * what the backend's `/api/v1/auth/login` response carries — both
+ * the token primitives and the user snapshot — so the app can
+ * cold-start straight into the home destination without a follow-up
+ * `/api/v1/users/me` call (P3-03d auto-login restoration).
+ */
+data class AuthSession(
+    val tokens: AuthTokens,
+    val user: AuthUser,
+)
+
+/**
+ * Token-primitive subset of [AuthSession]. Carved out as its own
+ * type because it's the unit that talks to the backend (auth
+ * headers, refresh-token rotation), while [AuthUser] is the unit
+ * that talks to the UI.
  */
 data class AuthTokens(
     val accessToken: String,
