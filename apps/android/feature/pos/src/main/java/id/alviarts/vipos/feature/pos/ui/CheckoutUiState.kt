@@ -1,5 +1,6 @@
 package id.alviarts.vipos.feature.pos.ui
 
+import id.alviarts.vipos.feature.pos.domain.CheckoutCartLine
 import id.alviarts.vipos.feature.pos.domain.CheckoutInputState
 import id.alviarts.vipos.feature.pos.domain.PaymentMethod
 
@@ -52,6 +53,38 @@ data class CheckoutUiState(
     val pickerStatus: CheckoutPickerStatus = CheckoutPickerStatus.Idle,
     val selectedMethod: PaymentMethod? = null,
     val inputState: CheckoutInputState? = null,
+    /**
+     * Snapshot of the cart line items at [CheckoutViewModel.start]
+     * time (P3-08 slice 5b). The transaction commit serialises
+     * these as `items[]` on `POST /api/v1/transactions`. Stays
+     * stable across the picker — same rationale as
+     * [availableMethods]: a kasir adding/removing items in the
+     * background catalogue while the sheet is open MUST NOT
+     * silently rewrite the in-flight checkout's wire body.
+     *
+     * Empty before [CheckoutViewModel.start] has been called
+     * (the picker is closed; the catalogue VM owns the live
+     * cart).
+     */
+    val cartLines: List<CheckoutCartLine> = emptyList(),
+    /**
+     * Lifecycle of the transaction commit (P3-08 slice 5b).
+     *
+     *  - [CheckoutCommitStatus.Idle]       — no commit attempted
+     *    in this checkout, or the kasir acknowledged a previous
+     *    failure.
+     *  - [CheckoutCommitStatus.Submitting] — `POST /api/v1/transactions`
+     *    in flight. The slice-4 commit CTA disables itself in
+     *    this state to prevent double-submit on tap repeat.
+     *  - [CheckoutCommitStatus.Succeeded]  — backend returned
+     *    201; the catalogue route observes this transition and
+     *    runs the side-effects (clear cart, toast receipt,
+     *    dismiss sheet).
+     *  - [CheckoutCommitStatus.Failed]     — backend returned a
+     *    4xx/5xx or the network failed. The route shows a toast;
+     *    the kasir taps "Bayar" again to retry.
+     */
+    val commitStatus: CheckoutCommitStatus = CheckoutCommitStatus.Idle,
 ) {
     /**
      * `true` when the kasir has picked a method and the cart is
@@ -98,6 +131,7 @@ data class CheckoutUiState(
         get() = pickerStatus is CheckoutPickerStatus.Picked &&
             selectedMethod != null &&
             cartSubtotalIdr > 0 &&
+            commitStatus !is CheckoutCommitStatus.Submitting &&
             (inputState?.isValid(cartSubtotalIdr) ?: !selectedMethodRequiresInput())
 
     /**
@@ -151,4 +185,41 @@ sealed interface CheckoutPickerStatus {
     data object Idle : CheckoutPickerStatus
     data object Picking : CheckoutPickerStatus
     data object Picked : CheckoutPickerStatus
+}
+
+/**
+ * Lifecycle of the transaction commit (P3-08 slice 5b).
+ *
+ *  - [Idle]       — No commit in flight. Default state, and the
+ *                   state we return to after the kasir
+ *                   acknowledges a previous [Failed].
+ *  - [Submitting] — `POST /api/v1/transactions` in flight. The
+ *                   slice-4 commit CTA gates on
+ *                   [CheckoutUiState.isReadyForCommit] which
+ *                   becomes `false` while in this state, so a
+ *                   double-tap on "Bayar" can't fire two
+ *                   transactions for the same cart.
+ *  - [Succeeded]  — Backend returned 201. Carries the
+ *                   `invoice_number` + `change_amount` for the
+ *                   slice-5b receipt toast. The catalogue route
+ *                   observes the transition and runs the
+ *                   side-effects (clear cart, dismiss sheet).
+ *  - [Failed]     — Backend returned 4xx/5xx or the request
+ *                   threw. Carries a human-readable Indonesian
+ *                   message for the snackbar/toast. The kasir
+ *                   taps "Bayar" again to retry — the route
+ *                   calls `acknowledgeCommitFailure()` to flip
+ *                   back to [Idle] so the predicate goes
+ *                   `true` again.
+ */
+sealed interface CheckoutCommitStatus {
+    data object Idle : CheckoutCommitStatus
+    data object Submitting : CheckoutCommitStatus
+    data class Succeeded(
+        val invoiceNumber: String,
+        val totalAmountIdr: Long,
+        val changeAmountIdr: Long,
+    ) : CheckoutCommitStatus
+
+    data class Failed(val message: String) : CheckoutCommitStatus
 }

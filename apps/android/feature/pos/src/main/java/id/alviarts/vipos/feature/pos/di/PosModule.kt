@@ -1,10 +1,13 @@
 package id.alviarts.vipos.feature.pos.di
 
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import id.alviarts.vipos.feature.pos.data.DefaultTransactionRepository
 import id.alviarts.vipos.feature.pos.data.PosApi
+import id.alviarts.vipos.feature.pos.data.TransactionRepository
 import id.alviarts.vipos.feature.pos.domain.CartContext
 import id.alviarts.vipos.feature.pos.domain.DefaultPaymentMethodCatalog
 import id.alviarts.vipos.feature.pos.domain.PaymentMethodCatalog
@@ -44,4 +47,36 @@ object PosModule {
     @Provides
     @Singleton
     fun providePaymentMethodCatalog(): PaymentMethodCatalog = DefaultPaymentMethodCatalog
+}
+
+/**
+ * Interface bindings for the POS feature data layer.
+ *
+ * Split from [PosModule] (an `object`) because Hilt requires
+ * `@Binds` to live on an `abstract class` (or `interface`) — the
+ * generated factory wraps the binding in a concrete subclass it
+ * can instantiate, which `object` blocks because the bytecode
+ * marks it `final`. Keeping the `@Provides`-style providers in
+ * an `object` and the `@Binds`-style abstract bindings in a
+ * separate `abstract class` is the canonical Hilt layout
+ * recommended by the dagger team.
+ *
+ * [bindTransactionRepository] wires [TransactionRepository] to
+ * its production impl [DefaultTransactionRepository] (P3-08
+ * slice 5b). The default impl pulls [PosApi] (provided above)
+ * via constructor injection. Tests substitute fakes by either
+ * (a) constructing the repository directly against a
+ * MockWebServer-backed [PosApi] for end-to-end coverage, or
+ * (b) constructing the [CheckoutViewModel] under test with a
+ * hand-rolled fake repository for state-machine coverage.
+ */
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class PosBindingsModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindTransactionRepository(
+        impl: DefaultTransactionRepository,
+    ): TransactionRepository
 }

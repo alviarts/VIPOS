@@ -1,7 +1,11 @@
 package id.alviarts.vipos.feature.pos.ui
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import id.alviarts.vipos.feature.pos.data.CheckoutCommitRequest
+import id.alviarts.vipos.feature.pos.data.TransactionRepository
+import id.alviarts.vipos.feature.pos.domain.CheckoutCartLine
 import id.alviarts.vipos.feature.pos.domain.CheckoutInputState
 import id.alviarts.vipos.feature.pos.domain.PaymentMethod
 import id.alviarts.vipos.feature.pos.domain.PaymentMethodCatalog
@@ -10,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -67,6 +72,7 @@ import javax.inject.Inject
 @HiltViewModel
 class CheckoutViewModel @Inject constructor(
     private val catalog: PaymentMethodCatalog,
+    private val transactionRepository: TransactionRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CheckoutUiState())
@@ -75,10 +81,12 @@ class CheckoutViewModel @Inject constructor(
     /**
      * Open the picker for a fresh cart.
      *
-     * Snapshots [cartSubtotalIdr] + the catalogue projection at
-     * the time of the call. Subsequent network state changes
-     * (e.g. WiFi drops mid-pick) do NOT shrink the available
-     * methods — the kasir's view of the picker stays stable
+     * Snapshots [cartSubtotalIdr] + [cartLines] + the catalogue
+     * projection at the time of the call. Subsequent network
+     * state changes (e.g. WiFi drops mid-pick) do NOT shrink the
+     * available methods, and subsequent cart edits in the
+     * background catalogue do NOT mutate the in-flight commit
+     * payload — the kasir's view of the checkout stays stable
      * until [cancel] resets it.
      *
      * Calling [start] on a [CheckoutPickerStatus.Picking] or
@@ -95,14 +103,24 @@ class CheckoutViewModel @Inject constructor(
      * something to the cart before settling. The empty-cart
      * UX (showing a "cart kosong" banner instead of the picker
      * grid) is the slice-4 UI's call.
+     *
+     * [cartLines] defaults to `emptyList()` so existing callers
+     * (slice 4 unit tests) keep compiling. Production callers
+     * (the kasir route) always pass the live cart projection so
+     * the slice-5b commit payload has the items to send.
      */
-    fun start(cartSubtotalIdr: Long, isOnline: Boolean) {
+    fun start(
+        cartSubtotalIdr: Long,
+        isOnline: Boolean,
+        cartLines: List<CheckoutCartLine> = emptyList(),
+    ) {
         _uiState.update {
             CheckoutUiState(
                 cartSubtotalIdr = cartSubtotalIdr,
                 availableMethods = catalog.availableMethods(isOnline = isOnline),
                 pickerStatus = CheckoutPickerStatus.Picking,
                 selectedMethod = null,
+                cartLines = cartLines,
             )
         }
     }
@@ -289,6 +307,96 @@ class CheckoutViewModel @Inject constructor(
     }
 
     /**
+     * Commit the in-flight checkout against
+     * `POST /api/v1/transactions` (P3-08 slice 5b).
+     *
+     * Pre-conditions (silent no-op when violated):
+     *  - [CheckoutUiState.isReadyForCommit] is `true` (picker
+     *    advanced to Picked, method picked, subtotal positive,
+     *    per-method input validates against the subtotal). The
+     *    slice-4 dialog CTAs already gate on this predicate so a
+     *    UI tap can't fire from an invalid state — this guard is
+     *    defensive against direct test invocations.
+     *  - [CheckoutUiState.commitStatus] is not already
+     *    [CheckoutCommitStatus.Submitting] (re-entrancy guard
+     *    against tap-repeat).
+     *
+     * State transitions on a valid call:
+     *  - Idle → Submitting (request fires).
+     *  - Submitting → Succeeded (on `Result.success`).
+     *  - Submitting → Failed (on `Result.failure`).
+     *
+     * On Succeeded, the catalogue route is expected to:
+     *  1. Run the side-effects (clear cart, show receipt toast).
+     *  2. Call [cancel] to dismiss the sheet.
+     *
+     * On Failed, the route shows a snackbar with
+     * [CheckoutCommitStatus.Failed.message] and the kasir taps
+     * "Bayar" again to retry. Retry first calls
+     * [acknowledgeCommitFailure] (to flip Failed → Idle so
+     * `isReadyForCommit` goes `true` again) then re-invokes
+     * [commit].
+     */
+    fun commit() {
+        val current = _uiState.value
+        if (!current.isReadyForCommit) return
+        if (current.commitStatus is CheckoutCommitStatus.Submitting) return
+        val method = current.selectedMethod ?: return
+
+        _uiState.update { it.copy(commitStatus = CheckoutCommitStatus.Submitting) }
+
+        viewModelScope.launch {
+            val result = transactionRepository.commit(
+                CheckoutCommitRequest(
+                    cartLines = current.cartLines,
+                    cartSubtotalIdr = current.cartSubtotalIdr,
+                    paymentMethod = method,
+                    inputState = current.inputState,
+                ),
+            )
+            _uiState.update { state ->
+                result.fold(
+                    onSuccess = { outcome ->
+                        state.copy(
+                            commitStatus = CheckoutCommitStatus.Succeeded(
+                                invoiceNumber = outcome.invoiceNumber,
+                                totalAmountIdr = outcome.totalAmountIdr,
+                                changeAmountIdr = outcome.changeAmountIdr,
+                            ),
+                        )
+                    },
+                    onFailure = { throwable ->
+                        state.copy(
+                            commitStatus = CheckoutCommitStatus.Failed(
+                                message = throwable.localizedMessage
+                                    ?: throwable.message
+                                    ?: DEFAULT_COMMIT_FAILURE_MESSAGE,
+                            ),
+                        )
+                    },
+                )
+            }
+        }
+    }
+
+    /**
+     * Reset [CheckoutUiState.commitStatus] from
+     * [CheckoutCommitStatus.Failed] back to
+     * [CheckoutCommitStatus.Idle] so [isReadyForCommit] becomes
+     * `true` again and the kasir can retry [commit].
+     *
+     * No-op when the current commit status is anything other
+     * than Failed — defensive against the catalogue route's
+     * `LaunchedEffect` firing redundantly.
+     */
+    fun acknowledgeCommitFailure() {
+        _uiState.update { state ->
+            if (state.commitStatus !is CheckoutCommitStatus.Failed) return@update state
+            state.copy(commitStatus = CheckoutCommitStatus.Idle)
+        }
+    }
+
+    /**
      * Map a confirmed [PaymentMethod] to the per-method input
      * state shape the slice-4 UI expects. Returns `null` for
      * methods that don't need a per-method input (single-tap
@@ -299,5 +407,10 @@ class CheckoutViewModel @Inject constructor(
         PaymentMethod.EDC -> CheckoutInputState.EdcInput()
         PaymentMethod.QRIS_DYNAMIC -> CheckoutInputState.QrisDynamicInput()
         else -> null
+    }
+
+    private companion object {
+        private const val DEFAULT_COMMIT_FAILURE_MESSAGE: String =
+            "Tidak bisa menyimpan transaksi. Coba lagi."
     }
 }
