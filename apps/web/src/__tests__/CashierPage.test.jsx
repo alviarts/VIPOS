@@ -157,3 +157,145 @@ describe('CashierPage stock handling', () => {
     );
   });
 });
+
+// `toWireCode()` integration — paired with PR #236. The kasir UI keeps
+// using lowercase ids (`cash`, `card`, `qris`) for state management so
+// the existing `paymentMethod === 'cash'` branches keep working, but at
+// submit time the body to `POST /api/transactions` MUST be the canonical
+// uppercase code from `WIRE_CODE_FROM_UI_ID` so the backend allow-list
+// (`apps/backend/src/lib/payment-methods.js`) accepts it under the new
+// strict contract. If a future refactor drops the `toWireCode()` call
+// the kasir would silently start sending lowercase codes again — these
+// tests fail loud at that boundary.
+describe('CashierPage submits canonical uppercase payment_method via toWireCode()', () => {
+  beforeEach(() => {
+    apiGetMock.mockImplementation((url) => {
+      if (url.startsWith('/products')) return Promise.resolve({ data: PRODUCTS });
+      if (url === '/categories') return Promise.resolve({ data: CATEGORIES });
+      return Promise.resolve({ data: [] });
+    });
+    // Successful transaction response so handlePayment falls through to
+    // the receipt + cart-clear branch instead of erroring.
+    apiPostMock.mockResolvedValue({
+      data: {
+        invoice_number: 'TX-TEST-0001',
+        items: [{ product_name: 'Air Mineral 600ml', quantity: 1, subtotal: 4000 }],
+        total_amount: 4000,
+      },
+    });
+  });
+
+  afterEach(() => {
+    apiGetMock.mockReset();
+    apiPostMock.mockReset();
+    toastErrorMock.mockReset();
+    toastSuccessMock.mockReset();
+  });
+
+  // Helper: render, add Air Mineral once, open payment modal. Cart total
+  // = 4000, paymentAmount auto-fills to 4000 on modal open so the cash
+  // branch's `amount < cartTotal` check passes without further input.
+  async function setupCartAndOpenPayment() {
+    render(<CashierPage />);
+    await waitFor(() => {
+      expect(screen.getByText('Air Mineral 600ml')).toBeInTheDocument();
+    });
+    const airButton = screen.getByText('Air Mineral 600ml').closest('button');
+    fireEvent.click(airButton);
+    const bayarButton = screen.getByRole('button', { name: /Bayar/i });
+    fireEvent.click(bayarButton);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Proses Pembayaran/i })).toBeInTheDocument();
+    });
+  }
+
+  it("translates UI id 'cash' -> 'CASH' in the POST body", async () => {
+    await setupCartAndOpenPayment();
+    fireEvent.click(screen.getByRole('button', { name: /Proses Pembayaran/i }));
+
+    await waitFor(() => {
+      expect(apiPostMock).toHaveBeenCalledTimes(1);
+    });
+    const [url, body] = apiPostMock.mock.calls[0];
+    expect(url).toBe('/transactions');
+    expect(body.payment_method).toBe('CASH');
+    expect(body.payment_amount).toBe(4000);
+    expect(body.items).toEqual([{ product_id: 2, price: 4000, quantity: 1 }]);
+  });
+
+  it("translates UI id 'card' -> 'EDC' in the POST body", async () => {
+    await setupCartAndOpenPayment();
+    fireEvent.click(screen.getByRole('button', { name: /Kartu/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Proses Pembayaran/i }));
+
+    await waitFor(() => {
+      expect(apiPostMock).toHaveBeenCalledTimes(1);
+    });
+    const [url, body] = apiPostMock.mock.calls[0];
+    expect(url).toBe('/transactions');
+    expect(body.payment_method).toBe('EDC');
+    expect(body.payment_amount).toBe(4000);
+  });
+
+  it("translates UI id 'qris' -> 'QRIS_STATIC' in the POST body", async () => {
+    await setupCartAndOpenPayment();
+    fireEvent.click(screen.getByRole('button', { name: /QRIS/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Proses Pembayaran/i }));
+
+    await waitFor(() => {
+      expect(apiPostMock).toHaveBeenCalledTimes(1);
+    });
+    const [url, body] = apiPostMock.mock.calls[0];
+    expect(url).toBe('/transactions');
+    expect(body.payment_method).toBe('QRIS_STATIC');
+    expect(body.payment_amount).toBe(4000);
+  });
+
+  it('never sends a lowercase legacy code to /api/transactions for any of the three kasir buttons', async () => {
+    // Loop guard against a regression that drops the `toWireCode()` call
+    // and silently reverts to lowercase. Each of the three kasir buttons
+    // submits a SEPARATE transaction; we render ONCE and dismiss the
+    // receipt modal between iterations so we don't end up with stacked
+    // CashierPage instances in the DOM (the helper would re-render).
+    const FORBIDDEN = ['cash', 'card', 'qris'];
+    const expectedByLabel = { Tunai: 'CASH', Kartu: 'EDC', QRIS: 'QRIS_STATIC' };
+
+    render(<CashierPage />);
+    await waitFor(() => {
+      expect(screen.getByText('Air Mineral 600ml')).toBeInTheDocument();
+    });
+
+    for (const [label, expected] of Object.entries(expectedByLabel)) {
+      apiPostMock.mockClear();
+      // Add a single Air Mineral to a freshly-emptied cart, open the
+      // payment modal, then pick the method under test.
+      const airButton = screen.getByText('Air Mineral 600ml').closest('button');
+      fireEvent.click(airButton);
+      fireEvent.click(screen.getByRole('button', { name: /Bayar/i }));
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Proses Pembayaran/i })).toBeInTheDocument();
+      });
+      // 'Tunai' is selected by default; we still click it to be explicit.
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(label, 'i') }));
+      fireEvent.click(screen.getByRole('button', { name: /Proses Pembayaran/i }));
+
+      await waitFor(() => {
+        expect(apiPostMock).toHaveBeenCalledTimes(1);
+      });
+      const body = apiPostMock.mock.calls[0][1];
+      expect(body.payment_method).toBe(expected);
+      expect(FORBIDDEN).not.toContain(body.payment_method);
+
+      // Dismiss the receipt modal so the next iteration's queries don't
+      // trip on the receipt's product line item, and the kasir page
+      // returns to its empty-cart resting state.
+      const transaksiBaruButton = await screen.findByRole('button', {
+        name: /Transaksi Baru/i,
+      });
+      fireEvent.click(transaksiBaruButton);
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: /Transaksi Baru/i })).not.toBeInTheDocument();
+      });
+    }
+  });
+});
