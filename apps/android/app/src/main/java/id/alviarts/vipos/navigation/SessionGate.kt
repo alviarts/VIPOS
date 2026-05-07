@@ -18,7 +18,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
- * Cold-start session gate (P3-03d).
+ * Session gate (P3-03d + P3-03f).
  *
  * Sits between [androidx.compose.material3.Surface] and the
  * nav graph: while [SessionViewModel] resolves whether a
@@ -30,10 +30,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
  *    persisted display name), so the user skips the login form.
  *  - [SessionRestoration.NotRestored] → login.
  *
- * The gate runs exactly once per process — the
- * SessionViewModel's `init` block fires the
- * `authRepository.restoreSession()` call and stores the result
- * in a StateFlow that survives recomposition.
+ * The gate is **reactive** — `SessionViewModel` observes
+ * `TokenStorage.sessions` continuously, so the gate transitions
+ * back to the `NotRestored` branch whenever the persisted
+ * session is cleared (logout in P3-03d, 401-driven invalidation
+ * in P3-03f). The transition rebuilds [VIPOSNavHost] rooted at
+ * `Login`, bouncing the user mid-session without explicit
+ * navigation calls at the call site.
  */
 @Composable
 fun SessionGate(
