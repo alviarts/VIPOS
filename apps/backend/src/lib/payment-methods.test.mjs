@@ -5,8 +5,11 @@ const {
   KNOWN_PAYMENT_METHOD_CODES,
   LEGACY_LOWERCASE_CODES,
   ANDROID_CANONICAL_CODES,
+  LEGACY_TO_CANONICAL,
   isKnownPaymentMethodCode,
   listKnownPaymentMethodCodes,
+  canonicalizePaymentMethod,
+  canonicalPaymentMethodSql,
 } = paymentMethods;
 
 describe('payment-methods allow-list', () => {
@@ -165,5 +168,102 @@ describe('listKnownPaymentMethodCodes() iteration ordering', () => {
     const list = listKnownPaymentMethodCodes();
     expect(list.length).toBe(LEGACY_LOWERCASE_CODES.length + ANDROID_CANONICAL_CODES.length);
     expect(new Set(list).size).toBe(list.length);
+  });
+});
+
+// `LEGACY_TO_CANONICAL` + `canonicalizePaymentMethod()` + `canonicalPaymentMethodSql()`
+// drive the dashboard / reports aggregation fix that merges legacy `cash`/
+// `card`/`qris` rows into the canonical `CASH`/`EDC`/`QRIS_STATIC` buckets.
+// These tests pin the contract so a future legacy-code addition fails loud
+// if any of the three sides drifts.
+describe('LEGACY_TO_CANONICAL map', () => {
+  it('covers every legacy lowercase code with a canonical Android equivalent', () => {
+    for (const legacy of LEGACY_LOWERCASE_CODES) {
+      expect(typeof LEGACY_TO_CANONICAL[legacy]).toBe('string');
+      expect(ANDROID_CANONICAL_CODES).toContain(LEGACY_TO_CANONICAL[legacy]);
+    }
+  });
+
+  it('matches the kasir UI translation table verbatim', () => {
+    expect(LEGACY_TO_CANONICAL).toEqual({
+      cash: 'CASH',
+      card: 'EDC',
+      qris: 'QRIS_STATIC',
+    });
+  });
+
+  it('is frozen so a stray runtime mutation cannot corrupt aggregations', () => {
+    expect(Object.isFrozen(LEGACY_TO_CANONICAL)).toBe(true);
+    expect(() => {
+      LEGACY_TO_CANONICAL.bitcoin = 'BITCOIN';
+    }).toThrow(TypeError);
+    expect(() => {
+      LEGACY_TO_CANONICAL.cash = 'mutated';
+    }).toThrow(TypeError);
+  });
+});
+
+describe('canonicalizePaymentMethod()', () => {
+  it('maps each legacy lowercase code to its canonical Android equivalent', () => {
+    expect(canonicalizePaymentMethod('cash')).toBe('CASH');
+    expect(canonicalizePaymentMethod('card')).toBe('EDC');
+    expect(canonicalizePaymentMethod('qris')).toBe('QRIS_STATIC');
+  });
+
+  it('returns canonical codes verbatim (idempotent)', () => {
+    for (const code of ANDROID_CANONICAL_CODES) {
+      expect(canonicalizePaymentMethod(code)).toBe(code);
+    }
+  });
+
+  it('returns unknown strings verbatim — no implicit normalisation', () => {
+    expect(canonicalizePaymentMethod('Cash')).toBe('Cash'); // case-sensitive, no fold
+    expect(canonicalizePaymentMethod('CASH ')).toBe('CASH '); // no trim
+    expect(canonicalizePaymentMethod('bitcoin')).toBe('bitcoin');
+    expect(canonicalizePaymentMethod('')).toBe('');
+  });
+
+  it('returns non-string inputs verbatim without throwing', () => {
+    expect(canonicalizePaymentMethod(undefined)).toBe(undefined);
+    expect(canonicalizePaymentMethod(null)).toBe(null);
+    expect(canonicalizePaymentMethod(42)).toBe(42);
+    const obj = { code: 'cash' };
+    expect(canonicalizePaymentMethod(obj)).toBe(obj);
+  });
+});
+
+describe('canonicalPaymentMethodSql()', () => {
+  it('emits a CASE expression keyed off LOWER(column) covering every legacy code', () => {
+    const sql = canonicalPaymentMethodSql('t.payment_method');
+    // The fragment is interpolated via template literal in the routes,
+    // so it MUST use the exact column reference the caller passed in.
+    expect(sql).toContain('LOWER(t.payment_method)');
+    expect(sql).toContain("WHEN 'cash' THEN 'CASH'");
+    expect(sql).toContain("WHEN 'card' THEN 'EDC'");
+    expect(sql).toContain("WHEN 'qris' THEN 'QRIS_STATIC'");
+    // The ELSE branch falls through to the raw column so canonical
+    // codes (CASH, EDC, ...) and any unknown future code are returned
+    // verbatim — never silently rewritten.
+    expect(sql).toContain('ELSE t.payment_method');
+    expect(sql).toMatch(/CASE/);
+    expect(sql).toMatch(/END\s*$/);
+  });
+
+  it('honours the column reference verbatim — no shadowing, no quoting', () => {
+    expect(canonicalPaymentMethodSql('payment_method')).toContain('LOWER(payment_method)');
+    expect(canonicalPaymentMethodSql('t.payment_method')).toContain('LOWER(t.payment_method)');
+    // Aliased table prefixes are passed through untouched so a
+    // multi-table join can disambiguate (e.g. `t.payment_method` vs
+    // `o.payment_method` for an orders join).
+    expect(canonicalPaymentMethodSql('o.payment_method')).toContain('LOWER(o.payment_method)');
+  });
+
+  it('covers every entry in LEGACY_TO_CANONICAL — no map drift', () => {
+    // Defensive guard: if a future PR adds `gopay -> GOPAY` to
+    // LEGACY_TO_CANONICAL but forgets to extend the SQL, this fails.
+    const sql = canonicalPaymentMethodSql('payment_method');
+    for (const [legacy, canonical] of Object.entries(LEGACY_TO_CANONICAL)) {
+      expect(sql).toContain(`WHEN '${legacy}' THEN '${canonical}'`);
+    }
   });
 });
