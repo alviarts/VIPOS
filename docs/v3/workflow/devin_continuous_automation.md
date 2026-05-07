@@ -77,13 +77,13 @@ yang butuh downtime > 5 detik.
 
 ## 3. Resources & secrets (org-scope, permanent)
 
-| Env var (canonical)         | Legacy alias         | Purpose                                                                              |
-| --------------------------- | -------------------- | ------------------------------------------------------------------------------------ |
-| `GIT_PAT`                   | `GITHUB_PAT_VIPOS`   | Direct REST API + git push fallback ketika `git-manager.devin.ai/proxy` returns 403. |
-| `VPS_SSH_PASSWORD`          | `VPS_PASSWORD`       | Root SSH ke VPS `103.74.5.44` (sshpass).                                             |
-| `VIPOS_SENTRY_DSN_BACKEND`  | —                    | Sentry DSN backend init.                                                             |
-| `VIPOS_SENTRY_DSN_FRONTEND` | —                    | Sentry DSN frontend init (Vite-injected via `define`).                               |
-| `SENTRY_AUTH_TOKEN`         | —                    | Source-maps upload via `@sentry/vite-plugin`.                                        |
+| Env var (canonical)         | Legacy alias       | Purpose                                                                              |
+| --------------------------- | ------------------ | ------------------------------------------------------------------------------------ |
+| `GIT_PAT`                   | `GITHUB_PAT_VIPOS` | Direct REST API + git push fallback ketika `git-manager.devin.ai/proxy` returns 403. |
+| `VPS_SSH_PASSWORD`          | `VPS_PASSWORD`     | Root SSH ke VPS `103.74.5.44` (sshpass).                                             |
+| `VIPOS_SENTRY_DSN_BACKEND`  | —                  | Sentry DSN backend init.                                                             |
+| `VIPOS_SENTRY_DSN_FRONTEND` | —                  | Sentry DSN frontend init (Vite-injected via `define`).                               |
+| `SENTRY_AUTH_TOKEN`         | —                  | Source-maps upload via `@sentry/vite-plugin`.                                        |
 
 > **Naming note**: This doc uses the env-var names actually injected
 > into recent Devin VMs (`GIT_PAT`, `VPS_SSH_PASSWORD`). Prior
@@ -94,7 +94,6 @@ yang butuh downtime > 5 detik.
 > `export GITHUB_PAT_VIPOS="$GIT_PAT"`. Any future rename of the
 > stored secret should update this table first so this doc stays
 > the source of truth.
-
 
 **Backups on VPS** (mode 600, root-only):
 
