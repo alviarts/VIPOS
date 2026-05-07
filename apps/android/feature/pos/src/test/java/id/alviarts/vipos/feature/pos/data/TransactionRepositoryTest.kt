@@ -132,8 +132,13 @@ class TransactionRepositoryTest {
         assertTrue(body.contains("\"payment_amount\":50000"))
         // Canonical Android code for the method.
         assertTrue(body.contains("\"payment_method\":\"CASH\""))
-        // Slice 5b doesn't expose a notes field; always null.
-        assertTrue(body.contains("\"notes\":null"))
+        // Slice 5b doesn't expose a notes field. The kotlinx-serialization
+        // converter at NetworkClientFactory uses the default
+        // `encodeDefaults = false` + `explicitNulls = true` config, which
+        // means a nullable property with a `= null` default is dropped from
+        // the wire entirely (rather than emitted as `"notes":null`). The
+        // backend handler accepts a body without `notes`, so this is fine.
+        assertFalse("body=$body", body.contains("\"notes\""))
     }
 
     @Test
@@ -403,11 +408,17 @@ class TransactionRepositoryTest {
     }
 
     @Test
-    fun `null notes is omitted on the wire as JSON null`() = runTest {
-        // Slice-5b doesn't expose a notes field, so the request DTO
-        // always serialises `notes` as `null`. Document that
-        // contract here so a future slice that adds a notes input
-        // doesn't accidentally drop the field.
+    fun `null notes is dropped from the wire body entirely`() = runTest {
+        // Slice-5b doesn't expose a notes field. With the
+        // network module's default kotlinx-serialization config
+        // (encodeDefaults = false), the nullable `notes` property
+        // with a `= null` default gets dropped from the wire
+        // entirely — the request body has neither `"notes":null`
+        // nor a `"notes"` key at all. The backend handler at
+        // `apps/backend/src/routes/transactions.js` accepts a body
+        // without `notes` (treats it as null), so this is fine.
+        // Pinning this here so a future slice that adds a notes
+        // input field doesn't silently regress the wire shape.
         server.enqueue(
             MockResponse().setResponseCode(201).setBody(
                 """
@@ -439,10 +450,7 @@ class TransactionRepositoryTest {
         ).getOrThrow()
 
         val body = server.takeRequest().body.readUtf8()
-        // The kotlinx-serialization default emits `null` rather than
-        // dropping the key — pinning this so future converter
-        // config tweaks don't silently change the wire shape.
-        assertTrue("body=$body", body.contains("\"notes\":null"))
+        assertFalse("body=$body", body.contains("\"notes\""))
     }
 
     @Test
