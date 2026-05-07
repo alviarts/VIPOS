@@ -16,6 +16,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -26,7 +27,8 @@ import java.util.concurrent.AbstractExecutorService
 import java.util.concurrent.TimeUnit
 
 /**
- * Unit tests for [PosVariantViewModel] (P3-07 second slice).
+ * Unit tests for [PosVariantViewModel] (P3-07 second + third
+ * slices).
  *
  * Mirrors the [id.alviarts.vipos.feature.auth.ui.LoginViewModelTest]
  * pattern: a real [PosRepository] backed by [MockWebServer] +
@@ -49,6 +51,15 @@ import java.util.concurrent.TimeUnit
  *  - **Retry re-fetches the currently-targeted product** —
  *    [PosVariantViewModel.retry] is a no-op before any
  *    [PosVariantViewModel.loadFor] call.
+ *  - **Auto-default-pick on first Loaded** — every group with at
+ *    least one option lands with a non-null selection so the
+ *    sheet opens with a valid pick.
+ *  - **Per-group selection is independent** — picking an option
+ *    in one group never disturbs selections in other groups.
+ *  - **Defensive selectOption** — silently ignores unknown
+ *    `groupName` / `optionId`.
+ *  - **Pivot-clears-selections** — pivoting to a new product
+ *    clears the selection map alongside the groups.
  */
 class PosVariantViewModelTest {
 
@@ -263,6 +274,204 @@ class PosVariantViewModelTest {
 
         val state = vm.uiState.first { it.loadStatus is VariantLoadStatus.Loaded }
         assertEquals("Topping", state.groups.single().name)
+    }
+
+    // ---- P3-07 third slice — selection state ---------------------
+
+    @Test
+    fun `Loaded auto-picks the is_default-flagged option in each group`() = runTest(testDispatcher) {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """
+                [
+                  {"id": 11, "product_id": 7, "group_name": "Ukuran",
+                   "option_label": "Reguler", "price_modifier": 0,
+                   "is_default": 1, "sort_order": 0},
+                  {"id": 12, "product_id": 7, "group_name": "Ukuran",
+                   "option_label": "Large", "price_modifier": 4000,
+                   "is_default": 0, "sort_order": 1},
+                  {"id": 21, "product_id": 7, "group_name": "Topping",
+                   "option_label": "Keju", "price_modifier": 5000,
+                   "is_default": 0, "sort_order": 0},
+                  {"id": 22, "product_id": 7, "group_name": "Topping",
+                   "option_label": "Cokelat", "price_modifier": 6000,
+                   "is_default": 1, "sort_order": 1}
+                ]
+                """.trimIndent(),
+            ),
+        )
+        val vm = PosVariantViewModel(repository)
+
+        vm.loadFor(productId = 7)
+        val state = vm.uiState.first { it.loadStatus is VariantLoadStatus.Loaded }
+
+        assertEquals(11L, state.selectedOptionIdsByGroup["Ukuran"])
+        assertEquals(22L, state.selectedOptionIdsByGroup["Topping"])
+        assertTrue("ready to add to cart once every group is picked", state.isReadyToAddToCart)
+        assertEquals(
+            "selected uplift = Reguler(0) + Cokelat(6000) = 6000",
+            6_000L,
+            state.selectedPriceUpliftIdr,
+        )
+    }
+
+    @Test
+    fun `Loaded falls back to first option when no row is is_default-flagged`() = runTest(testDispatcher) {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """
+                [
+                  {"id": 30, "product_id": 9, "group_name": "Suhu",
+                   "option_label": "Panas", "price_modifier": 0,
+                   "is_default": 0, "sort_order": 0},
+                  {"id": 31, "product_id": 9, "group_name": "Suhu",
+                   "option_label": "Dingin", "price_modifier": 2000,
+                   "is_default": 0, "sort_order": 1}
+                ]
+                """.trimIndent(),
+            ),
+        )
+        val vm = PosVariantViewModel(repository)
+
+        vm.loadFor(productId = 9)
+        val state = vm.uiState.first { it.loadStatus is VariantLoadStatus.Loaded }
+
+        assertEquals(30L, state.selectedOptionIdsByGroup["Suhu"])
+        assertTrue(state.isReadyToAddToCart)
+        assertEquals(0L, state.selectedPriceUpliftIdr)
+    }
+
+    @Test
+    fun `selectOption replaces the selection in the picked group only`() = runTest(testDispatcher) {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """
+                [
+                  {"id": 11, "product_id": 7, "group_name": "Ukuran",
+                   "option_label": "Reguler", "price_modifier": 0,
+                   "is_default": 1, "sort_order": 0},
+                  {"id": 12, "product_id": 7, "group_name": "Ukuran",
+                   "option_label": "Large", "price_modifier": 4000,
+                   "is_default": 0, "sort_order": 1},
+                  {"id": 21, "product_id": 7, "group_name": "Topping",
+                   "option_label": "Keju", "price_modifier": 5000,
+                   "is_default": 1, "sort_order": 0}
+                ]
+                """.trimIndent(),
+            ),
+        )
+        val vm = PosVariantViewModel(repository)
+        vm.loadFor(productId = 7)
+        vm.uiState.first { it.loadStatus is VariantLoadStatus.Loaded }
+
+        vm.selectOption(groupName = "Ukuran", optionId = 12L)
+        val state = vm.uiState.value
+
+        assertEquals(12L, state.selectedOptionIdsByGroup["Ukuran"])
+        assertEquals(
+            "Topping selection must NOT be disturbed",
+            21L,
+            state.selectedOptionIdsByGroup["Topping"],
+        )
+        // Updated uplift = Large(4000) + Keju(5000) = 9000.
+        assertEquals(9_000L, state.selectedPriceUpliftIdr)
+    }
+
+    @Test
+    fun `selectOption is a no-op for unknown group or option ids`() = runTest(testDispatcher) {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """[{"id": 11, "product_id": 7, "group_name": "Ukuran",
+                    "option_label": "Reguler", "price_modifier": 0,
+                    "is_default": 1, "sort_order": 0}]""".trimIndent(),
+            ),
+        )
+        val vm = PosVariantViewModel(repository)
+        vm.loadFor(productId = 7)
+        val before = vm.uiState.first { it.loadStatus is VariantLoadStatus.Loaded }
+
+        vm.selectOption(groupName = "Tidak Ada", optionId = 11L) // unknown group
+        vm.selectOption(groupName = "Ukuran", optionId = 9999L)  // unknown option
+
+        assertEquals(
+            "selection map must be unchanged after both no-ops",
+            before.selectedOptionIdsByGroup,
+            vm.uiState.value.selectedOptionIdsByGroup,
+        )
+    }
+
+    @Test
+    fun `pivoting to a different productId clears the selection map`() = runTest(testDispatcher) {
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """[{"id": 11, "product_id": 1, "group_name": "Ukuran",
+                    "option_label": "Reguler", "price_modifier": 0,
+                    "is_default": 1, "sort_order": 0}]""".trimIndent(),
+            ),
+        )
+        val vm = PosVariantViewModel(repository)
+        vm.loadFor(productId = 1)
+        vm.uiState.first { it.loadStatus is VariantLoadStatus.Loaded }
+        // Move off the auto-default so we can detect a clear vs. a re-default.
+        // (Only Reguler exists, so selectOption is a no-op here; we need a
+        // group with two options to distinguish.) — trivially still Reguler.
+
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """[{"id": 21, "product_id": 2, "group_name": "Topping",
+                    "option_label": "Keju", "price_modifier": 5000,
+                    "is_default": 0, "sort_order": 0}]""".trimIndent(),
+            ),
+        )
+        vm.loadFor(productId = 2)
+        // Mid-pivot: Loading; selection map cleared synchronously alongside
+        // the groups list (state is consistent — no stale picks reference
+        // the previous product's options).
+        val mid = vm.uiState.value
+        assertEquals(VariantLoadStatus.Loading, mid.loadStatus)
+        assertEquals(
+            "selection map must be cleared on pivot",
+            emptyMap<String, Long>(),
+            mid.selectedOptionIdsByGroup,
+        )
+
+        // After Loaded: new product's groups + auto-default for the new groups.
+        val after = vm.uiState.first { it.loadStatus is VariantLoadStatus.Loaded }
+        assertEquals(21L, after.selectedOptionIdsByGroup["Topping"])
+        assertNull(after.selectedOptionIdsByGroup["Ukuran"])
+    }
+
+    @Test
+    fun `isReadyToAddToCart is true for an empty groups list`() = runTest(testDispatcher) {
+        // A product with zero variant rows lands in Loaded with empty
+        // groups; trivially ready (the modifier sheet wouldn't open
+        // for such a product, but the predicate must stay
+        // well-defined for callers that bind unconditionally).
+        server.enqueue(MockResponse().setResponseCode(200).setBody("[]"))
+        val vm = PosVariantViewModel(repository)
+        vm.loadFor(productId = 99)
+
+        val state = vm.uiState.first { it.loadStatus is VariantLoadStatus.Loaded }
+
+        assertTrue(state.isReadyToAddToCart)
+        assertEquals(0L, state.selectedPriceUpliftIdr)
+    }
+
+    @Test
+    fun `Loading state is NOT ready to add to cart and reports zero uplift`() = runTest(testDispatcher) {
+        // We want to read the state synchronously while Loading, so
+        // do NOT advanceUntilIdle inside this test.
+        server.enqueue(MockResponse().setResponseCode(200).setBody("[]"))
+        val vm = PosVariantViewModel(repository)
+
+        vm.loadFor(productId = 4)
+        val state = vm.uiState.value
+
+        assertEquals(VariantLoadStatus.Loading, state.loadStatus)
+        assertFalse("Loading state cannot satisfy the add-to-cart gate", state.isReadyToAddToCart)
+        assertEquals(0L, state.selectedPriceUpliftIdr)
+
+        advanceUntilIdle() // drain so the dispatcher doesn't leak the launch
     }
 }
 

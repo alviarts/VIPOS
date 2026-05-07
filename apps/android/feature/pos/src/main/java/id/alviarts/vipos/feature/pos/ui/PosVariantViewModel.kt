@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import id.alviarts.vipos.feature.pos.data.PosRepository
+import id.alviarts.vipos.feature.pos.domain.ProductVariantGroup
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -74,9 +75,15 @@ class PosVariantViewModel @Inject constructor(
         // for sheets that re-bind across catalogue taps.
         inFlightJob?.cancel()
         _uiState.update {
+            val isPivot = it.productId != productId
             it.copy(
                 productId = productId,
-                groups = if (it.productId == productId) it.groups else emptyList(),
+                groups = if (isPivot) emptyList() else it.groups,
+                // Pivot: clear selections so the mid-pivot state doesn't
+                // reference the previous product's option ids. Same-product
+                // re-fetch (retry) keeps the selection map so the kasir's
+                // picks survive a transient network blip.
+                selectedOptionIdsByGroup = if (isPivot) emptyMap() else it.selectedOptionIdsByGroup,
                 loadStatus = VariantLoadStatus.Loading,
             )
         }
@@ -96,6 +103,12 @@ class PosVariantViewModel @Inject constructor(
                         state.copy(
                             loadStatus = VariantLoadStatus.Loaded,
                             groups = groups,
+                            // Auto-pick the default option in each group on first
+                            // Loaded — see [autoDefaultSelections]. Pivot-to-different
+                            // product cleared the previous selections in the
+                            // synchronous Loading transition above, so we never carry
+                            // stale picks across products.
+                            selectedOptionIdsByGroup = autoDefaultSelections(groups),
                         )
                     },
                     onFailure = { throwable ->
@@ -113,6 +126,28 @@ class PosVariantViewModel @Inject constructor(
     }
 
     /**
+     * Pick [optionId] inside [groupName]. Replaces any previous
+     * selection in the same group; selections in other groups
+     * are untouched.
+     *
+     * Silently no-ops if [groupName] doesn't match any loaded
+     * group, or if [optionId] doesn't belong to that group's
+     * options. The Compose layer wires this directly to the
+     * radio-row tap, so a defensive no-op (rather than a throw)
+     * keeps a future race between a tap and a re-fetch from
+     * crashing the sheet.
+     */
+    fun selectOption(groupName: String, optionId: Long) {
+        _uiState.update { state ->
+            val group = state.groups.firstOrNull { it.name == groupName } ?: return@update state
+            if (group.options.none { it.id == optionId }) return@update state
+            state.copy(
+                selectedOptionIdsByGroup = state.selectedOptionIdsByGroup + (groupName to optionId),
+            )
+        }
+    }
+
+    /**
      * Re-fetch variants for the currently-targeted product. No-op
      * if no product has been loaded yet. Use this for the retry
      * button on the sheet's error banner.
@@ -125,5 +160,31 @@ class PosVariantViewModel @Inject constructor(
     private companion object {
         private const val DEFAULT_ERROR_MESSAGE: String =
             "Tidak bisa memuat varian produk. Coba lagi."
+
+        /**
+         * Auto-pick one option per group on first Loaded:
+         *  1. The option flagged `isDefault=true` if any (matches
+         *     the backend's `is_default` semantics — there should
+         *     only ever be one default per group, but the backend
+         *     doesn't enforce that, so the FIRST default-flagged
+         *     row wins as a deterministic tie-break).
+         *  2. Otherwise the first option in display order
+         *     (already sorted by [PosRepository] before reaching
+         *     here).
+         *
+         * Groups with zero options are skipped (defensive — the
+         * repository drops malformed group rows so this shouldn't
+         * happen in practice).
+         */
+        private fun autoDefaultSelections(
+            groups: List<ProductVariantGroup>,
+        ): Map<String, Long> = buildMap {
+            for (group in groups) {
+                val pick = group.options.firstOrNull { it.isDefault }
+                    ?: group.options.firstOrNull()
+                    ?: continue
+                put(group.name, pick.id)
+            }
+        }
     }
 }
