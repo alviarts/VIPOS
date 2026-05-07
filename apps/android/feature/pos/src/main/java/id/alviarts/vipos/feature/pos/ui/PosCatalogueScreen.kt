@@ -30,13 +30,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
+import android.widget.Toast
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -44,6 +47,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.alviarts.vipos.core.designsystem.theme.VIPOSTheme
 import id.alviarts.vipos.feature.pos.domain.CartItem
+import id.alviarts.vipos.feature.pos.domain.CheckoutCartLine
 import id.alviarts.vipos.feature.pos.domain.Product
 import id.alviarts.vipos.core.designsystem.format.formatIdrLabel
 
@@ -114,17 +118,27 @@ fun PosCatalogueRoute(
         onDecrement = catalogueViewModel::decrement,
         onRemoveFromCart = catalogueViewModel::removeFromCart,
         onCheckout = {
-            // P3-08 slice 5a: open the picker with the current
-            // cart subtotal snapshotted into CheckoutViewModel.
+            // P3-08 slice 5a + 5b: open the picker with the
+            // current cart subtotal AND a snapshot of the cart
+            // lines snapshotted into CheckoutViewModel.
             // `isOnline = true` is the kasir-online default for
             // this slice — a follow-up will pipe a real network
             // signal in (slice 5c+). Cart-aware filters
             // (CartAwarePaymentMethodCatalog) layer on top via the
             // PosModule binding once a CartContext provider lands
             // (separate Tier-1 follow-up).
+            //
+            // The line snapshot is what slice 5b sends as
+            // `items[]` on `POST /api/v1/transactions`; capturing
+            // it here (rather than re-reading the catalogue cart
+            // at commit time) means the kasir adding/removing
+            // items in the background while the sheet is open
+            // does NOT silently rewrite the in-flight commit
+            // payload.
             checkoutViewModel.start(
                 cartSubtotalIdr = state.cartSubtotalIdr,
                 isOnline = true,
+                cartLines = state.cart.map(CheckoutCartLine::fromCartItem),
             )
         },
     )
@@ -169,21 +183,50 @@ fun PosCatalogueRoute(
             onSetCashTendered = checkoutViewModel::setCashTendered,
             onSetEdcApprovalRef = checkoutViewModel::setEdcApprovalRef,
             onSetEdcLast4 = checkoutViewModel::setEdcLast4,
-            onCommit = {
-                // Slice 5a placeholder: settle dismisses the sheet.
-                // Slice 5b will replace this with a TransactionRepository
-                // call against `POST /api/v1/transactions` (cart payload
-                // already carries the (productId, unitPriceUpliftIdr)
-                // tuple from P3-07 slice 5 + the per-method input state
-                // already lives on `checkoutState.inputState`), and on
-                // success will also clear the catalogue cart and toast
-                // a receipt summary. Cancel-dismiss for now keeps the
-                // CTA reachable from the slice-4 dialogs without
-                // pretending the transaction has been persisted.
-                checkoutViewModel.cancel()
-            },
+            onCommit = checkoutViewModel::commit,
             onDismiss = checkoutViewModel::cancel,
         )
+    }
+
+    // P3-08 slice 5b — observe `commitStatus` transitions and
+    // run the side-effects.
+    //
+    //  - `Succeeded` → clear the catalogue cart so the kasir
+    //    starts fresh, toast the "Tersimpan #INV-NNN" receipt,
+    //    then `cancel()` to flip the sheet back to Idle (which
+    //    also resets `commitStatus`).
+    //  - `Failed`    → toast the human-readable error so the
+    //    kasir knows what happened. The state stays in `Failed`
+    //    until the kasir taps "Bayar" again — slice-4 CTA
+    //    enabled-state already gates on `isReadyForCommit` which
+    //    becomes `false` while in `Failed`, so the kasir must
+    //    explicitly acknowledge by re-tapping. We acknowledge on
+    //    next tap by clearing the failure inside the route's tap
+    //    handler before re-firing `commit()`.
+    //
+    // The keyed `LaunchedEffect` re-runs on every status change
+    // (the data classes have value semantics so subsequent
+    // `Succeeded(invoiceNumber=…)` instances with the same
+    // payload still refire — we always emit the side-effects on
+    // the EDGE into Succeeded, not on identity).
+    val context = LocalContext.current
+    LaunchedEffect(checkoutState.commitStatus) {
+        when (val status = checkoutState.commitStatus) {
+            is CheckoutCommitStatus.Succeeded -> {
+                catalogueViewModel.clearCart()
+                Toast.makeText(
+                    context,
+                    "Tersimpan ${status.invoiceNumber} — kembalian ${formatIdrLabel(status.changeAmountIdr)}",
+                    Toast.LENGTH_LONG,
+                ).show()
+                checkoutViewModel.cancel()
+            }
+            is CheckoutCommitStatus.Failed -> {
+                Toast.makeText(context, status.message, Toast.LENGTH_LONG).show()
+            }
+            CheckoutCommitStatus.Submitting,
+            CheckoutCommitStatus.Idle -> Unit
+        }
     }
 }
 

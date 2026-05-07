@@ -1,6 +1,8 @@
 package id.alviarts.vipos.feature.pos.data
 
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -46,4 +48,30 @@ interface PosApi {
     suspend fun listVariants(
         @Path("id") productId: Long,
     ): List<ProductVariantDto>
+
+    /**
+     * Commit a kasir transaction (P3-08 slice 5b).
+     *
+     * Backend handler at `apps/backend/src/routes/transactions.js`
+     * inserts a `transactions` row + per-item `transaction_items`
+     * rows + decrements `products.stock` per line atomically.
+     * Returns 201 with the canonical row including the
+     * server-generated invoice number + computed change amount.
+     *
+     * Failure modes (all 4xx / 5xx surface as Retrofit
+     * `HttpException` upstream):
+     *  - 400 `{error:"Minimal satu produk harus dipilih"}` — empty `items`.
+     *  - 400 `{error:"Metode pembayaran tidak dikenali", allowed:[…]}` —
+     *    `payment_method` outside allow-list.
+     *  - 400 `{error:"Pembayaran kurang dari total belanja"}` —
+     *    `payment_amount < total`.
+     *  - 500 `{error:"Stok ${name} tidak mencukupi (tersedia: N)"}` —
+     *    insufficient stock for any line.
+     *  - 500 `{error:"Produk dengan ID N tidak ditemukan"}` — unknown
+     *    product id.
+     */
+    @POST("api/v1/transactions")
+    suspend fun createTransaction(
+        @Body body: TransactionRequestDto,
+    ): TransactionResponseDto
 }
