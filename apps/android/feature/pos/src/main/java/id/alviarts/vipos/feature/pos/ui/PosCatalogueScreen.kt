@@ -72,15 +72,18 @@ fun PosCatalogueRoute(
     onBack: () -> Unit,
     catalogueViewModel: PosCatalogueViewModel = hiltViewModel(),
     variantViewModel: PosVariantViewModel = hiltViewModel(),
+    checkoutViewModel: CheckoutViewModel = hiltViewModel(),
 ) {
-    // Material 3 ModalBottomSheet (used inside PosVariantSheet) is
-    // still flagged ExperimentalMaterial3Api in the version pinned
-    // by :feature:pos. The opt-in propagates through PosVariantSheet's
-    // default `sheetState = rememberModalBottomSheetState(...)`
-    // parameter, so the call site here must opt in too — same
-    // posture as PosCatalogueScreen below.
+    // Material 3 ModalBottomSheet (used inside PosVariantSheet AND
+    // CheckoutSheet) is still flagged ExperimentalMaterial3Api in
+    // the version pinned by :feature:pos. The opt-in propagates
+    // through PosVariantSheet's and CheckoutSheet's default
+    // `sheetState = rememberModalBottomSheetState(...)` parameter,
+    // so the call site here must opt in too — same posture as
+    // PosCatalogueScreen below.
     val state by catalogueViewModel.uiState.collectAsStateWithLifecycle()
     val variantState by variantViewModel.uiState.collectAsStateWithLifecycle()
+    val checkoutState by checkoutViewModel.uiState.collectAsStateWithLifecycle()
 
     // Per-tap target product. Held at the route level (not inside
     // either ViewModel) because the sheet is a UI-mode concern that
@@ -111,10 +114,18 @@ fun PosCatalogueRoute(
         onDecrement = catalogueViewModel::decrement,
         onRemoveFromCart = catalogueViewModel::removeFromCart,
         onCheckout = {
-            // P3-08 introduces the checkout payment picker. For
-            // P3-06 we keep the action wired but leave the
-            // implementation as a no-op so the visual hierarchy
-            // (subtotal row + primary CTA) stays representative.
+            // P3-08 slice 5a: open the picker with the current
+            // cart subtotal snapshotted into CheckoutViewModel.
+            // `isOnline = true` is the kasir-online default for
+            // this slice — a follow-up will pipe a real network
+            // signal in (slice 5c+). Cart-aware filters
+            // (CartAwarePaymentMethodCatalog) layer on top via the
+            // PosModule binding once a CartContext provider lands
+            // (separate Tier-1 follow-up).
+            checkoutViewModel.start(
+                cartSubtotalIdr = state.cartSubtotalIdr,
+                isOnline = true,
+            )
         },
     )
 
@@ -140,6 +151,38 @@ fun PosCatalogueRoute(
             },
             onRetry = variantViewModel::retry,
             onDismiss = { pendingProduct = null },
+        )
+    }
+
+    // P3-08 slice 5a — checkout sheet is mounted whenever the
+    // CheckoutViewModel has been started (Picking) or is on the
+    // method-specific input step (Picked). The Idle state means
+    // the kasir hasn't tapped "Bayar" (or has cancelled), so the
+    // sheet should not be in the tree.
+    if (checkoutState.pickerStatus !is CheckoutPickerStatus.Idle) {
+        CheckoutSheet(
+            state = checkoutState,
+            onSelectMethod = checkoutViewModel::selectMethod,
+            onClearSelection = checkoutViewModel::clearSelection,
+            onConfirmSelection = checkoutViewModel::confirmSelection,
+            onReopenPicker = checkoutViewModel::reopenPicker,
+            onSetCashTendered = checkoutViewModel::setCashTendered,
+            onSetEdcApprovalRef = checkoutViewModel::setEdcApprovalRef,
+            onSetEdcLast4 = checkoutViewModel::setEdcLast4,
+            onCommit = {
+                // Slice 5a placeholder: settle dismisses the sheet.
+                // Slice 5b will replace this with a TransactionRepository
+                // call against `POST /api/v1/transactions` (cart payload
+                // already carries the (productId, unitPriceUpliftIdr)
+                // tuple from P3-07 slice 5 + the per-method input state
+                // already lives on `checkoutState.inputState`), and on
+                // success will also clear the catalogue cart and toast
+                // a receipt summary. Cancel-dismiss for now keeps the
+                // CTA reachable from the slice-4 dialogs without
+                // pretending the transaction has been persisted.
+                checkoutViewModel.cancel()
+            },
+            onDismiss = checkoutViewModel::cancel,
         )
     }
 }
@@ -416,7 +459,12 @@ private fun CartPanel(
                 enabled = cart.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Lanjut ke pembayaran (P3-08)")
+                // P3-08 slice 5a: button now mounts the
+                // CheckoutSheet via PosCatalogueRoute. The
+                // backend transaction commit lands in slice 5b
+                // and replaces the placeholder `cancel()` in the
+                // route's `onCommit` callback.
+                Text("Bayar")
             }
         }
     }
