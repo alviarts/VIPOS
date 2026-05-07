@@ -44,8 +44,7 @@ import id.alviarts.vipos.core.designsystem.theme.VIPOSTheme
 import id.alviarts.vipos.feature.pos.domain.CheckoutInputState
 import id.alviarts.vipos.feature.pos.domain.PaymentMethod
 import id.alviarts.vipos.feature.pos.domain.QrisPollStatus
-import java.text.NumberFormat
-import java.util.Locale
+import id.alviarts.vipos.core.designsystem.format.formatIdrLabel
 
 /**
  * P3-08 fourth slice — Compose UI for the checkout / payment-
@@ -94,8 +93,9 @@ import java.util.Locale
  *    [onReopenPicker] and a "Bayar" CTA gated on
  *    [CheckoutUiState.isReadyForCommit].
  *
- * Indonesian copy, IDR formatting via the same locale-aware
- * [NumberFormat] used by the catalogue screen + variant sheet.
+ * Indonesian copy, IDR formatting via the shared
+ * [formatIdrLabel] helper used by the catalogue screen +
+ * variant sheet.
  */
 
 /**
@@ -830,23 +830,6 @@ private fun CommitCtaRow(
             Text(label)
         }
     }
-}
-
-// -- Helpers --------------------------------------------------
-
-/**
- * Locale-aware IDR formatting helper. Kept local to this file
- * so the checkout sheet stays self-contained; the catalogue
- * screen + variant sheet have their own identical helpers.
- * All three use `id-ID` grouping with no fractional digits —
- * VIPOS prices are whole-rupiah.
- */
-private fun formatIdrLabel(amount: Long): String {
-    val formatter = NumberFormat.getNumberInstance(Locale("id", "ID")).apply {
-        maximumFractionDigits = 0
-        minimumFractionDigits = 0
-    }
-    return "Rp " + formatter.format(amount)
 }
 
 // -- Previews --------------------------------------------------

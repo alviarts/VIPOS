@@ -34,8 +34,7 @@ import androidx.compose.ui.unit.dp
 import id.alviarts.vipos.core.designsystem.theme.VIPOSTheme
 import id.alviarts.vipos.feature.pos.domain.ProductVariantGroup
 import id.alviarts.vipos.feature.pos.domain.ProductVariantOption
-import java.text.NumberFormat
-import java.util.Locale
+import id.alviarts.vipos.core.designsystem.format.formatIdrLabel
 
 /**
  * P3-07 fourth slice — Compose UI for the variant / modifier
@@ -92,8 +91,8 @@ import java.util.Locale
  *
  * Indonesian copy is consistent with the existing
  * [PosCatalogueScreen] surface ("Tambah ke pesanan",
- * "Coba lagi", IDR formatting via the same locale-aware
- * [NumberFormat]).
+ * "Coba lagi", IDR formatting via the shared
+ * [formatIdrLabel] helper).
  */
 
 /**
@@ -352,7 +351,7 @@ private fun chipLabel(option: ProductVariantOption): String {
     val uplift = option.priceModifierIdr
     if (uplift == 0L) return option.label
     val sign = if (uplift > 0L) "+" else "-"
-    return "${option.label}  $sign ${formatIdr(kotlin.math.abs(uplift))}"
+    return "${option.label}  $sign ${formatIdrLabel(kotlin.math.abs(uplift))}"
 }
 
 @Composable
@@ -420,21 +419,9 @@ private fun AddToCartRow(
     }
 }
 
-private fun formatIdr(amount: Long): String {
-    // Kept local to this file so the variant sheet stays
-    // self-contained; the catalogue screen has its own
-    // identical helper. Both use `id-ID` locale grouping with
-    // no fractional digits — VIPOS prices are whole-rupiah.
-    val formatter = NumberFormat.getNumberInstance(Locale("id", "ID")).apply {
-        maximumFractionDigits = 0
-        minimumFractionDigits = 0
-    }
-    return "Rp " + formatter.format(amount)
-}
-
 private fun formatUplift(amount: Long): String {
     val sign = if (amount < 0L) "-" else "+"
-    return "$sign ${formatIdr(kotlin.math.abs(amount))}"
+    return "$sign ${formatIdrLabel(kotlin.math.abs(amount))}"
 }
 
 // -- Previews --------------------------------------------------
