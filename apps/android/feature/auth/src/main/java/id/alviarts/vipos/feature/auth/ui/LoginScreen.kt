@@ -20,6 +20,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,11 +36,12 @@ import id.alviarts.vipos.core.designsystem.theme.VIPOSTheme
 /**
  * Composable entry point for the login feature (P3-03b).
  *
- * The host (currently `MainActivity`; the nav graph host lands
- * in P3-08) calls this to mount the login flow. On successful
- * authentication, [onAuthenticated] is fired with the
- * authenticated user's display name so the host can swap to the
- * post-login surface.
+ * The host (the nav graph in [id.alviarts.vipos.navigation.VIPOSNavHost]
+ * since P3-08) calls this to mount the login flow. On successful
+ * authentication, [onAuthenticated] is fired exactly once with
+ * the user's display name so the host can navigate to the home
+ * destination; [LaunchedEffect] keyed on the authStatus instance
+ * guarantees it isn't re-entered on every recomposition.
  */
 @Composable
 fun AuthRoute(
@@ -48,35 +50,24 @@ fun AuthRoute(
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val status = uiState.authStatus
 
-    when (val status = uiState.authStatus) {
-        is AuthStatus.Authenticated -> {
-            // The fully-authenticated branch — surface the user
-            // and a logout-soon placeholder. P3-08's nav graph
-            // replaces this with a real navigation to home.
-            AuthenticatedScreen(name = status.user.name)
-            // Fire the host callback exactly once. Compose will
-            // call this on every recomposition while this branch
-            // is active, but onAuthenticated implementations
-            // upstream are idempotent (they just navigate).
-            onAuthenticated(status.user.name)
+    LaunchedEffect(status) {
+        when (status) {
+            is AuthStatus.Authenticated -> onAuthenticated(status.user.name)
+            is AuthStatus.Requires2FA -> onRequires2FA(status.loginToken)
+            else -> Unit
         }
-        is AuthStatus.Requires2FA -> {
-            // P3-03c will replace this placeholder with a real
-            // 2FA challenge screen. Today we surface the state
-            // and bubble the login_token up so the host can log it.
-            Requires2FAPlaceholder()
-            onRequires2FA(status.loginToken)
-        }
-        else -> LoginScreen(
-            state = uiState,
-            onUsernameChange = viewModel::onUsernameChange,
-            onPasswordChange = viewModel::onPasswordChange,
-            onRememberMeToggle = viewModel::onRememberMeToggle,
-            onSubmit = viewModel::submit,
-            onDismissError = viewModel::dismissError,
-        )
     }
+
+    LoginScreen(
+        state = uiState,
+        onUsernameChange = viewModel::onUsernameChange,
+        onPasswordChange = viewModel::onPasswordChange,
+        onRememberMeToggle = viewModel::onRememberMeToggle,
+        onSubmit = viewModel::submit,
+        onDismissError = viewModel::dismissError,
+    )
 }
 
 @Composable
@@ -219,64 +210,11 @@ internal fun LoginScreen(
     onDismissError
 }
 
-@Composable
-private fun AuthenticatedScreen(name: String) {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                text = "Selamat datang,",
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Text(
-                text = name,
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Spacer(Modifier.height(16.dp))
-            Text(
-                text = "Layar kasir akan tersedia di P3-06.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun Requires2FAPlaceholder() {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                text = "Verifikasi 2FA dibutuhkan",
-                style = MaterialTheme.typography.headlineSmall,
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = "UI 2FA mendarat di P3-03c.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
+// Note: P3-08 moved the post-auth + 2FA placeholder surfaces out
+// of this file. The post-auth landing is now `:feature:home`'s
+// HomeScreen, reached via the nav graph in
+// id.alviarts.vipos.navigation.VIPOSNavHost. The 2FA challenge UI
+// lands in P3-03c as its own screen + ViewModel.
 
 @Preview(showBackground = true, widthDp = 412, heightDp = 892)
 @Composable

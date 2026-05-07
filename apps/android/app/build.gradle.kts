@@ -113,10 +113,14 @@ dependencies {
     implementation(project(":core:network"))
     implementation(project(":core:database"))
 
-    // P3-03a: feature modules. `:feature:auth` carries the data
-    // layer (Retrofit AuthApi + DataStore-backed TokenStorage +
-    // AuthRepository); the LoginScreen UI lands in P3-03b.
+    // P3-03a/b: feature modules. `:feature:auth` carries both the
+    // data layer (Retrofit AuthApi + DataStore TokenStorage +
+    // AuthRepository) and the LoginScreen UI.
     implementation(project(":feature:auth"))
+    // P3-08: post-auth landing destination. The kasir UI lands
+    // in P3-06; for now this module ships a placeholder
+    // HomeScreen that the nav graph routes to after login.
+    implementation(project(":feature:home"))
 
     implementation(libs.androidx.core.ktx)
     // Backport of the SplashScreen APIs (P3-01e) — provides a
@@ -132,6 +136,11 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+
+    // P3-08: navigation-compose hosts the in-app NavHost. The
+    // graph is defined in id.alviarts.vipos.navigation.VIPOSNavHost
+    // and currently routes between login + home.
+    implementation(libs.androidx.navigation.compose)
 
     // Hilt DI (P3-01b). KSP is the modern annotation processor — kapt
     // is deprecated for Hilt since 2.48. Hilt's own consumer ProGuard

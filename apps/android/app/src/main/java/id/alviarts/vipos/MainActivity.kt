@@ -12,7 +12,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import dagger.hilt.android.AndroidEntryPoint
 import id.alviarts.vipos.core.common.AppConfig
 import id.alviarts.vipos.core.designsystem.theme.VIPOSTheme
-import id.alviarts.vipos.feature.auth.ui.AuthRoute
+import id.alviarts.vipos.navigation.VIPOSNavHost
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -35,25 +35,18 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
 
         super.onCreate(savedInstanceState)
+        Log.i(TAG_BOOT, "cold start in env=${appConfig.environment}")
         setContent {
             VIPOSTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
-                    // P3-03b: replace the bootstrap-info screen with
-                    // the real login flow. AuthRoute owns its own
-                    // ViewModel (resolved through hiltViewModel()) and
-                    // surfaces post-auth state inline today; the nav
-                    // graph (P3-08) replaces the inline post-auth
-                    // surface with a real navigation transition.
-                    AuthRoute(
-                        onAuthenticated = { name ->
-                            Log.i(
-                                TAG_AUTH,
-                                "user authenticated: $name (env=${appConfig.environment})",
-                            )
-                        },
+                    // P3-08: replace the inline AuthRoute mount
+                    // with the real nav graph. VIPOSNavHost owns
+                    // the login + home destinations and the
+                    // transitions between them.
+                    VIPOSNavHost(
                         onRequires2FA = { token ->
                             Log.i(
                                 TAG_AUTH,
@@ -68,5 +61,6 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val TAG_AUTH = "VIPOS.Auth"
+        const val TAG_BOOT = "VIPOS.Boot"
     }
 }

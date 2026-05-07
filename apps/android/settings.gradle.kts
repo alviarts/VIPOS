@@ -32,3 +32,7 @@ include(":core:designsystem")
 include(":core:network")
 include(":core:database")
 include(":feature:auth")
+// P3-08: Home is the post-auth landing surface. The full kasir
+// UI lands in P3-06; for now this module ships a placeholder
+// HomeScreen that the nav graph routes to after login.
+include(":feature:home")
