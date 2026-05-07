@@ -55,3 +55,19 @@ data class AuthUserDto(
 data class LogoutRequestDto(
     @SerialName("refresh_token") val refreshToken: String,
 )
+
+/**
+ * Wire-shape for the 2FA continuation request (P3-03c).
+ *
+ * The backend's POST /api/v1/auth/login/2fa expects the
+ * `login_token` returned by the initial /login response plus
+ * the 6-digit TOTP code from the user's authenticator. The
+ * remember_me flag mirrors the /login one — when true the
+ * issued refresh token gets the long TTL.
+ */
+@Serializable
+data class Verify2FARequestDto(
+    @SerialName("login_token") val loginToken: String,
+    @SerialName("code") val code: String,
+    @SerialName("remember_me") val rememberMe: Boolean = false,
+)
