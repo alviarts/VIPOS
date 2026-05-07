@@ -6,6 +6,20 @@ const { isKnownPaymentMethodCode, listKnownPaymentMethodCodes } = require('../li
 
 const router = express.Router();
 
+// Per-second counter that increments on every invoice generated within
+// the same wall-clock second. Combined with a 6-digit random tail this
+// makes a (tenant_id, invoice_number) collision astronomically rare —
+// the (tenant_id, invoice_number) UNIQUE INDEX in
+// `prisma/migrations/20260505400000_per_tenant_unique_indexes` started
+// firing intermittently in CI on the
+// `transactions-payment-method-allowlist.test.mjs > TC-2 > "OTHER"`
+// case (~17 inserts in the same second; 3-digit rand → ~13% birthday
+// collision probability per run). Bumping rand to 6 digits drops that
+// to <0.001%; the per-second counter eliminates it entirely for any
+// monotonic stream from a single backend instance.
+let _lastSecondKey = '';
+let _withinSecondCounter = 0;
+
 function generateInvoiceNumber() {
   const now = new Date();
   const y = now.getFullYear().toString().slice(-2);
@@ -14,10 +28,18 @@ function generateInvoiceNumber() {
   const h = String(now.getHours()).padStart(2, '0');
   const min = String(now.getMinutes()).padStart(2, '0');
   const s = String(now.getSeconds()).padStart(2, '0');
-  const rand = Math.floor(Math.random() * 1000)
+  const secondKey = `${y}${m}${d}${h}${min}${s}`;
+  if (secondKey === _lastSecondKey) {
+    _withinSecondCounter += 1;
+  } else {
+    _lastSecondKey = secondKey;
+    _withinSecondCounter = 0;
+  }
+  const counter = _withinSecondCounter.toString().padStart(3, '0');
+  const rand = Math.floor(Math.random() * 1000000)
     .toString()
-    .padStart(3, '0');
-  return `INV${y}${m}${d}${h}${min}${s}${rand}`;
+    .padStart(6, '0');
+  return `INV${secondKey}${counter}${rand}`;
 }
 
 // Create transaction
@@ -241,3 +263,7 @@ router.post('/:id/void', authenticateToken, async (req, res) => {
 });
 
 module.exports = router;
+// Exposed for unit tests in `__tests__/generate-invoice-number.test.mjs`
+// — the per-second counter + 6-digit rand contract has to be pinned
+// so a future refactor can't silently regress the collision fix.
+module.exports.generateInvoiceNumber = generateInvoiceNumber;
