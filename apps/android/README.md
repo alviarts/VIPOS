@@ -28,7 +28,8 @@ Subsequent sub-PRs in the P3-01 series will add:
 | P3-04      | done (PR #195) | Room database scaffold — `VIPOSDatabase` + `KeyValueCacheEntity` + DAO + Hilt providers |
 | P3-03b     | done (PR #196) | LoginScreen Compose + `LoginViewModel` + replaces bootstrap surface in `MainActivity`   |
 | P3-08      | done (PR #197) | Navigation graph — `VIPOSNavHost` + `:feature:home` placeholder + login → home wiring   |
-| **P3-03d** | this PR        | Auto-login restoration — persist user snapshot in DataStore + `SessionGate` skips login |
+| P3-03d     | done (PR #199) | Auto-login restoration — persist user snapshot in DataStore + `SessionGate` skips login |
+| **P3-03c** | this PR        | 2FA challenge UI — `TwoFactorScreen` + `verify2fa` API + Login → TwoFactor → Home wire  |
 
 ### Database (`:core:database`)
 

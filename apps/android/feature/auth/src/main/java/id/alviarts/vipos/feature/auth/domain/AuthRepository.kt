@@ -5,6 +5,7 @@ import id.alviarts.vipos.feature.auth.data.AuthUserDto
 import id.alviarts.vipos.feature.auth.data.LoginRequestDto
 import id.alviarts.vipos.feature.auth.data.LoginResponseDto
 import id.alviarts.vipos.feature.auth.data.LogoutRequestDto
+import id.alviarts.vipos.feature.auth.data.Verify2FARequestDto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import retrofit2.HttpException
@@ -112,6 +113,75 @@ class AuthRepository @Inject constructor(
     } catch (e: HttpException) {
         LoginResult.Failure(
             message = "Login gagal (HTTP ${e.code()})",
+            throwable = e,
+        )
+    } catch (e: IOException) {
+        LoginResult.Failure(
+            message = "Tidak bisa terhubung ke server",
+            throwable = e,
+        )
+    }
+
+    /**
+     * Continue a login flow that previously returned
+     * [LoginResult.Requires2FA] (P3-03c).
+     *
+     * The `login_token` from the initial /login response is
+     * exchanged plus the user's 6-digit TOTP code for a real
+     * access + refresh token bundle. On success the bundle is
+     * persisted to [TokenStorage] before this returns, mirroring
+     * the [login] happy path so the caller can route straight
+     * into the home destination.
+     *
+     * The backend's /login/2fa response shape is identical to
+     * /login (token + refresh_token + expires_in + user) so the
+     * same DTO mapper folds both into [LoginResult.Success]. A
+     * second `requires_2fa: true` is impossible per the backend
+     * contract — but if it ever happened the mapper would
+     * surface it as a fresh [LoginResult.Requires2FA] and the
+     * caller could re-prompt.
+     */
+    suspend fun verify2fa(
+        loginToken: String,
+        code: String,
+        rememberMe: Boolean = false,
+    ): LoginResult = try {
+        val response = api.verify2fa(
+            Verify2FARequestDto(
+                loginToken = loginToken,
+                code = code,
+                rememberMe = rememberMe,
+            ),
+        )
+        response.toLoginResult().also { result ->
+            if (result is LoginResult.Success) {
+                tokenStorage.save(
+                    AuthSession(
+                        tokens = AuthTokens(
+                            accessToken = result.accessToken,
+                            refreshToken = response.refreshToken
+                                ?: error("Backend returned token without refresh_token"),
+                            accessExpiresAtEpochSec =
+                                (System.currentTimeMillis() / 1000) +
+                                    (response.expiresIn ?: ACCESS_TOKEN_TTL_FALLBACK_SEC),
+                        ),
+                        user = result.user,
+                    ),
+                )
+            }
+        }
+    } catch (e: HttpException) {
+        // Backend returns 401 on wrong code or expired login_token;
+        // surface a friendly Indonesian copy. The body would be
+        // `{ "error": "Kode 2FA salah" }` but we keep the wording
+        // local to the app so a backend rewording doesn't change
+        // user-facing copy.
+        LoginResult.Failure(
+            message = if (e.code() == 401) {
+                "Kode 2FA salah atau sesi sudah berakhir"
+            } else {
+                "Verifikasi 2FA gagal (HTTP ${e.code()})"
+            },
             throwable = e,
         )
     } catch (e: IOException) {

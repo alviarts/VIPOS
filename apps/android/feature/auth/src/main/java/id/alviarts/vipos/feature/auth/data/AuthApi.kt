@@ -5,21 +5,25 @@ import retrofit2.http.Header
 import retrofit2.http.POST
 
 /**
- * Retrofit interface for the `/api/v1/auth/...` endpoints (P3-03a).
+ * Retrofit interface for the `/api/v1/auth/...` endpoints
+ * (P3-03a + P3-03c).
  *
  * The backend's `auth.js` router (mounted under `/api/v1/auth`)
  * exposes:
- *  - `POST /login`  — username + password (+ optional remember_me)
- *  - `POST /logout` — invalidates the supplied refresh token
+ *  - `POST /login`     — username + password (+ optional remember_me)
+ *  - `POST /login/2fa` — continuation when /login returned `requires_2fa`
+ *  - `POST /logout`    — invalidates the supplied refresh token
  *
- * For the data-layer scaffold we only wire the username/password
- * happy path. The 2FA continuation (`POST /login/2fa`) lands later
- * in P3-03c when the LoginScreen UI gates on the `requires_2fa`
- * branch returned by the server.
+ * The 2FA continuation reuses the same response shape as /login
+ * (token + refresh_token + expires_in + user), so the repository
+ * folds both into a single `LoginResult.Success`.
  */
 interface AuthApi {
     @POST("api/v1/auth/login")
     suspend fun login(@Body request: LoginRequestDto): LoginResponseDto
+
+    @POST("api/v1/auth/login/2fa")
+    suspend fun verify2fa(@Body request: Verify2FARequestDto): LoginResponseDto
 
     @POST("api/v1/auth/logout")
     suspend fun logout(
