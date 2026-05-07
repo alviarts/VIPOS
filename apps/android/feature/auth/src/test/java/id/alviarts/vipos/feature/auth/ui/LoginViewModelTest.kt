@@ -18,6 +18,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
@@ -29,6 +30,8 @@ import org.junit.Before
 import org.junit.Test
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import java.util.concurrent.AbstractExecutorService
+import java.util.concurrent.TimeUnit
 
 /**
  * Unit tests for the login + 2FA ViewModels (P3-03b + P3-03c).
@@ -76,7 +79,23 @@ class LoginViewModelTest {
             coerceInputValues = true
             isLenient = true
         }
+        // OkHttp's default Dispatcher posts AsyncCalls to a thread
+        // pool, so when a viewModelScope.launch{} body suspends on
+        // a Retrofit call, the response arrives on an OkHttp worker
+        // thread *after* the test's `advanceUntilIdle()` has already
+        // returned (the test dispatcher knows nothing about
+        // OkHttp's async work). The continuation then never runs
+        // and the final-state assertion sees a stale Submitting.
+        // A synchronous executor makes the AsyncCall run on the
+        // calling thread; with MockWebServer the response is in-
+        // process anyway, so the network round-trip completes
+        // before `enqueue` returns and the continuation lands back
+        // on `testDispatcher` for `advanceUntilIdle()` to drain.
+        val client = OkHttpClient.Builder()
+            .dispatcher(okhttp3.Dispatcher(SynchronousExecutorService()))
+            .build()
         val retrofit = Retrofit.Builder()
+            .client(client)
             .baseUrl(server.url("/"))
             .addConverterFactory(
                 json.asConverterFactory("application/json".toMediaType()),
@@ -416,4 +435,25 @@ private class FakeViewModelTokenStorage : TokenStorage {
     override suspend fun clear() {
         state.value = null
     }
+}
+
+/**
+ * Runs every submitted task on the calling thread synchronously.
+ * Wired into OkHttp's [okhttp3.Dispatcher] so that
+ * [okhttp3.Call.enqueue] does the network round-trip before
+ * returning, instead of handing it off to OkHttp's worker pool.
+ * That hand-off is what lets the response sneak past
+ * `runTest`'s virtual scheduler — see the comment in `setUp`.
+ */
+private class SynchronousExecutorService : AbstractExecutorService() {
+    @Volatile private var shutdown = false
+    override fun execute(command: Runnable) = command.run()
+    override fun shutdown() { shutdown = true }
+    override fun shutdownNow(): MutableList<Runnable> {
+        shutdown = true
+        return mutableListOf()
+    }
+    override fun isShutdown(): Boolean = shutdown
+    override fun isTerminated(): Boolean = shutdown
+    override fun awaitTermination(timeout: Long, unit: TimeUnit): Boolean = true
 }
