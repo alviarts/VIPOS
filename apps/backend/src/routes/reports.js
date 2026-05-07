@@ -19,6 +19,11 @@ const {
   ReportScheduleUpdateSchema,
 } = require('@vipos/shared');
 const { QUEUE_NAMES, isQueueEnabled, getOrCreateQueue, safeEnqueue } = require('../lib/queue');
+const {
+  LEGACY_TO_CANONICAL,
+  canonicalizePaymentMethod,
+  canonicalPaymentMethodSql,
+} = require('../lib/payment-methods');
 
 const router = express.Router();
 
@@ -57,7 +62,15 @@ function appendCashierFilter(where, ctx, cashierId) {
 }
 
 function appendPaymentFilter(where, ctx, method) {
-  if (method) where.push(`t.payment_method = ${ph(ctx, method)}`);
+  if (!method) return;
+  // Canonicalise BOTH the column and the param so a filter by `cash`
+  // matches `CASH` rows (and vice-versa) — pairs with the GROUP BY
+  // canonicalisation below. Without this, picking "Tunai" in the
+  // reports filter would silently drop legacy or canonical rows
+  // depending on which casing the caller used.
+  const canonical = canonicalPaymentMethodSql('t.payment_method');
+  const param = canonicalizePaymentMethod(method);
+  where.push(`${canonical} = ${ph(ctx, param)}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -220,14 +233,19 @@ router.get(
       )
     ).rows;
 
+    // Canonicalise so legacy lowercase rows (`cash`/`card`/`qris`,
+    // pre-#236) merge with the matching canonical Android codes
+    // (`CASH`/`EDC`/`QRIS_STATIC`) in the breakdown — see
+    // `lib/payment-methods.js`.
+    const canonical = canonicalPaymentMethodSql('t.payment_method');
     const paymentBreakdown = (
       await query(
-        `SELECT t.payment_method AS method,
+        `SELECT ${canonical} AS method,
                 COUNT(*) AS count,
                 COALESCE(SUM(t.total_amount), 0) AS total
          FROM transactions t
          WHERE ${whereSql}
-         GROUP BY t.payment_method`,
+         GROUP BY ${canonical}`,
         ctx.params
       )
     ).rows;
@@ -490,26 +508,40 @@ router.get(
   validate({ query: ReportFilterQuerySchema }),
   async (req, res) => {
     const { from, to } = defaultRange(req.query);
+    // Canonicalise so legacy lowercase rows merge with the matching
+    // canonical Android codes — otherwise this report shows two rows
+    // per logical method (e.g. `cash` + `CASH`).
+    const canonical = canonicalPaymentMethodSql('t.payment_method');
     const rows = (
       await query(
-        `SELECT t.payment_method AS method,
+        `SELECT ${canonical} AS method,
                 COUNT(*) AS transactions,
                 COALESCE(SUM(t.total_amount), 0) AS gross_amount
          FROM transactions t
          WHERE t.status = 'completed'
            AND DATE(t.created_at) BETWEEN $1 AND $2
-         GROUP BY t.payment_method
+         GROUP BY ${canonical}
          ORDER BY gross_amount DESC`,
         [from, to]
       )
     ).rows;
+    // The `payment_methods` reference table is seeded with legacy
+    // lowercase codes (`cash`/`card`/`qris`); the rows above are now
+    // canonicalised to uppercase. Build the lookup acc under BOTH the
+    // table's lowercased keys AND the canonical Android equivalent so
+    // an `EDC` row finds the `card` MDR config without a schema change.
     const mdrRows = (
       await query(
         `SELECT code, name, type, fee_percent, fee_flat FROM payment_methods WHERE is_active = 1`
       )
     ).rows.reduce((acc, row) => {
       const keys = [row.code, row.name, row.type].filter(Boolean);
-      for (const k of keys) acc[String(k).toLowerCase()] = row;
+      for (const k of keys) {
+        const lowered = String(k).toLowerCase();
+        acc[lowered] = row;
+        const canonicalEquivalent = LEGACY_TO_CANONICAL[lowered];
+        if (canonicalEquivalent) acc[canonicalEquivalent.toLowerCase()] = row;
+      }
       return acc;
     }, {});
     const enriched = rows.map((row) => {

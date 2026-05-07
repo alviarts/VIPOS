@@ -1,6 +1,7 @@
 const express = require('express');
 const { query } = require('../db');
 const { authenticateToken } = require('../middleware/auth');
+const { canonicalPaymentMethodSql } = require('../lib/payment-methods');
 
 const router = express.Router();
 
@@ -123,12 +124,20 @@ router.get('/payment-methods', authenticateToken, async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
 
+    // Canonicalise the column so legacy lowercase rows (`cash`/`card`/`qris`,
+    // pre-#236) and the matching canonical Android codes (`CASH`/`EDC`/
+    // `QRIS_STATIC`) merge into a single bucket — otherwise the dashboard
+    // pie chart shows two slices for "Tunai" until a backfill migration
+    // runs. See `lib/payment-methods.js` for the canonical map.
+    const canonical = canonicalPaymentMethodSql('payment_method');
     const methods = (
       await query(
-        `SELECT payment_method, COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total
+        `SELECT ${canonical} AS payment_method,
+                COUNT(*) AS count,
+                COALESCE(SUM(total_amount), 0) AS total
          FROM transactions
          WHERE DATE(created_at) = $1 AND status = 'completed'
-         GROUP BY payment_method`,
+         GROUP BY ${canonical}`,
         [today]
       )
     ).rows;
