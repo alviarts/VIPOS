@@ -32,6 +32,9 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -64,21 +67,50 @@ import java.util.Locale
  * prove the authenticated `GET /api/v1/products` round-trip
  * end-to-end — the kasir UX polish is incremental from there.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PosCatalogueRoute(
     onBack: () -> Unit,
-    viewModel: PosCatalogueViewModel = hiltViewModel(),
+    catalogueViewModel: PosCatalogueViewModel = hiltViewModel(),
+    variantViewModel: PosVariantViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // Material 3 ModalBottomSheet (used inside PosVariantSheet) is
+    // still flagged ExperimentalMaterial3Api in the version pinned
+    // by :feature:pos. The opt-in propagates through PosVariantSheet's
+    // default `sheetState = rememberModalBottomSheetState(...)`
+    // parameter, so the call site here must opt in too — same
+    // posture as PosCatalogueScreen below.
+    val state by catalogueViewModel.uiState.collectAsStateWithLifecycle()
+    val variantState by variantViewModel.uiState.collectAsStateWithLifecycle()
+
+    // Per-tap target product. Held at the route level (not inside
+    // either ViewModel) because the sheet is a UI-mode concern that
+    // the kasir can dismiss at any time — the catalogue VM doesn't
+    // need to know about it, and the variant VM is intentionally
+    // ignorant of which product entry point opened it. `null` means
+    // no sheet is currently open.
+    var pendingProduct by remember { mutableStateOf<Product?>(null) }
 
     PosCatalogueScreen(
         state = state,
         onBack = onBack,
-        onRefresh = viewModel::refresh,
-        onAddToCart = viewModel::addToCart,
-        onIncrement = viewModel::increment,
-        onDecrement = viewModel::decrement,
-        onRemoveFromCart = viewModel::removeFromCart,
+        onRefresh = catalogueViewModel::refresh,
+        onAddToCart = { product ->
+            // P3-07 fifth slice: the "Tambah" button now opens the
+            // variant sheet. Even products with zero variants flow
+            // through the sheet — they just land in the
+            // Loaded-empty body shape with the CTA enabled, so a
+            // single confirm-tap adds them to the cart with zero
+            // uplift. Skipping the sheet on known-no-variant
+            // products is a P3-08+ optimization once the catalogue
+            // payload includes a `has_variants` flag; until then,
+            // one extra confirm-tap is the simplest semantics.
+            pendingProduct = product
+            variantViewModel.loadFor(product.id)
+        },
+        onIncrement = catalogueViewModel::increment,
+        onDecrement = catalogueViewModel::decrement,
+        onRemoveFromCart = catalogueViewModel::removeFromCart,
         onCheckout = {
             // P3-08 introduces the checkout payment picker. For
             // P3-06 we keep the action wired but leave the
@@ -86,6 +118,31 @@ fun PosCatalogueRoute(
             // (subtotal row + primary CTA) stays representative.
         },
     )
+
+    val target = pendingProduct
+    if (target != null) {
+        PosVariantSheet(
+            state = variantState,
+            onSelectOption = variantViewModel::selectOption,
+            onAddToCart = {
+                // Snapshot the current selection on add so the cart
+                // line carries deterministic (option-id-stable)
+                // labels + uplift. A subsequent re-open of the
+                // sheet for the same product would re-fetch and
+                // could see a different default if the backend
+                // changed mid-session — capturing here keeps the
+                // running cart immune to that drift.
+                catalogueViewModel.addToCart(
+                    product = target,
+                    unitPriceUpliftIdr = variantState.selectedPriceUpliftIdr,
+                    selectedOptionLabels = variantState.selectedOptions.map { it.label },
+                )
+                pendingProduct = null
+            },
+            onRetry = variantViewModel::retry,
+            onDismiss = { pendingProduct = null },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -95,9 +152,9 @@ internal fun PosCatalogueScreen(
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onAddToCart: (Product) -> Unit,
-    onIncrement: (productId: Long) -> Unit,
-    onDecrement: (productId: Long) -> Unit,
-    onRemoveFromCart: (productId: Long) -> Unit,
+    onIncrement: (productId: Long, unitPriceUpliftIdr: Long) -> Unit,
+    onDecrement: (productId: Long, unitPriceUpliftIdr: Long) -> Unit,
+    onRemoveFromCart: (productId: Long, unitPriceUpliftIdr: Long) -> Unit,
     onCheckout: () -> Unit,
 ) {
     Scaffold(
@@ -291,9 +348,9 @@ private fun CartPanel(
     cart: List<CartItem>,
     subtotalIdr: Long,
     itemCount: Int,
-    onIncrement: (productId: Long) -> Unit,
-    onDecrement: (productId: Long) -> Unit,
-    onRemove: (productId: Long) -> Unit,
+    onIncrement: (productId: Long, unitPriceUpliftIdr: Long) -> Unit,
+    onDecrement: (productId: Long, unitPriceUpliftIdr: Long) -> Unit,
+    onRemove: (productId: Long, unitPriceUpliftIdr: Long) -> Unit,
     onCheckout: () -> Unit,
 ) {
     Surface(
@@ -327,11 +384,15 @@ private fun CartPanel(
             } else {
                 Spacer(Modifier.height(8.dp))
                 cart.forEach { item ->
+                    // Cart-line callbacks key on (productId,
+                    // unitPriceUpliftIdr) so two lines for the same
+                    // product with different modifier picks address
+                    // independently — see PosCatalogueViewModel.
                     CartLine(
                         item = item,
-                        onIncrement = { onIncrement(item.productId) },
-                        onDecrement = { onDecrement(item.productId) },
-                        onRemove = { onRemove(item.productId) },
+                        onIncrement = { onIncrement(item.productId, item.unitPriceUpliftIdr) },
+                        onDecrement = { onDecrement(item.productId, item.unitPriceUpliftIdr) },
+                        onRemove = { onRemove(item.productId, item.unitPriceUpliftIdr) },
                     )
                 }
             }
@@ -380,6 +441,17 @@ private fun CartLine(
                 text = item.name,
                 style = MaterialTheme.typography.bodyLarge,
             )
+            if (item.selectedOptionLabels.isNotEmpty()) {
+                // Comma-joined modifier picks under the product
+                // name — e.g. "Large, Less Sugar". Lets the kasir
+                // verify configuration at a glance without
+                // re-opening the sheet.
+                Text(
+                    text = item.selectedOptionLabels.joinToString(separator = ", "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
                 text = formatIdr(item.lineTotalIdr),
                 style = MaterialTheme.typography.bodySmall,
@@ -437,15 +509,26 @@ private fun PosCatalogueScreenPreview() {
                     Product(id = 2, name = "Croissant Coklat", priceIdr = 18000, categoryName = "Kue", sku = "KU-001"),
                 ),
                 cart = listOf(
-                    CartItem(productId = 1, name = "Es Kopi Susu", unitPriceIdr = 22000, quantity = 2),
+                    // Plain no-variant line (P3-06 shape).
+                    CartItem(productId = 2, name = "Croissant Coklat", unitPriceIdr = 18000, quantity = 1),
+                    // Variant-configured line (P3-07 fifth slice) — uplift
+                    // and option labels rendered as a subtitle.
+                    CartItem(
+                        productId = 1,
+                        name = "Es Kopi Susu",
+                        unitPriceIdr = 22000,
+                        quantity = 2,
+                        unitPriceUpliftIdr = 4000,
+                        selectedOptionLabels = listOf("Large", "Less Sugar"),
+                    ),
                 ),
             ),
             onBack = {},
             onRefresh = {},
             onAddToCart = {},
-            onIncrement = {},
-            onDecrement = {},
-            onRemoveFromCart = {},
+            onIncrement = { _, _ -> },
+            onDecrement = { _, _ -> },
+            onRemoveFromCart = { _, _ -> },
             onCheckout = {},
         )
     }

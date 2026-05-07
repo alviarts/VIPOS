@@ -73,9 +73,31 @@ class PosCatalogueViewModel @Inject constructor(
         }
     }
 
-    fun addToCart(product: Product) {
+    /**
+     * Append (or merge) a configured cart line for [product].
+     *
+     * Cart-line identity keys on (`productId`,
+     * `unitPriceUpliftIdr`) — adding the same product twice with
+     * the SAME modifier-uplift collapses into a single line with
+     * incremented quantity (the typical "kasir taps Tambah twice
+     * for two iced lattes" flow). Adding with a DIFFERENT
+     * uplift (e.g. once Large, once Small) creates a separate
+     * line so the cart can carry both configurations side by
+     * side without losing modifier picks.
+     *
+     * Defaults preserve P3-06 callers (no-variant products) —
+     * they pass just `product` and get the legacy zero-uplift,
+     * empty-labels semantics for free.
+     */
+    fun addToCart(
+        product: Product,
+        unitPriceUpliftIdr: Long = 0,
+        selectedOptionLabels: List<String> = emptyList(),
+    ) {
         _uiState.update { state ->
-            val existingIndex = state.cart.indexOfFirst { it.productId == product.id }
+            val existingIndex = state.cart.indexOfFirst {
+                it.productId == product.id && it.unitPriceUpliftIdr == unitPriceUpliftIdr
+            }
             val newCart = if (existingIndex >= 0) {
                 state.cart.mapIndexed { index, item ->
                     if (index == existingIndex) item.copy(quantity = item.quantity + 1) else item
@@ -86,32 +108,45 @@ class PosCatalogueViewModel @Inject constructor(
                     name = product.name,
                     unitPriceIdr = product.priceIdr,
                     quantity = 1,
+                    unitPriceUpliftIdr = unitPriceUpliftIdr,
+                    selectedOptionLabels = selectedOptionLabels,
                 )
             }
             state.copy(cart = newCart)
         }
     }
 
-    fun increment(productId: Long) {
+    /**
+     * Increment the cart line keyed by ([productId],
+     * [unitPriceUpliftIdr]). Silently no-ops if no line matches
+     * — same defensive contract as [decrement] and
+     * [removeFromCart].
+     */
+    fun increment(productId: Long, unitPriceUpliftIdr: Long = 0) {
         _uiState.update { state ->
             state.copy(
                 cart = state.cart.map { item ->
-                    if (item.productId == productId) item.copy(quantity = item.quantity + 1) else item
+                    if (item.productId == productId && item.unitPriceUpliftIdr == unitPriceUpliftIdr) {
+                        item.copy(quantity = item.quantity + 1)
+                    } else {
+                        item
+                    }
                 },
             )
         }
     }
 
     /**
-     * Decrement the quantity of [productId] by one. Removes the
-     * line when quantity would drop to zero so the cart never
-     * carries phantom zero-quantity rows.
+     * Decrement the cart line keyed by ([productId],
+     * [unitPriceUpliftIdr]) by one. Removes the line when
+     * quantity would drop to zero so the cart never carries
+     * phantom zero-quantity rows.
      */
-    fun decrement(productId: Long) {
+    fun decrement(productId: Long, unitPriceUpliftIdr: Long = 0) {
         _uiState.update { state ->
             state.copy(
                 cart = state.cart.mapNotNull { item ->
-                    if (item.productId != productId) {
+                    if (item.productId != productId || item.unitPriceUpliftIdr != unitPriceUpliftIdr) {
                         item
                     } else if (item.quantity <= 1) {
                         null
@@ -123,9 +158,13 @@ class PosCatalogueViewModel @Inject constructor(
         }
     }
 
-    fun removeFromCart(productId: Long) {
+    fun removeFromCart(productId: Long, unitPriceUpliftIdr: Long = 0) {
         _uiState.update { state ->
-            state.copy(cart = state.cart.filterNot { it.productId == productId })
+            state.copy(
+                cart = state.cart.filterNot {
+                    it.productId == productId && it.unitPriceUpliftIdr == unitPriceUpliftIdr
+                },
+            )
         }
     }
 
