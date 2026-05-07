@@ -1,8 +1,11 @@
 package id.alviarts.vipos.feature.pos.data
 
 import id.alviarts.vipos.feature.pos.domain.Product
+import id.alviarts.vipos.feature.pos.domain.ProductVariantGroup
+import id.alviarts.vipos.feature.pos.domain.ProductVariantOption
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.roundToLong
 
 /**
  * Bridges the wire-shape [PosApi] and the UI-shape [Product]
@@ -45,6 +48,76 @@ class PosRepository @Inject constructor(
                 .mapNotNull { it.toDomainOrNull() }
                 .sortedBy { it.name.lowercase() }
         }
+
+    /**
+     * Fetch the variant option groups for a single product (P3-07
+     * first slice).
+     *
+     * The backend route returns a flat array; this method folds it
+     * into [ProductVariantGroup]s keyed by `group_name` so the UI
+     * never has to group-by at render time. Returns
+     * [Result.success] with an empty list when:
+     *  - the backend returned `[]` (no variants for this product), or
+     *  - every row had a missing / blank `group_name` or
+     *    `option_label` (data-quality drop, same defensive posture
+     *    as [ProductDto.toDomainOrNull]).
+     *
+     * Returns [Result.failure] with the underlying exception on
+     * network IO, HTTP non-2xx, or JSON parsing.
+     *
+     * Order within each group: `sort_order ASC, id ASC` — same as
+     * the SQL on the backend so client + server agree on display
+     * order. Groups themselves are ordered by their first option's
+     * `sort_order` (and then by group name) so a natural left-to-
+     * right reading order on the variant sheet falls out for free.
+     */
+    suspend fun loadVariants(productId: Long): Result<List<ProductVariantGroup>> =
+        runCatching {
+            api.listVariants(productId).toDomainGroups()
+        }
+
+    private fun List<ProductVariantDto>.toDomainGroups(): List<ProductVariantGroup> {
+        // Fold the flat array into groups; preserve the index of the
+        // first option in each group so we can order groups left-to-
+        // right by their first option's sort_order. `sortOrder` is
+        // nullable on the wire — we treat null as `Int.MAX_VALUE` so
+        // historically-unlabelled rows fall to the end deterministically.
+        data class Acc(val firstSort: Int, val firstId: Long, val options: MutableList<ProductVariantOption>)
+
+        val acc = LinkedHashMap<String, Acc>()
+        for (row in this) {
+            val groupName = row.groupName?.trim().orEmpty()
+            val optionLabel = row.optionLabel?.trim().orEmpty()
+            if (groupName.isEmpty() || optionLabel.isEmpty()) continue
+            val option = ProductVariantOption(
+                id = row.id,
+                label = optionLabel,
+                priceModifierIdr = (row.priceModifier ?: 0.0).roundToLong(),
+                skuSuffix = row.skuSuffix?.trim()?.takeIf { it.isNotEmpty() },
+                stockOrNull = row.stock,
+                isDefault = (row.isDefault ?: 0) != 0,
+            )
+            val rowSort = row.sortOrder ?: Int.MAX_VALUE
+            val existing = acc[groupName]
+            if (existing == null) {
+                acc[groupName] = Acc(rowSort, row.id, mutableListOf(option))
+            } else {
+                existing.options.add(option)
+            }
+        }
+        return acc
+            .map { (name, bucket) ->
+                bucket to ProductVariantGroup(
+                    name = name,
+                    options = bucket.options.sortedWith(
+                        compareBy({ it.id }), // id ASC tie-break, group order is decided by Acc.firstSort
+                    ),
+                )
+            }
+            // Stable sort by (group's first sortOrder, group's first id).
+            .sortedWith(compareBy({ it.first.firstSort }, { it.first.firstId }))
+            .map { it.second }
+    }
 
     private fun ProductDto.toDomainOrNull(): Product? {
         val cleanName = name.trim()

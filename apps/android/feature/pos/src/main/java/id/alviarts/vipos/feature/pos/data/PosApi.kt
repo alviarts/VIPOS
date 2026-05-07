@@ -1,6 +1,7 @@
 package id.alviarts.vipos.feature.pos.data
 
 import retrofit2.http.GET
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 /**
@@ -30,4 +31,19 @@ interface PosApi {
         @Query("is_tampil_di_menu") tampilDiMenu: String? = null,
         @Query("category_id") categoryId: Long? = null,
     ): ProductsPageDto
+
+    /**
+     * Fetch the option groups + per-option price modifiers for a
+     * product (P3-07 first slice).
+     *
+     * The backend route in
+     * `apps/backend/src/routes/product-variants.js` returns a flat
+     * array of variant rows (see [ProductVariantDto]); the kasir UI
+     * groups them by `group_name` in [PosRepository.loadVariants].
+     * Returns an empty array for products without variants.
+     */
+    @GET("api/v1/products/{id}/variants")
+    suspend fun listVariants(
+        @Path("id") productId: Long,
+    ): List<ProductVariantDto>
 }

@@ -71,4 +71,13 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+
+    // P3-07 first slice: unit tests for the variant fetch + grouping
+    // pipeline. Same shape as :feature:auth — MockWebServer backs a
+    // real Retrofit-built [PosApi] so the test exercises the
+    // production wire-mapping; kotlinx-coroutines-test drives the
+    // suspend boundary deterministically.
+    testImplementation(libs.junit)
+    testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
