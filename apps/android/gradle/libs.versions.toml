@@ -56,6 +56,16 @@ lifecycleViewmodelCompose = "2.8.4"
 # latest 2.7.x stable for the Phase 3 timeframe.
 navigationCompose = "2.7.7"
 
+# Test stack (P3-10). JUnit 4 is the de-facto standard for Android
+# unit tests (AGP's `testDebugUnitTest` task is wired for it).
+# MockWebServer ships from the same OkHttp 4.12.x line so its
+# bytecode level matches the production OkHttp transitive deps.
+# Turbine is Cash App's tiny library for asserting against Flow
+# emissions in tests — `flow.test { ... awaitItem() }` is much less
+# noisy than the manual `toList(buffer)` + `advanceUntilIdle` dance.
+junit = "4.13.2"
+turbine = "1.1.0"
+
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
@@ -107,6 +117,19 @@ androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lif
 # is in beta and brings new type-safe destinations API which is not
 # Production-ready yet.
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+
+# P3-10 test stack. All `testImplementation`-only — these MUST NOT
+# leak into the production classpath.
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+# `okhttp-mockwebserver` inherits the OkHttp version (4.12.0) so the
+# bytecode it talks to lines up exactly with what the production
+# stack ships.
+okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "okhttp" }
+# `kotlinx-coroutines-test` provides `runTest`, `StandardTestDispatcher`,
+# `Dispatchers.setMain`, and friends — required to drive the
+# `viewModelScope`-rooted Flow inside `SessionViewModel` deterministically.
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
+turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -14,25 +14,26 @@ This module was bootstrapped in **PR P3-01a**. Currently:
 
 Subsequent sub-PRs in the P3-01 series will add:
 
-| Sub-PR     | Status         | Adds                                                                                     |
-| ---------- | -------------- | ---------------------------------------------------------------------------------------- |
-| P3-01a     | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow               |
-| P3-01b     | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)                |
-| P3-01e     | done (PR #187) | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                       |
-| P3-01c     | done (PR #188) | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database`  |
-| P3-01d     | done (PR #189) | Build flavors (`dev` / `staging` / `prod`) + per-flavor `BuildConfig` + CI matrix        |
-| P3-01f     | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)   |
-| P3-02      | done (PR #191) | Real Material 3 design system — full ColorScheme (light + dark), typography, shapes      |
-| P3-05      | done (PR #193) | Network client — OkHttp + Retrofit + kotlinx-serialization wired through Hilt            |
-| P3-03a     | done (PR #194) | Auth feature data layer — `AuthApi` + `TokenStorage` (DataStore) + `AuthRepository`      |
-| P3-04      | done (PR #195) | Room database scaffold — `VIPOSDatabase` + `KeyValueCacheEntity` + DAO + Hilt providers  |
-| P3-03b     | done (PR #196) | LoginScreen Compose + `LoginViewModel` + replaces bootstrap surface in `MainActivity`    |
-| P3-08      | done (PR #197) | Navigation graph — `VIPOSNavHost` + `:feature:home` placeholder + login → home wiring    |
-| P3-03d     | done (PR #199) | Auto-login restoration — persist user snapshot in DataStore + `SessionGate` skips login  |
-| P3-03c     | done (PR #200) | 2FA challenge UI — `TwoFactorScreen` + `verify2fa` API + Login → TwoFactor → Home wire   |
-| P3-09      | done (PR #202) | Schema-export-diff CI guard — fails CI when Room KSP regenerates schema JSON uncommitted |
-| P3-06      | done (PR #203) | First-cut kasir POS — `:feature:pos` catalogue/cart + OkHttp `AuthInterceptor` Bearer    |
-| **P3-03f** | this PR        | 401 → session invalidation — `SessionInvalidationInterceptor` + reactive `SessionGate`   |
+| Sub-PR    | Status         | Adds                                                                                     |
+| --------- | -------------- | ---------------------------------------------------------------------------------------- |
+| P3-01a    | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow               |
+| P3-01b    | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)                |
+| P3-01e    | done (PR #187) | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                       |
+| P3-01c    | done (PR #188) | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database`  |
+| P3-01d    | done (PR #189) | Build flavors (`dev` / `staging` / `prod`) + per-flavor `BuildConfig` + CI matrix        |
+| P3-01f    | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)   |
+| P3-02     | done (PR #191) | Real Material 3 design system — full ColorScheme (light + dark), typography, shapes      |
+| P3-05     | done (PR #193) | Network client — OkHttp + Retrofit + kotlinx-serialization wired through Hilt            |
+| P3-03a    | done (PR #194) | Auth feature data layer — `AuthApi` + `TokenStorage` (DataStore) + `AuthRepository`      |
+| P3-04     | done (PR #195) | Room database scaffold — `VIPOSDatabase` + `KeyValueCacheEntity` + DAO + Hilt providers  |
+| P3-03b    | done (PR #196) | LoginScreen Compose + `LoginViewModel` + replaces bootstrap surface in `MainActivity`    |
+| P3-08     | done (PR #197) | Navigation graph — `VIPOSNavHost` + `:feature:home` placeholder + login → home wiring    |
+| P3-03d    | done (PR #199) | Auto-login restoration — persist user snapshot in DataStore + `SessionGate` skips login  |
+| P3-03c    | done (PR #200) | 2FA challenge UI — `TwoFactorScreen` + `verify2fa` API + Login → TwoFactor → Home wire   |
+| P3-09     | done (PR #202) | Schema-export-diff CI guard — fails CI when Room KSP regenerates schema JSON uncommitted |
+| P3-06     | done (PR #203) | First-cut kasir POS — `:feature:pos` catalogue/cart + OkHttp `AuthInterceptor` Bearer    |
+| P3-03f    | done (PR #204) | 401 → session invalidation — `SessionInvalidationInterceptor` + reactive `SessionGate`   |
+| **P3-10** | this PR        | First-cut unit-test coverage — interceptors + `SessionViewModel` + CI test step          |
 
 ### Database (`:core:database`)
 
@@ -229,6 +230,30 @@ cd apps/android
 
 First run downloads ~500 MB of Gradle + AGP + Compose dependencies and takes ~1.5–2 min on a warm cache, ~5 min cold.
 
+## Testing
+
+After **P3-10** the Android side has its first unit-test coverage:
+
+- **`:core:network/AuthInterceptorTest`** — drives [`AuthInterceptor`](core/network/src/main/java/id/alviarts/vipos/core/network/AuthInterceptor.kt) through a real `MockWebServer` and asserts the outgoing request shape: Bearer is injected when token is non-blank and the path is authenticated, the explicit caller-provided header (e.g. logout's `@Header`) wins over the interceptor, and unauthenticated paths (`/auth/login`, `/auth/login/2fa`, `/auth/refresh`, `/health`) skip injection.
+- **`:core:network/SessionInvalidationInterceptorTest`** — covers the response-side counterpart: the callback fires exactly once on a 401 from an authenticated path, doesn't fire on 200/403/500, and is skipped on 401 from auth/login/2fa/refresh paths. A pairing test composes both interceptors so the integration matches what `:app/AppModule` wires.
+- **`:app/SessionViewModelTest`** — exercises the reactive `tokenStorage.sessions` observation landed in P3-03f using a `FakeTokenStorage` + Turbine. Covers cold-start (Loading → Restored / NotRestored), expired-token edge cases (token expires within the 10s safety margin), and the runtime transitions (Restored → NotRestored on session-clear, NotRestored → Restored on login).
+
+Run locally:
+
+```bash
+cd apps/android
+./gradlew :core:network:testDebugUnitTest :app:testDevDebugUnitTest
+```
+
+The same task runs in CI as a separate step in `.github/workflows/android.yml` after the assemble step.
+
+| Token                   | Pinned version  |
+| ----------------------- | --------------- |
+| junit                   | 4.13.2          |
+| okhttp-mockwebserver    | (inherits 4.12) |
+| kotlinx-coroutines-test | (inherits 1.8)  |
+| app.cash.turbine        | 1.1.0           |
+
 ## CI
 
 `.github/workflows/android.yml` runs on every push/PR that touches `apps/android/**` or the workflow itself. The job:
@@ -236,8 +261,10 @@ First run downloads ~500 MB of Gradle + AGP + Compose dependencies and takes ~1.
 1. Sets up JDK 17 (Temurin).
 2. Installs Android SDK via `android-actions/setup-android@v3`.
 3. Caches `~/.gradle/{caches,wrapper}` keyed by `*.gradle*` + `libs.versions.toml`.
-4. Runs `./gradlew :app:assembleDebug --no-daemon --stacktrace`.
-5. Uploads the resulting `app-debug.apk` as a 7-day-retention artifact (`vipos-android-debug-apk`).
+4. Runs `./gradlew :app:assembleDevDebug :app:assembleStagingDebug --no-daemon --stacktrace`.
+5. **P3-10**: runs `./gradlew :core:network:testDebugUnitTest :app:testDevDebugUnitTest` so the interceptor + `SessionViewModel` regressions surface as PR failures rather than runtime bugs.
+6. **P3-09**: verifies `core/database/schemas/` is clean vs. HEAD so a Room schema bump without a committed JSON fails the build.
+7. Uploads the dev + staging debug APKs as 7-day-retention artifacts.
 
 The path-filter keeps web/backend-only PRs from incurring the ~2 min Gradle cold-start.
 

@@ -43,4 +43,12 @@ dependencies {
     api(libs.retrofit)
     api(libs.retrofit.kotlinx.serialization.converter)
     api(libs.kotlinx.serialization.json)
+
+    // P3-10: unit-test deps — exercises the request-side
+    // `AuthInterceptor` (Bearer injection) and the response-side
+    // `SessionInvalidationInterceptor` (401 → callback) against
+    // a real `MockWebServer`. Stays under `testImplementation`
+    // so the test classpath is the only place these end up.
+    testImplementation(libs.junit)
+    testImplementation(libs.okhttp.mockwebserver)
 }
