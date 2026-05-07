@@ -94,6 +94,24 @@ yang butuh downtime > 5 detik.
 > `export GITHUB_PAT_VIPOS="$GIT_PAT"`. Any future rename of the
 > stored secret should update this table first so this doc stays
 > the source of truth.
+>
+> **Persistence pothole** (observed across two consecutive sessions
+> on 2026-05-07): "org-scope persistent" does NOT mean "always
+> auto-injected on session start". Both `GIT_PAT` and
+> `VPS_SSH_PASSWORD` have come back empty (`echo "${#GIT_PAT}" → 0`)
+> even though `list_secrets` confirms they're in the org store.
+> First-thing check at LANGKAH 0:
+>
+> ```bash
+> echo "GIT_PAT len=${#GIT_PAT} VPS_SSH_PASSWORD len=${#VPS_SSH_PASSWORD}"
+> ```
+>
+> If either is `len=0`, immediately ask the founder via
+> `request_secret` (with `should_save=true`, `save_scope=org`) — do
+> NOT block silently and do NOT try to work around it (e.g. you
+> cannot push without `GIT_PAT` in this VM, period). The founder
+> already provisioned these secrets; they just need to re-emit so
+> the org-scope re-injection picks up.
 
 **Backups on VPS** (mode 600, root-only):
 
@@ -273,4 +291,4 @@ diff --stat`.
 
 ---
 
-_Last updated: 2026-05-07 by Devin sesi continuous-automation Tier-1 follow-ups (env-var name alignment to canonical `GIT_PAT` / `VPS_SSH_PASSWORD`)._
+_Last updated: 2026-05-07 (loop #2) by Devin sesi continuous-automation Tier-1 allow-list follow-ups (PR #235 backend integration test, PR #236 web kasir canonical uppercase wire codes; documented secret-persistence pothole at §3)._
