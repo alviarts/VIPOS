@@ -165,6 +165,18 @@ fi
 
 log "5/6 (re)start pm2 service $PM2_NAME with cwd=apps/backend"
 EXPECTED_CWD="$DEPLOY_PATH/apps/backend"
+
+# Bake the deploy provenance into the pm2 process env so
+# `GET /api/v1/version` can report what's actually running. Read by
+# the deploy-vps.yml smoke step to assert pm2 picked up the latest
+# code (defence-in-depth for loop #6 — see
+# `docs/handoff/2026-05-07-tier1-loop-6-deploy-rca-errata.md`).
+# pm2's `--update-env` propagates these into the (re)started process.
+VIPOS_GIT_SHA=$(git rev-parse HEAD)
+VIPOS_BUILT_AT=$(date -u +%FT%TZ)
+export VIPOS_GIT_SHA VIPOS_BUILT_AT
+log "  build-stamp: VIPOS_GIT_SHA=$VIPOS_GIT_SHA VIPOS_BUILT_AT=$VIPOS_BUILT_AT"
+
 start_fresh() {
   pm2 delete "$PM2_NAME" >/dev/null 2>&1 || true
   cd "$EXPECTED_CWD"
