@@ -66,12 +66,41 @@ yang butuh downtime > 5 detik.
         ↓
 [Kalau perubahan menyentuh tools/scripts/deploy.sh → workflow_dispatch (chicken-egg)]
         ↓
+[Poll deploy-vps.yml run via REST sampai conclusion=='success' SEBELUM smoke-test]
+        ↓
 [SSH ke VPS verify production state matches expectation]
         ↓
 [Update docs/handoff/<latest>.md → commit + push]
         ↓
 [Loop ke task berikutnya]
 ```
+
+> **Smoke-test timing pothole** (2026-05-07 loop #5 → corrected loop #6):
+> Jangan smoke-test di tengah deploy window. `deploy.sh` punya 6 stage; pm2
+> restart sits at stage 5/6 dan baru fire setelah `npm install` + `npm run
+build:web` selesai (~2-3 menit total). Smoke-test sebelum deploy.sh
+> exit akan kena process pm2 yang LAMA dan return 404 misleading.
+>
+> Pattern aman: poll
+> `GET /repos/alviarts/VIPOS/actions/workflows/deploy-vps.yml/runs?head_sha=<sha>`
+> sampai `runs[0].conclusion == 'success'`, baru ssh + smoke-test:
+>
+> ```bash
+> SHA=$(git rev-parse HEAD)
+> while :; do
+>   STATUS=$(curl -sS -H "Authorization: Bearer ${GIT_PAT}" \
+>     "https://api.github.com/repos/alviarts/VIPOS/actions/workflows/deploy-vps.yml/runs?head_sha=${SHA}" \
+>     | python3 -c "import sys,json; r=json.load(sys.stdin)['workflow_runs']; print((r[0]['conclusion'] or r[0]['status']) if r else 'queued')")
+>   [ "$STATUS" = "success" ] && break
+>   [ "$STATUS" = "failure" ] && { echo deploy-failed; exit 1; }
+>   sleep 10
+> done
+> ```
+>
+> Loop #5 mis-attribute 404 ke "deploy.sh tidak restart pm2" — wrong RCA;
+> deploy.sh berjalan benar. Lihat `docs/handoff/2026-05-07-tier1-loop-6-deploy-rca-errata.md`
+> §2 untuk full timeline reconstruction. Ada Tier-1 task open untuk
+> add `/api/v1/version` smoke gate sebagai defence-in-depth.
 
 ---
 
@@ -291,4 +320,4 @@ diff --stat`.
 
 ---
 
-_Last updated: 2026-05-07 (loop #2) by Devin sesi continuous-automation Tier-1 allow-list follow-ups (PR #235 backend integration test, PR #236 web kasir canonical uppercase wire codes; documented secret-persistence pothole at §3)._
+_Last updated: 2026-05-07 (loop #6) by Devin sesi continuous-automation Tier-1 follow-ups (loops #3-#6 merged PRs #238, #239, #240, #241, #242, #243, #244, #245, #246; added smoke-test-timing pothole at §2 from loop #5 RCA correction)._
