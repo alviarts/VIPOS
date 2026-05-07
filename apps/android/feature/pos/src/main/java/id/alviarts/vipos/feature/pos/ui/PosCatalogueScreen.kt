@@ -67,12 +67,19 @@ import java.util.Locale
  * prove the authenticated `GET /api/v1/products` round-trip
  * end-to-end — the kasir UX polish is incremental from there.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PosCatalogueRoute(
     onBack: () -> Unit,
     catalogueViewModel: PosCatalogueViewModel = hiltViewModel(),
     variantViewModel: PosVariantViewModel = hiltViewModel(),
 ) {
+    // Material 3 ModalBottomSheet (used inside PosVariantSheet) is
+    // still flagged ExperimentalMaterial3Api in the version pinned
+    // by :feature:pos. The opt-in propagates through PosVariantSheet's
+    // default `sheetState = rememberModalBottomSheetState(...)`
+    // parameter, so the call site here must opt in too — same
+    // posture as PosCatalogueScreen below.
     val state by catalogueViewModel.uiState.collectAsStateWithLifecycle()
     val variantState by variantViewModel.uiState.collectAsStateWithLifecycle()
 
