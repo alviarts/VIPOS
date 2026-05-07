@@ -133,7 +133,7 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `submit happy path transitions Idle -> Submitting -> Authenticated and clears password`() =
+    fun `submit happy path transitions Idle to Submitting to Authenticated and clears password`() =
         runTest(testDispatcher) {
             server.enqueue(
                 MockResponse().setResponseCode(200).setBody(
