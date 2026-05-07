@@ -12,7 +12,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import dagger.hilt.android.AndroidEntryPoint
 import id.alviarts.vipos.core.common.AppConfig
 import id.alviarts.vipos.core.designsystem.theme.VIPOSTheme
-import id.alviarts.vipos.navigation.VIPOSNavHost
+import id.alviarts.vipos.navigation.SessionGate
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -42,11 +42,13 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
-                    // P3-08: replace the inline AuthRoute mount
-                    // with the real nav graph. VIPOSNavHost owns
-                    // the login + home destinations and the
-                    // transitions between them.
-                    VIPOSNavHost(
+                    // P3-03d: the SessionGate decides the nav
+                    // graph's startDestination — when a session
+                    // can be restored from DataStore we boot
+                    // straight into home and skip the login form;
+                    // otherwise we fall through to the standard
+                    // login → home flow.
+                    SessionGate(
                         onRequires2FA = { token ->
                             Log.i(
                                 TAG_AUTH,

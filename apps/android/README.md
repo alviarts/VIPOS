@@ -14,20 +14,21 @@ This module was bootstrapped in **PR P3-01a**. Currently:
 
 Subsequent sub-PRs in the P3-01 series will add:
 
-| Sub-PR    | Status         | Adds                                                                                    |
-| --------- | -------------- | --------------------------------------------------------------------------------------- |
-| P3-01a    | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow              |
-| P3-01b    | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)               |
-| P3-01e    | done (PR #187) | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                      |
-| P3-01c    | done (PR #188) | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database` |
-| P3-01d    | done (PR #189) | Build flavors (`dev` / `staging` / `prod`) + per-flavor `BuildConfig` + CI matrix       |
-| P3-01f    | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)  |
-| P3-02     | done (PR #191) | Real Material 3 design system — full ColorScheme (light + dark), typography, shapes     |
-| P3-05     | done (PR #193) | Network client — OkHttp + Retrofit + kotlinx-serialization wired through Hilt           |
-| P3-03a    | done (PR #194) | Auth feature data layer — `AuthApi` + `TokenStorage` (DataStore) + `AuthRepository`     |
-| P3-04     | done (PR #195) | Room database scaffold — `VIPOSDatabase` + `KeyValueCacheEntity` + DAO + Hilt providers |
-| P3-03b    | done (PR #196) | LoginScreen Compose + `LoginViewModel` + replaces bootstrap surface in `MainActivity`   |
-| **P3-08** | this PR        | Navigation graph — `VIPOSNavHost` + `:feature:home` placeholder + login → home wiring   |
+| Sub-PR     | Status         | Adds                                                                                    |
+| ---------- | -------------- | --------------------------------------------------------------------------------------- |
+| P3-01a     | done (PR #184) | Gradle wrapper + minimal `:app` Compose blank screen + Android CI workflow              |
+| P3-01b     | done (PR #186) | Hilt DI scaffold (`@HiltAndroidApp` + `@AndroidEntryPoint` + `AppModule`)               |
+| P3-01e     | done (PR #187) | App icon (adaptive + PNG fallbacks) + splash screen + brand colors                      |
+| P3-01c     | done (PR #188) | Modular split — `:core:common`, `:core:designsystem`, `:core:network`, `:core:database` |
+| P3-01d     | done (PR #189) | Build flavors (`dev` / `staging` / `prod`) + per-flavor `BuildConfig` + CI matrix       |
+| P3-01f     | blocked        | Crashlytics + Analytics (needs Firebase project / `google-services.json` from founder)  |
+| P3-02      | done (PR #191) | Real Material 3 design system — full ColorScheme (light + dark), typography, shapes     |
+| P3-05      | done (PR #193) | Network client — OkHttp + Retrofit + kotlinx-serialization wired through Hilt           |
+| P3-03a     | done (PR #194) | Auth feature data layer — `AuthApi` + `TokenStorage` (DataStore) + `AuthRepository`     |
+| P3-04      | done (PR #195) | Room database scaffold — `VIPOSDatabase` + `KeyValueCacheEntity` + DAO + Hilt providers |
+| P3-03b     | done (PR #196) | LoginScreen Compose + `LoginViewModel` + replaces bootstrap surface in `MainActivity`   |
+| P3-08      | done (PR #197) | Navigation graph — `VIPOSNavHost` + `:feature:home` placeholder + login → home wiring   |
+| **P3-03d** | this PR        | Auto-login restoration — persist user snapshot in DataStore + `SessionGate` skips login |
 
 ### Database (`:core:database`)
 

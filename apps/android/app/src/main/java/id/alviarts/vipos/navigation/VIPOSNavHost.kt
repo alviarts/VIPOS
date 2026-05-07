@@ -30,12 +30,13 @@ import id.alviarts.vipos.feature.home.ui.HomeRoute
  */
 @Composable
 fun VIPOSNavHost(
+    startRoute: String = VIPOSDestination.Login.route,
     navController: NavHostController = rememberNavController(),
     onRequires2FA: (loginToken: String) -> Unit = {},
 ) {
     NavHost(
         navController = navController,
-        startDestination = VIPOSDestination.Login.route,
+        startDestination = startRoute,
     ) {
         composable(VIPOSDestination.Login.route) {
             AuthRoute(
