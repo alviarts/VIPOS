@@ -56,6 +56,13 @@ function mountVersionedRoutes(parent) {
   parent.use('/customer-groups', require('./routes/customer-groups'));
   parent.use('/customer-tags', require('./routes/customer-tags'));
   parent.use('/transactions', require('./routes/transactions'));
+  // P3-08 stub for QRIS Dynamic mint + status poll. Per
+  // `docs/v2/14_PAYMENT_METHODS.md` §6, the Android cashier flow needs
+  // these endpoints to seed `QrisDynamicInput.refId` and poll until
+  // PAID. The implementation in `routes/payment-qris.js` is an
+  // in-memory stub — sufficient to unblock slice 5 integration; real
+  // gateway plug-in is a Tier-2 founder decision.
+  parent.use('/payment/qris', require('./routes/payment-qris'));
   parent.use('/dashboard', require('./routes/dashboard'));
   parent.use('/finance', require('./routes/finance'));
   parent.use('/inventory', require('./routes/inventory'));
