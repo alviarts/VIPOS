@@ -38,7 +38,7 @@ After **P3-04** the database module ships a real Room scaffold:
 - **`VIPOSDatabase`** — `@Database(entities = [KeyValueCacheEntity::class], version = 1, exportSchema = true)` — root of the persistence graph. Versioning rules documented in the class kdoc; bump version + add `Migration` for every schema change.
 - **`entity/KeyValueCacheEntity`** — generic `(key TEXT PK, value TEXT, updated_at INTEGER)` row. Lives in this module to exercise the Room → KSP → Hilt wiring end-to-end. Real Phase 3 entities (products, transactions, …) drop into the same module in P3-06+.
 - **`dao/KeyValueCacheDao`** — exposes both blocking-suspend (`get(key)`) and reactive (`observe(key)`) readers plus an atomic `@Upsert` writer.
-- **`schemas/id.alviarts.vipos.core.database.VIPOSDatabase/1.json`** — auto-exported by KSP. **Do not edit by hand.** Subsequent schema changes export new files (`2.json`, …); a CI guard (lands in a follow-up) will reject PRs that change `1.json` in place.
+- **`schemas/id.alviarts.vipos.core.database.VIPOSDatabase/1.json`** — auto-exported by KSP. **Do not edit by hand.** Subsequent schema changes export new files (`2.json`, …); the CI guard added in **P3-09** (see "Verify Room schema exports are committed" step in `.github/workflows/android.yml`) rejects PRs that regenerate the JSON without committing the result, catching both in-place edits and missing version-bumped files.
 - **Hilt providers in `:app/AppModule`** — `provideVIPOSDatabase(@ApplicationContext)` and `provideKeyValueCacheDao(database)`. Builder defaults are deliberate: no `fallbackToDestructiveMigration()` (every change MUST ship an explicit migration), no `allowMainThreadQueries()` (suspend / Flow only).
 
 | Token         | Pinned version |
