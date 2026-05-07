@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import api from '../utils/api';
 import { formatCurrency } from '../utils/format';
+import { toWireCode, formatPaymentMethodLabel } from '../utils/paymentMethod';
 import toast from 'react-hot-toast';
 
 export default function CashierPage() {
@@ -134,7 +135,7 @@ export default function CashierPage() {
           quantity: item.quantity,
         })),
         payment_amount: amount,
-        payment_method: paymentMethod,
+        payment_method: toWireCode(paymentMethod),
       });
 
       setReceipt(res.data);
@@ -461,7 +462,7 @@ export default function CashierPage() {
                   <span>{formatCurrency(receipt.total_amount)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-gray-600">
-                  <span>Bayar ({receipt.payment_method})</span>
+                  <span>Bayar ({formatPaymentMethodLabel(receipt.payment_method)})</span>
                   <span>{formatCurrency(receipt.payment_amount)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-emerald-600 font-medium">
