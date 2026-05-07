@@ -47,12 +47,17 @@ class AuthRepository @Inject constructor(
      * has not yet expired (with a small safety margin so we
      * don't hand a request a token that expires mid-flight).
      *
-     * On expired tokens: today this returns `null` and forces a
-     * fresh login. The refresh-token rotation flow (re-issuing
-     * an access token from the persisted refresh token) lands as
-     * its own follow-up — keeping that out of cold-start avoids
-     * blocking the splash → home transition behind a network
-     * round-trip in the common-case fast path.
+     * On expired tokens this still returns `null` and lands the
+     * user on the login screen, even though refresh-token
+     * rotation has shipped (P3-03e via [refresh] +
+     * [id.alviarts.vipos.core.network.RefreshTokenAuthenticator]).
+     * That's intentional: rotation runs **reactively** off the
+     * first authenticated 401 so the splash → home transition
+     * stays off the critical path of a network round-trip in the
+     * common-case fast path. Sessions whose refresh token is
+     * still valid but whose access token expired across a long
+     * pause therefore pay the cost of one extra login here
+     * rather than blocking every cold start on `/refresh`.
      *
      * On corrupt or partial bundles (e.g., older installs that
      * never wrote the user fields): [TokenStorage] returns null
