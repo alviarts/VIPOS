@@ -45,8 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.alviarts.vipos.core.designsystem.theme.VIPOSTheme
 import id.alviarts.vipos.feature.pos.domain.CartItem
 import id.alviarts.vipos.feature.pos.domain.Product
-import java.text.NumberFormat
-import java.util.Locale
+import id.alviarts.vipos.core.designsystem.format.formatIdrLabel
 
 /**
  * Composable entry point for the POS catalogue screen (P3-06).
@@ -286,7 +285,7 @@ private fun ProductRow(
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    text = formatIdr(product.priceIdr),
+                    text = formatIdrLabel(product.priceIdr),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -406,7 +405,7 @@ private fun CartPanel(
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    text = formatIdr(subtotalIdr),
+                    text = formatIdrLabel(subtotalIdr),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
@@ -453,7 +452,7 @@ private fun CartLine(
                 )
             }
             Text(
-                text = formatIdr(item.lineTotalIdr),
+                text = formatIdrLabel(item.lineTotalIdr),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -482,19 +481,6 @@ private fun CartLine(
             Text("Hapus")
         }
     }
-}
-
-private fun formatIdr(amount: Long): String {
-    // Indonesia uses `Rp` with thousands separators and no decimal
-    // scale (whole-rupiah pricing). NumberFormat.getCurrencyInstance
-    // for `id-ID` returns `Rp 123.456,00` — the trailing zero
-    // decimals are noise on the kasir UI, so build a custom format
-    // with grouping but no fraction digits.
-    val formatter = NumberFormat.getNumberInstance(Locale("id", "ID")).apply {
-        maximumFractionDigits = 0
-        minimumFractionDigits = 0
-    }
-    return "Rp " + formatter.format(amount)
 }
 
 @Preview(showBackground = true, widthDp = 412, heightDp = 892)
