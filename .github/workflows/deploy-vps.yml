@@ -79,6 +79,7 @@ jobs:
       - name: Smoke check live site
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
+          EXPECTED_SHA: ${{ github.sha }}
         run: |
           set -e
           # Beri server beberapa detik untuk pm2 boot ulang. Single
@@ -99,6 +100,22 @@ jobs:
           curl -fsS "${CURL_OPTS[@]}" -o /dev/null -w "frontend HTTP %{http_code}\n" "http://${VPS_HOST}/vipos/"
           # Backend health endpoint via nginx -> proxy.
           curl -fsS "${CURL_OPTS[@]}" -o /dev/null -w "health   HTTP %{http_code}\n" "http://${VPS_HOST}/vipos/api/health"
+          # Deploy provenance gate — assert pm2 actually picked up the
+          # commit we just pushed. Defence-in-depth from loop #6:
+          # `tools/scripts/deploy.sh` exports VIPOS_GIT_SHA before
+          # `pm2 restart`, and the backend echoes it via
+          # `/api/v1/version`. A mismatch here means either pm2
+          # silently failed to restart or deploy.sh skipped the
+          # build-stamp injection — both regressions we want to fail
+          # loud on. See
+          # `docs/handoff/2026-05-07-tier1-loop-6-deploy-rca-errata.md`.
+          DEPLOYED_SHA=$(curl -fsS "${CURL_OPTS[@]}" "http://${VPS_HOST}/vipos/api/v1/version" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin).get('sha',''))")
+          echo "version  expected=${EXPECTED_SHA} deployed=${DEPLOYED_SHA}"
+          if [ "${DEPLOYED_SHA}" != "${EXPECTED_SHA}" ]; then
+            echo "::error::Deployed sha (${DEPLOYED_SHA}) does not match expected (${EXPECTED_SHA}). pm2 may not have restarted cleanly or deploy.sh skipped the build-stamp injection."
+            exit 1
+          fi
           # Disk-usage probe (PR #102 + #155). Informational only — we do
           # NOT use `-fsS` here so a 503 (`status:high_usage` >=90% disk
           # full, or `status:no_mount` if BACKUP_DIR isn't mounted) shows

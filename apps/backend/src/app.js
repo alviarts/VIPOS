@@ -203,6 +203,14 @@ function mountVersionedRoutes(parent) {
   parent.use('/capital', capitalRouter);
   parent.use('/supplies', suppliesRouter);
 
+  // Deploy provenance probe — returns the git sha + build timestamp
+  // baked into the running pm2 process. Used by deploy-vps.yml's smoke
+  // step to assert pm2 actually picked up the latest code (defence in
+  // depth from loop #6 — see
+  // `docs/handoff/2026-05-07-tier1-loop-6-deploy-rca-errata.md`).
+  // Public, no auth, no DB.
+  parent.use('/version', require('./routes/version'));
+
   // P2-05 PR-A: extended health probe (DB + Redis with latency).
   // Exposed under each version namespace plus the legacy alias so
   // external monitors keep working without modification.
