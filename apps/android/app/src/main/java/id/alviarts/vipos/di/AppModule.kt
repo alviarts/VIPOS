@@ -13,6 +13,7 @@ import id.alviarts.vipos.core.database.VIPOSDatabase
 import id.alviarts.vipos.core.database.dao.KeyValueCacheDao
 import id.alviarts.vipos.core.network.AuthInterceptor
 import id.alviarts.vipos.core.network.NetworkClientFactory
+import id.alviarts.vipos.core.network.SessionInvalidationInterceptor
 import id.alviarts.vipos.core.network.api.HealthApi
 import id.alviarts.vipos.feature.auth.domain.TokenStorage
 import kotlinx.coroutines.runBlocking
@@ -69,15 +70,28 @@ object AppModule {
      * non-prod flavors so engineers can inspect request/response
      * bodies via logcat without touching the prod-flavor build.
      *
-     * P3-06: the [AuthInterceptor] is installed application-side
-     * (before the logging interceptor) so every authenticated
-     * endpoint — starting with `:feature:pos`'s
-     * `GET /api/v1/products` — carries `Authorization: Bearer …`
-     * automatically. The interceptor pulls the access token from
-     * [TokenStorage] via `runBlocking`, which is acceptable here
-     * because OkHttp dispatches interceptors on its own thread
-     * pool (never the main thread) and the DataStore-backed
-     * token read is a local-disk roundtrip.
+     * Two application interceptors are installed (in this order,
+     * so logging shows the post-rewrite request and the original
+     * response):
+     *
+     *  - **[AuthInterceptor]** (P3-06) — request-side; stamps
+     *    `Authorization: Bearer <accessToken>` from the persisted
+     *    [TokenStorage] on every authenticated endpoint.
+     *  - **[SessionInvalidationInterceptor]** (P3-03f) —
+     *    response-side; on a 401 from an authenticated endpoint
+     *    clears the persisted session via `tokenStorage.clear()`.
+     *    The clear emits down `tokenStorage.sessions`, which
+     *    `SessionViewModel` observes — `SessionGate` then rebuilds
+     *    the nav graph rooted at `Login`, bouncing the user
+     *    mid-session without any explicit nav code at the call
+     *    site.
+     *
+     * Both interceptors use `runBlocking` to bridge the suspending
+     * [TokenStorage] API to OkHttp's synchronous interceptor
+     * contract. This is acceptable because OkHttp dispatches
+     * interceptors on its own thread pool (never the main
+     * thread), and DataStore reads/writes are local-disk
+     * roundtrips.
      */
     @Provides
     @Singleton
@@ -90,6 +104,9 @@ object AppModule {
             applicationInterceptors = listOf(
                 AuthInterceptor {
                     runBlocking { tokenStorage.read()?.tokens?.accessToken }
+                },
+                SessionInvalidationInterceptor {
+                    runBlocking { tokenStorage.clear() }
                 },
             ),
         )
