@@ -76,7 +76,7 @@ class PosCatalogueViewModelTest {
         // the test scheduler so `advanceUntilIdle()` deterministically
         // drains the init `refresh()`.
         val client = OkHttpClient.Builder()
-            .dispatcher(okhttp3.Dispatcher(SynchronousExecutorService()))
+            .dispatcher(okhttp3.Dispatcher(CatalogueSynchronousExecutorService()))
             .build()
         val retrofit = Retrofit.Builder()
             .client(client)
@@ -284,8 +284,17 @@ class PosCatalogueViewModelTest {
  * Runs every submitted task on the calling thread synchronously.
  * Same trick as [PosVariantViewModelTest] — keeps Retrofit
  * responses on the test scheduler instead of OkHttp's worker pool.
+ *
+ * Renamed from `SynchronousExecutorService` to avoid a top-level
+ * redeclaration clash with the identical helper that already
+ * exists `private` in [PosVariantViewModelTest] — Kotlin's K2
+ * compiler enforces unique top-level class names per package
+ * even when both declarations are file-private (KT-15514). The
+ * pragmatic fix is a unique name; sharing one helper would
+ * require lifting it to `internal` in a `testFixtures`-style
+ * module, which is overkill for two tests.
  */
-private class SynchronousExecutorService : AbstractExecutorService() {
+private class CatalogueSynchronousExecutorService : AbstractExecutorService() {
     @Volatile private var shutdown = false
     override fun execute(command: Runnable) = command.run()
     override fun shutdown() { shutdown = true }
