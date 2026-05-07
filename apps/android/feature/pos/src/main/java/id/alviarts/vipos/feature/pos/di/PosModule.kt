@@ -5,6 +5,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import id.alviarts.vipos.feature.pos.data.PosApi
+import id.alviarts.vipos.feature.pos.domain.CartContext
 import id.alviarts.vipos.feature.pos.domain.DefaultPaymentMethodCatalog
 import id.alviarts.vipos.feature.pos.domain.PaymentMethodCatalog
 import retrofit2.Retrofit
@@ -23,10 +24,14 @@ import javax.inject.Singleton
  *  - [PaymentMethodCatalog] — bound to the default in-memory
  *    impl ([DefaultPaymentMethodCatalog]) for P3-08 second
  *    slice. Tests substitute a fake by constructing
- *    [CheckoutViewModel] directly. A future slice will replace
- *    this binding with a cart-aware decorator that further
- *    filters credit / deposit / loyalty methods on the
- *    cart-state predicates.
+ *    [CheckoutViewModel] directly. The cart-aware decorator
+ *    ([id.alviarts.vipos.feature.pos.domain.CartAwarePaymentMethodCatalog])
+ *    that further filters credit / deposit / loyalty methods
+ *    on cart-state predicates is shipped but not yet wired —
+ *    a follow-up slice will introduce a [CartContext] provider
+ *    bound to the cart + customer state and swap this @Provides
+ *    binding to wrap [DefaultPaymentMethodCatalog] in the
+ *    decorator.
  */
 @Module
 @InstallIn(SingletonComponent::class)
