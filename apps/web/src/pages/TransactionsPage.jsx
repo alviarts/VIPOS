@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Eye, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import api from '../utils/api';
 import { formatCurrency, formatDateTime } from '../utils/format';
+import { formatPaymentMethodLabel } from '../utils/paymentMethod';
 import toast from 'react-hot-toast';
 
 export default function TransactionsPage() {
@@ -113,8 +114,8 @@ export default function TransactionsPage() {
                     <td className="px-4 py-3">{tx.cashier_name}</td>
                     <td className="px-4 py-3 font-semibold">{formatCurrency(tx.total_amount)}</td>
                     <td className="px-4 py-3">
-                      <span className="badge bg-gray-100 text-gray-600 uppercase">
-                        {tx.payment_method}
+                      <span className="badge bg-gray-100 text-gray-600">
+                        {formatPaymentMethodLabel(tx.payment_method)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -236,7 +237,9 @@ export default function TransactionsPage() {
                   <span>{formatCurrency(detail.total_amount)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Bayar ({detail.payment_method})</span>
+                  <span className="text-gray-500">
+                    Bayar ({formatPaymentMethodLabel(detail.payment_method)})
+                  </span>
                   <span>{formatCurrency(detail.payment_amount)}</span>
                 </div>
                 <div className="flex justify-between text-emerald-600 font-medium">
