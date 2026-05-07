@@ -2,6 +2,7 @@ const express = require('express');
 const { query, tx } = require('../db');
 const { authenticateToken } = require('../middleware/auth');
 const { safeLogAudit, ACTIONS } = require('../lib/audit');
+const { isKnownPaymentMethodCode, listKnownPaymentMethodCodes } = require('../lib/payment-methods');
 
 const router = express.Router();
 
@@ -26,6 +27,13 @@ router.post('/', authenticateToken, async (req, res) => {
 
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'Minimal satu produk harus dipilih' });
+    }
+
+    if (payment_method !== undefined && !isKnownPaymentMethodCode(payment_method)) {
+      return res.status(400).json({
+        error: 'Metode pembayaran tidak dikenali',
+        allowed: listKnownPaymentMethodCodes(),
+      });
     }
 
     const total_amount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
