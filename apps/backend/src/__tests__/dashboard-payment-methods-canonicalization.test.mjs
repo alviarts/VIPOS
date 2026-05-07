@@ -236,11 +236,18 @@ describe('GET /api/reports/sales-by-payment-method canonicalization', () => {
     // without the legacy-to-canonical fallback, an `EDC` row would
     // miss the `card` config and report mdr_amount=0 even though
     // half of the underlying transactions are real `card` rows.
+    //
+    // We pass `tenant_id` explicitly because the `payment_methods`
+    // column DEFAULT is `current_setting('app.current_tenant')::int`
+    // and `runAsSystem` sets that to '0' (system-bypass sentinel) —
+    // letting the default fire would produce a tenant_id=0 row that
+    // violates `payment_methods_tenant_fk` (no tenant row exists at
+    // id=0). The seeded admin tenant is id=1.
     await runAsSystem(() =>
       queryFn(
-        `INSERT INTO payment_methods (code, name, type, fee_percent, fee_flat, is_active)
-         VALUES ('card', 'Kartu', 'card', 1.5, 0, 1)
-         ON CONFLICT DO NOTHING`
+        `INSERT INTO payment_methods (tenant_id, code, name, type, fee_percent, fee_flat, is_active)
+         VALUES (1, 'card', 'Kartu', 'card', 1.5, 0, 1)
+         ON CONFLICT (tenant_id, code) DO UPDATE SET fee_percent = EXCLUDED.fee_percent`
       )
     );
 
