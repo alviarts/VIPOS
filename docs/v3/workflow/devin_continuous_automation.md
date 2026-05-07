@@ -58,11 +58,11 @@ yang butuh downtime > 5 detik.
         ↓
 [Commit (Conventional Commits) → push (PAT-fallback kalau proxy 403)]
         ↓
-[git_pr fetch_template + create  →  fallback REST API + GITHUB_PAT_VIPOS]
+[git_pr fetch_template + create  →  fallback REST API + GIT_PAT]
         ↓
 [git pr_checks wait_mode=all  →  CI hijau?]
         ↓
-[git_pr merge squash via REST API + GITHUB_PAT_VIPOS]
+[git_pr merge squash via REST API + GIT_PAT]
         ↓
 [Kalau perubahan menyentuh tools/scripts/deploy.sh → workflow_dispatch (chicken-egg)]
         ↓
@@ -77,13 +77,23 @@ yang butuh downtime > 5 detik.
 
 ## 3. Resources & secrets (org-scope, permanent)
 
-| Secret                      | Purpose                                                                              |
-| --------------------------- | ------------------------------------------------------------------------------------ |
-| `GITHUB_PAT_VIPOS`          | Direct REST API + git push fallback ketika `git-manager.devin.ai/proxy` returns 403. |
-| `VPS_PASSWORD`              | Root SSH ke VPS `103.74.5.44` (sshpass).                                             |
-| `VIPOS_SENTRY_DSN_BACKEND`  | Sentry DSN backend init.                                                             |
-| `VIPOS_SENTRY_DSN_FRONTEND` | Sentry DSN frontend init (Vite-injected via `define`).                               |
-| `SENTRY_AUTH_TOKEN`         | Source-maps upload via `@sentry/vite-plugin`.                                        |
+| Env var (canonical)         | Legacy alias       | Purpose                                                                              |
+| --------------------------- | ------------------ | ------------------------------------------------------------------------------------ |
+| `GIT_PAT`                   | `GITHUB_PAT_VIPOS` | Direct REST API + git push fallback ketika `git-manager.devin.ai/proxy` returns 403. |
+| `VPS_SSH_PASSWORD`          | `VPS_PASSWORD`     | Root SSH ke VPS `103.74.5.44` (sshpass).                                             |
+| `VIPOS_SENTRY_DSN_BACKEND`  | —                  | Sentry DSN backend init.                                                             |
+| `VIPOS_SENTRY_DSN_FRONTEND` | —                  | Sentry DSN frontend init (Vite-injected via `define`).                               |
+| `SENTRY_AUTH_TOKEN`         | —                  | Source-maps upload via `@sentry/vite-plugin`.                                        |
+
+> **Naming note**: This doc uses the env-var names actually injected
+> into recent Devin VMs (`GIT_PAT`, `VPS_SSH_PASSWORD`). Prior
+> handoffs and historical PRs reference the legacy aliases
+> (`GITHUB_PAT_VIPOS`, `VPS_PASSWORD`). Both refer to the same
+> org-scope secrets — if you find one but not the other in `env`,
+> just `export` whichever name your snippet expects, e.g.
+> `export GITHUB_PAT_VIPOS="$GIT_PAT"`. Any future rename of the
+> stored secret should update this table first so this doc stays
+> the source of truth.
 
 **Backups on VPS** (mode 600, root-only):
 
@@ -94,8 +104,9 @@ yang butuh downtime > 5 detik.
 | `/root/.vipos-app-pwd`          | Postgres `vipos_app` pwd (`DATABASE_URL`). 32 chars post-rot.  |
 | `/root/.vipos-redis-pwd`        | Redis pwd (`REDIS_URL`). 48 chars.                             |
 
-**Note**: `GITHUB_PAT_VIPOS` is **only** in the Devin org-scope secret
-store — there is intentionally no VPS backup. The 2026-05-05 cryptominer
+**Note**: `GIT_PAT` (legacy: `GITHUB_PAT_VIPOS`) is **only** in the
+Devin org-scope secret store — there is intentionally no VPS backup.
+The 2026-05-05 cryptominer
 incident showed that a VPS compromise can read root-owned files; a PAT
 on disk would have been an extra attack surface for zero benefit, since
 the PAT is only ever used from Devin VMs (which auto-inject the secret).
@@ -105,7 +116,7 @@ from `github.com/settings/tokens` and re-save org-scope.
 **SSH access**:
 
 ```bash
-sshpass -p "${VPS_PASSWORD}" ssh -o StrictHostKeyChecking=accept-new root@103.74.5.44
+sshpass -p "${VPS_SSH_PASSWORD}" ssh -o StrictHostKeyChecking=accept-new root@103.74.5.44
 # Repo path on VPS: /var/www/vipos
 ```
 
@@ -134,7 +145,7 @@ cat > "$GIT_ASKPASS_SCRIPT" << 'EOF'
 #!/bin/sh
 case "$1" in
   Username*) echo "x-access-token" ;;
-  Password*) echo "$GITHUB_PAT_VIPOS" ;;
+  Password*) echo "$GIT_PAT" ;;
 esac
 EOF
 chmod +x "$GIT_ASKPASS_SCRIPT"
@@ -157,21 +168,21 @@ yang ada di `/etc/gitconfig`. Push dengan kombinasi ini langsung ke
 cat > /tmp/pr-body.json << JSONEOF
 { "title": "...", "head": "<branch>", "base": "main", "body": "..." }
 JSONEOF
-curl -sS -X POST -H "Authorization: Bearer ${GITHUB_PAT_VIPOS}" \
+curl -sS -X POST -H "Authorization: Bearer ${GIT_PAT}" \
   -H "Accept: application/vnd.github+json" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
   -d @/tmp/pr-body.json \
   https://api.github.com/repos/alviarts/VIPOS/pulls
 
 # Merge (squash) setelah CI hijau
-curl -sS -X PUT -H "Authorization: Bearer ${GITHUB_PAT_VIPOS}" \
+curl -sS -X PUT -H "Authorization: Bearer ${GIT_PAT}" \
   -H "Accept: application/vnd.github+json" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
   -d '{"merge_method":"squash"}' \
   https://api.github.com/repos/alviarts/VIPOS/pulls/<num>/merge
 
 # Trigger workflow_dispatch (chicken-egg fix untuk perubahan deploy.sh)
-curl -sS -X POST -H "Authorization: Bearer ${GITHUB_PAT_VIPOS}" \
+curl -sS -X POST -H "Authorization: Bearer ${GIT_PAT}" \
   -H "Accept: application/vnd.github+json" \
   -d '{"ref":"main","inputs":{"branch":"main"}}' \
   https://api.github.com/repos/alviarts/VIPOS/actions/workflows/deploy-vps.yml/dispatches
@@ -262,4 +273,4 @@ diff --stat`.
 
 ---
 
-_Last updated: 2026-05-05 by Devin sesi continuous-automation rollout._
+_Last updated: 2026-05-07 by Devin sesi continuous-automation Tier-1 follow-ups (env-var name alignment to canonical `GIT_PAT` / `VPS_SSH_PASSWORD`)._
