@@ -176,7 +176,14 @@ jobs:
             echo
             echo "| chunk | raw | gzip est. |"
             echo "| ----- | --- | --------- |"
-            ls -1S "$DIST"/*.js "$DIST"/*.css 2>/dev/null | head -15 | while read -r f; do
+            # `awk 'NR<=15'` reads ALL of `ls -1S`'s output and only
+            # prints the first 15 lines — unlike `head -15`, which
+            # closes its stdin after 15 lines and SIGPIPEs `ls`.
+            # With `set -euo pipefail` active, `ls` exiting from
+            # SIGPIPE makes the pipeline exit non-zero, which has
+            # caused intermittent CI flakes since the chunk count
+            # crossed ~30 (handoff §6, 2026-05-06).
+            ls -1S "$DIST"/*.js "$DIST"/*.css 2>/dev/null | awk 'NR<=15' | while read -r f; do
               raw=$(stat -c '%s' "$f")
               gz=$(gzip -c -9 "$f" | wc -c)
               raw_kb=$(awk -v b="$raw" 'BEGIN{printf "%.2f", b/1024}')
@@ -270,7 +277,12 @@ jobs:
             echo
             echo "| chunk | gzip est. | budget (gzip) | status |"
             echo "| ----- | --------- | ------------- | ------ |"
-            sort -k1,1nr "$MANIFEST" | head -10 | while IFS=$'\t' read -r gz bn; do
+            # `awk 'NR<=10'` instead of `head -10` for the same
+            # SIGPIPE-resistance reason as the eager-chunk loop
+            # above. `sort` writes the full manifest to its stdout
+            # before the consumer can ever close it; `head` closing
+            # mid-stream surfaces as a pipefail flake.
+            sort -k1,1nr "$MANIFEST" | awk 'NR<=10' | while IFS=$'\t' read -r gz bn; do
               gz_kb=$(awk -v b="$gz" 'BEGIN{printf "%.2f", b/1024}')
               if [ "$gz" -le "$LAZY_CHUNK_BUDGET_GZIP" ]; then
                 status="✅ under cap"
