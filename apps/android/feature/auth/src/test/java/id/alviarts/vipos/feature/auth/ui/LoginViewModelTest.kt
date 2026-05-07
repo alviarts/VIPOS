@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -228,9 +229,13 @@ class LoginViewModelTest {
         vm.onPasswordChange("wrong-password")
 
         vm.submit()
-        advanceUntilIdle()
-
-        val state = vm.uiState.value
+        // The Retrofit call resumes on a real OkHttp callback thread, so
+        // `advanceUntilIdle()` alone occasionally returns before the
+        // resumed continuation has been re-dispatched onto the test
+        // scheduler. Suspend on the state flow itself: that yields to
+        // the test scheduler until the launched submit() coroutine has
+        // finished mapping the failure into the UI state.
+        val state = vm.uiState.first { it.authStatus !is AuthStatus.Submitting }
         assertEquals(
             "after a failed attempt the form is editable again",
             AuthStatus.Idle,
@@ -275,8 +280,10 @@ class LoginViewModelTest {
         vm.onUsernameChange("alice")
         vm.onPasswordChange("wrong")
         vm.submit()
-        advanceUntilIdle()
-
+        // Suspend on the state flow until the launched submit() body
+        // has finished surfacing the failure (see the comment in
+        // `submit failure surfaces errorMessage and returns to Idle`).
+        vm.uiState.first { it.errorMessage != null }
         assertTrue(vm.uiState.value.errorMessage != null)
         vm.dismissError()
         assertNull(vm.uiState.value.errorMessage)
@@ -378,9 +385,12 @@ class LoginViewModelTest {
             vm.onCodeChange("000000")
 
             vm.submit()
-            advanceUntilIdle()
-
-            val state = vm.uiState.value
+            // See `submit failure surfaces errorMessage and returns to
+            // Idle` for why we suspend on the state flow instead of
+            // calling `advanceUntilIdle()`.
+            val state = vm.uiState.first {
+                it.status !is id.alviarts.vipos.feature.auth.ui.twofactor.TwoFactorStatus.Submitting
+            }
             assertEquals(
                 id.alviarts.vipos.feature.auth.ui.twofactor.TwoFactorStatus.Idle,
                 state.status,
