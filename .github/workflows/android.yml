@@ -66,6 +66,70 @@ jobs:
         # not part of the bootstrap series.
         run: ./gradlew :app:assembleDevDebug :app:assembleStagingDebug --no-daemon --stacktrace
 
+      - name: Verify Room schema exports are committed
+        # P3-09: schema-export-diff guard. The Room KSP processor
+        # (configured in apps/android/core/database/build.gradle.kts via
+        # `ksp { arg("room.schemaLocation", ...) }`) writes one JSON
+        # file per `@Database` version into
+        # `apps/android/core/database/schemas/`. Those JSON files are
+        # the canonical source for migration tests in later phases —
+        # once a schema lands in `main` its file should NOT be edited;
+        # later schema bumps land as new `<version>.json` files plus
+        # `Migration` objects.
+        #
+        # If an entity annotation changes (column added, type narrowed,
+        # index dropped, etc.) without a corresponding `version` bump
+        # + commit of the regenerated JSON, the next time someone runs
+        # the database it'll fail with `IllegalStateException: Room
+        # cannot verify the data integrity` — and the offending diff
+        # is invisible to PR reviewers because git only sees committed
+        # JSON, not what KSP would regenerate.
+        #
+        # This step closes that gap: after the assemble step (which
+        # runs KSP and rewrites the JSON in-place), fail CI if the
+        # working tree under `core/database/schemas/` is not clean
+        # vs. HEAD. Catches both the "modified" case (entity changed,
+        # schema regenerated, contributor forgot to `git add`) and
+        # the "untracked" case (version bumped, new `<n>.json` written
+        # but not staged).
+        #
+        # The check uses `git status --porcelain` because plain
+        # `git diff` ignores untracked files; both scenarios above
+        # produce dirty working-tree state that `--porcelain` surfaces.
+        # Run from repo root (overrides the job-level
+        # `working-directory: apps/android` default) so the path is
+        # reliably `apps/android/core/database/schemas/`.
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          schema_dir="apps/android/core/database/schemas"
+          dirty=$(git status --porcelain -- "$schema_dir")
+          if [ -n "$dirty" ]; then
+            {
+              echo "::error::Room schema exports under $schema_dir are out of sync."
+              echo ""
+              echo "The Room KSP processor regenerated schema JSON during this build,"
+              echo "but the version on HEAD does not match. This usually means an"
+              echo "entity annotation was changed (column added/removed, type changed,"
+              echo "index modified) without bumping the @Database version + committing"
+              echo "the regenerated <n>.json file."
+              echo ""
+              echo "To fix locally:"
+              echo "  cd apps/android"
+              echo "  ./gradlew :app:assembleDevDebug --no-daemon"
+              echo "  git add core/database/schemas/"
+              echo "  git commit --amend --no-edit  # or as a fixup"
+              echo ""
+              echo "Dirty working-tree entries:"
+              echo "$dirty"
+              echo ""
+              echo "Diff vs HEAD:"
+              git --no-pager diff -- "$schema_dir" || true
+            } >&2
+            exit 1
+          fi
+          echo "Room schema exports under $schema_dir are clean vs. HEAD."
+
       - name: Upload dev debug APK
         # Surfaces the dev-flavor APK as a CI artifact so reviewers
         # can sideload it onto an emulator without setting up a local
