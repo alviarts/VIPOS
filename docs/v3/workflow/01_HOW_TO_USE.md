@@ -6,10 +6,12 @@
 
 Organization VIPOS sudah punya secret org-level berikut yang **auto-inject** ke setiap session Devin baru. Cukup reference dengan `${VAR_NAME}` di prompt — Devin substitusi otomatis saat runtime. **Jangan** tulis nilai literal token/password di prompt, file, atau commit.
 
-| Secret            | Scope | Kegunaan                                                                                                                                      |
-| ----------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `${GITHUB_PAT}`   | org   | Fallback push ke GitHub kalau Devin git proxy gagal: `git push "https://x-access-token:${GITHUB_PAT}@github.com/alviarts/VIPOS.git" <branch>` |
-| `${VPS_PASSWORD}` | org   | Password root VPS `103.74.5.44` untuk SSH deploy + maintenance (dipakai di P0-02 CI/CD setup, P2-01 Postgres install, dll)                    |
+| Secret                | Scope | Kegunaan                                                                                                                                   |
+| --------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `${GIT_PAT}`          | org   | Fallback push ke GitHub kalau Devin git proxy gagal: `git push "https://x-access-token:${GIT_PAT}@github.com/alviarts/VIPOS.git" <branch>` |
+| `${VPS_SSH_PASSWORD}` | org   | Password root VPS `103.74.5.44` untuk SSH deploy + maintenance (dipakai di P0-02 CI/CD setup, P2-01 Postgres install, dll)                 |
+
+> **Legacy alias note**: handoff lama / PR historis kadang refer ke `GITHUB_PAT_VIPOS` (atau `GITHUB_PAT`) dan `VPS_PASSWORD`. Itu nama lama yang dipakai sebelum dialigning ke canonical `GIT_PAT` / `VPS_SSH_PASSWORD` (PR #212). Kalau snippet lo butuh nama lama, `export GITHUB_PAT_VIPOS="$GIT_PAT"` (dst). Detail naming history di `devin_continuous_automation.md` §3.
 
 **VPS info (literal, aman ditulis)**:
 
@@ -27,10 +29,10 @@ Organization VIPOS sudah punya secret org-level berikut yang **auto-inject** ke 
 which sshpass || (apt-get update && apt-get install -y sshpass)
 
 # Run command remote
-sshpass -p "${VPS_PASSWORD}" ssh -o StrictHostKeyChecking=no root@103.74.5.44 "ls /var/www/vipos"
+sshpass -p "${VPS_SSH_PASSWORD}" ssh -o StrictHostKeyChecking=no root@103.74.5.44 "ls /var/www/vipos"
 
 # Copy file ke VPS
-sshpass -p "${VPS_PASSWORD}" scp -o StrictHostKeyChecking=no localfile.txt root@103.74.5.44:/tmp/
+sshpass -p "${VPS_SSH_PASSWORD}" scp -o StrictHostKeyChecking=no localfile.txt root@103.74.5.44:/tmp/
 
 # Untuk task yang butuh akses extensive, rekomendasi setup SSH key sekali (di task P0-02):
 # 1) Generate key di Devin shell, append public ke /root/.ssh/authorized_keys di VPS via sshpass
@@ -136,7 +138,7 @@ Lanjutkan development VIPOS di https://github.com/alviarts/VIPOS.
 **Catatan penting**:
 
 - VIPOS standalone (tidak proxy ke Majoo). Pinjam pola UI/struktur API saja.
-- Push pakai proxy bawaan Devin (sudah authenticated) atau direct PAT fallback `https://x-access-token:${GITHUB_PAT}@github.com/alviarts/VIPOS.git`
+- Push pakai proxy bawaan Devin (sudah authenticated) atau direct PAT fallback `https://x-access-token:${GIT_PAT}@github.com/alviarts/VIPOS.git`
 - Tidak skip CI checks. Tidak push ke `main` langsung.
 - Tailwind primary color = teal #04C99E
 - Lokasi file: lihat task spec untuk path eksak
