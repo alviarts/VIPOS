@@ -47,6 +47,15 @@ async function registerTenant(slug) {
 }
 
 describe('POST /api/v1/import-export/import/:entity/async', () => {
+  // Guard against stale data from async processor race conditions
+  // across test files (singleFork mode). The processor from a
+  // previous file's job may fire after this file's TRUNCATE.
+  beforeEach(async () => {
+    await runAsSystem(() =>
+      queryFn(`DELETE FROM customers WHERE phone LIKE '+62811000%'`)
+    );
+  });
+
   it('401 — unauthenticated request blocked', async () => {
     const res = await request(app)
       .post('/api/v1/import-export/import/customers/async')
