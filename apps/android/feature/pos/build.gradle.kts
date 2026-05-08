@@ -44,6 +44,7 @@ dependencies {
     // `:core:network`; this module never touches them directly,
     // it just consumes the already-authenticated `Retrofit`.
     implementation(project(":core:network"))
+    implementation(project(":core:database"))
     implementation(project(":core:designsystem"))
     implementation(project(":feature:auth"))
 

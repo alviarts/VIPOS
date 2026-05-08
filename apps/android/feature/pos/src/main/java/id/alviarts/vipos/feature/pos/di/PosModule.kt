@@ -9,6 +9,7 @@ import id.alviarts.vipos.feature.pos.data.CashierShiftRepository
 import id.alviarts.vipos.feature.pos.data.DefaultCashierShiftRepository
 import id.alviarts.vipos.feature.pos.data.DefaultQrisRepository
 import id.alviarts.vipos.feature.pos.data.DefaultTransactionRepository
+import id.alviarts.vipos.feature.pos.data.OfflineFirstTransactionRepository
 import id.alviarts.vipos.feature.pos.data.PosApi
 import id.alviarts.vipos.feature.pos.data.QrisRepository
 import id.alviarts.vipos.feature.pos.data.TransactionRepository
@@ -94,7 +95,7 @@ abstract class PosBindingsModule {
     @Binds
     @Singleton
     abstract fun bindTransactionRepository(
-        impl: DefaultTransactionRepository,
+        impl: OfflineFirstTransactionRepository,
     ): TransactionRepository
 
     @Binds
