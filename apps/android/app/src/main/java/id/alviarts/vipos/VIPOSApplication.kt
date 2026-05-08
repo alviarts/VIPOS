@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
 import id.alviarts.vipos.crash.UncaughtExceptionLogger
+import id.alviarts.vipos.perf.StartupTracer
 import id.alviarts.vipos.notification.NotificationChannels
 import id.alviarts.vipos.sync.OutboxManager
 import id.alviarts.vipos.sync.OutboxWorkerFactory
@@ -36,6 +37,8 @@ class VIPOSApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        // P4-14: Track cold start time.
+        StartupTracer.markApplicationCreate()
         // P3-21: Install crash logger before anything else.
         UncaughtExceptionLogger.install(cacheDir)
         // P3-18: Create notification channels on startup.
