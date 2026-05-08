@@ -67,8 +67,8 @@ afterAll(async () => {
 
 describe('GET /api/v1/online-order', () => {
   it('200 returns online order list', async () => {
-    await createOnlineOrder('GOFOOD');
-    await createOnlineOrder('GRABFOOD');
+    await createOnlineOrder('gofood');
+    await createOnlineOrder('grabfood');
 
     const res = await request(app)
       .get('/api/v1/online-order')
@@ -81,7 +81,7 @@ describe('GET /api/v1/online-order', () => {
   });
 
   it('200 filters by status', async () => {
-    const orderId = await createOnlineOrder('GOFOOD');
+    const orderId = await createOnlineOrder('gofood');
 
     // Accept the order to change status
     await request(app)
@@ -97,8 +97,8 @@ describe('GET /api/v1/online-order', () => {
   });
 
   it('200 filters by channel', async () => {
-    await createOnlineOrder('GOFOOD');
-    await createOnlineOrder('GRABFOOD');
+    await createOnlineOrder('gofood');
+    await createOnlineOrder('grabfood');
 
     const res = await request(app)
       .get('/api/v1/online-order?channel=GOFOOD')
@@ -116,7 +116,7 @@ describe('GET /api/v1/online-order', () => {
 
 describe('GET /api/v1/online-order/:id', () => {
   it('200 returns order detail with items', async () => {
-    const orderId = await createOnlineOrder('GOFOOD');
+    const orderId = await createOnlineOrder('gofood');
 
     const res = await request(app)
       .get(`/api/v1/online-order/${orderId}`)
@@ -142,7 +142,7 @@ describe('GET /api/v1/online-order/:id', () => {
 
 describe('POST /api/v1/online-order/:id/accept', () => {
   it('200 accepts NEW order and changes status to PREPARING', async () => {
-    const orderId = await createOnlineOrder('GOFOOD');
+    const orderId = await createOnlineOrder('gofood');
 
     const res = await request(app)
       .post(`/api/v1/online-order/${orderId}/accept`)
@@ -154,7 +154,7 @@ describe('POST /api/v1/online-order/:id/accept', () => {
   });
 
   it('400 for already accepted order', async () => {
-    const orderId = await createOnlineOrder('GOFOOD');
+    const orderId = await createOnlineOrder('gofood');
 
     // First accept
     await request(app)
@@ -172,7 +172,7 @@ describe('POST /api/v1/online-order/:id/accept', () => {
 
 describe('POST /api/v1/online-order/:id/reject', () => {
   it('200 rejects NEW order', async () => {
-    const orderId = await createOnlineOrder('GOFOOD');
+    const orderId = await createOnlineOrder('gofood');
 
     const res = await request(app)
       .post(`/api/v1/online-order/${orderId}/reject`)
@@ -187,7 +187,7 @@ describe('POST /api/v1/online-order/:id/reject', () => {
 
 describe('POST /api/v1/online-order/:id/ready', () => {
   it('200 marks PREPARING order as READY', async () => {
-    const orderId = await createOnlineOrder('GOFOOD');
+    const orderId = await createOnlineOrder('gofood');
 
     // Accept first
     await request(app)
@@ -205,7 +205,7 @@ describe('POST /api/v1/online-order/:id/ready', () => {
   });
 
   it('400 for NEW order (must accept first)', async () => {
-    const orderId = await createOnlineOrder('GOFOOD');
+    const orderId = await createOnlineOrder('gofood');
 
     const res = await request(app)
       .post(`/api/v1/online-order/${orderId}/ready`)
@@ -217,7 +217,7 @@ describe('POST /api/v1/online-order/:id/ready', () => {
 
 describe('POST /api/v1/online-order/:id/complete', () => {
   it('200 completes READY order', async () => {
-    const orderId = await createOnlineOrder('GOFOOD');
+    const orderId = await createOnlineOrder('gofood');
 
     // Accept
     await request(app)
@@ -242,7 +242,7 @@ describe('POST /api/v1/online-order/:id/complete', () => {
 
 describe('POST /api/v1/online-order/:id/cancel', () => {
   it('200 cancels order with reason', async () => {
-    const orderId = await createOnlineOrder('GOFOOD');
+    const orderId = await createOnlineOrder('gofood');
 
     const res = await request(app)
       .post(`/api/v1/online-order/${orderId}/cancel`)
@@ -256,7 +256,7 @@ describe('POST /api/v1/online-order/:id/cancel', () => {
   });
 
   it('400 for already completed order', async () => {
-    const orderId = await createOnlineOrder('GOFOOD');
+    const orderId = await createOnlineOrder('gofood');
 
     // Complete the order
     await request(app)
