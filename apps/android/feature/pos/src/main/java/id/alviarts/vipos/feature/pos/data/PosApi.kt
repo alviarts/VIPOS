@@ -141,6 +141,14 @@ interface PosApi {
         @Path("id") customerId: Long,
     ): CustomerDto
 
+    // -- Dashboard / KPI (P4-07) --------------------------------
+
+    /**
+     * Get today's dashboard summary (revenue, transactions, etc.)
+     */
+    @GET("api/v1/dashboard/summary")
+    suspend fun getDashboardSummary(): DashboardSummaryDto
+
     // -- Promo + coupon endpoints (P3-15) ---------------------
 
     /**
