@@ -19,6 +19,9 @@ import id.alviarts.vipos.feature.pos.ui.history.TransactionDetailScreen
 import id.alviarts.vipos.feature.pos.ui.history.TransactionHistoryScreen
 import id.alviarts.vipos.feature.pos.ui.inventory.StockMovementCreateScreen
 import id.alviarts.vipos.feature.pos.ui.inventory.StockMovementListScreen
+import id.alviarts.vipos.feature.pos.ui.stockopname.StockOpnameCreateScreen
+import id.alviarts.vipos.feature.pos.ui.stockopname.StockOpnameDetailScreen
+import id.alviarts.vipos.feature.pos.ui.stockopname.StockOpnameListScreen
 import id.alviarts.vipos.feature.pos.ui.onlineorder.OnlineOrderDetailScreen
 import id.alviarts.vipos.feature.pos.ui.onlineorder.OnlineOrderQueueScreen
 
@@ -165,6 +168,11 @@ fun VIPOSNavHost(
                         launchSingleTop = true
                     }
                 },
+                onOpenStockOpnameList = {
+                    navController.navigate(VIPOSDestination.StockOpnameList.route) {
+                        launchSingleTop = true
+                    }
+                },
             )
         }
         composable(VIPOSDestination.Pos.route) {
@@ -304,6 +312,50 @@ fun VIPOSNavHost(
                 onSuccess = {
                     // Navigate back to list after successful creation
                     navController.popBackStack()
+                },
+            )
+        }
+
+        // P4-04: Stock opname list
+        composable(VIPOSDestination.StockOpnameList.route) {
+            StockOpnameListScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onCreateClick = {
+                    navController.navigate(VIPOSDestination.StockOpnameCreate.route)
+                },
+                onOpnameClick = { opnameId ->
+                    navController.navigate(VIPOSDestination.StockOpnameDetail.routeFor(opnameId))
+                },
+            )
+        }
+
+        // P4-04: Stock opname detail
+        composable(
+            route = VIPOSDestination.StockOpnameDetail.route,
+            arguments = listOf(
+                navArgument(VIPOSDestination.StockOpnameDetail.ARG_OPNAME_ID) {
+                    type = NavType.LongType
+                },
+            ),
+        ) { backStackEntry ->
+            val opnameId = backStackEntry.arguments
+                ?.getLong(VIPOSDestination.StockOpnameDetail.ARG_OPNAME_ID) ?: 0L
+            StockOpnameDetailScreen(
+                opnameId = opnameId,
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        // P4-04: Stock opname create
+        composable(VIPOSDestination.StockOpnameCreate.route) {
+            StockOpnameCreateScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onOpnameCreated = { opnameId ->
+                    // Navigate to detail after successful creation
+                    navController.navigate(VIPOSDestination.StockOpnameDetail.routeFor(opnameId)) {
+                        // Pop create screen from back stack
+                        popUpTo(VIPOSDestination.StockOpnameList.route)
+                    }
                 },
             )
         }

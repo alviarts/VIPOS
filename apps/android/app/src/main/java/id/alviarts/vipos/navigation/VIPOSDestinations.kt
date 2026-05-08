@@ -156,4 +156,32 @@ sealed interface VIPOSDestination {
     data object StockMovementCreate : VIPOSDestination {
         override val route: String = "stock_movement_create"
     }
+
+    /**
+     * P4-04: Stock opname list screen. Shows list of stock
+     * opname sessions with status filters.
+     */
+    data object StockOpnameList : VIPOSDestination {
+        override val route: String = "stock_opname_list"
+    }
+
+    /**
+     * P4-04: Stock opname detail screen. Shows full details
+     * of a stock opname session with item counts.
+     */
+    data object StockOpnameDetail : VIPOSDestination {
+        const val ARG_OPNAME_ID: String = "opnameId"
+        override val route: String = "stock_opname_detail/{$ARG_OPNAME_ID}"
+
+        fun routeFor(opnameId: Long): String =
+            "stock_opname_detail/$opnameId"
+    }
+
+    /**
+     * P4-04: Stock opname create screen. Form to create
+     * new stock opname session.
+     */
+    data object StockOpnameCreate : VIPOSDestination {
+        override val route: String = "stock_opname_create"
+    }
 }
