@@ -44,6 +44,13 @@ dependencies {
     api(libs.retrofit.kotlinx.serialization.converter)
     api(libs.kotlinx.serialization.json)
 
+    // P3-08 slice 5c: ConnectivityObserver uses callbackFlow +
+    // conflate + distinctUntilChanged from kotlinx-coroutines.
+    // Exposed as `api` because the ConnectivityObserver interface
+    // returns Flow<Boolean> which consumers need on their compile
+    // classpath.
+    api(libs.kotlinx.coroutines.android)
+
     // P3-10: unit-test deps — exercises the request-side
     // `AuthInterceptor` (Bearer injection) and the response-side
     // `SessionInvalidationInterceptor` (401 → callback) against

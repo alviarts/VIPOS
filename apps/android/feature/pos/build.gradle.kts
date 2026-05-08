@@ -54,6 +54,11 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
 
+    // P3-08 slice 5c: ZXing core for QRIS Dynamic QR code
+    // rendering. Pure-Java encoder — the Compose UI converts the
+    // resulting BitMatrix to an ImageBitmap via Canvas.
+    implementation(libs.zxing.core)
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)

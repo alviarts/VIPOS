@@ -4,12 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import id.alviarts.vipos.feature.pos.data.CheckoutCommitRequest
+import id.alviarts.vipos.feature.pos.data.QrisRepository
 import id.alviarts.vipos.feature.pos.data.TransactionRepository
 import id.alviarts.vipos.feature.pos.domain.CheckoutCartLine
 import id.alviarts.vipos.feature.pos.domain.CheckoutInputState
 import id.alviarts.vipos.feature.pos.domain.PaymentMethod
 import id.alviarts.vipos.feature.pos.domain.PaymentMethodCatalog
 import id.alviarts.vipos.feature.pos.domain.QrisPollStatus
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -73,10 +76,20 @@ import javax.inject.Inject
 class CheckoutViewModel @Inject constructor(
     private val catalog: PaymentMethodCatalog,
     private val transactionRepository: TransactionRepository,
+    private val qrisRepository: QrisRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CheckoutUiState())
     val uiState: StateFlow<CheckoutUiState> = _uiState.asStateFlow()
+
+    /**
+     * Handle to the in-flight QRIS poll coroutine. Cancelled on
+     * [cancel], [reopenPicker], or when the poll reaches a
+     * terminal status ([QrisPollStatus.Paid] /
+     * [QrisPollStatus.Expired] / [QrisPollStatus.Failed]).
+     * `null` when no poll is active.
+     */
+    private var qrisPollJob: Job? = null
 
     /**
      * Open the picker for a fresh cart.
@@ -189,6 +202,12 @@ class CheckoutViewModel @Inject constructor(
                 inputState = freshInputStateFor(state.selectedMethod),
             )
         }
+        // Kick off the QRIS mint + poll loop when the kasir
+        // confirms QRIS_DYNAMIC. The loop runs in viewModelScope
+        // and self-cancels on terminal status.
+        if (_uiState.value.selectedMethod == PaymentMethod.QRIS_DYNAMIC) {
+            startQrisMintAndPoll()
+        }
     }
 
     /**
@@ -209,6 +228,7 @@ class CheckoutViewModel @Inject constructor(
      * picker is already open or the flow hasn't started yet).
      */
     fun reopenPicker() {
+        cancelQrisPoll()
         _uiState.update { state ->
             if (state.pickerStatus !is CheckoutPickerStatus.Picked) return@update state
             state.copy(
@@ -303,6 +323,7 @@ class CheckoutViewModel @Inject constructor(
      * subsequent [start] always sees a fresh state.
      */
     fun cancel() {
+        cancelQrisPoll()
         _uiState.update { CheckoutUiState() }
     }
 
@@ -396,6 +417,102 @@ class CheckoutViewModel @Inject constructor(
         }
     }
 
+    // -- QRIS Dynamic mint + poll loop (P3-08 slice 5c) --------
+
+    /**
+     * Mint a QRIS Dynamic QR and start polling for payment
+     * confirmation every [QRIS_POLL_INTERVAL_MS] milliseconds.
+     *
+     * Flow:
+     *  1. POST `/api/v1/payment/qris/dynamic` with the
+     *     snapshotted cart subtotal.
+     *  2. On success → seed [QrisDynamicInput] with the
+     *     gateway-issued `refId` + status `Awaiting`.
+     *  3. Poll `GET /api/v1/payment/qris/:ref_id/status` every
+     *     3 seconds.
+     *  4. On each poll → update [QrisDynamicInput.status] via
+     *     [setQrisStatus].
+     *  5. Stop on terminal status: `Paid`, `Expired`, `Failed`.
+     *
+     * On mint failure → set status to `Failed` with the error
+     * message so the UI shows the error banner immediately.
+     *
+     * The coroutine is scoped to [viewModelScope] and tracked
+     * via [qrisPollJob] so [cancel] / [reopenPicker] can kill
+     * it mid-flight.
+     */
+    private fun startQrisMintAndPoll() {
+        cancelQrisPoll()
+        val subtotal = _uiState.value.cartSubtotalIdr
+        qrisPollJob = viewModelScope.launch {
+            // Step 1: Mint
+            val mintResult = qrisRepository.mint(subtotal)
+            mintResult.fold(
+                onSuccess = { mint ->
+                    setQrisStatus(mint.refId, mint.status)
+                    // Store the QR code URL for the UI to render.
+                    _uiState.update { state ->
+                        val current = state.inputState
+                        if (current !is CheckoutInputState.QrisDynamicInput) return@update state
+                        state.copy(
+                            inputState = current.copy(
+                                refId = mint.refId,
+                                status = mint.status,
+                                qrCodeUrl = mint.qrCodeUrl,
+                            ),
+                        )
+                    }
+                    // Step 2: Poll loop
+                    val refId = mint.refId
+                    while (true) {
+                        delay(QRIS_POLL_INTERVAL_MS)
+                        val pollResult = qrisRepository.pollStatus(refId)
+                        pollResult.fold(
+                            onSuccess = { poll ->
+                                setQrisStatus(poll.refId, poll.status)
+                                // Stop on terminal status
+                                if (poll.status is QrisPollStatus.Paid ||
+                                    poll.status is QrisPollStatus.Expired ||
+                                    poll.status is QrisPollStatus.Failed
+                                ) return@launch
+                            },
+                            onFailure = { throwable ->
+                                setQrisStatus(
+                                    refId,
+                                    QrisPollStatus.Failed(
+                                        throwable.localizedMessage
+                                            ?: throwable.message
+                                            ?: DEFAULT_QRIS_FAILURE_MESSAGE,
+                                    ),
+                                )
+                                return@launch
+                            },
+                        )
+                    }
+                },
+                onFailure = { throwable ->
+                    setQrisStatus(
+                        null,
+                        QrisPollStatus.Failed(
+                            throwable.localizedMessage
+                                ?: throwable.message
+                                ?: DEFAULT_QRIS_FAILURE_MESSAGE,
+                        ),
+                    )
+                },
+            )
+        }
+    }
+
+    /**
+     * Cancel any in-flight QRIS poll coroutine. Safe to call
+     * even when no poll is active (no-op).
+     */
+    private fun cancelQrisPoll() {
+        qrisPollJob?.cancel()
+        qrisPollJob = null
+    }
+
     /**
      * Map a confirmed [PaymentMethod] to the per-method input
      * state shape the slice-4 UI expects. Returns `null` for
@@ -412,5 +529,9 @@ class CheckoutViewModel @Inject constructor(
     private companion object {
         private const val DEFAULT_COMMIT_FAILURE_MESSAGE: String =
             "Tidak bisa menyimpan transaksi. Coba lagi."
+        private const val DEFAULT_QRIS_FAILURE_MESSAGE: String =
+            "Gagal memproses QRIS. Coba lagi."
+        /** Poll interval in milliseconds (3 seconds). */
+        private const val QRIS_POLL_INTERVAL_MS: Long = 3_000L
     }
 }

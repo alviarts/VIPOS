@@ -3,12 +3,15 @@ package id.alviarts.vipos.feature.pos.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import id.alviarts.vipos.core.network.ConnectivityObserver
 import id.alviarts.vipos.feature.pos.data.PosRepository
 import id.alviarts.vipos.feature.pos.domain.CartItem
 import id.alviarts.vipos.feature.pos.domain.Product
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -36,10 +39,30 @@ import javax.inject.Inject
 @HiltViewModel
 class PosCatalogueViewModel @Inject constructor(
     private val repository: PosRepository,
+    connectivityObserver: ConnectivityObserver,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PosCatalogueUiState())
     val uiState: StateFlow<PosCatalogueUiState> = _uiState.asStateFlow()
+
+    /**
+     * Reactive network connectivity state. Emits `true` when the
+     * device has internet, `false` when it doesn't. Collected by
+     * [PosCatalogueRoute] and passed to
+     * [CheckoutViewModel.start] so the payment-method picker
+     * filters online-only methods (QRIS Dynamic, e-wallets) when
+     * the device is offline.
+     *
+     * Starts with `true` (optimistic default) and stays alive as
+     * long as the ViewModel is alive (WhileSubscribed with a 5s
+     * stop timeout to survive config changes).
+     */
+    val isOnline: StateFlow<Boolean> = connectivityObserver.observe()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = true,
+        )
 
     init {
         refresh()

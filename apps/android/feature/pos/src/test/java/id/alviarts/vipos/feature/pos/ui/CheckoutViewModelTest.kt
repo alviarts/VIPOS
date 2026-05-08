@@ -2,6 +2,9 @@ package id.alviarts.vipos.feature.pos.ui
 
 import id.alviarts.vipos.feature.pos.data.CheckoutCommitOutcome
 import id.alviarts.vipos.feature.pos.data.CheckoutCommitRequest
+import id.alviarts.vipos.feature.pos.data.QrisMintResult
+import id.alviarts.vipos.feature.pos.data.QrisPollResult
+import id.alviarts.vipos.feature.pos.data.QrisRepository
 import id.alviarts.vipos.feature.pos.data.TransactionRepository
 import id.alviarts.vipos.feature.pos.domain.CheckoutCartLine
 import id.alviarts.vipos.feature.pos.domain.CheckoutInputState
@@ -90,6 +93,19 @@ class CheckoutViewModelTest {
     }
 
     /**
+     * Default fake QRIS repository used by every test that
+     * doesn't exercise the QRIS poll flow. Returns failure on
+     * both mint and poll — never observed because those tests
+     * never confirm QRIS_DYNAMIC.
+     */
+    private val defaultQrisRepository: QrisRepository = object : QrisRepository {
+        override suspend fun mint(amountIdr: Long): Result<QrisMintResult> =
+            Result.failure(IllegalStateException("qris mint not exercised in this test"))
+        override suspend fun pollStatus(refId: String): Result<QrisPollResult> =
+            Result.failure(IllegalStateException("qris poll not exercised in this test"))
+    }
+
+    /**
      * Recording fake used by the slice-5b commit-flow tests.
      * Captures every [CheckoutCommitRequest] passed through
      * [commit] and returns whichever [Result] the test installed
@@ -114,7 +130,47 @@ class CheckoutViewModelTest {
         }
     }
 
+    /**
+     * Recording fake for [QrisRepository] used by the slice-5c
+     * QRIS poll loop tests. Controls the mint and poll responses
+     * so the test can drive the poll loop deterministically.
+     */
+    private class RecordingQrisRepository(
+        var mintResult: Result<QrisMintResult> = Result.success(SAMPLE_MINT_RESULT),
+        private val pollResults: MutableList<Result<QrisPollResult>> = mutableListOf(),
+    ) : QrisRepository {
+        var mintCallCount: Int = 0
+            private set
+        var pollCallCount: Int = 0
+            private set
+
+        fun enqueuePollResult(result: Result<QrisPollResult>) {
+            pollResults.add(result)
+        }
+
+        override suspend fun mint(amountIdr: Long): Result<QrisMintResult> {
+            mintCallCount++
+            return mintResult
+        }
+
+        override suspend fun pollStatus(refId: String): Result<QrisPollResult> {
+            pollCallCount++
+            return if (pollResults.isNotEmpty()) {
+                pollResults.removeAt(0)
+            } else {
+                // Default: return Paid to stop the loop
+                Result.success(QrisPollResult(refId, QrisPollStatus.Paid))
+            }
+        }
+    }
+
     private companion object {
+        private val SAMPLE_MINT_RESULT = QrisMintResult(
+            refId = "QR-9001",
+            qrCodeUrl = "https://stub.qris.local/qr/QR-9001.png",
+            status = QrisPollStatus.Awaiting,
+        )
+
         private val SAMPLE_OUTCOME = CheckoutCommitOutcome(
             transactionId = 9001L,
             invoiceNumber = "INV-2026-05-07-0001",
@@ -148,7 +204,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `initial state is Idle with empty cart and no methods`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         val state = vm.uiState.value
         assertEquals(CheckoutPickerStatus.Idle, state.pickerStatus)
         assertEquals(0L, state.cartSubtotalIdr)
@@ -160,7 +216,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `start opens picker and snapshots subtotal plus methods`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 71_000L, isOnline = true)
         val state = vm.uiState.value
         assertEquals(CheckoutPickerStatus.Picking, state.pickerStatus)
@@ -174,7 +230,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `start offline filters online-required methods`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 50_000L, isOnline = false)
         val state = vm.uiState.value
         assertTrue(state.availableMethods.contains(PaymentMethod.CASH))
@@ -190,7 +246,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `selectMethod sets selectedMethod when picker is open`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.CASH)
         val state = vm.uiState.value
@@ -201,7 +257,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `selectMethod replaces previous pick in place`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.CASH)
         vm.selectMethod(PaymentMethod.QRIS_DYNAMIC)
@@ -210,7 +266,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `selectMethod is no-op before start`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.selectMethod(PaymentMethod.CASH)
         val state = vm.uiState.value
         assertEquals(CheckoutPickerStatus.Idle, state.pickerStatus)
@@ -219,7 +275,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `selectMethod is no-op for method outside availableMethods`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         // Offline → online-required methods are filtered out.
         vm.start(cartSubtotalIdr = 30_000L, isOnline = false)
         vm.selectMethod(PaymentMethod.QRIS_DYNAMIC)
@@ -228,7 +284,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `clearSelection returns to no-pick`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.CASH)
         vm.clearSelection()
@@ -242,7 +298,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `confirmSelection advances to Picked when ready`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.CASH)
         vm.confirmSelection()
@@ -251,7 +307,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `confirmSelection is no-op when nothing picked`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.confirmSelection()
         // No pick → predicate stays false → state unchanged.
@@ -260,7 +316,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `confirmSelection is no-op when subtotal is zero`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 0L, isOnline = true)
         vm.selectMethod(PaymentMethod.CASH)
         vm.confirmSelection()
@@ -270,7 +326,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `reopenPicker restores Picking and keeps selection`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.CASH)
         vm.confirmSelection()
@@ -283,7 +339,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `reopenPicker is no-op when not Picked`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         // Currently Picking.
         vm.reopenPicker()
@@ -292,7 +348,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `cancel resets to fresh Idle`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.QRIS_DYNAMIC)
         vm.cancel()
@@ -305,7 +361,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `start re-opens with fresh subtotal and clears prior pick`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.CASH)
         vm.confirmSelection()
@@ -335,7 +391,7 @@ class CheckoutViewModelTest {
             queryCount++
             DefaultPaymentMethodCatalog.availableMethods(isOnline = true)
         }
-        val vm = CheckoutViewModel(countingCatalog, defaultRepository)
+        val vm = CheckoutViewModel(countingCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         assertEquals(1, queryCount)
         vm.selectMethod(PaymentMethod.CASH)
@@ -359,7 +415,7 @@ class CheckoutViewModelTest {
         val fakeCatalog = PaymentMethodCatalog { _ ->
             listOf(PaymentMethod.CASH, PaymentMethod.QRIS_DYNAMIC)
         }
-        val vm = CheckoutViewModel(fakeCatalog, defaultRepository)
+        val vm = CheckoutViewModel(fakeCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         val state = vm.uiState.value
         assertEquals(
@@ -380,7 +436,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `confirmSelection seeds CashInput for CASH`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.CASH)
         vm.confirmSelection()
@@ -393,7 +449,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `confirmSelection seeds EdcInput for EDC`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.EDC)
         vm.confirmSelection()
@@ -404,18 +460,28 @@ class CheckoutViewModelTest {
     }
 
     @Test
-    fun `confirmSelection seeds QrisDynamicInput for QRIS_DYNAMIC`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+    fun `confirmSelection seeds QrisDynamicInput for QRIS_DYNAMIC`() = runTest {
+        // Use a recording QRIS repo that returns a successful mint
+        // so we can observe the state after the poll loop runs.
+        // The default fake returns failure which immediately flips
+        // to Failed — not what this test wants to assert.
+        val qrisRepo = RecordingQrisRepository()
+        // Enqueue a Paid poll so the loop terminates.
+        qrisRepo.enqueuePollResult(
+            Result.success(QrisPollResult("QR-9001", QrisPollStatus.Paid)),
+        )
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, qrisRepo)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.QRIS_DYNAMIC)
         vm.confirmSelection()
+        testDispatcher.scheduler.advanceUntilIdle()
         val state = vm.uiState.value
-        assertEquals(
-            CheckoutInputState.QrisDynamicInput(refId = null, status = QrisPollStatus.Generating),
-            state.inputState,
-        )
-        // Generating → not yet Paid → not ready.
-        assertFalse(state.isReadyForCommit)
+        val input = state.inputState as CheckoutInputState.QrisDynamicInput
+        // After mint + poll, the input should have the ref_id and
+        // terminal Paid status.
+        assertEquals("QR-9001", input.refId)
+        assertEquals(QrisPollStatus.Paid, input.status)
+        assertTrue(state.isReadyForCommit)
     }
 
     @Test
@@ -434,7 +500,7 @@ class CheckoutViewModelTest {
             PaymentMethod.OTHER,
         )
         for (method in singleTapMethods) {
-            val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+            val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
             vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
             vm.selectMethod(method)
             vm.confirmSelection()
@@ -454,7 +520,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `setCashTendered updates tendered and gates isReadyForCommit`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.CASH)
         vm.confirmSelection()
@@ -480,7 +546,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `setCashTendered clamps negatives to zero`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.CASH)
         vm.confirmSelection()
@@ -490,7 +556,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `setCashTendered is no-op when not in CashInput state`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.EDC)
         vm.confirmSelection()
@@ -504,7 +570,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `setCashTendered is no-op while picker is still open`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.CASH)
         // Did NOT confirmSelection → still Picking, inputState null.
@@ -514,7 +580,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `setEdcApprovalRef updates approvalRef and gates isReadyForCommit`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.EDC)
         vm.confirmSelection()
@@ -528,7 +594,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `setEdcApprovalRef does not trim whitespace at write time`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.EDC)
         vm.confirmSelection()
@@ -542,7 +608,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `setEdcApprovalRef whitespace-only is not valid`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.EDC)
         vm.confirmSelection()
@@ -552,7 +618,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `setEdcLast4 updates last4 independently of approvalRef`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.EDC)
         vm.confirmSelection()
@@ -569,7 +635,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `setQrisStatus advances through poll lifecycle`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.QRIS_DYNAMIC)
         vm.confirmSelection()
@@ -604,7 +670,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `setQrisStatus is no-op when input shape is not QrisDynamic`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.CASH)
         vm.confirmSelection()
@@ -618,7 +684,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `reopenPicker clears in-flight inputState`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.CASH)
         vm.confirmSelection()
@@ -634,7 +700,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `re-confirming after reopenPicker re-seeds fresh inputState`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.CASH)
         vm.confirmSelection()
@@ -650,7 +716,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `cancel clears inputState`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.CASH)
         vm.confirmSelection()
@@ -663,7 +729,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `isReadyForCommit is false while picker is still open`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.CASH)
         // Picker is still Picking — even with a selection, commit gate stays false.
@@ -673,7 +739,7 @@ class CheckoutViewModelTest {
     @Test
     fun `isReadyToCommit alias still tracks the picker step`() {
         // Back-compat: slice-2 readers can still reference the old name.
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         vm.selectMethod(PaymentMethod.CASH)
         // Same predicate as isReadyToConfirmMethod.
@@ -690,7 +756,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `start with cartLines snapshots them onto state`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(
             cartSubtotalIdr = 30_000L,
             isOnline = true,
@@ -701,7 +767,7 @@ class CheckoutViewModelTest {
 
     @Test
     fun `start without cartLines defaults to empty`() {
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(cartSubtotalIdr = 30_000L, isOnline = true)
         assertEquals(emptyList<CheckoutCartLine>(), vm.uiState.value.cartLines)
     }
@@ -712,7 +778,7 @@ class CheckoutViewModelTest {
         // → clearSelection → confirmSelection) must NOT lose the
         // commit-payload snapshot, since the kasir hasn't done
         // anything that should restart the in-flight checkout.
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(
             cartSubtotalIdr = 30_000L,
             isOnline = true,
@@ -730,7 +796,7 @@ class CheckoutViewModelTest {
         val repository = RecordingTransactionRepository(
             nextResult = Result.success(SAMPLE_OUTCOME),
         )
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, repository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, repository, defaultQrisRepository)
         vm.start(
             cartSubtotalIdr = 30_000L,
             isOnline = true,
@@ -770,7 +836,7 @@ class CheckoutViewModelTest {
         val repository = RecordingTransactionRepository(
             nextResult = Result.failure(backendError),
         )
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, repository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, repository, defaultQrisRepository)
         vm.start(
             cartSubtotalIdr = 30_000L,
             isOnline = true,
@@ -795,7 +861,7 @@ class CheckoutViewModelTest {
         val repository = RecordingTransactionRepository(
             nextResult = Result.failure(noMessage),
         )
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, repository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, repository, defaultQrisRepository)
         vm.start(
             cartSubtotalIdr = 30_000L,
             isOnline = true,
@@ -821,7 +887,7 @@ class CheckoutViewModelTest {
         // validation predicate keeps isReadyForCommit false, so a
         // direct `commit()` call must NOT fire the request.
         val repository = RecordingTransactionRepository()
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, repository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, repository, defaultQrisRepository)
         vm.start(
             cartSubtotalIdr = 30_000L,
             isOnline = true,
@@ -849,7 +915,7 @@ class CheckoutViewModelTest {
         //
         // The assertion is structural: copy the state into
         // Submitting and verify isReadyForCommit collapses.
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, defaultQrisRepository)
         vm.start(
             cartSubtotalIdr = 30_000L,
             isOnline = true,
@@ -869,7 +935,7 @@ class CheckoutViewModelTest {
         val repository = RecordingTransactionRepository(
             nextResult = Result.failure(IllegalStateException("boom")),
         )
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, repository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, repository, defaultQrisRepository)
         vm.start(
             cartSubtotalIdr = 30_000L,
             isOnline = true,
@@ -893,7 +959,7 @@ class CheckoutViewModelTest {
         val repository = RecordingTransactionRepository(
             nextResult = Result.success(SAMPLE_OUTCOME),
         )
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, repository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, repository, defaultQrisRepository)
         vm.start(
             cartSubtotalIdr = 30_000L,
             isOnline = true,
@@ -918,7 +984,7 @@ class CheckoutViewModelTest {
         val repository = RecordingTransactionRepository(
             nextResult = Result.failure(IllegalStateException("first")),
         )
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, repository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, repository, defaultQrisRepository)
         vm.start(
             cartSubtotalIdr = 30_000L,
             isOnline = true,
@@ -949,7 +1015,7 @@ class CheckoutViewModelTest {
         val repository = RecordingTransactionRepository(
             nextResult = Result.success(SAMPLE_OUTCOME),
         )
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, repository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, repository, defaultQrisRepository)
         vm.start(
             cartSubtotalIdr = 30_000L,
             isOnline = true,
@@ -973,7 +1039,7 @@ class CheckoutViewModelTest {
         val repository = RecordingTransactionRepository(
             nextResult = Result.failure(IllegalStateException("boom")),
         )
-        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, repository)
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, repository, defaultQrisRepository)
         vm.start(
             cartSubtotalIdr = 30_000L,
             isOnline = true,
@@ -991,5 +1057,170 @@ class CheckoutViewModelTest {
         // cancel() resets the WHOLE state, commitStatus included.
         assertEquals(CheckoutCommitStatus.Idle, vm.uiState.value.commitStatus)
         assertEquals(emptyList<CheckoutCartLine>(), vm.uiState.value.cartLines)
+    }
+
+    // -- QRIS Dynamic poll loop tests (P3-08 slice 5c) --------
+
+    @Test
+    fun `confirmSelection for QRIS_DYNAMIC triggers mint and poll loop`() = runTest {
+        val qrisRepo = RecordingQrisRepository()
+        // Enqueue one Awaiting poll, then a Paid poll to stop the loop.
+        qrisRepo.enqueuePollResult(
+            Result.success(QrisPollResult("QR-9001", QrisPollStatus.Awaiting)),
+        )
+        qrisRepo.enqueuePollResult(
+            Result.success(QrisPollResult("QR-9001", QrisPollStatus.Paid)),
+        )
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, qrisRepo)
+        vm.start(cartSubtotalIdr = 71_000L, isOnline = true, cartLines = SAMPLE_CART_LINES)
+        vm.selectMethod(PaymentMethod.QRIS_DYNAMIC)
+        vm.confirmSelection()
+
+        // Wait for the coroutine to complete (UnconfinedTestDispatcher
+        // runs eagerly, but delay() in the poll loop needs advancing).
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, qrisRepo.mintCallCount)
+        assertEquals(2, qrisRepo.pollCallCount)
+
+        val state = vm.uiState.value
+        val input = state.inputState as CheckoutInputState.QrisDynamicInput
+        assertEquals("QR-9001", input.refId)
+        assertEquals(QrisPollStatus.Paid, input.status)
+        assertEquals("https://stub.qris.local/qr/QR-9001.png", input.qrCodeUrl)
+        assertTrue(state.isReadyForCommit)
+    }
+
+    @Test
+    fun `QRIS poll loop stops on Expired status`() = runTest {
+        val qrisRepo = RecordingQrisRepository()
+        qrisRepo.enqueuePollResult(
+            Result.success(QrisPollResult("QR-9001", QrisPollStatus.Awaiting)),
+        )
+        qrisRepo.enqueuePollResult(
+            Result.success(QrisPollResult("QR-9001", QrisPollStatus.Expired)),
+        )
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, qrisRepo)
+        vm.start(cartSubtotalIdr = 50_000L, isOnline = true, cartLines = SAMPLE_CART_LINES)
+        vm.selectMethod(PaymentMethod.QRIS_DYNAMIC)
+        vm.confirmSelection()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val input = vm.uiState.value.inputState as CheckoutInputState.QrisDynamicInput
+        assertEquals(QrisPollStatus.Expired, input.status)
+        assertFalse(vm.uiState.value.isReadyForCommit)
+    }
+
+    @Test
+    fun `QRIS poll loop stops on Failed status`() = runTest {
+        val qrisRepo = RecordingQrisRepository()
+        qrisRepo.enqueuePollResult(
+            Result.success(QrisPollResult("QR-9001", QrisPollStatus.Failed("gateway error"))),
+        )
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, qrisRepo)
+        vm.start(cartSubtotalIdr = 50_000L, isOnline = true, cartLines = SAMPLE_CART_LINES)
+        vm.selectMethod(PaymentMethod.QRIS_DYNAMIC)
+        vm.confirmSelection()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val input = vm.uiState.value.inputState as CheckoutInputState.QrisDynamicInput
+        assertTrue(input.status is QrisPollStatus.Failed)
+        assertEquals("gateway error", (input.status as QrisPollStatus.Failed).message)
+    }
+
+    @Test
+    fun `QRIS mint failure sets Failed status immediately`() = runTest {
+        val qrisRepo = RecordingQrisRepository(
+            mintResult = Result.failure(IllegalStateException("network down")),
+        )
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, qrisRepo)
+        vm.start(cartSubtotalIdr = 50_000L, isOnline = true, cartLines = SAMPLE_CART_LINES)
+        vm.selectMethod(PaymentMethod.QRIS_DYNAMIC)
+        vm.confirmSelection()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val input = vm.uiState.value.inputState as CheckoutInputState.QrisDynamicInput
+        assertTrue(input.status is QrisPollStatus.Failed)
+        assertEquals(0, qrisRepo.pollCallCount) // No poll after mint failure
+    }
+
+    @Test
+    fun `QRIS poll network failure sets Failed status`() = runTest {
+        val qrisRepo = RecordingQrisRepository()
+        qrisRepo.enqueuePollResult(
+            Result.success(QrisPollResult("QR-9001", QrisPollStatus.Awaiting)),
+        )
+        qrisRepo.enqueuePollResult(
+            Result.failure(IllegalStateException("connection reset")),
+        )
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, qrisRepo)
+        vm.start(cartSubtotalIdr = 50_000L, isOnline = true, cartLines = SAMPLE_CART_LINES)
+        vm.selectMethod(PaymentMethod.QRIS_DYNAMIC)
+        vm.confirmSelection()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val input = vm.uiState.value.inputState as CheckoutInputState.QrisDynamicInput
+        assertTrue(input.status is QrisPollStatus.Failed)
+        assertEquals(2, qrisRepo.pollCallCount)
+    }
+
+    @Test
+    fun `cancel stops QRIS poll loop`() = runTest {
+        val qrisRepo = RecordingQrisRepository()
+        // Enqueue many Awaiting results — the loop should be cancelled
+        // before consuming them all.
+        repeat(100) {
+            qrisRepo.enqueuePollResult(
+                Result.success(QrisPollResult("QR-9001", QrisPollStatus.Awaiting)),
+            )
+        }
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, qrisRepo)
+        vm.start(cartSubtotalIdr = 50_000L, isOnline = true, cartLines = SAMPLE_CART_LINES)
+        vm.selectMethod(PaymentMethod.QRIS_DYNAMIC)
+        vm.confirmSelection()
+
+        // Let a few polls fire, then cancel.
+        testDispatcher.scheduler.advanceTimeBy(7_000L)
+        vm.cancel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // The poll count should be small (cancelled mid-loop).
+        assertTrue(qrisRepo.pollCallCount < 100)
+        assertEquals(CheckoutPickerStatus.Idle, vm.uiState.value.pickerStatus)
+    }
+
+    @Test
+    fun `reopenPicker stops QRIS poll loop`() = runTest {
+        val qrisRepo = RecordingQrisRepository()
+        repeat(100) {
+            qrisRepo.enqueuePollResult(
+                Result.success(QrisPollResult("QR-9001", QrisPollStatus.Awaiting)),
+            )
+        }
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, qrisRepo)
+        vm.start(cartSubtotalIdr = 50_000L, isOnline = true, cartLines = SAMPLE_CART_LINES)
+        vm.selectMethod(PaymentMethod.QRIS_DYNAMIC)
+        vm.confirmSelection()
+
+        testDispatcher.scheduler.advanceTimeBy(7_000L)
+        vm.reopenPicker()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(qrisRepo.pollCallCount < 100)
+        assertEquals(CheckoutPickerStatus.Picking, vm.uiState.value.pickerStatus)
+        assertNull(vm.uiState.value.inputState)
+    }
+
+    @Test
+    fun `confirmSelection for non-QRIS method does not trigger mint`() = runTest {
+        val qrisRepo = RecordingQrisRepository()
+        val vm = CheckoutViewModel(DefaultPaymentMethodCatalog, defaultRepository, qrisRepo)
+        vm.start(cartSubtotalIdr = 50_000L, isOnline = true, cartLines = SAMPLE_CART_LINES)
+        vm.selectMethod(PaymentMethod.CASH)
+        vm.confirmSelection()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(0, qrisRepo.mintCallCount)
+        assertEquals(0, qrisRepo.pollCallCount)
     }
 }

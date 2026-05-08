@@ -66,6 +66,13 @@ navigationCompose = "2.7.7"
 junit = "4.13.2"
 turbine = "1.1.0"
 
+# P3-08 slice 5c: ZXing core for QR code generation. The `core`
+# artifact is a pure-Java library (no Android dependency) that
+# provides the `BarcodeFormat.QR_CODE` encoder. We render the
+# resulting `BitMatrix` to a Compose `ImageBitmap` directly —
+# no need for the heavier `zxing-android-embedded` wrapper.
+zxing = "3.5.3"
+
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
@@ -125,6 +132,9 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 # bytecode it talks to lines up exactly with what the production
 # stack ships.
 okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "okhttp" }
+# P3-08 slice 5c: ZXing core for QR code generation from the
+# gateway-issued `qr_code_url` content string.
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 # `kotlinx-coroutines-test` provides `runTest`, `StandardTestDispatcher`,
 # `Dispatchers.setMain`, and friends — required to drive the
 # `viewModelScope`-rooted Flow inside `SessionViewModel` deterministically.

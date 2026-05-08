@@ -86,6 +86,7 @@ fun PosCatalogueRoute(
     // so the call site here must opt in too — same posture as
     // PosCatalogueScreen below.
     val state by catalogueViewModel.uiState.collectAsStateWithLifecycle()
+    val isOnline by catalogueViewModel.isOnline.collectAsStateWithLifecycle()
     val variantState by variantViewModel.uiState.collectAsStateWithLifecycle()
     val checkoutState by checkoutViewModel.uiState.collectAsStateWithLifecycle()
 
@@ -118,15 +119,16 @@ fun PosCatalogueRoute(
         onDecrement = catalogueViewModel::decrement,
         onRemoveFromCart = catalogueViewModel::removeFromCart,
         onCheckout = {
-            // P3-08 slice 5a + 5b: open the picker with the
-            // current cart subtotal AND a snapshot of the cart
-            // lines snapshotted into CheckoutViewModel.
-            // `isOnline = true` is the kasir-online default for
-            // this slice — a follow-up will pipe a real network
-            // signal in (slice 5c+). Cart-aware filters
-            // (CartAwarePaymentMethodCatalog) layer on top via the
-            // PosModule binding once a CartContext provider lands
-            // (separate Tier-1 follow-up).
+            // P3-08 slice 5a + 5b + 5c: open the picker with the
+            // current cart subtotal, live connectivity state, AND
+            // a snapshot of the cart lines.
+            //
+            // `isOnline` is collected from
+            // `ConnectivityObserver.observe()` via
+            // `PosCatalogueViewModel.isOnline` — when the device
+            // is offline, the picker filters out online-only
+            // methods (QRIS Dynamic, e-wallets, etc.) so the
+            // kasir can't pick a method that would fail at commit.
             //
             // The line snapshot is what slice 5b sends as
             // `items[]` on `POST /api/v1/transactions`; capturing
@@ -137,7 +139,7 @@ fun PosCatalogueRoute(
             // payload.
             checkoutViewModel.start(
                 cartSubtotalIdr = state.cartSubtotalIdr,
-                isOnline = true,
+                isOnline = isOnline,
                 cartLines = state.cart.map(CheckoutCartLine::fromCartItem),
             )
         },

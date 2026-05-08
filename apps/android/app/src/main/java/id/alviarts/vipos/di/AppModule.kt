@@ -12,6 +12,8 @@ import id.alviarts.vipos.core.common.AppConfig
 import id.alviarts.vipos.core.database.VIPOSDatabase
 import id.alviarts.vipos.core.database.dao.KeyValueCacheDao
 import id.alviarts.vipos.core.network.AuthInterceptor
+import id.alviarts.vipos.core.network.AndroidConnectivityObserver
+import id.alviarts.vipos.core.network.ConnectivityObserver
 import id.alviarts.vipos.core.network.NetworkClientFactory
 import id.alviarts.vipos.core.network.RefreshTokenAuthenticator
 import id.alviarts.vipos.core.network.SessionInvalidationInterceptor
@@ -199,4 +201,25 @@ object AppModule {
     @Singleton
     fun provideKeyValueCacheDao(database: VIPOSDatabase): KeyValueCacheDao =
         database.keyValueCacheDao()
+
+    /**
+     * Application-scoped [ConnectivityObserver] (P3-08 slice 5c
+     * follow-up).
+     *
+     * Wraps the system [android.net.ConnectivityManager] in a
+     * reactive [kotlinx.coroutines.flow.Flow<Boolean>] that emits
+     * `true` when the device has internet and `false` when it
+     * doesn't. Feature modules (`:feature:pos`) collect this flow
+     * to gate online-only payment methods (QRIS Dynamic, e-wallets)
+     * in the checkout picker.
+     *
+     * Returns the [ConnectivityObserver] interface so feature
+     * modules can substitute a fake in unit tests without pulling
+     * in Android framework classes.
+     */
+    @Provides
+    @Singleton
+    fun provideConnectivityObserver(
+        @ApplicationContext context: Context,
+    ): ConnectivityObserver = AndroidConnectivityObserver(context)
 }

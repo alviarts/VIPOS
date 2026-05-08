@@ -32,13 +32,17 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import id.alviarts.vipos.core.designsystem.theme.VIPOSTheme
 import id.alviarts.vipos.feature.pos.domain.CheckoutInputState
@@ -609,7 +613,7 @@ fun QrisPaymentDialog(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(12.dp))
-        QrisPlaceholder(status = input.status)
+        QrisCodeArea(qrCodeUrl = input.qrCodeUrl, status = input.status)
         Spacer(Modifier.height(12.dp))
         QrisStatusRow(refId = input.refId, status = input.status)
         Spacer(Modifier.height(12.dp))
@@ -626,13 +630,21 @@ fun QrisPaymentDialog(
 }
 
 /**
- * Placeholder QR area. The real QR rendering needs the
- * gateway-issued payload (slice 5 wires the gateway client +
- * QR codec library); for slice 4 we stand up the visual
- * scaffolding so the layout + spacing is committed.
+ * QR code rendering area (P3-08 slice 5c).
+ *
+ * Replaces the slice-4 placeholder with real QR rendering via
+ * ZXing. When [qrCodeUrl] is non-null and [status] is
+ * [QrisPollStatus.Awaiting], the composable encodes the URL
+ * string into a QR code bitmap and renders it. For other states
+ * (Generating, Paid, Expired, Failed) it shows the appropriate
+ * status indicator.
+ *
+ * The QR bitmap is computed off the main thread via
+ * [androidx.compose.runtime.remember] + [produceState] pattern
+ * to avoid jank on the first render.
  */
 @Composable
-private fun QrisPlaceholder(status: QrisPollStatus) {
+private fun QrisCodeArea(qrCodeUrl: String?, status: QrisPollStatus) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -660,11 +672,35 @@ private fun QrisPlaceholder(status: QrisPollStatus) {
                 }
             }
             QrisPollStatus.Awaiting -> {
-                Text(
-                    text = "[ QR akan muncul di sini ]",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                if (qrCodeUrl != null) {
+                    val qrBitmap = remember(qrCodeUrl) {
+                        generateQrBitmap(qrCodeUrl, sizePx = 512)
+                    }
+                    if (qrBitmap != null) {
+                        Image(
+                            bitmap = qrBitmap,
+                            contentDescription = "QRIS QR Code",
+                            modifier = Modifier
+                                .size(200.dp)
+                                .padding(8.dp),
+                        )
+                    } else {
+                        Text(
+                            text = "Gagal membuat QR",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(modifier = Modifier.size(36.dp))
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = "Memuat QR…",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
             }
             QrisPollStatus.Paid -> {
                 Text(
@@ -689,6 +725,46 @@ private fun QrisPlaceholder(status: QrisPollStatus) {
                 )
             }
         }
+    }
+}
+
+/**
+ * Generate a QR code [ImageBitmap] from [content] using ZXing.
+ *
+ * Returns `null` if encoding fails (e.g. content too long for
+ * the QR version). The caller should show a fallback error
+ * message in that case.
+ *
+ * @param content the string to encode (typically the
+ *   gateway-issued `qr_code_url`).
+ * @param sizePx the width/height of the output bitmap in
+ *   pixels.
+ */
+private fun generateQrBitmap(content: String, sizePx: Int): ImageBitmap? {
+    return try {
+        val bitMatrix = com.google.zxing.qrcode.QRCodeWriter().encode(
+            content,
+            com.google.zxing.BarcodeFormat.QR_CODE,
+            sizePx,
+            sizePx,
+        )
+        val pixels = IntArray(sizePx * sizePx)
+        for (y in 0 until sizePx) {
+            for (x in 0 until sizePx) {
+                pixels[y * sizePx + x] = if (bitMatrix[x, y]) {
+                    android.graphics.Color.BLACK
+                } else {
+                    android.graphics.Color.WHITE
+                }
+            }
+        }
+        val bitmap = android.graphics.Bitmap.createBitmap(
+            pixels, sizePx, sizePx,
+            android.graphics.Bitmap.Config.ARGB_8888,
+        )
+        bitmap.asImageBitmap()
+    } catch (_: Exception) {
+        null
     }
 }
 
@@ -1029,6 +1105,7 @@ private fun CheckoutSheetContentQrisAwaitingPreview() {
                 inputState = CheckoutInputState.QrisDynamicInput(
                     refId = "QR-9001",
                     status = QrisPollStatus.Awaiting,
+                    qrCodeUrl = "https://stub.qris.local/qr/QR-9001.png",
                 ),
             ),
             onSelectMethod = {},

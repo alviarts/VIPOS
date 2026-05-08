@@ -120,24 +120,27 @@ sealed interface CheckoutInputState {
      * `/api/v1/payment/qris/:ref_id/status` until the gateway
      * confirms paid / expired.
      *
-     * The mutators in the ViewModel just persist the latest
-     * gateway-reported state into [status]; the actual
-     * `viewModelScope`-bound polling loop lands with the
-     * slice-5 wire-up since it needs the gateway endpoint
-     * (which the backend doesn't expose yet — see
-     * `docs/handoff/2026-05-07-p3-08-second-slice-checkout-viewmodel.md`
-     * Outstanding backlog).
+     * The ViewModel's poll loop (P3-08 slice 5c) calls
+     * `POST /api/v1/payment/qris/dynamic` to mint, seeds
+     * [refId] + [qrCodeUrl] + status [QrisPollStatus.Awaiting],
+     * then polls `GET /api/v1/payment/qris/:ref_id/status`
+     * every 3 seconds until a terminal status is reached.
      *
      * @property refId gateway-issued reference id. `null`
      *   while [status] is [QrisPollStatus.Generating]; set
      *   once the gateway mint succeeds.
      * @property status the lifecycle of the QR. Drives the
-     *   slice-4 UI's "loading / awaiting payment / paid /
+     *   UI's "loading / awaiting payment / paid /
      *   expired / failed" state machine.
+     * @property qrCodeUrl URL to the QR image returned by the
+     *   gateway mint. `null` while [status] is
+     *   [QrisPollStatus.Generating]; the UI renders the QR
+     *   from this URL once available.
      */
     data class QrisDynamicInput(
         val refId: String? = null,
         val status: QrisPollStatus = QrisPollStatus.Generating,
+        val qrCodeUrl: String? = null,
     ) : CheckoutInputState {
 
         override fun isValid(cartSubtotalIdr: Long): Boolean =

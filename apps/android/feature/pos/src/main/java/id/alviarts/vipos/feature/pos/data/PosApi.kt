@@ -74,4 +74,41 @@ interface PosApi {
     suspend fun createTransaction(
         @Body body: TransactionRequestDto,
     ): TransactionResponseDto
+
+    /**
+     * Mint a QRIS Dynamic invocation (P3-08 slice 5c).
+     *
+     * Backend handler at
+     * `apps/backend/src/routes/payment-qris.js` creates an
+     * in-memory invocation record keyed by a `QR-<uuid>` ref_id,
+     * returns a stub QR code URL + polling URL, and sets a
+     * 5-minute expiry window. The Android side renders the QR
+     * from [QrisMintResponseDto.qrCodeUrl] and starts polling
+     * [pollQrisStatus] every 3 seconds.
+     *
+     * Returns 201 with the mint response on success.
+     * Returns 400 if `amount` is missing or non-positive.
+     */
+    @POST("api/v1/payment/qris/dynamic")
+    suspend fun mintQrisDynamic(
+        @Body body: QrisMintRequestDto,
+    ): QrisMintResponseDto
+
+    /**
+     * Poll the status of a QRIS Dynamic invocation (P3-08
+     * slice 5c).
+     *
+     * The backend lazily transitions `AWAITING → EXPIRED` when
+     * `now > expires_at` on each poll, so the Android side
+     * doesn't need its own expiry timer — just poll until the
+     * status is terminal (`PAID` or `EXPIRED`).
+     *
+     * Returns 200 with the current status.
+     * Returns 404 if [refId] is unknown or belongs to a
+     * different tenant.
+     */
+    @GET("api/v1/payment/qris/{ref_id}/status")
+    suspend fun pollQrisStatus(
+        @Path("ref_id") refId: String,
+    ): QrisStatusResponseDto
 }

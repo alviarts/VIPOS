@@ -1,9 +1,12 @@
 package id.alviarts.vipos.feature.pos.ui
 
+import id.alviarts.vipos.core.network.ConnectivityObserver
 import id.alviarts.vipos.feature.pos.data.PosApi
 import id.alviarts.vipos.feature.pos.data.PosRepository
 import id.alviarts.vipos.feature.pos.domain.Product
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -57,6 +60,11 @@ import java.util.concurrent.TimeUnit
  */
 class PosCatalogueViewModelTest {
 
+    /** Fake [ConnectivityObserver] that always reports online. */
+    private val fakeConnectivityObserver: ConnectivityObserver = object : ConnectivityObserver {
+        override fun observe(): Flow<Boolean> = MutableStateFlow(true)
+    }
+
     private lateinit var server: MockWebServer
     private lateinit var api: PosApi
     private lateinit var repository: PosRepository
@@ -106,7 +114,7 @@ class PosCatalogueViewModelTest {
                 """{"data":[],"page":1,"per_page":100,"total":0,"total_pages":0}""",
             ),
         )
-        val vm = PosCatalogueViewModel(repository)
+        val vm = PosCatalogueViewModel(repository, fakeConnectivityObserver)
         vm.uiState.first { it.loadStatus is LoadStatus.Loaded }
         return vm
     }
