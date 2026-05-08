@@ -20,3 +20,11 @@ android {
         jvmTarget = "17"
     }
 }
+
+dependencies {
+    // FlowExtensions needs kotlinx-coroutines Flow types.
+    api(libs.kotlinx.coroutines.android)
+
+    // Unit tests
+    testImplementation(libs.junit)
+}
