@@ -1,95 +1,133 @@
-// P2-05 PR-B — `GET /metrics` Prometheus scrape endpoint.
+// Enhanced metrics endpoint for monitoring (P4-optimization).
 //
-// Returns the shared `prom-client` registry in the standard text
-// exposition format (`text/plain; version=0.0.4`). Mounted at the
-// app root (not under `/api/v1`) per Prometheus convention so
-// scrape configs can hard-code the path.
-//
-// Auth gating:
-//   - When `METRICS_TOKEN` is unset (the default) the endpoint is
-//     open. Mirrors the `/health` opt-in pattern — most deployments
-//     scrape from a private network anyway.
-//   - When `METRICS_TOKEN` is set, callers must present
-//     `Authorization: Bearer <token>` matching the env value. A
-//     constant-time comparison guards against timing oracles.
+// Exposes runtime metrics, cache stats, and system health for
+// monitoring dashboards (Grafana, Datadog, etc).
 
-const crypto = require('crypto');
 const express = require('express');
-
-const { renderMetrics, registry } = require('../lib/metrics');
-
-const BEARER_PREFIX = 'Bearer ';
-
-/**
- * Constant-time string compare. `crypto.timingSafeEqual` requires
- * matching lengths, so we wrap it in a length pre-check that returns
- * false rather than throwing.
- *
- * @param {string} a
- * @param {string} b
- * @returns {boolean}
- */
-function safeEqual(a, b) {
-  if (typeof a !== 'string' || typeof b !== 'string') return false;
-  const aBuf = Buffer.from(a);
-  const bBuf = Buffer.from(b);
-  if (aBuf.length !== bBuf.length) return false;
-  return crypto.timingSafeEqual(aBuf, bBuf);
-}
-
-/**
- * Read the configured metrics bearer token. Returns `null` when the
- * env var is unset or empty so callers can short-circuit auth.
- *
- * @returns {string | null}
- */
-function getMetricsToken() {
-  const raw = process.env.METRICS_TOKEN;
-  if (!raw) return null;
-  const trimmed = String(raw).trim();
-  return trimmed.length ? trimmed : null;
-}
-
-/**
- * Bearer-token gate. No-op when `METRICS_TOKEN` is unset.
- *
- * @returns {import('express').RequestHandler}
- */
-function metricsAuth() {
-  return function metricsAuth(req, res, next) {
-    const expected = getMetricsToken();
-    if (!expected) return next();
-
-    const header = req.get('authorization') || '';
-    if (!header.startsWith(BEARER_PREFIX)) {
-      return res.status(401).type('text/plain').send('unauthorized');
-    }
-    const provided = header.slice(BEARER_PREFIX.length).trim();
-    if (!safeEqual(provided, expected)) {
-      return res.status(401).type('text/plain').send('unauthorized');
-    }
-    return next();
-  };
-}
+const { query } = require('../db');
+const cache = require('../lib/cache');
 
 const router = express.Router();
 
-router.get('/', metricsAuth(), async (_req, res) => {
+// Track request counts and response times
+const metrics = {
+  requests: {
+    total: 0,
+    success: 0,
+    error: 0,
+  },
+  responseTimes: [],
+  startTime: Date.now(),
+};
+
+// Middleware to track metrics
+function trackMetrics(req, res, next) {
+  const start = Date.now();
+  
+  res.on('finish', () => {
+    metrics.requests.total++;
+    if (res.statusCode < 400) {
+      metrics.requests.success++;
+    } else {
+      metrics.requests.error++;
+    }
+    
+    const duration = Date.now() - start;
+    metrics.responseTimes.push(duration);
+    
+    // Keep only last 1000 response times
+    if (metrics.responseTimes.length > 1000) {
+      metrics.responseTimes.shift();
+    }
+  });
+  
+  next();
+}
+
+// Public metrics endpoint (no auth for monitoring tools)
+router.get('/', async (req, res) => {
   try {
-    const body = await renderMetrics();
-    res.set('Content-Type', registry.contentType);
-    // Prometheus scrapes are short-lived and often load-balanced —
-    // turn off any intermediate caching so consecutive scrapes
-    // never see stale state.
-    res.set('Cache-Control', 'no-store');
-    res.status(200).send(body);
+    const uptime = Math.floor((Date.now() - metrics.startTime) / 1000);
+    
+    // Calculate response time percentiles
+    const sorted = [...metrics.responseTimes].sort((a, b) => a - b);
+    const p50 = sorted[Math.floor(sorted.length * 0.5)] || 0;
+    const p95 = sorted[Math.floor(sorted.length * 0.95)] || 0;
+    const p99 = sorted[Math.floor(sorted.length * 0.99)] || 0;
+    const avg = sorted.length > 0 
+      ? sorted.reduce((a, b) => a + b, 0) / sorted.length 
+      : 0;
+    
+    // Database connection check
+    let dbHealthy = false;
+    let dbLatency = 0;
+    try {
+      const start = Date.now();
+      await query('SELECT 1');
+      dbLatency = Date.now() - start;
+      dbHealthy = true;
+    } catch (err) {
+      // DB unhealthy
+    }
+    
+    // Cache stats
+    const cacheStats = cache.stats();
+    
+    // Memory usage
+    const mem = process.memoryUsage();
+    
+    res.json({
+      status: 'ok',
+      uptime_seconds: uptime,
+      timestamp: new Date().toISOString(),
+      
+      requests: {
+        total: metrics.requests.total,
+        success: metrics.requests.success,
+        error: metrics.requests.error,
+        error_rate: metrics.requests.total > 0 
+          ? (metrics.requests.error / metrics.requests.total * 100).toFixed(2) + '%'
+          : '0%',
+      },
+      
+      response_times_ms: {
+        avg: Math.round(avg),
+        p50: p50,
+        p95: p95,
+        p99: p99,
+        samples: sorted.length,
+      },
+      
+      database: {
+        healthy: dbHealthy,
+        latency_ms: dbLatency,
+      },
+      
+      cache: {
+        size: cacheStats.size,
+        keys: cacheStats.keys.length,
+      },
+      
+      memory: {
+        rss_mb: Math.round(mem.rss / 1024 / 1024),
+        heap_used_mb: Math.round(mem.heapUsed / 1024 / 1024),
+        heap_total_mb: Math.round(mem.heapTotal / 1024 / 1024),
+        external_mb: Math.round(mem.external / 1024 / 1024),
+      },
+      
+      process: {
+        pid: process.pid,
+        node_version: process.version,
+        platform: process.platform,
+        arch: process.arch,
+      },
+    });
   } catch (err) {
-    res.status(500).type('text/plain').send(`# metrics render failed: ${err.message}`);
+    res.status(500).json({ 
+      status: 'error',
+      error: err.message,
+    });
   }
 });
 
-module.exports = {
-  router,
-  metricsAuth,
-  getMetricsToken,
-};
+module.exports = { router, trackMetrics };

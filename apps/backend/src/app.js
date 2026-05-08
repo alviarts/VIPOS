@@ -387,6 +387,10 @@ function buildApp(opts = {}) {
   // documented at https://prometheus.io/docs/instrumenting/writing_exporters/.
   app.use('/metrics', metricsRouter);
 
+  // P4-optimization: Monitoring dashboard for cache, memory, uptime.
+  // Admin-only endpoint for operational visibility.
+  app.use('/api/admin/monitoring', authenticateToken, require('./routes/monitoring'));
+
   // Canonical API surface: /api/v1/*.
   const v1Router = express.Router();
   mountVersionedRoutes(v1Router);
