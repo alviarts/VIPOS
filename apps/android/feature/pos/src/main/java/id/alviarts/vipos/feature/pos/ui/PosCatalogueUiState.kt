@@ -1,5 +1,6 @@
 package id.alviarts.vipos.feature.pos.ui
 
+import id.alviarts.vipos.feature.pos.data.ActivePromoDto
 import id.alviarts.vipos.feature.pos.data.CustomerDto
 import id.alviarts.vipos.feature.pos.domain.CartItem
 import id.alviarts.vipos.feature.pos.domain.Product
@@ -31,6 +32,12 @@ data class PosCatalogueUiState(
     val customerSearchResults: List<CustomerDto> = emptyList(),
     /** True while a customer search is in flight (P3-16). */
     val customerSearching: Boolean = false,
+    /** Applied coupon code and discount amount (P3-15). */
+    val appliedCouponCode: String? = null,
+    val appliedDiscountAmount: Long = 0,
+    val appliedPromoName: String? = null,
+    /** Active auto-apply promos from the server (P3-15). */
+    val activePromos: List<ActivePromoDto> = emptyList(),
     /** Current search/filter query for the product catalogue (P3-19). */
     val searchQuery: String = "",
     /** Product IDs pinned as favorites by the kasir (P3-19). */
@@ -46,6 +53,13 @@ data class PosCatalogueUiState(
 
     /** True if the cart has a registered customer (not walk-in). */
     val hasRegisteredCustomer: Boolean get() = selectedCustomer != null
+
+    /** Cart total after applying discount (P3-15). */
+    val cartTotalAfterDiscount: Long
+        get() = (cartSubtotalIdr - appliedDiscountAmount).coerceAtLeast(0)
+
+    /** True if a coupon/promo discount is applied. */
+    val hasDiscount: Boolean get() = appliedDiscountAmount > 0
 
     /**
      * Products filtered by [searchQuery] (P3-19). Matches against

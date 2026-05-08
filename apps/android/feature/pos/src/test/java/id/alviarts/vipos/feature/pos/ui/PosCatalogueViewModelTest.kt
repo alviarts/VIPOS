@@ -154,7 +154,7 @@ class PosCatalogueViewModelTest {
                 """{"data":[],"page":1,"per_page":100,"total":0,"total_pages":0}""",
             ),
         )
-        val vm = PosCatalogueViewModel(repository, fakeCustomerRepository, fakeKvCache, fakeConnectivityObserver, fakeOutboxDao)
+        val vm = PosCatalogueViewModel(repository, fakeCustomerRepository, api, fakeKvCache, fakeConnectivityObserver, fakeOutboxDao)
         vm.uiState.first { it.loadStatus is LoadStatus.Loaded }
         return vm
     }

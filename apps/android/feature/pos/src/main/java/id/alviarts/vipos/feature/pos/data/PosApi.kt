@@ -141,6 +141,23 @@ interface PosApi {
         @Path("id") customerId: Long,
     ): CustomerDto
 
+    // -- Promo + coupon endpoints (P3-15) ---------------------
+
+    /**
+     * Validate a coupon code against the current cart total.
+     */
+    @POST("api/v1/coupon/validate")
+    suspend fun validateCoupon(
+        @Body body: CouponValidateRequestDto,
+    ): CouponValidateResponseDto
+
+    /**
+     * Get all currently active promos (for auto-apply logic).
+     * Only returns promos that don't require a coupon code.
+     */
+    @GET("api/v1/coupon/active-promos")
+    suspend fun getActivePromos(): ActivePromosResponseDto
+
     // -- Cashier shift endpoints (P3-14) ----------------------
 
     /**

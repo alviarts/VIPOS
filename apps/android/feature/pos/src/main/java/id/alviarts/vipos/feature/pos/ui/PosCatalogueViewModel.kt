@@ -7,8 +7,10 @@ import id.alviarts.vipos.core.database.dao.KeyValueCacheDao
 import id.alviarts.vipos.core.database.dao.OutboxDao
 import id.alviarts.vipos.core.database.entity.KeyValueCacheEntity
 import id.alviarts.vipos.core.network.ConnectivityObserver
+import id.alviarts.vipos.feature.pos.data.CouponValidateRequestDto
 import id.alviarts.vipos.feature.pos.data.CustomerDto
 import id.alviarts.vipos.feature.pos.data.CustomerRepository
+import id.alviarts.vipos.feature.pos.data.PosApi
 import id.alviarts.vipos.feature.pos.data.PosRepository
 import id.alviarts.vipos.feature.pos.domain.CartItem
 import id.alviarts.vipos.feature.pos.domain.Product
@@ -45,6 +47,7 @@ import javax.inject.Inject
 class PosCatalogueViewModel @Inject constructor(
     private val repository: PosRepository,
     private val customerRepository: CustomerRepository,
+    private val posApi: PosApi,
     private val kvCache: KeyValueCacheDao,
     connectivityObserver: ConnectivityObserver,
     outboxDao: OutboxDao,
@@ -267,6 +270,47 @@ class PosCatalogueViewModel @Inject constructor(
                     }
                 },
                 onFailure = { /* Toast handled by caller */ },
+            )
+        }
+    }
+
+    // -- Promo + coupon (P3-15) --------------------------------
+
+    /** Validate and apply a coupon code. */
+    fun applyCoupon(code: String) {
+        viewModelScope.launch {
+            val cartTotal = _uiState.value.cartSubtotalIdr
+            runCatching {
+                posApi.validateCoupon(
+                    CouponValidateRequestDto(
+                        code = code,
+                        cartTotal = cartTotal,
+                    ),
+                )
+            }.fold(
+                onSuccess = { response ->
+                    if (response.valid) {
+                        _uiState.update {
+                            it.copy(
+                                appliedCouponCode = code,
+                                appliedDiscountAmount = response.discountAmount ?: 0,
+                                appliedPromoName = response.promo?.name,
+                            )
+                        }
+                    }
+                },
+                onFailure = { /* Error handled by caller */ },
+            )
+        }
+    }
+
+    /** Remove the applied coupon. */
+    fun removeCoupon() {
+        _uiState.update {
+            it.copy(
+                appliedCouponCode = null,
+                appliedDiscountAmount = 0,
+                appliedPromoName = null,
             )
         }
     }
