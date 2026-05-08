@@ -77,8 +77,8 @@ afterAll(async () => {
 describe('GET /api/v1/transactions', () => {
   it('200 returns paginated transaction list', async () => {
     // Create some transactions
-    await createTransaction('CASH');
-    await createTransaction('QRIS');
+    await createTransaction('cash');
+    await createTransaction('qris');
 
     const res = await request(app)
       .get('/api/v1/transactions?page=1&limit=10')
@@ -108,7 +108,7 @@ describe('GET /api/v1/transactions', () => {
   });
 
   it('200 filters by date', async () => {
-    await createTransaction('CASH');
+    await createTransaction('cash');
 
     const today = new Date().toISOString().split('T')[0];
     const res = await request(app)
@@ -120,7 +120,7 @@ describe('GET /api/v1/transactions', () => {
   });
 
   it('200 filters by date range', async () => {
-    await createTransaction('CASH');
+    await createTransaction('cash');
 
     const today = new Date().toISOString().split('T')[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
@@ -147,7 +147,7 @@ describe('GET /api/v1/transactions', () => {
   it('200 respects pagination limit', async () => {
     // Create multiple transactions
     for (let i = 0; i < 5; i++) {
-      await createTransaction('CASH');
+      await createTransaction('cash');
     }
 
     const res = await request(app)
@@ -166,7 +166,7 @@ describe('GET /api/v1/transactions', () => {
 
 describe('GET /api/v1/transactions/:id', () => {
   it('200 returns transaction detail with items', async () => {
-    const transactionId = await createTransaction('CASH');
+    const transactionId = await createTransaction('cash');
 
     const res = await request(app)
       .get(`/api/v1/transactions/${transactionId}`)
@@ -194,7 +194,7 @@ describe('GET /api/v1/transactions/:id', () => {
   });
 
   it('401 without authentication', async () => {
-    const transactionId = await createTransaction('CASH');
+    const transactionId = await createTransaction('cash');
     const res = await request(app).get(`/api/v1/transactions/${transactionId}`);
     expect(res.status).toBe(401);
   });
