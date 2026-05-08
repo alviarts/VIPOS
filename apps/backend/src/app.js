@@ -155,6 +155,9 @@ function mountVersionedRoutes(parent) {
   // QRIS gateway webhook receiver.
   parent.use('/webhook', require('./routes/webhook-qris'));
 
+  // Data export (CSV/JSON).
+  parent.use('/export', require('./routes/export-data'));
+
   // P3-16 Loyalty point redemption.
   parent.use('/loyalty', require('./routes/loyalty-redeem'));
 
