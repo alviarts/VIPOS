@@ -137,9 +137,6 @@ function mountVersionedRoutes(parent) {
   // P3-14 Cashier shift management.
   parent.use('/cashier-shift', require('./routes/cashier-shift'));
 
-  // P3-15 Coupon validation + active promos.
-  parent.use('/coupon', require('./routes/coupon'));
-
   // P4-10 Transaction actions: void, refund, reprint.
   parent.use('/transactions', require('./routes/transaction-actions'));
 
