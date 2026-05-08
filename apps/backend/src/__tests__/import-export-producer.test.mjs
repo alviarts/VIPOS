@@ -1,5 +1,5 @@
 // P2-04 PR-C import-export async producer tests.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createRequire } from 'node:module';
 
