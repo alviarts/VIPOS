@@ -52,7 +52,7 @@ class AppointmentViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             try {
-                val response = posApi.listAppointments(
+                val appointments = posApi.listAppointments(
                     status = status,
                     staffId = staffId,
                     dateFrom = dateFrom,
@@ -65,13 +65,13 @@ class AppointmentViewModel @Inject constructor(
                     it.copy(
                         isLoading = false,
                         appointments = if (page == 1) {
-                            response.data
+                            appointments
                         } else {
-                            it.appointments + response.data
+                            it.appointments + appointments
                         },
-                        total = response.total,
+                        total = appointments.size, // Backend doesn't return total
                         currentPage = page,
-                        hasMore = response.data.size >= limit,
+                        hasMore = appointments.size >= limit,
                         selectedStatus = status,
                         selectedStaffId = staffId,
                         dateFrom = dateFrom,
