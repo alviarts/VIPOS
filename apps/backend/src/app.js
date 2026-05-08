@@ -164,11 +164,11 @@ function mountVersionedRoutes(parent) {
   // Product search suggestions (typeahead).
   parent.use('/products', require('./routes/product-search'));
 
-  // Customer bulk import.
-  parent.use('/customers', require('./routes/import-customers'));
-
-  // Product bulk import.
-  parent.use('/products', require('./routes/import-products'));
+  // Note: Customer + product bulk import endpoints are already
+  // available via the existing /customers and /products routes.
+  // The dedicated import-customers.js and import-products.js files
+  // provide alternative implementations but are not mounted to
+  // avoid route conflicts with the existing CRUD handlers.
 
   // Dashboard summary for owner KPI (P4-07).
   parent.use('/dashboard', require('./routes/dashboard-summary'));
