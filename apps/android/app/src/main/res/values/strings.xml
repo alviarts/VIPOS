@@ -1,4 +1,73 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">VIPOS</string>
+
+    <!-- P4-13: Common -->
+    <string name="back">Kembali</string>
+    <string name="cancel">Batal</string>
+    <string name="save">Simpan</string>
+    <string name="retry">Coba Ulang</string>
+    <string name="loading">Memuat…</string>
+    <string name="error_generic">Terjadi kesalahan. Coba lagi.</string>
+
+    <!-- POS Catalogue -->
+    <string name="pos_title">Kasir</string>
+    <string name="pos_search_hint">Cari produk…</string>
+    <string name="pos_refresh">Muat ulang</string>
+    <string name="pos_add_to_cart">Tambah</string>
+    <string name="pos_remove">Hapus</string>
+    <string name="pos_checkout">Bayar</string>
+    <string name="pos_cart_empty">Keranjang kosong</string>
+    <string name="pos_subtotal">Subtotal</string>
+    <string name="pos_items_count">%d item</string>
+
+    <!-- Shift -->
+    <string name="shift_open_title">Buka Kasir</string>
+    <string name="shift_open_desc">Masukkan jumlah modal kas awal untuk memulai shift.</string>
+    <string name="shift_opening_cash_label">Modal kas awal (Rp)</string>
+    <string name="shift_close_title">Tutup Kasir</string>
+    <string name="shift_summary_title">Ringkasan Shift</string>
+    <string name="shift_opening_cash">Modal kas awal</string>
+    <string name="shift_cash_sales">Penjualan tunai</string>
+    <string name="shift_cash_drops">Kas keluar</string>
+    <string name="shift_cash_pickups">Kas masuk</string>
+    <string name="shift_expected_cash">Kas yang diharapkan</string>
+    <string name="shift_counted_cash_label">Kas fisik yang dihitung (Rp)</string>
+    <string name="shift_variance">Selisih: %s</string>
+    <string name="shift_variance_warning">Selisih melebihi batas. Harap berikan alasan.</string>
+    <string name="shift_variance_reason_label">Alasan selisih</string>
+
+    <!-- Checkout -->
+    <string name="checkout_confirm_payment">Konfirmasi pembayaran</string>
+    <string name="checkout_qris_title">QRIS Dinamis</string>
+    <string name="checkout_qris_desc">Tunjukkan QR ke pelanggan untuk dipindai.</string>
+    <string name="checkout_qris_generating">Membuat kode QR…</string>
+    <string name="checkout_qris_paid">Lunas</string>
+    <string name="checkout_qris_expired">QR kedaluwarsa, buat ulang.</string>
+
+    <!-- Customer -->
+    <string name="customer_picker_title">Pilih Pelanggan</string>
+    <string name="customer_search_hint">Cari nama / nomor HP</string>
+    <string name="customer_walk_in">Pelanggan Umum (Walk-in)</string>
+    <string name="customer_add_new">+ Tambah Pelanggan Baru</string>
+    <string name="customer_name_label">Nama</string>
+    <string name="customer_phone_label">Nomor HP (opsional)</string>
+
+    <!-- Sync -->
+    <string name="sync_online">Online</string>
+    <string name="sync_offline">Offline</string>
+    <string name="sync_pending">%d pending</string>
+    <string name="sync_failed">%d gagal</string>
+    <string name="sync_issues_title">Sinkronisasi Gagal</string>
+    <string name="sync_issues_empty">Tidak ada masalah sinkronisasi</string>
+    <string name="sync_issues_empty_desc">Semua data sudah tersinkronisasi.</string>
+    <string name="sync_retry_all">Coba Ulang Semua</string>
+    <string name="sync_discard">Buang</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Pengaturan Kasir</string>
+    <string name="settings_sync_section">Sinkronisasi</string>
+    <string name="settings_hardware_section">Perangkat Keras</string>
+    <string name="settings_outlet_section">Outlet</string>
+    <string name="settings_app_section">Aplikasi</string>
 </resources>

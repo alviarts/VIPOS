@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VIPOS</string>
+
+    <!-- P4-13: Common -->
+    <string name="back">Back</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="retry">Retry</string>
+    <string name="loading">Loading…</string>
+    <string name="error_generic">Something went wrong. Please try again.</string>
+
+    <!-- POS Catalogue -->
+    <string name="pos_title">Cashier</string>
+    <string name="pos_search_hint">Search products…</string>
+    <string name="pos_refresh">Refresh</string>
+    <string name="pos_add_to_cart">Add</string>
+    <string name="pos_remove">Remove</string>
+    <string name="pos_checkout">Pay</string>
+    <string name="pos_cart_empty">Cart is empty</string>
+    <string name="pos_subtotal">Subtotal</string>
+    <string name="pos_items_count">%d items</string>
+
+    <!-- Shift -->
+    <string name="shift_open_title">Open Register</string>
+    <string name="shift_open_desc">Enter the opening cash amount to start your shift.</string>
+    <string name="shift_opening_cash_label">Opening cash (Rp)</string>
+    <string name="shift_close_title">Close Register</string>
+    <string name="shift_summary_title">Shift Summary</string>
+    <string name="shift_opening_cash">Opening cash</string>
+    <string name="shift_cash_sales">Cash sales</string>
+    <string name="shift_cash_drops">Cash drops</string>
+    <string name="shift_cash_pickups">Cash pickups</string>
+    <string name="shift_expected_cash">Expected cash</string>
+    <string name="shift_counted_cash_label">Counted cash (Rp)</string>
+    <string name="shift_variance">Variance: %s</string>
+    <string name="shift_variance_warning">Variance exceeds threshold. Please provide a reason.</string>
+    <string name="shift_variance_reason_label">Variance reason</string>
+
+    <!-- Checkout -->
+    <string name="checkout_confirm_payment">Confirm payment</string>
+    <string name="checkout_qris_title">QRIS Dynamic</string>
+    <string name="checkout_qris_desc">Show the QR code to the customer to scan.</string>
+    <string name="checkout_qris_generating">Generating QR code…</string>
+    <string name="checkout_qris_paid">Paid</string>
+    <string name="checkout_qris_expired">QR expired, please regenerate.</string>
+
+    <!-- Customer -->
+    <string name="customer_picker_title">Select Customer</string>
+    <string name="customer_search_hint">Search name / phone</string>
+    <string name="customer_walk_in">Walk-in Customer</string>
+    <string name="customer_add_new">+ Add New Customer</string>
+    <string name="customer_name_label">Name</string>
+    <string name="customer_phone_label">Phone (optional)</string>
+
+    <!-- Sync -->
+    <string name="sync_online">Online</string>
+    <string name="sync_offline">Offline</string>
+    <string name="sync_pending">%d pending</string>
+    <string name="sync_failed">%d failed</string>
+    <string name="sync_issues_title">Sync Issues</string>
+    <string name="sync_issues_empty">No sync issues</string>
+    <string name="sync_issues_empty_desc">All data is synchronized.</string>
+    <string name="sync_retry_all">Retry All</string>
+    <string name="sync_discard">Discard</string>
+
+    <!-- Settings -->
+    <string name="settings_title">POS Settings</string>
+    <string name="settings_sync_section">Synchronization</string>
+    <string name="settings_hardware_section">Hardware</string>
+    <string name="settings_outlet_section">Outlet</string>
+    <string name="settings_app_section">Application</string>
+</resources>
