@@ -164,6 +164,9 @@ function mountVersionedRoutes(parent) {
   // Tenant configuration (key-value settings).
   parent.use('/config', require('./routes/tenant-config'));
 
+  // Product search suggestions (typeahead).
+  parent.use('/products', require('./routes/product-search'));
+
   // P3-16 Loyalty point redemption.
   parent.use('/loyalty', require('./routes/loyalty-redeem'));
 
