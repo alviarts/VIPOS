@@ -46,7 +46,7 @@ android {
             versionNameSuffix = "-staging"
             // VPS staging endpoint. P3-05 (network client) wires this
             // into the Retrofit base URL.
-            buildConfigField("String", "API_BASE_URL", "\"http://103.74.5.44\"")
+            buildConfigField("String", "API_BASE_URL", "\"http://103.74.5.44:3001\"")
             buildConfigField("String", "ENVIRONMENT", "\"staging\"")
         }
         create("prod") {
