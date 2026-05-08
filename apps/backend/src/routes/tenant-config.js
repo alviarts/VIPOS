@@ -53,13 +53,25 @@ router.put('/', authenticateToken, async (req, res) => {
     const updated = [];
     for (const key of keys) {
       const value = String(body[key]);
-      await query(
-        `INSERT INTO app_settings (tenant_id, category, key, value)
-         VALUES ($1, 'config', $2, $3)
-         ON CONFLICT (tenant_id, category, key)
-         DO UPDATE SET value = $3, updated_at = NOW()`,
-        [req.tenantId, key, value],
+      // Use outlet_id=NULL for tenant-level config.
+      // The unique constraint is on (outlet_id, category, key).
+      const existing = await query(
+        `SELECT id FROM app_settings
+         WHERE tenant_id = $1 AND category = 'config' AND key = $2 AND outlet_id IS NULL`,
+        [req.tenantId, key],
       );
+      if (existing.rows.length > 0) {
+        await query(
+          `UPDATE app_settings SET value = $1, updated_at = NOW() WHERE id = $2`,
+          [value, existing.rows[0].id],
+        );
+      } else {
+        await query(
+          `INSERT INTO app_settings (tenant_id, category, key, value)
+           VALUES ($1, 'config', $2, $3)`,
+          [req.tenantId, key, value],
+        );
+      }
       updated.push(key);
     }
 
