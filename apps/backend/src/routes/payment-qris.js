@@ -143,7 +143,7 @@ router.get('/:ref_id/status', authenticateToken, async (req, res) => {
          WHERE ref_id = $1
            AND tenant_id = $2
            AND status = 'AWAITING'
-           AND EXTRACT(EPOCH FROM expires_at) * 1000 < $3
+           AND expires_at <= to_timestamp($3::double precision / 1000)
          RETURNING ref_id
        )
        SELECT ref_id, status, paid_at, expires_at, amount, transaction_id
@@ -178,7 +178,7 @@ router.post('/:ref_id/_test/mark-paid', authenticateToken, async (req, res) => {
        WHERE ref_id = $1
          AND tenant_id = $2
          AND status = 'AWAITING'
-         AND EXTRACT(EPOCH FROM expires_at) * 1000 < $3`,
+         AND expires_at <= to_timestamp($3::double precision / 1000)`,
       [req.params.ref_id, req.tenantId ?? null, nowMs],
     );
 
