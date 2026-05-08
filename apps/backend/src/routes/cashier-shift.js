@@ -382,4 +382,115 @@ router.post('/:id/cash-pickup', authenticateToken, async (req, res) => {
   }
 });
 
+// GET /:id/report — detailed shift close report for printing.
+router.get('/:id/report', authenticateToken, async (req, res) => {
+  try {
+    const shiftId = parseInt(req.params.id, 10);
+    if (isNaN(shiftId)) {
+      return res.status(400).json({ error: 'ID shift tidak valid' });
+    }
+
+    // Get shift with user info
+    const { rows: shiftRows } = await query(
+      `SELECT cs.*, u.name as cashier_name
+       FROM cashier_shifts cs
+       JOIN users u ON cs.user_id = u.id
+       WHERE cs.id = $1 AND cs.tenant_id = $2`,
+      [shiftId, req.tenantId],
+    );
+
+    if (shiftRows.length === 0) {
+      return res.status(404).json({ error: 'Shift tidak ditemukan' });
+    }
+
+    const shift = shiftRows[0];
+
+    // Transaction breakdown by payment method
+    const { rows: paymentBreakdown } = await query(
+      `SELECT
+         COALESCE(payment_method, 'UNKNOWN') as method,
+         COUNT(*)::int as count,
+         COALESCE(SUM(total_amount), 0)::bigint as total
+       FROM transactions
+       WHERE cashier_shift_id = $1 AND tenant_id = $2 AND status != 'voided'
+       GROUP BY payment_method
+       ORDER BY total DESC`,
+      [shiftId, req.tenantId],
+    );
+
+    // Top products sold during this shift
+    const { rows: topProducts } = await query(
+      `SELECT ti.product_name, SUM(ti.quantity)::int as qty_sold,
+              SUM(ti.subtotal)::bigint as revenue
+       FROM transaction_items ti
+       JOIN transactions t ON ti.transaction_id = t.id
+       WHERE t.cashier_shift_id = $1 AND t.tenant_id = $2 AND t.status != 'voided'
+       GROUP BY ti.product_name
+       ORDER BY qty_sold DESC
+       LIMIT 10`,
+      [shiftId, req.tenantId],
+    );
+
+    // Void/refund counts
+    const { rows: voidRows } = await query(
+      `SELECT
+         COUNT(*) FILTER (WHERE status = 'voided')::int as void_count,
+         COUNT(*) FILTER (WHERE notes LIKE '%[REFUND%')::int as refund_count
+       FROM transactions
+       WHERE cashier_shift_id = $1 AND tenant_id = $2`,
+      [shiftId, req.tenantId],
+    );
+
+    // Cash movements
+    const { rows: movements } = await query(
+      `SELECT type, amount, reason, created_at
+       FROM cashier_shift_cash_movements
+       WHERE cashier_shift_id = $1 AND tenant_id = $2
+       ORDER BY created_at`,
+      [shiftId, req.tenantId],
+    );
+
+    const totalRevenue = paymentBreakdown.reduce((sum, r) => sum + Number(r.total), 0);
+    const totalTransactions = paymentBreakdown.reduce((sum, r) => sum + r.count, 0);
+
+    return res.status(200).json({
+      report: {
+        shift_id: shift.id,
+        cashier_name: shift.cashier_name,
+        opened_at: shift.opened_at,
+        closed_at: shift.closed_at,
+        status: shift.status,
+        opening_cash: Number(shift.opening_cash),
+        closing_cash_counted: shift.closing_cash_counted ? Number(shift.closing_cash_counted) : null,
+        closing_cash_expected: shift.closing_cash_expected ? Number(shift.closing_cash_expected) : null,
+        variance: shift.variance ? Number(shift.variance) : null,
+        variance_reason: shift.variance_reason,
+        total_revenue: totalRevenue,
+        total_transactions: totalTransactions,
+        payment_breakdown: paymentBreakdown.map((r) => ({
+          method: r.method,
+          count: r.count,
+          total: Number(r.total),
+        })),
+        top_products: topProducts.map((p) => ({
+          name: p.product_name,
+          qty_sold: p.qty_sold,
+          revenue: Number(p.revenue),
+        })),
+        void_count: voidRows[0]?.void_count || 0,
+        refund_count: voidRows[0]?.refund_count || 0,
+        cash_movements: movements.map((m) => ({
+          type: m.type,
+          amount: Number(m.amount),
+          reason: m.reason,
+          created_at: m.created_at,
+        })),
+      },
+    });
+  } catch (err) {
+    console.error('Shift report error:', err);
+    return res.status(500).json({ error: 'Gagal mengambil laporan shift' });
+  }
+});
+
 module.exports = router;
