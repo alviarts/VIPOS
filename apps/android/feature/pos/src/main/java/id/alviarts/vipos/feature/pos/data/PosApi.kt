@@ -205,6 +205,14 @@ interface PosApi {
         @Query("payment_method") paymentMethod: String? = null,
     ): TransactionListResponseDto
 
+    // -- Tenant config ------------------------------------------
+
+    /**
+     * Read all tenant configuration as key-value map.
+     */
+    @GET("api/v1/config")
+    suspend fun getTenantConfig(): TenantConfigResponseDto
+
     // -- Dashboard / KPI (P4-07) --------------------------------
 
     /**
