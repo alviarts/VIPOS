@@ -141,6 +141,19 @@ interface PosApi {
         @Path("id") customerId: Long,
     ): CustomerDto
 
+    // -- Transaction history (P4-05) ----------------------------
+
+    /**
+     * List transactions with optional filters.
+     */
+    @GET("api/v1/transactions")
+    suspend fun listTransactions(
+        @Query("page") page: Long = 1,
+        @Query("per_page") perPage: Long = 20,
+        @Query("status") status: String? = null,
+        @Query("payment_method") paymentMethod: String? = null,
+    ): TransactionListResponseDto
+
     // -- Dashboard / KPI (P4-07) --------------------------------
 
     /**
