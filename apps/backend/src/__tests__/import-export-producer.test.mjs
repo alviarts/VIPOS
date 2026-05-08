@@ -129,6 +129,10 @@ describe('POST /api/v1/import-export/import/:entity/async', () => {
       const queue = queueLib.getOrCreateQueue(queueLib.QUEUE_NAMES.IMPORT_EXPORT);
       const job = await queue.getJob(res.body.job_id);
       expect(job).toBeTruthy();
+      // Clean any stale rows before processing to avoid count mismatch.
+      await runAsSystem(() =>
+        queryFn(`DELETE FROM customers WHERE tenant_id = $1`, [t.tenantId])
+      );
       const result = await processImportExport(job);
       expect(result).toMatchObject({
         ok: true,
