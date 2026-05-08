@@ -9,11 +9,20 @@
 const express = require('express');
 const { query } = require('../db');
 const { authenticateToken } = require('../middleware/auth');
+const cache = require('../lib/cache');
 
 const router = express.Router();
 
 router.get('/summary', authenticateToken, async (req, res) => {
   try {
+    // Cache key per tenant, expires every 60 seconds
+    const cacheKey = `dashboard:summary:${req.tenantId}`;
+    const cached = cache.get(cacheKey);
+    
+    if (cached) {
+      return res.status(200).json(cached);
+    }
+
     // Today's stats
     const { rows: todayRows } = await query(
       `SELECT
@@ -58,7 +67,7 @@ router.get('/summary', authenticateToken, async (req, res) => {
     const today = todayRows[0];
     const mtd = mtdRows[0];
 
-    return res.status(200).json({
+    const result = {
       today_revenue: Number(today.revenue),
       today_transactions: today.transactions,
       today_avg_basket: Number(today.avg_basket),
@@ -66,7 +75,12 @@ router.get('/summary', authenticateToken, async (req, res) => {
       mtd_transactions: mtd.transactions,
       low_stock_count: stockRows[0].cnt,
       pending_approvals: approvalRows[0].cnt,
-    });
+    };
+
+    // Cache for 60 seconds
+    cache.set(cacheKey, result, 60);
+
+    return res.status(200).json(result);
   } catch (err) {
     console.error('Dashboard summary error:', err);
     return res.status(500).json({ error: 'Gagal memuat dashboard' });
