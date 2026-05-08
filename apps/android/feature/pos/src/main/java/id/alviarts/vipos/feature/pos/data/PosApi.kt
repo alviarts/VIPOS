@@ -32,6 +32,7 @@ interface PosApi {
         @Query("active_only") activeOnly: String = "true",
         @Query("is_tampil_di_menu") tampilDiMenu: String? = null,
         @Query("category_id") categoryId: Long? = null,
+        @Query("search") search: String? = null,
     ): ProductsPageDto
 
     /**
