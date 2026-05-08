@@ -28,18 +28,20 @@ afterAll(async () => {
   await teardownTestEnv();
 });
 
-beforeEach(async () => {
-  const { query, runAsSystem } = require('../db');
-  await runAsSystem(() =>
-    query(`DELETE FROM cashier_shift_cash_movements`),
-  );
-  await runAsSystem(() =>
-    query(`UPDATE transactions SET cashier_shift_id = NULL WHERE cashier_shift_id IS NOT NULL`),
-  );
-  await runAsSystem(() =>
-    query(`DELETE FROM cashier_shifts`),
-  );
-});
+async function closeAnyOpenShift() {
+  // Close any existing open shift so the next open succeeds.
+  await request(app)
+    .get('/api/v1/cashier-shift/active')
+    .set('Authorization', `Bearer ${adminToken}`)
+    .then(async (res) => {
+      if (res.body.shift) {
+        await request(app)
+          .post(`/api/v1/cashier-shift/${res.body.shift.id}/close`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ closing_cash_counted: 0 });
+      }
+    });
+}
 
 describe('GET /api/v1/cashier-shift/active', () => {
   it('returns null when no shift is open', async () => {
@@ -94,6 +96,7 @@ describe('POST /api/v1/cashier-shift/open', () => {
 
 describe('POST /api/v1/cashier-shift/:id/close', () => {
   it('closes an open shift with reconciliation', async () => {
+    await closeAnyOpenShift();
     const openRes = await request(app)
       .post('/api/v1/cashier-shift/open')
       .set('Authorization', `Bearer ${adminToken}`)
@@ -112,6 +115,7 @@ describe('POST /api/v1/cashier-shift/:id/close', () => {
   });
 
   it('409 when shift already closed', async () => {
+    await closeAnyOpenShift();
     const openRes = await request(app)
       .post('/api/v1/cashier-shift/open')
       .set('Authorization', `Bearer ${adminToken}`)
@@ -134,6 +138,7 @@ describe('POST /api/v1/cashier-shift/:id/close', () => {
 
 describe('GET /api/v1/cashier-shift/:id/summary', () => {
   it('returns shift summary', async () => {
+    await closeAnyOpenShift();
     const openRes = await request(app)
       .post('/api/v1/cashier-shift/open')
       .set('Authorization', `Bearer ${adminToken}`)
