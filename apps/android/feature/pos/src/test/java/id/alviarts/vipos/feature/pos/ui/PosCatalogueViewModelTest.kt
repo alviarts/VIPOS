@@ -1,5 +1,7 @@
 package id.alviarts.vipos.feature.pos.ui
 
+import id.alviarts.vipos.core.database.dao.OutboxDao
+import id.alviarts.vipos.core.database.entity.OutboxEntry
 import id.alviarts.vipos.core.network.ConnectivityObserver
 import id.alviarts.vipos.feature.pos.data.PosApi
 import id.alviarts.vipos.feature.pos.data.PosRepository
@@ -8,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -65,6 +68,21 @@ class PosCatalogueViewModelTest {
         override fun observe(): Flow<Boolean> = MutableStateFlow(true)
     }
 
+    /** Fake [OutboxDao] that returns zero counts. */
+    private val fakeOutboxDao: OutboxDao = object : OutboxDao {
+        override suspend fun insert(entry: OutboxEntry): Long = 1L
+        override suspend fun allReady(nowMs: Long): List<OutboxEntry> = emptyList()
+        override suspend fun markSyncing(id: Long) {}
+        override suspend fun delete(id: Long) {}
+        override suspend fun markRetryOrFailed(id: Long, status: String, retryCount: Int, nextRetryAt: Long, lastError: String?) {}
+        override fun countPending(): Flow<Int> = flowOf(0)
+        override fun countFailed(): Flow<Int> = flowOf(0)
+        override suspend fun allFailed(): List<OutboxEntry> = emptyList()
+        override suspend fun retryFailed(id: Long) {}
+        override suspend fun deleteFailed(id: Long) {}
+        override suspend fun resetStaleInFlight() {}
+    }
+
     private lateinit var server: MockWebServer
     private lateinit var api: PosApi
     private lateinit var repository: PosRepository
@@ -114,7 +132,7 @@ class PosCatalogueViewModelTest {
                 """{"data":[],"page":1,"per_page":100,"total":0,"total_pages":0}""",
             ),
         )
-        val vm = PosCatalogueViewModel(repository, fakeConnectivityObserver)
+        val vm = PosCatalogueViewModel(repository, fakeConnectivityObserver, fakeOutboxDao)
         vm.uiState.first { it.loadStatus is LoadStatus.Loaded }
         return vm
     }

@@ -1,5 +1,6 @@
 package id.alviarts.vipos.feature.pos.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -38,6 +40,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -87,6 +90,8 @@ fun PosCatalogueRoute(
     // PosCatalogueScreen below.
     val state by catalogueViewModel.uiState.collectAsStateWithLifecycle()
     val isOnline by catalogueViewModel.isOnline.collectAsStateWithLifecycle()
+    val pendingSyncCount by catalogueViewModel.pendingSyncCount.collectAsStateWithLifecycle()
+    val failedSyncCount by catalogueViewModel.failedSyncCount.collectAsStateWithLifecycle()
     val variantState by variantViewModel.uiState.collectAsStateWithLifecycle()
     val checkoutState by checkoutViewModel.uiState.collectAsStateWithLifecycle()
 
@@ -100,6 +105,9 @@ fun PosCatalogueRoute(
 
     PosCatalogueScreen(
         state = state,
+        isOnline = isOnline,
+        pendingSyncCount = pendingSyncCount,
+        failedSyncCount = failedSyncCount,
         onBack = onBack,
         onRefresh = catalogueViewModel::refresh,
         onAddToCart = { product ->
@@ -236,6 +244,9 @@ fun PosCatalogueRoute(
 @Composable
 internal fun PosCatalogueScreen(
     state: PosCatalogueUiState,
+    isOnline: Boolean = true,
+    pendingSyncCount: Int = 0,
+    failedSyncCount: Int = 0,
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onAddToCart: (Product) -> Unit,
@@ -254,6 +265,14 @@ internal fun PosCatalogueScreen(
                     }
                 },
                 actions = {
+                    // P3-09: Sync status indicator
+                    if (!isOnline || pendingSyncCount > 0 || failedSyncCount > 0) {
+                        SyncStatusBadge(
+                            isOnline = isOnline,
+                            pendingCount = pendingSyncCount,
+                            failedCount = failedSyncCount,
+                        )
+                    }
                     IconButton(
                         onClick = onRefresh,
                         enabled = state.loadStatus !is LoadStatus.Loading,
@@ -573,6 +592,47 @@ private fun CartLine(
         OutlinedButton(onClick = onRemove) {
             Text("Hapus")
         }
+    }
+}
+
+// -- Sync status badge (P3-09) --------------------------------
+
+/**
+ * Compact badge showing network + sync status in the TopAppBar.
+ *
+ * Visual states:
+ *  - Offline (red dot) — device has no internet
+ *  - Syncing (yellow dot + count) — pending outbox entries
+ *  - Failed (red dot + count) — DLQ entries need review
+ *  - Online + no pending (green dot) — all synced
+ */
+@Composable
+private fun SyncStatusBadge(
+    isOnline: Boolean,
+    pendingCount: Int,
+    failedCount: Int,
+) {
+    val (color, label) = when {
+        failedCount > 0 -> Color(0xFFD32F2F) to "$failedCount gagal"
+        !isOnline -> Color(0xFFD32F2F) to "Offline"
+        pendingCount > 0 -> Color(0xFFF9A825) to "$pendingCount pending"
+        else -> Color(0xFF2E7D32) to "Online"
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(end = 8.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .background(color, shape = androidx.compose.foundation.shape.CircleShape),
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+        )
     }
 }
 

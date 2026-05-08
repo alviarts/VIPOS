@@ -3,6 +3,7 @@ package id.alviarts.vipos.feature.pos.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import id.alviarts.vipos.core.database.dao.OutboxDao
 import id.alviarts.vipos.core.network.ConnectivityObserver
 import id.alviarts.vipos.feature.pos.data.PosRepository
 import id.alviarts.vipos.feature.pos.domain.CartItem
@@ -40,6 +41,7 @@ import javax.inject.Inject
 class PosCatalogueViewModel @Inject constructor(
     private val repository: PosRepository,
     connectivityObserver: ConnectivityObserver,
+    outboxDao: OutboxDao,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PosCatalogueUiState())
@@ -62,6 +64,28 @@ class PosCatalogueViewModel @Inject constructor(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
             initialValue = true,
+        )
+
+    /**
+     * Number of pending outbox entries waiting to sync (P3-09).
+     * Drives the sync badge in the TopAppBar.
+     */
+    val pendingSyncCount: StateFlow<Int> = outboxDao.countPending()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = 0,
+        )
+
+    /**
+     * Number of failed outbox entries (DLQ) that need manual
+     * review (P3-09). Drives the error badge.
+     */
+    val failedSyncCount: StateFlow<Int> = outboxDao.countFailed()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = 0,
         )
 
     init {
