@@ -22,7 +22,7 @@ const router = express.Router();
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const { rows } = await query(
-      `SELECT key, value FROM app_settings
+      `SELECT key, value_json FROM app_settings
        WHERE tenant_id = $1 AND category = 'config'
        ORDER BY key`,
       [req.tenantId],
@@ -30,7 +30,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
     const config = {};
     for (const row of rows) {
-      config[row.key] = row.value;
+      config[row.key] = row.value_json;
     }
 
     return res.status(200).json({ config });
@@ -62,12 +62,12 @@ router.put('/', authenticateToken, async (req, res) => {
       );
       if (existing.rows.length > 0) {
         await query(
-          `UPDATE app_settings SET value = $1, updated_at = NOW() WHERE id = $2`,
+          `UPDATE app_settings SET value_json = $1, updated_at = NOW() WHERE id = $2`,
           [value, existing.rows[0].id],
         );
       } else {
         await query(
-          `INSERT INTO app_settings (tenant_id, category, key, value)
+          `INSERT INTO app_settings (tenant_id, category, key, value_json)
            VALUES ($1, 'config', $2, $3)`,
           [req.tenantId, key, value],
         );
