@@ -152,6 +152,9 @@ function mountVersionedRoutes(parent) {
   // Daily sales summary report.
   parent.use('/reports', require('./routes/reports-daily'));
 
+  // QRIS gateway webhook receiver.
+  parent.use('/webhook', require('./routes/webhook-qris'));
+
   // P3-16 Loyalty point redemption.
   parent.use('/loyalty', require('./routes/loyalty-redeem'));
 
