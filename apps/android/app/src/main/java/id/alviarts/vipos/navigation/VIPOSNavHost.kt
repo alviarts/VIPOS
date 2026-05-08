@@ -11,6 +11,9 @@ import id.alviarts.vipos.feature.auth.ui.AuthRoute
 import id.alviarts.vipos.feature.auth.ui.twofactor.TwoFactorRoute
 import id.alviarts.vipos.feature.home.ui.HomeRoute
 import id.alviarts.vipos.feature.pos.ui.PosCatalogueRoute
+import id.alviarts.vipos.feature.pos.ui.dashboard.OwnerDashboardScreen
+import id.alviarts.vipos.feature.pos.ui.history.TransactionHistoryScreen
+import id.alviarts.vipos.feature.pos.ui.onlineorder.OnlineOrderQueueScreen
 
 /**
  * Root nav graph (P3-08 + P3-03c).
@@ -130,11 +133,91 @@ fun VIPOSNavHost(
                         launchSingleTop = true
                     }
                 },
+                onOpenTransactionHistory = {
+                    navController.navigate(VIPOSDestination.TransactionHistory.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenOnlineOrderQueue = {
+                    navController.navigate(VIPOSDestination.OnlineOrderQueue.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenOwnerDashboard = {
+                    navController.navigate(VIPOSDestination.OwnerDashboard.route) {
+                        launchSingleTop = true
+                    }
+                },
             )
         }
         composable(VIPOSDestination.Pos.route) {
             PosCatalogueRoute(
                 onBack = { navController.popBackStack() },
+            )
+        }
+
+        // P4-05: Transaction history
+        composable(VIPOSDestination.TransactionHistory.route) {
+            TransactionHistoryScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onTransactionClick = { transactionId ->
+                    navController.navigate(
+                        VIPOSDestination.TransactionDetail.routeFor(transactionId),
+                    )
+                },
+            )
+        }
+
+        // P4-05: Transaction detail
+        composable(
+            route = VIPOSDestination.TransactionDetail.route,
+            arguments = listOf(
+                navArgument(VIPOSDestination.TransactionDetail.ARG_TRANSACTION_ID) {
+                    type = NavType.LongType
+                },
+            ),
+        ) {
+            // TODO: Implement TransactionDetailScreen
+            // For now, just pop back
+            navController.popBackStack()
+        }
+
+        // P4-01: Online order queue
+        composable(VIPOSDestination.OnlineOrderQueue.route) {
+            OnlineOrderQueueScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onOrderClick = { orderId ->
+                    navController.navigate(
+                        VIPOSDestination.OnlineOrderDetail.routeFor(orderId),
+                    )
+                },
+            )
+        }
+
+        // P4-01: Online order detail
+        composable(
+            route = VIPOSDestination.OnlineOrderDetail.route,
+            arguments = listOf(
+                navArgument(VIPOSDestination.OnlineOrderDetail.ARG_ORDER_ID) {
+                    type = NavType.LongType
+                },
+            ),
+        ) {
+            // TODO: Implement OnlineOrderDetailScreen
+            // For now, just pop back
+            navController.popBackStack()
+        }
+
+        // P4-07: Owner dashboard
+        composable(VIPOSDestination.OwnerDashboard.route) {
+            OwnerDashboardScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onLowStockClick = {
+                    // TODO: Navigate to inventory/stock screen
+                },
+                onPendingApprovalsClick = {
+                    // TODO: Navigate to approvals screen
+                },
             )
         }
     }

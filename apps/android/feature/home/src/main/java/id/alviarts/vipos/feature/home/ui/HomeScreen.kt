@@ -37,6 +37,9 @@ fun HomeRoute(
     displayName: String,
     onLogout: () -> Unit,
     onOpenPos: () -> Unit,
+    onOpenTransactionHistory: () -> Unit = {},
+    onOpenOnlineOrderQueue: () -> Unit = {},
+    onOpenOwnerDashboard: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -53,6 +56,9 @@ fun HomeRoute(
         isLoggingOut = uiState.isLoggingOut,
         onLogoutClick = viewModel::logout,
         onOpenPosClick = onOpenPos,
+        onOpenTransactionHistoryClick = onOpenTransactionHistory,
+        onOpenOnlineOrderQueueClick = onOpenOnlineOrderQueue,
+        onOpenOwnerDashboardClick = onOpenOwnerDashboard,
     )
 }
 
@@ -62,6 +68,9 @@ internal fun HomeScreen(
     isLoggingOut: Boolean,
     onLogoutClick: () -> Unit,
     onOpenPosClick: () -> Unit,
+    onOpenTransactionHistoryClick: () -> Unit = {},
+    onOpenOnlineOrderQueueClick: () -> Unit = {},
+    onOpenOwnerDashboardClick: () -> Unit = {},
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -90,6 +99,8 @@ internal fun HomeScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(32.dp))
+            
+            // Main menu buttons
             Button(
                 onClick = onOpenPosClick,
                 enabled = !isLoggingOut,
@@ -97,9 +108,43 @@ internal fun HomeScreen(
                     .fillMaxWidth()
                     .widthIn(max = 360.dp),
             ) {
-                Text("Buka kasir")
+                Text("Buka Kasir")
             }
             Spacer(Modifier.height(8.dp))
+            
+            OutlinedButton(
+                onClick = onOpenTransactionHistoryClick,
+                enabled = !isLoggingOut,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 360.dp),
+            ) {
+                Text("Riwayat Transaksi")
+            }
+            Spacer(Modifier.height(8.dp))
+            
+            OutlinedButton(
+                onClick = onOpenOnlineOrderQueueClick,
+                enabled = !isLoggingOut,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 360.dp),
+            ) {
+                Text("Pesanan Online")
+            }
+            Spacer(Modifier.height(8.dp))
+            
+            OutlinedButton(
+                onClick = onOpenOwnerDashboardClick,
+                enabled = !isLoggingOut,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 360.dp),
+            ) {
+                Text("Dashboard")
+            }
+            Spacer(Modifier.height(24.dp))
+            
             OutlinedButton(
                 onClick = onLogoutClick,
                 enabled = !isLoggingOut,

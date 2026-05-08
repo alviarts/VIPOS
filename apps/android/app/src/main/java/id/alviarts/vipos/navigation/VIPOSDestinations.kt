@@ -63,4 +63,53 @@ sealed interface VIPOSDestination {
     data object Pos : VIPOSDestination {
         override val route: String = "pos"
     }
+
+    /**
+     * P4-05: Transaction history screen with filtering and
+     * pagination. Shows list of past transactions with date
+     * and status filters.
+     */
+    data object TransactionHistory : VIPOSDestination {
+        override val route: String = "transaction_history"
+    }
+
+    /**
+     * P4-05: Transaction detail screen. Shows full details
+     * of a single transaction including items.
+     */
+    data object TransactionDetail : VIPOSDestination {
+        const val ARG_TRANSACTION_ID: String = "transactionId"
+        override val route: String = "transaction_detail/{$ARG_TRANSACTION_ID}"
+
+        fun routeFor(transactionId: Long): String =
+            "transaction_detail/$transactionId"
+    }
+
+    /**
+     * P4-01: Online order queue screen. Shows pending and
+     * active online orders with action buttons.
+     */
+    data object OnlineOrderQueue : VIPOSDestination {
+        override val route: String = "online_order_queue"
+    }
+
+    /**
+     * P4-01: Online order detail screen. Shows full details
+     * of a single online order including items.
+     */
+    data object OnlineOrderDetail : VIPOSDestination {
+        const val ARG_ORDER_ID: String = "orderId"
+        override val route: String = "online_order_detail/{$ARG_ORDER_ID}"
+
+        fun routeFor(orderId: Long): String =
+            "online_order_detail/$orderId"
+    }
+
+    /**
+     * P4-07: Owner dashboard screen. Shows today's KPIs,
+     * revenue, transactions, and alerts.
+     */
+    data object OwnerDashboard : VIPOSDestination {
+        override val route: String = "owner_dashboard"
+    }
 }
