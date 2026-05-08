@@ -132,8 +132,9 @@ router.post('/dynamic', authenticateToken, async (req, res) => {
 router.get('/:ref_id/status', authenticateToken, async (req, res) => {
   try {
     // Lazy expiry: atomically flip AWAITING → EXPIRED if past window,
-    // then read the current state. The UPDATE + SELECT is a single
-    // round-trip via a CTE so there's no TOCTOU race.
+    // then read the current state. Uses JavaScript Date.now() for the
+    // comparison timestamp so tests can mock time via Date.now override.
+    const nowIso = new Date(Date.now()).toISOString();
     const { rows } = await query(
       `WITH maybe_expire AS (
          UPDATE qris_dynamic_invocations
@@ -141,13 +142,13 @@ router.get('/:ref_id/status', authenticateToken, async (req, res) => {
          WHERE ref_id = $1
            AND tenant_id = $2
            AND status = 'AWAITING'
-           AND expires_at < NOW()
+           AND expires_at < $3::timestamptz
          RETURNING ref_id
        )
        SELECT ref_id, status, paid_at, expires_at, amount, transaction_id
        FROM qris_dynamic_invocations
        WHERE ref_id = $1 AND tenant_id = $2`,
-      [req.params.ref_id, req.tenantId ?? null],
+      [req.params.ref_id, req.tenantId ?? null, nowIso],
     );
 
     if (rows.length === 0) {
@@ -168,15 +169,16 @@ router.post('/:ref_id/_test/mark-paid', authenticateToken, async (req, res) => {
   }
 
   try {
-    // Lazy expiry first — same CTE pattern as the poll endpoint.
+    // Lazy expiry first — same pattern as the poll endpoint.
+    const nowIso = new Date(Date.now()).toISOString();
     await query(
       `UPDATE qris_dynamic_invocations
        SET status = 'EXPIRED'
        WHERE ref_id = $1
          AND tenant_id = $2
          AND status = 'AWAITING'
-         AND expires_at < NOW()`,
-      [req.params.ref_id, req.tenantId ?? null],
+         AND expires_at < $3::timestamptz`,
+      [req.params.ref_id, req.tenantId ?? null, nowIso],
     );
 
     // Read current state after potential expiry.
