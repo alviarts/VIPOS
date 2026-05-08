@@ -2357,6 +2357,7 @@ model tenants {
   product_variants              product_variants[]
   products                      products[]
   promos                        promos[]
+  qris_dynamic_invocations      qris_dynamic_invocations[]
   report_schedules              report_schedules[]
   schedule_assignments          schedule_assignments[]
   schedule_swaps                schedule_swaps[]
@@ -2415,4 +2416,35 @@ model audit_logs {
   @@index([tenant_id, entity, entity_id], map: "idx_audit_logs_tenant_entity")
   @@index([tenant_id, user_id, created_at(sort: Desc)], map: "idx_audit_logs_tenant_user")
   @@index([tenant_id, action, created_at(sort: Desc)], map: "idx_audit_logs_tenant_action")
+}
+
+/// QRIS Dynamic invocations (P3-08 slice 5c follow-up).
+///
+/// Replaces the in-memory `Map<ref_id, record>` stub in
+/// `payment-qris.js` with a durable Postgres table so invocations
+/// survive process restarts and are visible across PM2 cluster
+/// workers. The state machine is unchanged:
+///   AWAITING → PAID   (gateway webhook / test backdoor)
+///   AWAITING → EXPIRED (lazy on poll when now > expires_at)
+///
+/// `ref_id` is the primary lookup key (UUID-based, globally unique
+/// across tenants). `tenant_id` scopes RLS so cross-tenant polls
+/// always 404.
+model qris_dynamic_invocations {
+  id             BigInt   @id @default(autoincrement())
+  ref_id         String   @unique @db.VarChar(64)
+  tenant_id      Int      @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  user_id        Int?
+  amount         BigInt
+  transaction_id Int?
+  status         String   @default("AWAITING") @db.VarChar(16)
+  qr_code_url    String?
+  polling_url    String?
+  paid_at        DateTime? @db.Timestamptz(6)
+  expires_at     DateTime  @db.Timestamptz(6)
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  tenants        tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "qris_invocations_tenant_fk")
+
+  @@index([tenant_id, created_at(sort: Desc)], map: "idx_qris_invocations_tenant_created")
+  @@index([tenant_id, status], map: "idx_qris_invocations_tenant_status")
 }

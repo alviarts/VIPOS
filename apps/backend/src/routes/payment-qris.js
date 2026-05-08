@@ -1,4 +1,4 @@
-// VIPOS — QRIS Dynamic stub endpoints (per docs/v2/14_PAYMENT_METHODS.md §6).
+// VIPOS — QRIS Dynamic endpoints (per docs/v2/14_PAYMENT_METHODS.md §6).
 //
 // Surface:
 //   POST /api/v1/payment/qris/dynamic
@@ -20,68 +20,38 @@
 //     409:  already EXPIRED — terminal state, can't be flipped.
 //
 // State:
-//   Pure in-memory `Map<ref_id, record>` keyed by `ref_id`. The records
-//   carry `tenant_id` so cross-tenant lookups always 404. This is a
-//   deliberate stub — real implementation will land an `qris_dynamic_invocations`
-//   table once the upstream gateway integration spec firms up. The
-//   in-memory store is perfectly adequate for unblocking Android slice 5
-//   (`docs/handoff/2026-05-07-p3-08-fourth-slice-checkout-ui.md` §next-up)
-//   because the Android client polls every 2-3s within a single browser
-//   session — no cross-process / cross-restart durability required for
-//   the stub.
+//   Backed by the `qris_dynamic_invocations` Postgres table (P3-08
+//   slice 5c follow-up). Records are tenant-scoped via RLS and survive
+//   process restarts / PM2 cluster worker rotation. The lazy expiry
+//   pattern is preserved: on every status read we UPDATE AWAITING →
+//   EXPIRED if `now > expires_at`.
 //
-// Auto-expiration:
-//   On every status read we lazily transition AWAITING → EXPIRED if
-//   `now > expires_at`. This avoids a background sweeper at the cost
-//   of mutating state inside a GET, which is a documented trade-off
-//   for stubs and is invisible to callers.
-//
-// Risk: yellow (new endpoints, stub-only, no real money flow, but
-// touching the production HTTP surface so a buggy mount could 500
-// the v1 API). Rollback: revert the commit + redeploy.
+// Risk: yellow (additive schema change, no real money flow, but
+// touching the production HTTP surface + DB). Rollback: revert the
+// commit + redeploy; the table can be dropped separately.
 
 const express = require('express');
 const crypto = require('crypto');
 const { authenticateToken } = require('../middleware/auth');
+const { query } = require('../db');
 
 const router = express.Router();
 
 // QRIS Dynamic invocations expire after 5 minutes per spec §6.7.
 const EXPIRY_MS = 5 * 60 * 1000;
 
-// In-memory store. Module-level so it survives across requests within
-// a single process; tests reset it via the helper below.
-const _store = new Map();
-
-function _now() {
-  return Date.now();
-}
-
-function _isExpired(record, now = _now()) {
-  return now > new Date(record.expires_at).getTime();
-}
-
-function _maybeExpire(record) {
-  if (record.status === 'AWAITING' && _isExpired(record)) {
-    record.status = 'EXPIRED';
-  }
-  return record;
-}
-
-function _toResponseShape(record) {
+function _toResponseShape(row) {
   return {
-    ref_id: record.ref_id,
-    status: record.status,
-    paid_at: record.paid_at,
-    expires_at: record.expires_at,
-    amount: record.amount,
-    transaction_id: record.transaction_id,
+    ref_id: row.ref_id,
+    status: row.status,
+    paid_at: row.paid_at ? new Date(row.paid_at).toISOString() : null,
+    expires_at: new Date(row.expires_at).toISOString(),
+    amount: Number(row.amount),
+    transaction_id: row.transaction_id,
   };
 }
 
-// Validate amount: must be a finite positive integer. Rupiah amounts
-// don't carry decimals in any of the existing transaction routes
-// (transactions.payment_amount is INTEGER), so we mirror that contract.
+// Validate amount: must be a finite positive integer.
 function _validateAmount(value) {
   if (typeof value !== 'number') return 'amount harus berupa angka';
   if (!Number.isFinite(value)) return 'amount harus berupa angka berhingga';
@@ -90,10 +60,7 @@ function _validateAmount(value) {
   return null;
 }
 
-// transaction_id is optional. When supplied it must be a positive int,
-// because callers can mint a QR before the transaction is committed
-// (Android flow) and link the two later via the `transaction_id`
-// stamped on the polling response.
+// transaction_id is optional. When supplied it must be a positive int.
 function _validateTransactionId(value) {
   if (value === undefined || value === null) return null;
   if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
@@ -103,100 +70,158 @@ function _validateTransactionId(value) {
 }
 
 // POST /dynamic — mint a fresh QRIS Dynamic invocation.
-router.post('/dynamic', authenticateToken, (req, res) => {
-  const { amount, transaction_id } = req.body || {};
+router.post('/dynamic', authenticateToken, async (req, res) => {
+  try {
+    const { amount, transaction_id } = req.body || {};
 
-  const amountErr = _validateAmount(amount);
-  if (amountErr) {
-    return res.status(400).json({ error: amountErr });
+    const amountErr = _validateAmount(amount);
+    if (amountErr) {
+      return res.status(400).json({ error: amountErr });
+    }
+    const txErr = _validateTransactionId(transaction_id);
+    if (txErr) {
+      return res.status(400).json({ error: txErr });
+    }
+
+    const refId = `QR-${crypto.randomUUID()}`;
+    const now = Date.now();
+    const expiresAt = new Date(now + EXPIRY_MS).toISOString();
+
+    // Stub QR payload. The real gateway returns a base64-encoded PNG; we
+    // emit a stable placeholder URL keyed off ref_id so the Android UI
+    // can render *something* during stub-mode integration testing.
+    const qrCodeUrl = `https://stub.qris.local/qr/${encodeURIComponent(refId)}.png`;
+    const pollingUrl = `/api/v1/payment/qris/${encodeURIComponent(refId)}/status`;
+
+    const { rows } = await query(
+      `INSERT INTO qris_dynamic_invocations
+         (ref_id, tenant_id, user_id, amount, transaction_id, status,
+          qr_code_url, polling_url, expires_at, created_at)
+       VALUES ($1, $2, $3, $4, $5, 'AWAITING', $6, $7, $8, NOW())
+       RETURNING ref_id, status, paid_at, expires_at, amount,
+                 transaction_id, qr_code_url, polling_url`,
+      [
+        refId,
+        req.tenantId ?? null,
+        req.user?.id ?? null,
+        amount,
+        transaction_id ?? null,
+        qrCodeUrl,
+        pollingUrl,
+        expiresAt,
+      ],
+    );
+
+    const record = rows[0];
+    return res.status(201).json({
+      ref_id: record.ref_id,
+      qr_code_url: record.qr_code_url,
+      polling_url: record.polling_url,
+      status: record.status,
+      expires_at: new Date(record.expires_at).toISOString(),
+      amount: Number(record.amount),
+      transaction_id: record.transaction_id,
+    });
+  } catch (err) {
+    console.error('QRIS mint error:', err);
+    return res.status(500).json({ error: 'Gagal membuat QRIS invocation' });
   }
-  const txErr = _validateTransactionId(transaction_id);
-  if (txErr) {
-    return res.status(400).json({ error: txErr });
-  }
-
-  const refId = `QR-${crypto.randomUUID()}`;
-  const now = _now();
-  const expiresAt = new Date(now + EXPIRY_MS).toISOString();
-
-  // Stub QR payload. The real gateway returns a base64-encoded PNG; we
-  // emit a stable placeholder URL keyed off ref_id so the Android UI
-  // can render *something* during stub-mode integration testing.
-  const qrCodeUrl = `https://stub.qris.local/qr/${encodeURIComponent(refId)}.png`;
-  const pollingUrl = `/api/v1/payment/qris/${encodeURIComponent(refId)}/status`;
-
-  const record = {
-    ref_id: refId,
-    tenant_id: req.tenantId ?? null,
-    user_id: req.user?.id ?? null,
-    amount,
-    transaction_id: transaction_id ?? null,
-    status: 'AWAITING',
-    paid_at: null,
-    expires_at: expiresAt,
-    qr_code_url: qrCodeUrl,
-    polling_url: pollingUrl,
-    created_at: new Date(now).toISOString(),
-  };
-
-  _store.set(refId, record);
-
-  return res.status(201).json({
-    ref_id: record.ref_id,
-    qr_code_url: record.qr_code_url,
-    polling_url: record.polling_url,
-    status: record.status,
-    expires_at: record.expires_at,
-    amount: record.amount,
-    transaction_id: record.transaction_id,
-  });
 });
 
 // GET /:ref_id/status — poll the current state of a minted invocation.
-router.get('/:ref_id/status', authenticateToken, (req, res) => {
-  const record = _store.get(req.params.ref_id);
+router.get('/:ref_id/status', authenticateToken, async (req, res) => {
+  try {
+    // Lazy expiry: atomically flip AWAITING → EXPIRED if past window,
+    // then read the current state. The UPDATE + SELECT is a single
+    // round-trip via a CTE so there's no TOCTOU race.
+    const { rows } = await query(
+      `WITH maybe_expire AS (
+         UPDATE qris_dynamic_invocations
+         SET status = 'EXPIRED'
+         WHERE ref_id = $1
+           AND tenant_id = $2
+           AND status = 'AWAITING'
+           AND expires_at < NOW()
+         RETURNING ref_id
+       )
+       SELECT ref_id, status, paid_at, expires_at, amount, transaction_id
+       FROM qris_dynamic_invocations
+       WHERE ref_id = $1 AND tenant_id = $2`,
+      [req.params.ref_id, req.tenantId ?? null],
+    );
 
-  // 404 for unknown ref_id AND cross-tenant lookups. We deliberately
-  // do not 403 cross-tenant — that would leak ref_id existence to a
-  // probing tenant.
-  if (!record || record.tenant_id !== (req.tenantId ?? null)) {
-    return res.status(404).json({ error: 'QRIS ref_id tidak ditemukan' });
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'QRIS ref_id tidak ditemukan' });
+    }
+
+    return res.status(200).json(_toResponseShape(rows[0]));
+  } catch (err) {
+    console.error('QRIS poll error:', err);
+    return res.status(500).json({ error: 'Gagal membaca status QRIS' });
   }
-
-  _maybeExpire(record);
-  return res.status(200).json(_toResponseShape(record));
 });
 
 // POST /:ref_id/_test/mark-paid — test-only backdoor.
-router.post('/:ref_id/_test/mark-paid', authenticateToken, (req, res) => {
+router.post('/:ref_id/_test/mark-paid', authenticateToken, async (req, res) => {
   if (process.env.NODE_ENV === 'production') {
     return res.status(403).json({ error: 'Test backdoor dinonaktifkan di production' });
   }
 
-  const record = _store.get(req.params.ref_id);
-  if (!record || record.tenant_id !== (req.tenantId ?? null)) {
-    return res.status(404).json({ error: 'QRIS ref_id tidak ditemukan' });
-  }
+  try {
+    // Lazy expiry first — same CTE pattern as the poll endpoint.
+    await query(
+      `UPDATE qris_dynamic_invocations
+       SET status = 'EXPIRED'
+       WHERE ref_id = $1
+         AND tenant_id = $2
+         AND status = 'AWAITING'
+         AND expires_at < NOW()`,
+      [req.params.ref_id, req.tenantId ?? null],
+    );
 
-  // Lazy expiry runs first so a record that's already past its window
-  // can't be flipped to PAID — that would mask real-world races.
-  _maybeExpire(record);
-  if (record.status === 'EXPIRED') {
-    return res.status(409).json({
-      error: 'QRIS sudah kedaluwarsa, tidak bisa ditandai PAID',
-      ..._toResponseShape(record),
-    });
+    // Read current state after potential expiry.
+    const { rows: readRows } = await query(
+      `SELECT ref_id, status, paid_at, expires_at, amount, transaction_id
+       FROM qris_dynamic_invocations
+       WHERE ref_id = $1 AND tenant_id = $2`,
+      [req.params.ref_id, req.tenantId ?? null],
+    );
+
+    if (readRows.length === 0) {
+      return res.status(404).json({ error: 'QRIS ref_id tidak ditemukan' });
+    }
+
+    const record = readRows[0];
+
+    if (record.status === 'EXPIRED') {
+      return res.status(409).json({
+        error: 'QRIS sudah kedaluwarsa, tidak bisa ditandai PAID',
+        ..._toResponseShape(record),
+      });
+    }
+
+    if (record.status !== 'PAID') {
+      const { rows: updatedRows } = await query(
+        `UPDATE qris_dynamic_invocations
+         SET status = 'PAID', paid_at = NOW()
+         WHERE ref_id = $1 AND tenant_id = $2
+         RETURNING ref_id, status, paid_at, expires_at, amount, transaction_id`,
+        [req.params.ref_id, req.tenantId ?? null],
+      );
+      return res.status(200).json(_toResponseShape(updatedRows[0]));
+    }
+
+    return res.status(200).json(_toResponseShape(record));
+  } catch (err) {
+    console.error('QRIS mark-paid error:', err);
+    return res.status(500).json({ error: 'Gagal menandai QRIS sebagai PAID' });
   }
-  if (record.status !== 'PAID') {
-    record.status = 'PAID';
-    record.paid_at = new Date(_now()).toISOString();
-  }
-  return res.status(200).json(_toResponseShape(record));
 });
 
 module.exports = router;
-// Test helper — wipes the in-memory store so suites that exercise the
-// stub don't leak state across files. Not exposed via HTTP.
-module.exports._resetStoreForTests = function _resetStoreForTests() {
-  _store.clear();
+
+// Test helper — truncates the DB table so suites that exercise the
+// endpoints don't leak state across files. Not exposed via HTTP.
+module.exports._resetStoreForTests = async function _resetStoreForTests() {
+  await query('DELETE FROM qris_dynamic_invocations');
 };

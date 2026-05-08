@@ -1,11 +1,10 @@
-// VIPOS — backend integration suite for the QRIS Dynamic stub
-// endpoints (`apps/backend/src/routes/payment-qris.js`). Codifies the
-// contract documented in `docs/v2/14_PAYMENT_METHODS.md` §6 against
-// the in-memory stub store so a future refactor — say, swapping the
-// store for a real `qris_dynamic_invocations` table — has a CI guard
-// against accidentally breaking the HTTP shape, the auto-expiry
-// transition, the cross-tenant 404 isolation, the production
-// backdoor lockout, or the AWAITING/PAID/EXPIRED state machine.
+// VIPOS — backend integration suite for the QRIS Dynamic endpoints
+// (`apps/backend/src/routes/payment-qris.js`). Codifies the contract
+// documented in `docs/v2/14_PAYMENT_METHODS.md` §6 against the
+// `qris_dynamic_invocations` Postgres table as a CI guard against
+// accidentally breaking the HTTP shape, the auto-expiry transition,
+// the cross-tenant 404 isolation, the production backdoor lockout,
+// or the AWAITING/PAID/EXPIRED state machine.
 //
 // Why integration-level: every behaviour codified here is observable
 // at the HTTP layer and the only sane place to assert the
@@ -13,8 +12,7 @@
 // supertest agent, since req.tenantId is set by the auth middleware
 // at request time.
 //
-// Risk: green — pure HTTP-level test, runs against the same in-memory
-// stub the route uses. No DB schema changes.
+// Risk: green — HTTP-level test, runs against the test DB.
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
@@ -65,11 +63,11 @@ afterAll(async () => {
   await teardownTestEnv();
 });
 
-beforeEach(() => {
-  // Reset module-level store so each `it` starts from a clean slate.
+beforeEach(async () => {
+  // Reset DB table so each `it` starts from a clean slate.
   // The helper is exposed off the route module (see `_resetStoreForTests`).
   const { _resetStoreForTests } = require('../routes/payment-qris');
-  _resetStoreForTests();
+  await _resetStoreForTests();
 });
 
 describe('POST /api/v1/payment/qris/dynamic — mint stub QR', () => {
