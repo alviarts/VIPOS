@@ -98,6 +98,7 @@ describe('POST /api/v1/cashier-shift/:id/close', () => {
       .post('/api/v1/cashier-shift/open')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ opening_cash: 500000 });
+    expect(openRes.status).toBe(201);
     const shiftId = openRes.body.shift.id;
 
     const closeRes = await request(app)
@@ -115,6 +116,7 @@ describe('POST /api/v1/cashier-shift/:id/close', () => {
       .post('/api/v1/cashier-shift/open')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ opening_cash: 500000 });
+    expect(openRes.status).toBe(201);
     const shiftId = openRes.body.shift.id;
 
     await request(app)
@@ -136,6 +138,7 @@ describe('GET /api/v1/cashier-shift/:id/summary', () => {
       .post('/api/v1/cashier-shift/open')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ opening_cash: 500000 });
+    expect(openRes.status).toBe(201);
     const shiftId = openRes.body.shift.id;
 
     const res = await request(app)
