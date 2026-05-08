@@ -49,16 +49,30 @@ router.post('/qris', async (req, res) => {
       return res.status(200).json({ received: true, action: 'ignored', reason: `status=${status}` });
     }
 
-    // Update the invocation record. Use runAsSystem to bypass RLS
-    // since webhooks come from the gateway (no tenant context).
-    const { rowCount } = await runAsSystem(() =>
+    // Update the invocation record. First look up the tenant_id
+    // from the ref_id (bypassing RLS via runAsSystem), then run
+    // the update in that tenant's context.
+    const lookupResult = await runAsSystem(() =>
       query(
-        `UPDATE qris_dynamic_invocations
-         SET status = 'PAID', paid_at = $1
-         WHERE ref_id = $2 AND status = 'AWAITING'`,
-        [paid_at || new Date().toISOString(), ref_id],
+        `SELECT tenant_id FROM qris_dynamic_invocations WHERE ref_id = $1`,
+        [ref_id],
       ),
     );
+
+    let rowCount = 0;
+    if (lookupResult.rows.length > 0) {
+      const tenantId = lookupResult.rows[0].tenant_id;
+      const { runWithTenant } = require('../db');
+      const updateResult = await runWithTenant(tenantId, () =>
+        query(
+          `UPDATE qris_dynamic_invocations
+           SET status = 'PAID', paid_at = $1
+           WHERE ref_id = $2 AND status = 'AWAITING'`,
+          [paid_at || new Date().toISOString(), ref_id],
+        ),
+      );
+      rowCount = updateResult.rowCount;
+    }
 
     return res.status(200).json({
       received: true,
