@@ -370,8 +370,9 @@ interface PosApi {
 
     /**
      * Start appointment (CONFIRMED → IN_PROGRESS).
+     * Backend uses /checkin endpoint.
      */
-    @POST("api/appointment/{id}/start")
+    @POST("api/appointment/{id}/checkin")
     suspend fun startAppointment(
         @Path("id") appointmentId: Long,
     ): AppointmentDto

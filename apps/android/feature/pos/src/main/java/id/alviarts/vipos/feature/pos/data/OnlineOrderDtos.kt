@@ -89,7 +89,7 @@ data class AppointmentDto(
     @SerialName("status") val status: String = "PENDING",
     @SerialName("deposit_amount") val depositAmount: Long = 0,
     @SerialName("deposit_paid") val depositPaid: Boolean = false,
-    @SerialName("total_amount") val totalAmount: Long = 0,
+    @SerialName("total") val totalAmount: Long = 0, // Backend uses "total" not "total_amount"
     @SerialName("notes") val notes: String? = null,
     @SerialName("internal_notes") val internalNotes: String? = null,
     @SerialName("cancel_reason") val cancelReason: String? = null,
