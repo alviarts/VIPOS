@@ -5,9 +5,12 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import id.alviarts.vipos.feature.pos.data.PosApi
 import id.alviarts.vipos.feature.pos.data.TransactionHistoryItemDto
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -15,9 +18,10 @@ import javax.inject.Inject
 /**
  * ViewModel for transaction history screen (P4-05).
  *
- * Manages paginated transaction list with filtering by date range
- * and status. Supports pull-to-refresh and infinite scroll.
+ * Manages paginated transaction list with filtering by date range,
+ * status, and search query. Supports pull-to-refresh and infinite scroll.
  */
+@OptIn(FlowPreview::class)
 @HiltViewModel
 class TransactionHistoryViewModel @Inject constructor(
     private val posApi: PosApi,
@@ -26,8 +30,24 @@ class TransactionHistoryViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(TransactionHistoryUiState())
     val uiState: StateFlow<TransactionHistoryUiState> = _uiState.asStateFlow()
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
     init {
         loadTransactions()
+        
+        // Setup search debouncing
+        viewModelScope.launch {
+            _searchQuery
+                .debounce(500) // Wait 500ms after user stops typing
+                .distinctUntilChanged()
+                .collect { query ->
+                    if (query != _uiState.value.appliedSearchQuery) {
+                        _uiState.update { it.copy(appliedSearchQuery = query) }
+                        loadTransactions(refresh = true)
+                    }
+                }
+        }
     }
 
     fun loadTransactions(refresh: Boolean = false) {
@@ -51,9 +71,19 @@ class TransactionHistoryViewModel @Inject constructor(
                     limit = 20,
                 )
 
+                // Filter by search query locally (since backend doesn't support search yet)
+                val filteredData = if (_uiState.value.appliedSearchQuery.isNotBlank()) {
+                    response.data.filter { transaction ->
+                        transaction.invoiceNumber.contains(_uiState.value.appliedSearchQuery, ignoreCase = true) ||
+                        transaction.cashierName?.contains(_uiState.value.appliedSearchQuery, ignoreCase = true) == true
+                    }
+                } else {
+                    response.data
+                }
+
                 _uiState.update {
                     it.copy(
-                        transactions = if (refresh) response.data else it.transactions + response.data,
+                        transactions = if (refresh) filteredData else it.transactions + filteredData,
                         currentPage = page,
                         totalPages = response.pagination.totalPages,
                         hasMore = page < response.pagination.totalPages,
@@ -79,6 +109,14 @@ class TransactionHistoryViewModel @Inject constructor(
             _uiState.update { it.copy(currentPage = it.currentPage + 1) }
             loadTransactions()
         }
+    }
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun clearSearch() {
+        _searchQuery.value = ""
     }
 
     fun setDateFilter(date: String?) {
@@ -141,4 +179,5 @@ data class TransactionHistoryUiState(
     val startDate: String? = null,
     val endDate: String? = null,
     val selectedStatus: String? = null,
+    val appliedSearchQuery: String = "",
 )
