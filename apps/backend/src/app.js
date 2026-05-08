@@ -167,6 +167,9 @@ function mountVersionedRoutes(parent) {
   // Product search suggestions (typeahead).
   parent.use('/products', require('./routes/product-search'));
 
+  // Customer bulk import.
+  parent.use('/customers', require('./routes/import-customers'));
+
   // P3-16 Loyalty point redemption.
   parent.use('/loyalty', require('./routes/loyalty-redeem'));
 
