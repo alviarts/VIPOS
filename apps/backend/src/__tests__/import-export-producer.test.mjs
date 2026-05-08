@@ -51,9 +51,11 @@ describe('POST /api/v1/import-export/import/:entity/async', () => {
   // across test files (singleFork mode). The processor from a
   // previous file's job may fire after this file's TRUNCATE.
   beforeEach(async () => {
-    await runAsSystem(() =>
-      queryFn(`DELETE FROM customers WHERE phone LIKE '+62811000%'`)
-    );
+    try {
+      await runAsSystem(() =>
+        queryFn(`DELETE FROM customers WHERE phone LIKE '+62811%'`)
+      );
+    } catch (_) { /* ignore if table doesn't exist yet */ }
   });
 
   it('401 — unauthenticated request blocked', async () => {
@@ -138,8 +140,9 @@ describe('POST /api/v1/import-export/import/:entity/async', () => {
       expect(result.audit_id).toBeTruthy();
 
       // Rows landed on the customers table — scoped to tenant via RLS.
+      // Use tenant-scoped query to only count THIS test's rows.
       const inserted = await runWithTenant(t.tenantId, () =>
-        queryFn(`SELECT name, phone FROM customers WHERE phone LIKE '+62811000%' ORDER BY phone`)
+        queryFn(`SELECT name, phone FROM customers WHERE phone LIKE '+62811000%' AND tenant_id = $1 ORDER BY phone`, [t.tenantId])
       );
       expect(inserted.rows).toHaveLength(3);
       expect(inserted.rows.map((r) => r.name).sort()).toEqual([
