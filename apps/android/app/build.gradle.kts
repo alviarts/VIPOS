@@ -61,12 +61,13 @@ android {
 
     buildTypes {
         release {
-            // R8 / minification + resource shrinking stay OFF until
-            // Phase 3 has actual code to shrink. Hilt + AndroidX ship
-            // their own consumer ProGuard rules inside their AARs;
-            // app-specific keep rules (if any) will go into
-            // proguard-rules.pro alongside that future flip.
-            isMinifyEnabled = false
+            // P4-14: Enable R8 minification + resource shrinking for
+            // production builds. Reduces APK size and improves cold
+            // start time by removing unused code paths. Hilt + AndroidX
+            // ship their own consumer ProGuard rules inside their AARs;
+            // app-specific keep rules live in proguard-rules.pro.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
