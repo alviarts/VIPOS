@@ -192,4 +192,12 @@ sealed interface VIPOSDestination {
     data object SalesReport : VIPOSDestination {
         override val route: String = "sales_report"
     }
+
+    /**
+     * P4-08: Employee list screen. Shows list of employees
+     * with status and department filters.
+     */
+    data object EmployeeList : VIPOSDestination {
+        override val route: String = "employee_list"
+    }
 }

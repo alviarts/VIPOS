@@ -538,5 +538,53 @@ interface PosApi {
         @Query("from") from: String? = null,
         @Query("to") to: String? = null,
     ): SalesByPaymentMethodReportDto
+
+    // ========================================================================
+    // Employees (P4-08)
+    // ========================================================================
+
+    /**
+     * Get list of employees with optional filters.
+     */
+    @GET("api/employee")
+    suspend fun getEmployees(
+        @Query("status") status: String? = null,
+        @Query("department_id") departmentId: Long? = null,
+        @Query("search") search: String? = null,
+    ): List<EmployeeDto>
+
+    /**
+     * Get single employee detail.
+     */
+    @GET("api/employee/{id}")
+    suspend fun getEmployeeDetail(
+        @Path("id") employeeId: Long,
+    ): EmployeeDto
+
+    /**
+     * Create new employee.
+     */
+    @POST("api/employee")
+    suspend fun createEmployee(
+        @Body request: EmployeeCreateRequestDto,
+    ): EmployeeDto
+
+    /**
+     * Update employee.
+     */
+    @PUT("api/employee/{id}")
+    suspend fun updateEmployee(
+        @Path("id") employeeId: Long,
+        @Body request: EmployeeUpdateRequestDto,
+    ): EmployeeDto
+
+    /**
+     * Delete employee.
+     */
+    @DELETE("api/employee/{id}")
+    suspend fun deleteEmployee(
+        @Path("id") employeeId: Long,
+    ): Unit
 }
+
 

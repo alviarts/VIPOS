@@ -44,6 +44,7 @@ fun HomeRoute(
     onOpenStockMovementList: () -> Unit = {},
     onOpenStockOpnameList: () -> Unit = {},
     onOpenSalesReport: () -> Unit = {},
+    onOpenEmployeeList: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -67,6 +68,7 @@ fun HomeRoute(
         onOpenStockMovementListClick = onOpenStockMovementList,
         onOpenStockOpnameListClick = onOpenStockOpnameList,
         onOpenSalesReportClick = onOpenSalesReport,
+        onOpenEmployeeListClick = onOpenEmployeeList,
     )
 }
 
@@ -83,6 +85,7 @@ internal fun HomeScreen(
     onOpenStockMovementListClick: () -> Unit = {},
     onOpenStockOpnameListClick: () -> Unit = {},
     onOpenSalesReportClick: () -> Unit = {},
+    onOpenEmployeeListClick: () -> Unit = {},
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -198,6 +201,17 @@ internal fun HomeScreen(
                     .widthIn(max = 360.dp),
             ) {
                 Text("Laporan Penjualan")
+            }
+            Spacer(Modifier.height(8.dp))
+            
+            OutlinedButton(
+                onClick = onOpenEmployeeListClick,
+                enabled = !isLoggingOut,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 360.dp),
+            ) {
+                Text("Karyawan")
             }
             Spacer(Modifier.height(24.dp))
             
