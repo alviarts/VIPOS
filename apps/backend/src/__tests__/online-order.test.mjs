@@ -17,7 +17,7 @@ async function login() {
   return res.body.token;
 }
 
-async function createOnlineOrder(channel = 'GOFOOD', orderType = 'delivery') {
+async function createOnlineOrder(channel = 'gofood', orderType = 'delivery') {
   // Get first product from seed data
   const prodListRes = await request(app)
     .get('/api/v1/products?page=1&per_page=1')
