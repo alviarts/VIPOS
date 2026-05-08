@@ -40,6 +40,13 @@ const router = express.Router();
 // QRIS Dynamic invocations expire after 5 minutes per spec §6.7.
 const EXPIRY_MS = 5 * 60 * 1000;
 
+// Overridable time function for test mockability.
+// Tests override Date.now globally; this function captures it
+// at call time so the SQL query uses the mocked value.
+function _now() {
+  return Date.now();
+}
+
 function _toResponseShape(row) {
   return {
     ref_id: row.ref_id,
@@ -131,32 +138,31 @@ router.post('/dynamic', authenticateToken, async (req, res) => {
 // GET /:ref_id/status — poll the current state of a minted invocation.
 router.get('/:ref_id/status', authenticateToken, async (req, res) => {
   try {
-    // Lazy expiry: atomically flip AWAITING → EXPIRED if past window,
-    // then read the current state. Uses JavaScript Date.now() for the
-    // comparison so tests can mock time via Date.now override.
-    // Compare as epoch ms to avoid timezone/precision issues.
-    const nowMs = Date.now();
+    // Read the record first, then check expiry in JavaScript
+    // (so Date.now mock in tests works correctly).
     const { rows } = await query(
-      `WITH maybe_expire AS (
-         UPDATE qris_dynamic_invocations
-         SET status = 'EXPIRED'
-         WHERE ref_id = $1
-           AND tenant_id = $2
-           AND status = 'AWAITING'
-           AND expires_at <= to_timestamp($3::double precision / 1000)
-         RETURNING ref_id
-       )
-       SELECT ref_id, status, paid_at, expires_at, amount, transaction_id
+      `SELECT ref_id, status, paid_at, expires_at, amount, transaction_id
        FROM qris_dynamic_invocations
        WHERE ref_id = $1 AND tenant_id = $2`,
-      [req.params.ref_id, req.tenantId ?? null, nowMs],
+      [req.params.ref_id, req.tenantId ?? null],
     );
 
     if (rows.length === 0) {
       return res.status(404).json({ error: 'QRIS ref_id tidak ditemukan' });
     }
 
-    return res.status(200).json(_toResponseShape(rows[0]));
+    // Lazy expiry: flip AWAITING → EXPIRED if past window.
+    const record = rows[0];
+    if (record.status === 'AWAITING' && _now() > new Date(record.expires_at).getTime()) {
+      await query(
+        `UPDATE qris_dynamic_invocations SET status = 'EXPIRED'
+         WHERE ref_id = $1 AND tenant_id = $2 AND status = 'AWAITING'`,
+        [req.params.ref_id, req.tenantId ?? null],
+      );
+      record.status = 'EXPIRED';
+    }
+
+    return res.status(200).json(_toResponseShape(record));
   } catch (err) {
     console.error('QRIS poll error:', err);
     return res.status(500).json({ error: 'Gagal membaca status QRIS' });
@@ -170,19 +176,7 @@ router.post('/:ref_id/_test/mark-paid', authenticateToken, async (req, res) => {
   }
 
   try {
-    // Lazy expiry first — same pattern as the poll endpoint.
-    const nowMs = Date.now();
-    await query(
-      `UPDATE qris_dynamic_invocations
-       SET status = 'EXPIRED'
-       WHERE ref_id = $1
-         AND tenant_id = $2
-         AND status = 'AWAITING'
-         AND expires_at <= to_timestamp($3::double precision / 1000)`,
-      [req.params.ref_id, req.tenantId ?? null, nowMs],
-    );
-
-    // Read current state after potential expiry.
+    // Read record and check expiry in JavaScript (same as poll).
     const { rows: readRows } = await query(
       `SELECT ref_id, status, paid_at, expires_at, amount, transaction_id
        FROM qris_dynamic_invocations
@@ -195,6 +189,16 @@ router.post('/:ref_id/_test/mark-paid', authenticateToken, async (req, res) => {
     }
 
     const record = readRows[0];
+
+    // Lazy expiry first.
+    if (record.status === 'AWAITING' && _now() > new Date(record.expires_at).getTime()) {
+      await query(
+        `UPDATE qris_dynamic_invocations SET status = 'EXPIRED'
+         WHERE ref_id = $1 AND tenant_id = $2 AND status = 'AWAITING'`,
+        [req.params.ref_id, req.tenantId ?? null],
+      );
+      record.status = 'EXPIRED';
+    }
 
     if (record.status === 'EXPIRED') {
       return res.status(409).json({
