@@ -169,6 +169,11 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 
+    // P3-09: WorkManager for background outbox drain. The worker
+    // runs when the device has network connectivity and drains
+    // pending outbox entries to the server.
+    implementation(libs.androidx.work.runtime.ktx)
+
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     // P3-10: unit tests for the reactive `SessionViewModel`

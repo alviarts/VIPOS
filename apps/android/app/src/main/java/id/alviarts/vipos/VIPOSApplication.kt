@@ -1,7 +1,11 @@
 package id.alviarts.vipos
 
 import android.app.Application
+import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
+import id.alviarts.vipos.sync.OutboxManager
+import id.alviarts.vipos.sync.OutboxWorkerFactory
+import javax.inject.Inject
 
 /**
  * Application entry point for Hilt's dependency-injection graph
@@ -10,8 +14,27 @@ import dagger.hilt.android.HiltAndroidApp
  * `SingletonComponent` that downstream `@AndroidEntryPoint`
  * activities, fragments, and services attach to.
  *
+ * P3-09: Implements [Configuration.Provider] to supply a custom
+ * [OutboxWorkerFactory] that injects dependencies into the
+ * [OutboxWorker]. Also enqueues the periodic outbox sync on
+ * startup.
+ *
  * Registered via `android:name=".VIPOSApplication"` in
  * `AndroidManifest.xml`.
  */
 @HiltAndroidApp
-class VIPOSApplication : Application()
+class VIPOSApplication : Application(), Configuration.Provider {
+
+    @Inject lateinit var outboxWorkerFactory: OutboxWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(outboxWorkerFactory)
+            .build()
+
+    override fun onCreate() {
+        super.onCreate()
+        // Enqueue periodic outbox sync (every 15 min when online).
+        OutboxManager(this).enqueuePeriodicSync()
+    }
+}

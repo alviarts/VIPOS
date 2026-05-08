@@ -2,6 +2,8 @@ package id.alviarts.vipos.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -11,6 +13,7 @@ import id.alviarts.vipos.BuildConfig
 import id.alviarts.vipos.core.common.AppConfig
 import id.alviarts.vipos.core.database.VIPOSDatabase
 import id.alviarts.vipos.core.database.dao.KeyValueCacheDao
+import id.alviarts.vipos.core.database.dao.OutboxDao
 import id.alviarts.vipos.core.network.AuthInterceptor
 import id.alviarts.vipos.core.network.AndroidConnectivityObserver
 import id.alviarts.vipos.core.network.ConnectivityObserver
@@ -187,6 +190,37 @@ object AppModule {
      * Feature modules consume DAOs through Hilt — they never see
      * the [VIPOSDatabase] handle directly.
      */
+    /**
+     * Migration from schema v1 → v2: adds the `outbox` table
+     * for offline-first mutations (P3-09).
+     */
+    private val MIGRATION_1_2 = object : Migration(1, 2) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `outbox` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `method` TEXT NOT NULL,
+                    `path` TEXT NOT NULL,
+                    `body` TEXT NOT NULL,
+                    `idempotency_key` TEXT NOT NULL,
+                    `status` TEXT NOT NULL DEFAULT 'PENDING',
+                    `retry_count` INTEGER NOT NULL DEFAULT 0,
+                    `next_retry_at` INTEGER NOT NULL DEFAULT 0,
+                    `last_error` TEXT,
+                    `created_at` INTEGER NOT NULL DEFAULT 0
+                )
+                """.trimIndent(),
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `idx_outbox_status_retry` ON `outbox` (`status`, `next_retry_at`)",
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `idx_outbox_idempotency` ON `outbox` (`idempotency_key`)",
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideVIPOSDatabase(
@@ -195,12 +229,30 @@ object AppModule {
         context,
         VIPOSDatabase::class.java,
         VIPOSDatabase.DATABASE_NAME,
-    ).build()
+    )
+        .addMigrations(MIGRATION_1_2)
+        .build()
 
     @Provides
     @Singleton
     fun provideKeyValueCacheDao(database: VIPOSDatabase): KeyValueCacheDao =
         database.keyValueCacheDao()
+
+    @Provides
+    @Singleton
+    fun provideOutboxDao(database: VIPOSDatabase): OutboxDao =
+        database.outboxDao()
+
+    /**
+     * Application-scoped [OutboxManager] for scheduling the
+     * outbox sync worker (P3-09).
+     */
+    @Provides
+    @Singleton
+    fun provideOutboxManager(
+        @ApplicationContext context: Context,
+    ): id.alviarts.vipos.sync.OutboxManager =
+        id.alviarts.vipos.sync.OutboxManager(context)
 
     /**
      * Application-scoped [ConnectivityObserver] (P3-08 slice 5c

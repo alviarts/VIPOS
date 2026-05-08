@@ -3,7 +3,9 @@ package id.alviarts.vipos.core.database
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import id.alviarts.vipos.core.database.dao.KeyValueCacheDao
+import id.alviarts.vipos.core.database.dao.OutboxDao
 import id.alviarts.vipos.core.database.entity.KeyValueCacheEntity
+import id.alviarts.vipos.core.database.entity.OutboxEntry
 
 /**
  * Root [RoomDatabase] for the Android client (P3-04).
@@ -25,13 +27,17 @@ import id.alviarts.vipos.core.database.entity.KeyValueCacheEntity
  * (products, transactions, sync queue, …) land in P3-06+.
  */
 @Database(
-    entities = [KeyValueCacheEntity::class],
+    entities = [
+        KeyValueCacheEntity::class,
+        OutboxEntry::class,
+    ],
     version = DATABASE_VERSION,
     exportSchema = true,
 )
 abstract class VIPOSDatabase : RoomDatabase() {
 
     abstract fun keyValueCacheDao(): KeyValueCacheDao
+    abstract fun outboxDao(): OutboxDao
 
     companion object {
         const val DATABASE_NAME: String = "vipos.db"
@@ -44,4 +50,4 @@ abstract class VIPOSDatabase : RoomDatabase() {
  * annotation can reference it (annotation arguments must be
  * compile-time constants, which `companion object const`s aren't).
  */
-const val DATABASE_VERSION: Int = 1
+const val DATABASE_VERSION: Int = 2
