@@ -1,6 +1,8 @@
 package id.alviarts.vipos.feature.pos.ui
 
+import id.alviarts.vipos.core.database.dao.KeyValueCacheDao
 import id.alviarts.vipos.core.database.dao.OutboxDao
+import id.alviarts.vipos.core.database.entity.KeyValueCacheEntity
 import id.alviarts.vipos.core.database.entity.OutboxEntry
 import id.alviarts.vipos.core.network.ConnectivityObserver
 import id.alviarts.vipos.feature.pos.data.CustomerDto
@@ -68,6 +70,15 @@ class PosCatalogueViewModelTest {
     /** Fake [ConnectivityObserver] that always reports online. */
     private val fakeConnectivityObserver: ConnectivityObserver = object : ConnectivityObserver {
         override fun observe(): Flow<Boolean> = MutableStateFlow(true)
+    }
+
+    /** Fake [KeyValueCacheDao] that stores nothing. */
+    private val fakeKvCache: KeyValueCacheDao = object : KeyValueCacheDao {
+        override suspend fun get(key: String): KeyValueCacheEntity? = null
+        override fun observe(key: String): Flow<KeyValueCacheEntity?> = flowOf(null)
+        override suspend fun upsert(row: KeyValueCacheEntity) {}
+        override suspend fun delete(key: String) {}
+        override suspend fun clear() {}
     }
 
     /** Fake [CustomerRepository] that returns empty results. */
@@ -143,7 +154,7 @@ class PosCatalogueViewModelTest {
                 """{"data":[],"page":1,"per_page":100,"total":0,"total_pages":0}""",
             ),
         )
-        val vm = PosCatalogueViewModel(repository, fakeCustomerRepository, fakeConnectivityObserver, fakeOutboxDao)
+        val vm = PosCatalogueViewModel(repository, fakeCustomerRepository, fakeKvCache, fakeConnectivityObserver, fakeOutboxDao)
         vm.uiState.first { it.loadStatus is LoadStatus.Loaded }
         return vm
     }

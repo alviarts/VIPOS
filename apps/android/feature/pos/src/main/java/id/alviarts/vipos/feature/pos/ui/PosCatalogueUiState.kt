@@ -31,6 +31,12 @@ data class PosCatalogueUiState(
     val customerSearchResults: List<CustomerDto> = emptyList(),
     /** True while a customer search is in flight (P3-16). */
     val customerSearching: Boolean = false,
+    /** Current search/filter query for the product catalogue (P3-19). */
+    val searchQuery: String = "",
+    /** Product IDs pinned as favorites by the kasir (P3-19). */
+    val favoriteProductIds: Set<Long> = emptySet(),
+    /** Recently added product IDs, most recent first (P3-19). */
+    val recentProductIds: List<Long> = emptyList(),
 ) {
     /** Sum of every cart line in IDR; `0` when empty. */
     val cartSubtotalIdr: Long get() = cart.sumOf { it.lineTotalIdr }
@@ -40,6 +46,32 @@ data class PosCatalogueUiState(
 
     /** True if the cart has a registered customer (not walk-in). */
     val hasRegisteredCustomer: Boolean get() = selectedCustomer != null
+
+    /**
+     * Products filtered by [searchQuery] (P3-19). Matches against
+     * name, SKU, and category name (case-insensitive).
+     */
+    val filteredProducts: List<Product>
+        get() {
+            if (searchQuery.isBlank()) return products
+            val q = searchQuery.lowercase()
+            return products.filter { product ->
+                product.name.lowercase().contains(q) ||
+                    (product.sku?.lowercase()?.contains(q) == true) ||
+                    (product.categoryName?.lowercase()?.contains(q) == true)
+            }
+        }
+
+    /** Favorite products (subset of loaded products). */
+    val favoriteProducts: List<Product>
+        get() = products.filter { it.id in favoriteProductIds }
+
+    /** Recently used products (subset of loaded products, ordered). */
+    val recentProducts: List<Product>
+        get() {
+            val productMap = products.associateBy { it.id }
+            return recentProductIds.mapNotNull { productMap[it] }
+        }
 }
 
 /**

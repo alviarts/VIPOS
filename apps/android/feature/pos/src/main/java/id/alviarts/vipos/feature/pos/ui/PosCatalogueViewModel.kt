@@ -3,7 +3,9 @@ package id.alviarts.vipos.feature.pos.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import id.alviarts.vipos.core.database.dao.KeyValueCacheDao
 import id.alviarts.vipos.core.database.dao.OutboxDao
+import id.alviarts.vipos.core.database.entity.KeyValueCacheEntity
 import id.alviarts.vipos.core.network.ConnectivityObserver
 import id.alviarts.vipos.feature.pos.data.CustomerDto
 import id.alviarts.vipos.feature.pos.data.CustomerRepository
@@ -43,6 +45,7 @@ import javax.inject.Inject
 class PosCatalogueViewModel @Inject constructor(
     private val repository: PosRepository,
     private val customerRepository: CustomerRepository,
+    private val kvCache: KeyValueCacheDao,
     connectivityObserver: ConnectivityObserver,
     outboxDao: OutboxDao,
 ) : ViewModel() {
@@ -93,6 +96,7 @@ class PosCatalogueViewModel @Inject constructor(
 
     init {
         refresh()
+        loadFavoritesAndRecent()
     }
 
     fun refresh() {
@@ -144,6 +148,7 @@ class PosCatalogueViewModel @Inject constructor(
         unitPriceUpliftIdr: Long = 0,
         selectedOptionLabels: List<String> = emptyList(),
     ) {
+        trackRecent(product.id)
         _uiState.update { state ->
             val existingIndex = state.cart.indexOfFirst {
                 it.productId == product.id && it.unitPriceUpliftIdr == unitPriceUpliftIdr
@@ -266,8 +271,70 @@ class PosCatalogueViewModel @Inject constructor(
         }
     }
 
+    // -- Search + favorites + recent (P3-19) --------------------
+
+    /** Update the search query for client-side product filtering. */
+    fun setSearchQuery(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+    }
+
+    /** Toggle a product as favorite (pin/unpin). */
+    fun toggleFavorite(productId: Long) {
+        _uiState.update { state ->
+            val newFavorites = if (productId in state.favoriteProductIds) {
+                state.favoriteProductIds - productId
+            } else {
+                state.favoriteProductIds + productId
+            }
+            state.copy(favoriteProductIds = newFavorites)
+        }
+        saveFavorites()
+    }
+
+    /** Track a product as recently used (called on addToCart). */
+    private fun trackRecent(productId: Long) {
+        _uiState.update { state ->
+            val updated = (listOf(productId) + state.recentProductIds.filter { it != productId })
+                .take(MAX_RECENT_ITEMS)
+            state.copy(recentProductIds = updated)
+        }
+        saveRecent()
+    }
+
+    private fun loadFavoritesAndRecent() {
+        viewModelScope.launch {
+            val favEntry = kvCache.get(KEY_FAVORITES)
+            if (favEntry != null) {
+                val ids = favEntry.value.split(",").mapNotNull { it.toLongOrNull() }.toSet()
+                _uiState.update { it.copy(favoriteProductIds = ids) }
+            }
+            val recentEntry = kvCache.get(KEY_RECENT)
+            if (recentEntry != null) {
+                val ids = recentEntry.value.split(",").mapNotNull { it.toLongOrNull() }
+                _uiState.update { it.copy(recentProductIds = ids) }
+            }
+        }
+    }
+
+    private fun saveFavorites() {
+        viewModelScope.launch {
+            val value = _uiState.value.favoriteProductIds.joinToString(",")
+            kvCache.upsert(KeyValueCacheEntity(KEY_FAVORITES, value, System.currentTimeMillis()))
+        }
+    }
+
+    private fun saveRecent() {
+        viewModelScope.launch {
+            val value = _uiState.value.recentProductIds.joinToString(",")
+            kvCache.upsert(KeyValueCacheEntity(KEY_RECENT, value, System.currentTimeMillis()))
+        }
+    }
+
     private companion object {
         private const val DEFAULT_ERROR_MESSAGE: String =
             "Tidak bisa memuat katalog produk. Coba lagi."
+        private const val KEY_FAVORITES = "pos_favorite_products"
+        private const val KEY_RECENT = "pos_recent_products"
+        private const val MAX_RECENT_ITEMS = 20
     }
 }

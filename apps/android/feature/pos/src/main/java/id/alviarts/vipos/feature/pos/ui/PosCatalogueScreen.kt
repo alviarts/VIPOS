@@ -24,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -126,6 +127,7 @@ fun PosCatalogueRoute(
         onIncrement = catalogueViewModel::increment,
         onDecrement = catalogueViewModel::decrement,
         onRemoveFromCart = catalogueViewModel::removeFromCart,
+        onSearchQueryChanged = catalogueViewModel::setSearchQuery,
         onCheckout = {
             // P3-08 slice 5a + 5b + 5c: open the picker with the
             // current cart subtotal, live connectivity state, AND
@@ -254,6 +256,7 @@ internal fun PosCatalogueScreen(
     onDecrement: (productId: Long, unitPriceUpliftIdr: Long) -> Unit,
     onRemoveFromCart: (productId: Long, unitPriceUpliftIdr: Long) -> Unit,
     onCheckout: () -> Unit,
+    onSearchQueryChanged: (String) -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -288,6 +291,16 @@ internal fun PosCatalogueScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
+            // P3-19: Search bar
+            OutlinedTextField(
+                value = state.searchQuery,
+                onValueChange = onSearchQueryChanged,
+                label = { Text("Cari produk...") },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+            )
             CatalogueList(
                 state = state,
                 onAddToCart = onAddToCart,
@@ -358,7 +371,7 @@ private fun CatalogueList(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(
-                        items = state.products,
+                        items = state.filteredProducts,
                         key = { product -> product.id },
                     ) { product ->
                         ProductRow(
