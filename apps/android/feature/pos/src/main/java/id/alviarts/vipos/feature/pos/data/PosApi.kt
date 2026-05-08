@@ -219,7 +219,7 @@ interface PosApi {
     /**
      * Get today's dashboard summary (revenue, transactions, etc.)
      */
-    @GET("api/v1/dashboard/summary")
+    @GET("api/v1/dashboard-kpi/summary")
     suspend fun getDashboardSummary(): DashboardSummaryDto
 
     // -- Promo + coupon endpoints (P3-15) ---------------------

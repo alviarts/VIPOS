@@ -19,7 +19,8 @@ const DEFAULT_THRESHOLD = 5;
 
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const threshold = parseInt(req.query.threshold, 10) || DEFAULT_THRESHOLD;
+    const rawThreshold = parseInt(req.query.threshold, 10);
+    const threshold = Number.isFinite(rawThreshold) ? rawThreshold : DEFAULT_THRESHOLD;
 
     const { rows } = await query(
       `SELECT id, name, sku, stock, category_id

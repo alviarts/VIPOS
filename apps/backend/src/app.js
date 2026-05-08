@@ -170,8 +170,9 @@ function mountVersionedRoutes(parent) {
   // provide alternative implementations but are not mounted to
   // avoid route conflicts with the existing CRUD handlers.
 
-  // Dashboard summary for owner KPI (P4-07).
-  parent.use('/dashboard', require('./routes/dashboard-summary'));
+  // Dashboard summary for owner KPI (P4-07) — mounted at
+  // /dashboard-kpi to avoid conflict with existing /dashboard routes.
+  parent.use('/dashboard-kpi', require('./routes/dashboard-summary'));
 
   // Analytics event ingestion.
   parent.use('/analytics', require('./routes/analytics-events'));

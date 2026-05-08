@@ -18,12 +18,28 @@ async function login() {
 }
 
 async function createTransaction() {
-  // Create a product first
-  const prodRes = await request(app)
-    .post('/api/v1/products')
-    .set('Authorization', `Bearer ${adminToken}`)
-    .send({ name: 'Test Product', price: 10000, stock: 100 });
-  const productId = prodRes.body.id;
+  // Get first product from seed data
+  const prodListRes = await request(app)
+    .get('/api/v1/products?page=1&per_page=1')
+    .set('Authorization', `Bearer ${adminToken}`);
+
+  let productId;
+  if (prodListRes.body.data && prodListRes.body.data.length > 0) {
+    productId = prodListRes.body.data[0].id;
+  } else {
+    // Create a product if none exist
+    const prodRes = await request(app)
+      .post('/api/v1/products')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Test Product', price: 10000, stock: 100, sku: `TST-${Date.now()}` });
+    productId = prodRes.body.id;
+  }
+
+  // Ensure stock is sufficient
+  const { query, runAsSystem } = require('../db');
+  await runAsSystem(() =>
+    query(`UPDATE products SET stock = 100 WHERE id = $1`, [productId]),
+  );
 
   // Create transaction
   const txRes = await request(app)

@@ -23,10 +23,10 @@ afterAll(async () => {
   await teardownTestEnv();
 });
 
-describe('GET /api/v1/dashboard/summary', () => {
+describe('GET /api/v1/dashboard-kpi/summary', () => {
   it('200 returns dashboard KPIs', async () => {
     const res = await request(app)
-      .get('/api/v1/dashboard/summary')
+      .get('/api/v1/dashboard-kpi/summary')
       .set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('today_revenue');
@@ -40,13 +40,13 @@ describe('GET /api/v1/dashboard/summary', () => {
 
   it('401 without auth', async () => {
     const res = await request(app)
-      .get('/api/v1/dashboard/summary');
+      .get('/api/v1/dashboard-kpi/summary');
     expect(res.status).toBe(401);
   });
 
   it('returns numeric values', async () => {
     const res = await request(app)
-      .get('/api/v1/dashboard/summary')
+      .get('/api/v1/dashboard-kpi/summary')
       .set('Authorization', `Bearer ${adminToken}`);
     expect(typeof res.body.today_revenue).toBe('number');
     expect(typeof res.body.today_transactions).toBe('number');
