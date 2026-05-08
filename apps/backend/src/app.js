@@ -149,6 +149,9 @@ function mountVersionedRoutes(parent) {
   // Stock alerts for low-stock monitoring.
   parent.use('/stock-alerts', require('./routes/stock-alerts'));
 
+  // Daily sales summary report.
+  parent.use('/reports', require('./routes/reports-daily'));
+
   // P3-16 Loyalty point redemption.
   parent.use('/loyalty', require('./routes/loyalty-redeem'));
 
