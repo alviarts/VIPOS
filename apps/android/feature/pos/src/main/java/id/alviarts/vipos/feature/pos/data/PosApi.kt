@@ -343,4 +343,87 @@ interface PosApi {
     suspend fun getTransactionDetail(
         @Path("id") transactionId: Long,
     ): TransactionDetailDto
+
+    // -- Appointment endpoints (P4-02) ----------------------
+
+    /**
+     * Get paginated appointment list with optional filters.
+     * Supports filtering by status, staff, and date range.
+     */
+    @GET("api/v1/appointments")
+    suspend fun listAppointments(
+        @Query("status") status: String? = null,
+        @Query("staff_id") staffId: Long? = null,
+        @Query("date_from") dateFrom: String? = null,
+        @Query("date_to") dateTo: String? = null,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20,
+    ): AppointmentListResponseDto
+
+    /**
+     * Get single appointment detail with services.
+     */
+    @GET("api/v1/appointments/{id}")
+    suspend fun getAppointmentDetail(
+        @Path("id") appointmentId: Long,
+    ): AppointmentDto
+
+    /**
+     * Create new appointment.
+     */
+    @POST("api/v1/appointments")
+    suspend fun createAppointment(
+        @Body body: AppointmentCreateRequestDto,
+    ): AppointmentDto
+
+    /**
+     * Confirm appointment (PENDING → CONFIRMED).
+     */
+    @POST("api/v1/appointments/{id}/confirm")
+    suspend fun confirmAppointment(
+        @Path("id") appointmentId: Long,
+    ): AppointmentDto
+
+    /**
+     * Start appointment (CONFIRMED → IN_PROGRESS).
+     */
+    @POST("api/v1/appointments/{id}/start")
+    suspend fun startAppointment(
+        @Path("id") appointmentId: Long,
+    ): AppointmentDto
+
+    /**
+     * Complete appointment (IN_PROGRESS → COMPLETED).
+     */
+    @POST("api/v1/appointments/{id}/complete")
+    suspend fun completeAppointment(
+        @Path("id") appointmentId: Long,
+    ): AppointmentDto
+
+    /**
+     * Cancel appointment with optional reason.
+     */
+    @POST("api/v1/appointments/{id}/cancel")
+    suspend fun cancelAppointment(
+        @Path("id") appointmentId: Long,
+        @Body body: AppointmentActionRequestDto? = null,
+    ): AppointmentDto
+
+    /**
+     * Mark appointment as no-show with optional reason.
+     */
+    @POST("api/v1/appointments/{id}/no-show")
+    suspend fun markNoShow(
+        @Path("id") appointmentId: Long,
+        @Body body: AppointmentActionRequestDto? = null,
+    ): AppointmentDto
+
+    /**
+     * Reschedule appointment to new date/time.
+     */
+    @POST("api/v1/appointments/{id}/reschedule")
+    suspend fun rescheduleAppointment(
+        @Path("id") appointmentId: Long,
+        @Body body: AppointmentActionRequestDto,
+    ): AppointmentDto
 }

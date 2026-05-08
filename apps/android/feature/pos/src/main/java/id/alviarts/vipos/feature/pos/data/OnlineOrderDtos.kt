@@ -73,16 +73,83 @@ data class OnlineOrderActionRequestDto(
 @Serializable
 data class AppointmentDto(
     @SerialName("id") val id: Long,
+    @SerialName("ref_no") val refNo: String,
+    @SerialName("customer_id") val customerId: Long? = null,
     @SerialName("customer_name") val customerName: String? = null,
-    @SerialName("service_name") val serviceName: String? = null,
-    @SerialName("date") val date: String,
-    @SerialName("time") val time: String? = null,
-    @SerialName("status") val status: String = "confirmed",
+    @SerialName("customer_phone") val customerPhone: String? = null,
+    @SerialName("customer_email") val customerEmail: String? = null,
+    @SerialName("staff_id") val staffId: Long? = null,
+    @SerialName("staff_name") val staffName: String? = null,
+    @SerialName("staff_color") val staffColor: String? = null,
+    @SerialName("resource_id") val resourceId: Long? = null,
+    @SerialName("resource_name") val resourceName: String? = null,
+    @SerialName("start_at") val startAt: String,
+    @SerialName("end_at") val endAt: String? = null,
+    @SerialName("duration_minutes") val durationMinutes: Int? = null,
+    @SerialName("status") val status: String = "PENDING",
+    @SerialName("deposit_amount") val depositAmount: Long = 0,
+    @SerialName("deposit_paid") val depositPaid: Boolean = false,
+    @SerialName("total_amount") val totalAmount: Long = 0,
     @SerialName("notes") val notes: String? = null,
+    @SerialName("internal_notes") val internalNotes: String? = null,
+    @SerialName("cancel_reason") val cancelReason: String? = null,
+    @SerialName("transaction_id") val transactionId: Long? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null,
+    @SerialName("confirmed_at") val confirmedAt: String? = null,
+    @SerialName("started_at") val startedAt: String? = null,
+    @SerialName("completed_at") val completedAt: String? = null,
+    @SerialName("cancelled_at") val cancelledAt: String? = null,
+    @SerialName("services") val services: List<AppointmentServiceDto> = emptyList(),
+)
+
+@Serializable
+data class AppointmentServiceDto(
+    @SerialName("id") val id: Long? = null,
+    @SerialName("product_id") val productId: Long? = null,
+    @SerialName("service_name") val serviceName: String,
+    @SerialName("qty") val qty: Int = 1,
+    @SerialName("price") val price: Long,
+    @SerialName("duration_minutes") val durationMinutes: Int? = null,
+    @SerialName("subtotal") val subtotal: Long,
 )
 
 @Serializable
 data class AppointmentListResponseDto(
     @SerialName("data") val data: List<AppointmentDto>,
     @SerialName("total") val total: Int = 0,
+    @SerialName("page") val page: Int = 1,
+    @SerialName("limit") val limit: Int = 20,
+)
+
+@Serializable
+data class AppointmentCreateRequestDto(
+    @SerialName("customer_id") val customerId: Long? = null,
+    @SerialName("customer_name") val customerName: String,
+    @SerialName("customer_phone") val customerPhone: String? = null,
+    @SerialName("customer_email") val customerEmail: String? = null,
+    @SerialName("staff_id") val staffId: Long? = null,
+    @SerialName("resource_id") val resourceId: Long? = null,
+    @SerialName("start_at") val startAt: String,
+    @SerialName("duration_minutes") val durationMinutes: Int? = null,
+    @SerialName("services") val services: List<AppointmentServiceRequestDto>,
+    @SerialName("deposit_amount") val depositAmount: Long = 0,
+    @SerialName("notes") val notes: String? = null,
+    @SerialName("internal_notes") val internalNotes: String? = null,
+)
+
+@Serializable
+data class AppointmentServiceRequestDto(
+    @SerialName("product_id") val productId: Long? = null,
+    @SerialName("service_name") val serviceName: String,
+    @SerialName("qty") val qty: Int = 1,
+    @SerialName("price") val price: Long,
+    @SerialName("duration_minutes") val durationMinutes: Int? = null,
+)
+
+@Serializable
+data class AppointmentActionRequestDto(
+    @SerialName("reason") val reason: String? = null,
+    @SerialName("new_start_at") val newStartAt: String? = null,
+    @SerialName("new_duration_minutes") val newDurationMinutes: Int? = null,
 )

@@ -11,6 +11,9 @@ import id.alviarts.vipos.feature.auth.ui.AuthRoute
 import id.alviarts.vipos.feature.auth.ui.twofactor.TwoFactorRoute
 import id.alviarts.vipos.feature.home.ui.HomeRoute
 import id.alviarts.vipos.feature.pos.ui.PosCatalogueRoute
+import id.alviarts.vipos.feature.pos.ui.appointment.AppointmentCreateScreen
+import id.alviarts.vipos.feature.pos.ui.appointment.AppointmentDetailScreen
+import id.alviarts.vipos.feature.pos.ui.appointment.AppointmentListScreen
 import id.alviarts.vipos.feature.pos.ui.dashboard.OwnerDashboardScreen
 import id.alviarts.vipos.feature.pos.ui.history.TransactionDetailScreen
 import id.alviarts.vipos.feature.pos.ui.history.TransactionHistoryScreen
@@ -150,6 +153,11 @@ fun VIPOSNavHost(
                         launchSingleTop = true
                     }
                 },
+                onOpenAppointmentList = {
+                    navController.navigate(VIPOSDestination.AppointmentList.route) {
+                        launchSingleTop = true
+                    }
+                },
             )
         }
         composable(VIPOSDestination.Pos.route) {
@@ -219,6 +227,55 @@ fun VIPOSNavHost(
                 },
                 onPendingApprovalsClick = {
                     // TODO: Navigate to approvals screen
+                },
+            )
+        }
+
+        // P4-02: Appointment list
+        composable(VIPOSDestination.AppointmentList.route) {
+            AppointmentListScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onAppointmentClick = { appointmentId ->
+                    navController.navigate(
+                        VIPOSDestination.AppointmentDetail.routeFor(appointmentId),
+                    )
+                },
+                onCreateClick = {
+                    navController.navigate(VIPOSDestination.AppointmentCreate.route)
+                },
+            )
+        }
+
+        // P4-02: Appointment detail
+        composable(
+            route = VIPOSDestination.AppointmentDetail.route,
+            arguments = listOf(
+                navArgument(VIPOSDestination.AppointmentDetail.ARG_APPOINTMENT_ID) {
+                    type = NavType.LongType
+                },
+            ),
+        ) { backStackEntry ->
+            val appointmentId = backStackEntry.arguments
+                ?.getLong(VIPOSDestination.AppointmentDetail.ARG_APPOINTMENT_ID)
+                ?: 0L
+            AppointmentDetailScreen(
+                appointmentId = appointmentId,
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        // P4-02: Appointment create
+        composable(VIPOSDestination.AppointmentCreate.route) {
+            AppointmentCreateScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onSuccess = { appointmentId ->
+                    // Navigate to detail screen after successful creation
+                    navController.navigate(
+                        VIPOSDestination.AppointmentDetail.routeFor(appointmentId),
+                    ) {
+                        // Pop create screen so back button goes to list
+                        popUpTo(VIPOSDestination.AppointmentList.route)
+                    }
                 },
             )
         }

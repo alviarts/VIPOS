@@ -112,4 +112,32 @@ sealed interface VIPOSDestination {
     data object OwnerDashboard : VIPOSDestination {
         override val route: String = "owner_dashboard"
     }
+
+    /**
+     * P4-02: Appointment list screen. Shows list of appointments
+     * with status and date filters.
+     */
+    data object AppointmentList : VIPOSDestination {
+        override val route: String = "appointment_list"
+    }
+
+    /**
+     * P4-02: Appointment detail screen. Shows full details
+     * of a single appointment with action buttons.
+     */
+    data object AppointmentDetail : VIPOSDestination {
+        const val ARG_APPOINTMENT_ID: String = "appointmentId"
+        override val route: String = "appointment_detail/{$ARG_APPOINTMENT_ID}"
+
+        fun routeFor(appointmentId: Long): String =
+            "appointment_detail/$appointmentId"
+    }
+
+    /**
+     * P4-02: Appointment create screen. Form to create new
+     * appointment with customer info and services.
+     */
+    data object AppointmentCreate : VIPOSDestination {
+        override val route: String = "appointment_create"
+    }
 }
