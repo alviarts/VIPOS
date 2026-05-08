@@ -112,6 +112,35 @@ interface PosApi {
         @Path("ref_id") refId: String,
     ): QrisStatusResponseDto
 
+    // -- Customer endpoints (P3-16) -----------------------------
+
+    /**
+     * Search customers by name/phone. The backend matches against
+     * name, kode, phone, email, and npwp fields.
+     */
+    @GET("api/v1/customers")
+    suspend fun searchCustomers(
+        @Query("search") search: String? = null,
+        @Query("page") page: Long = 1,
+        @Query("per_page") perPage: Long = 20,
+    ): CustomerListResponseDto
+
+    /**
+     * Quick-add a new customer with minimal fields (name + phone).
+     */
+    @POST("api/v1/customers")
+    suspend fun createCustomer(
+        @Body body: CustomerCreateRequestDto,
+    ): CustomerDto
+
+    /**
+     * Get a single customer by ID (for refreshing point balance).
+     */
+    @GET("api/v1/customers/{id}")
+    suspend fun getCustomer(
+        @Path("id") customerId: Long,
+    ): CustomerDto
+
     // -- Cashier shift endpoints (P3-14) ----------------------
 
     /**

@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import id.alviarts.vipos.core.database.dao.OutboxDao
 import id.alviarts.vipos.core.network.ConnectivityObserver
+import id.alviarts.vipos.feature.pos.data.CustomerDto
+import id.alviarts.vipos.feature.pos.data.CustomerRepository
 import id.alviarts.vipos.feature.pos.data.PosRepository
 import id.alviarts.vipos.feature.pos.domain.CartItem
 import id.alviarts.vipos.feature.pos.domain.Product
@@ -40,6 +42,7 @@ import javax.inject.Inject
 @HiltViewModel
 class PosCatalogueViewModel @Inject constructor(
     private val repository: PosRepository,
+    private val customerRepository: CustomerRepository,
     connectivityObserver: ConnectivityObserver,
     outboxDao: OutboxDao,
 ) : ViewModel() {
@@ -217,6 +220,50 @@ class PosCatalogueViewModel @Inject constructor(
 
     fun clearCart() {
         _uiState.update { it.copy(cart = emptyList()) }
+    }
+
+    // -- Customer management (P3-16) --------------------------
+
+    /** Search customers by name/phone. */
+    fun searchCustomers(query: String) {
+        _uiState.update { it.copy(customerSearching = true) }
+        viewModelScope.launch {
+            customerRepository.search(query).fold(
+                onSuccess = { customers ->
+                    _uiState.update {
+                        it.copy(
+                            customerSearching = false,
+                            customerSearchResults = customers,
+                        )
+                    }
+                },
+                onFailure = {
+                    _uiState.update { it.copy(customerSearching = false) }
+                },
+            )
+        }
+    }
+
+    /** Select a customer for the current cart. Pass null for walk-in. */
+    fun selectCustomer(customer: CustomerDto?) {
+        _uiState.update { it.copy(selectedCustomer = customer) }
+    }
+
+    /** Quick-add a new customer and select them. */
+    fun quickAddCustomer(name: String, phone: String?) {
+        viewModelScope.launch {
+            customerRepository.quickAdd(name, phone).fold(
+                onSuccess = { customer ->
+                    _uiState.update {
+                        it.copy(
+                            selectedCustomer = customer,
+                            customerSearchResults = listOf(customer) + it.customerSearchResults,
+                        )
+                    }
+                },
+                onFailure = { /* Toast handled by caller */ },
+            )
+        }
     }
 
     private companion object {

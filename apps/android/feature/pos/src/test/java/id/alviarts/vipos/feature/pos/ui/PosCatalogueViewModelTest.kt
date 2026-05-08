@@ -3,6 +3,8 @@ package id.alviarts.vipos.feature.pos.ui
 import id.alviarts.vipos.core.database.dao.OutboxDao
 import id.alviarts.vipos.core.database.entity.OutboxEntry
 import id.alviarts.vipos.core.network.ConnectivityObserver
+import id.alviarts.vipos.feature.pos.data.CustomerDto
+import id.alviarts.vipos.feature.pos.data.CustomerRepository
 import id.alviarts.vipos.feature.pos.data.PosApi
 import id.alviarts.vipos.feature.pos.data.PosRepository
 import id.alviarts.vipos.feature.pos.domain.Product
@@ -66,6 +68,15 @@ class PosCatalogueViewModelTest {
     /** Fake [ConnectivityObserver] that always reports online. */
     private val fakeConnectivityObserver: ConnectivityObserver = object : ConnectivityObserver {
         override fun observe(): Flow<Boolean> = MutableStateFlow(true)
+    }
+
+    /** Fake [CustomerRepository] that returns empty results. */
+    private val fakeCustomerRepository: CustomerRepository = object : CustomerRepository {
+        override suspend fun search(query: String): Result<List<CustomerDto>> = Result.success(emptyList())
+        override suspend fun quickAdd(name: String, phone: String?): Result<CustomerDto> =
+            Result.success(CustomerDto(id = 1, name = name, phone = phone))
+        override suspend fun getById(id: Long): Result<CustomerDto> =
+            Result.failure(IllegalStateException("not exercised"))
     }
 
     /** Fake [OutboxDao] that returns zero counts. */
@@ -132,7 +143,7 @@ class PosCatalogueViewModelTest {
                 """{"data":[],"page":1,"per_page":100,"total":0,"total_pages":0}""",
             ),
         )
-        val vm = PosCatalogueViewModel(repository, fakeConnectivityObserver, fakeOutboxDao)
+        val vm = PosCatalogueViewModel(repository, fakeCustomerRepository, fakeConnectivityObserver, fakeOutboxDao)
         vm.uiState.first { it.loadStatus is LoadStatus.Loaded }
         return vm
     }
