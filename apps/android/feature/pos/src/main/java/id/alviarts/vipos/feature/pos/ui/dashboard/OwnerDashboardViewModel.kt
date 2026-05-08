@@ -3,6 +3,7 @@ package id.alviarts.vipos.feature.pos.ui.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import id.alviarts.vipos.core.network.util.retryWithBackoff
 import id.alviarts.vipos.feature.pos.data.DashboardSummaryDto
 import id.alviarts.vipos.feature.pos.data.PosApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,7 +40,9 @@ class OwnerDashboardViewModel @Inject constructor(
             }
 
             try {
-                val summary = posApi.getDashboardSummary()
+                val summary = retryWithBackoff {
+                    posApi.getDashboardSummary()
+                }
                 _uiState.update {
                     it.copy(
                         summary = summary,
