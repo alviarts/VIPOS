@@ -173,6 +173,9 @@ function mountVersionedRoutes(parent) {
   // Product bulk import.
   parent.use('/products', require('./routes/import-products'));
 
+  // Dashboard summary for owner KPI (P4-07).
+  parent.use('/dashboard', require('./routes/dashboard-summary'));
+
   // P3-16 Loyalty point redemption.
   parent.use('/loyalty', require('./routes/loyalty-redeem'));
 
