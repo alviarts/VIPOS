@@ -143,6 +143,9 @@ function mountVersionedRoutes(parent) {
   // P4-10 Transaction actions: void, refund, reprint.
   parent.use('/transactions', require('./routes/transaction-actions'));
 
+  // Production readiness probe.
+  parent.use('/health', require('./routes/health-ready'));
+
   // P3-16 Loyalty point redemption.
   parent.use('/loyalty', require('./routes/loyalty-redeem'));
 
