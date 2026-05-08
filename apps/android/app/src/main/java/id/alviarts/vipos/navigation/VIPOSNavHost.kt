@@ -24,6 +24,8 @@ import id.alviarts.vipos.feature.pos.ui.stockopname.StockOpnameDetailScreen
 import id.alviarts.vipos.feature.pos.ui.stockopname.StockOpnameListScreen
 import id.alviarts.vipos.feature.pos.ui.reports.SalesReportScreen
 import id.alviarts.vipos.feature.pos.ui.employee.EmployeeListScreen
+import id.alviarts.vipos.feature.pos.ui.employee.EmployeeDetailScreen
+import id.alviarts.vipos.feature.pos.ui.employee.EmployeeFormScreen
 import id.alviarts.vipos.feature.pos.ui.onlineorder.OnlineOrderDetailScreen
 import id.alviarts.vipos.feature.pos.ui.onlineorder.OnlineOrderQueueScreen
 
@@ -387,6 +389,60 @@ fun VIPOSNavHost(
         composable(VIPOSDestination.EmployeeList.route) {
             EmployeeListScreen(
                 onNavigateBack = { navController.popBackStack() },
+                onEmployeeClick = { employeeId ->
+                    navController.navigate(
+                        VIPOSDestination.EmployeeDetail.routeFor(employeeId),
+                    )
+                },
+                onCreateClick = {
+                    navController.navigate(VIPOSDestination.EmployeeCreate.route)
+                },
+            )
+        }
+
+        // P4-08: Employee detail
+        composable(
+            route = VIPOSDestination.EmployeeDetail.route,
+            arguments = listOf(
+                navArgument(VIPOSDestination.EmployeeDetail.ARG_EMPLOYEE_ID) {
+                    type = NavType.LongType
+                },
+            ),
+        ) {
+            EmployeeDetailScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onEditClick = { employeeId ->
+                    navController.navigate(
+                        VIPOSDestination.EmployeeEdit.routeFor(employeeId),
+                    )
+                },
+            )
+        }
+
+        // P4-08: Employee create
+        composable(VIPOSDestination.EmployeeCreate.route) {
+            EmployeeFormScreen(
+                employeeId = null,
+                onNavigateBack = { navController.popBackStack() },
+                onSuccess = { navController.popBackStack() },
+            )
+        }
+
+        // P4-08: Employee edit
+        composable(
+            route = VIPOSDestination.EmployeeEdit.route,
+            arguments = listOf(
+                navArgument(VIPOSDestination.EmployeeEdit.ARG_EMPLOYEE_ID) {
+                    type = NavType.LongType
+                },
+            ),
+        ) { backStackEntry ->
+            val employeeId = backStackEntry.arguments
+                ?.getLong(VIPOSDestination.EmployeeEdit.ARG_EMPLOYEE_ID)
+            EmployeeFormScreen(
+                employeeId = employeeId,
+                onNavigateBack = { navController.popBackStack() },
+                onSuccess = { navController.popBackStack() },
             )
         }
     }

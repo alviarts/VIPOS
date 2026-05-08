@@ -31,6 +31,8 @@ import id.alviarts.vipos.feature.pos.data.EmployeeDto
 @Composable
 fun EmployeeListScreen(
     onNavigateBack: () -> Unit,
+    onEmployeeClick: (Long) -> Unit = {},
+    onCreateClick: () -> Unit = {},
     viewModel: EmployeeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -50,6 +52,11 @@ fun EmployeeListScreen(
                     }
                 },
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onCreateClick) {
+                Icon(Icons.Default.Add, contentDescription = "Tambah Karyawan")
+            }
         },
     ) { paddingValues ->
         Column(
@@ -151,7 +158,10 @@ fun EmployeeListScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         items(uiState.employees) { employee ->
-                            EmployeeCard(employee = employee)
+                            EmployeeCard(
+                                employee = employee,
+                                onClick = { onEmployeeClick(employee.id) },
+                            )
                         }
                     }
                 }
@@ -209,9 +219,14 @@ private fun StatusFilterRow(
 }
 
 @Composable
-private fun EmployeeCard(employee: EmployeeDto) {
+private fun EmployeeCard(
+    employee: EmployeeDto,
+    onClick: () -> Unit = {},
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column(

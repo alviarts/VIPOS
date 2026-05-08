@@ -200,4 +200,36 @@ sealed interface VIPOSDestination {
     data object EmployeeList : VIPOSDestination {
         override val route: String = "employee_list"
     }
+
+    /**
+     * P4-08: Employee detail screen. Shows full details
+     * of a single employee with edit/delete actions.
+     */
+    data object EmployeeDetail : VIPOSDestination {
+        const val ARG_EMPLOYEE_ID: String = "employeeId"
+        override val route: String = "employee_detail/{$ARG_EMPLOYEE_ID}"
+
+        fun routeFor(employeeId: Long): String =
+            "employee_detail/$employeeId"
+    }
+
+    /**
+     * P4-08: Employee create screen. Form to create
+     * new employee.
+     */
+    data object EmployeeCreate : VIPOSDestination {
+        override val route: String = "employee_create"
+    }
+
+    /**
+     * P4-08: Employee edit screen. Form to edit
+     * existing employee.
+     */
+    data object EmployeeEdit : VIPOSDestination {
+        const val ARG_EMPLOYEE_ID: String = "employeeId"
+        override val route: String = "employee_edit/{$ARG_EMPLOYEE_ID}"
+
+        fun routeFor(employeeId: Long): String =
+            "employee_edit/$employeeId"
+    }
 }
