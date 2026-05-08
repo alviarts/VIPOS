@@ -147,17 +147,62 @@ interface PosApi {
     /**
      * List pending/active online orders for the kasir queue.
      */
-    @GET("api/v1/online-orders")
+    @GET("api/v1/online-order")
     suspend fun listOnlineOrders(
-        @Query("status") status: String? = "pending",
-        @Query("page") page: Long = 1,
+        @Query("status") status: String? = null,
+        @Query("channel") channel: String? = null,
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+        @Query("limit") limit: Int = 100,
+        @Query("offset") offset: Int = 0,
     ): OnlineOrderListResponseDto
 
     /**
-     * Accept/reject/mark-ready an online order.
+     * Get single online order detail with items.
      */
-    @POST("api/v1/online-orders/{id}/action")
-    suspend fun onlineOrderAction(
+    @GET("api/v1/online-order/{id}")
+    suspend fun getOnlineOrderDetail(
+        @Path("id") orderId: Long,
+    ): OnlineOrderDto
+
+    /**
+     * Accept an online order (NEW → PREPARING).
+     */
+    @POST("api/v1/online-order/{id}/accept")
+    suspend fun acceptOnlineOrder(
+        @Path("id") orderId: Long,
+    ): OnlineOrderDto
+
+    /**
+     * Reject an online order (NEW/PREPARING → REJECTED).
+     */
+    @POST("api/v1/online-order/{id}/reject")
+    suspend fun rejectOnlineOrder(
+        @Path("id") orderId: Long,
+        @Body body: OnlineOrderActionRequestDto,
+    ): OnlineOrderDto
+
+    /**
+     * Mark order as ready (PREPARING → READY).
+     */
+    @POST("api/v1/online-order/{id}/ready")
+    suspend fun markOnlineOrderReady(
+        @Path("id") orderId: Long,
+    ): OnlineOrderDto
+
+    /**
+     * Complete an order (READY → COMPLETED).
+     */
+    @POST("api/v1/online-order/{id}/complete")
+    suspend fun completeOnlineOrder(
+        @Path("id") orderId: Long,
+    ): OnlineOrderDto
+
+    /**
+     * Cancel an order (any pre-COMPLETED → CANCELLED).
+     */
+    @POST("api/v1/online-order/{id}/cancel")
+    suspend fun cancelOnlineOrder(
         @Path("id") orderId: Long,
         @Body body: OnlineOrderActionRequestDto,
     ): OnlineOrderDto
