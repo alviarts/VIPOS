@@ -20,7 +20,7 @@
 
 const express = require('express');
 const crypto = require('crypto');
-const { query } = require('../db');
+const { query, runAsSystem } = require('../db');
 
 const router = express.Router();
 
@@ -49,12 +49,15 @@ router.post('/qris', async (req, res) => {
       return res.status(200).json({ received: true, action: 'ignored', reason: `status=${status}` });
     }
 
-    // Update the invocation record
-    const { rowCount } = await query(
-      `UPDATE qris_dynamic_invocations
-       SET status = 'PAID', paid_at = $1
-       WHERE ref_id = $2 AND status = 'AWAITING'`,
-      [paid_at || new Date().toISOString(), ref_id],
+    // Update the invocation record. Use runAsSystem to bypass RLS
+    // since webhooks come from the gateway (no tenant context).
+    const { rowCount } = await runAsSystem(() =>
+      query(
+        `UPDATE qris_dynamic_invocations
+         SET status = 'PAID', paid_at = $1
+         WHERE ref_id = $2 AND status = 'AWAITING'`,
+        [paid_at || new Date().toISOString(), ref_id],
+      ),
     );
 
     return res.status(200).json({

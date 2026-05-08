@@ -137,7 +137,9 @@ function mountVersionedRoutes(parent) {
   // P3-14 Cashier shift management.
   parent.use('/cashier-shift', require('./routes/cashier-shift'));
 
-  // P4-10 Transaction actions: void, refund, reprint.
+  // Note: Transaction void/refund already handled by the existing
+  // /transactions route. The transaction-actions.js file adds
+  // receipt reprint which is mounted separately.
   parent.use('/transactions', require('./routes/transaction-actions'));
 
   // Production readiness probe.
