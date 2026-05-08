@@ -62,6 +62,9 @@ dependencies {
     // repository + token storage.
     implementation(libs.kotlinx.coroutines.android)
 
+    // P3-03: Biometric authentication (fingerprint/face unlock).
+    implementation(libs.androidx.biometric)
+
     // P3-03b: Compose UI for LoginScreen. Same BOM coordinates as
     // :app so versions stay aligned.
     implementation(platform(libs.androidx.compose.bom))
