@@ -89,6 +89,7 @@ fun PosCatalogueRoute(
     // `sheetState = rememberModalBottomSheetState(...)` parameter,
     // so the call site here must opt in too — same posture as
     // PosCatalogueScreen below.
+    val windowSizeClass = id.alviarts.vipos.core.designsystem.layout.rememberWindowSizeClass()
     val state by catalogueViewModel.uiState.collectAsStateWithLifecycle()
     val isOnline by catalogueViewModel.isOnline.collectAsStateWithLifecycle()
     val pendingSyncCount by catalogueViewModel.pendingSyncCount.collectAsStateWithLifecycle()
@@ -109,6 +110,7 @@ fun PosCatalogueRoute(
         isOnline = isOnline,
         pendingSyncCount = pendingSyncCount,
         failedSyncCount = failedSyncCount,
+        windowSizeClass = windowSizeClass,
         onBack = onBack,
         onRefresh = catalogueViewModel::refresh,
         onAddToCart = { product ->
@@ -257,6 +259,8 @@ internal fun PosCatalogueScreen(
     onRemoveFromCart: (productId: Long, unitPriceUpliftIdr: Long) -> Unit,
     onCheckout: () -> Unit,
     onSearchQueryChanged: (String) -> Unit = {},
+    windowSizeClass: id.alviarts.vipos.core.designsystem.layout.WindowSizeClass =
+        id.alviarts.vipos.core.designsystem.layout.WindowSizeClass.Compact,
 ) {
     Scaffold(
         topBar = {
@@ -286,39 +290,92 @@ internal fun PosCatalogueScreen(
             )
         },
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-        ) {
-            // P3-19: Search bar
-            OutlinedTextField(
-                value = state.searchQuery,
-                onValueChange = onSearchQueryChanged,
-                label = { Text("Cari produk...") },
-                singleLine = true,
+        val useWideLayout = windowSizeClass != id.alviarts.vipos.core.designsystem.layout.WindowSizeClass.Compact
+
+        if (useWideLayout) {
+            // P3-17: Tablet layout — catalogue + cart side by side
+            Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-            )
-            CatalogueList(
-                state = state,
-                onAddToCart = onAddToCart,
-                onRetry = onRefresh,
+                    .fillMaxSize()
+                    .padding(padding),
+            ) {
+                // Left panel: search + catalogue (2/3 width)
+                Column(
+                    modifier = Modifier
+                        .weight(2f)
+                        .fillMaxSize(),
+                ) {
+                    OutlinedTextField(
+                        value = state.searchQuery,
+                        onValueChange = onSearchQueryChanged,
+                        label = { Text("Cari produk...") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                    )
+                    CatalogueList(
+                        state = state,
+                        onAddToCart = onAddToCart,
+                        onRetry = onRefresh,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                    )
+                }
+                // Right panel: cart (1/3 width)
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxSize(),
+                ) {
+                    CartPanel(
+                        cart = state.cart,
+                        subtotalIdr = state.cartSubtotalIdr,
+                        itemCount = state.cartItemCount,
+                        onIncrement = onIncrement,
+                        onDecrement = onDecrement,
+                        onRemove = onRemoveFromCart,
+                        onCheckout = onCheckout,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        } else {
+            // Phone layout — vertical stack (original)
+            Column(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-            )
-            HorizontalDivider()
-            CartPanel(
-                cart = state.cart,
-                subtotalIdr = state.cartSubtotalIdr,
-                itemCount = state.cartItemCount,
-                onIncrement = onIncrement,
-                onDecrement = onDecrement,
-                onRemove = onRemoveFromCart,
-                onCheckout = onCheckout,
-            )
+                    .fillMaxSize()
+                    .padding(padding),
+            ) {
+                OutlinedTextField(
+                    value = state.searchQuery,
+                    onValueChange = onSearchQueryChanged,
+                    label = { Text("Cari produk...") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                )
+                CatalogueList(
+                    state = state,
+                    onAddToCart = onAddToCart,
+                    onRetry = onRefresh,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                )
+                HorizontalDivider()
+                CartPanel(
+                    cart = state.cart,
+                    subtotalIdr = state.cartSubtotalIdr,
+                    itemCount = state.cartItemCount,
+                    onIncrement = onIncrement,
+                    onDecrement = onDecrement,
+                    onRemove = onRemoveFromCart,
+                    onCheckout = onCheckout,
+                )
+            }
         }
     }
 }
@@ -471,8 +528,10 @@ private fun CartPanel(
     onDecrement: (productId: Long, unitPriceUpliftIdr: Long) -> Unit,
     onRemove: (productId: Long, unitPriceUpliftIdr: Long) -> Unit,
     onCheckout: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Surface(
+        modifier = modifier,
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 4.dp,
     ) {
