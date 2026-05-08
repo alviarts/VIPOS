@@ -143,6 +143,9 @@ function mountVersionedRoutes(parent) {
   // P4-10 Transaction actions: void, refund, reprint.
   parent.use('/transactions', require('./routes/transaction-actions'));
 
+  // P3-16 Loyalty point redemption.
+  parent.use('/loyalty', require('./routes/loyalty-redeem'));
+
   // P4-01 Online order kasir actions (accept/reject/ready).
   parent.use('/online-orders', require('./routes/online-order-actions'));
 
