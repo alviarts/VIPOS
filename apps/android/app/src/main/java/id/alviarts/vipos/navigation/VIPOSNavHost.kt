@@ -12,7 +12,9 @@ import id.alviarts.vipos.feature.auth.ui.twofactor.TwoFactorRoute
 import id.alviarts.vipos.feature.home.ui.HomeRoute
 import id.alviarts.vipos.feature.pos.ui.PosCatalogueRoute
 import id.alviarts.vipos.feature.pos.ui.dashboard.OwnerDashboardScreen
+import id.alviarts.vipos.feature.pos.ui.history.TransactionDetailScreen
 import id.alviarts.vipos.feature.pos.ui.history.TransactionHistoryScreen
+import id.alviarts.vipos.feature.pos.ui.onlineorder.OnlineOrderDetailScreen
 import id.alviarts.vipos.feature.pos.ui.onlineorder.OnlineOrderQueueScreen
 
 /**
@@ -177,9 +179,9 @@ fun VIPOSNavHost(
                 },
             ),
         ) {
-            // TODO: Implement TransactionDetailScreen
-            // For now, just pop back
-            navController.popBackStack()
+            TransactionDetailScreen(
+                onNavigateBack = { navController.popBackStack() },
+            )
         }
 
         // P4-01: Online order queue
@@ -203,9 +205,9 @@ fun VIPOSNavHost(
                 },
             ),
         ) {
-            // TODO: Implement OnlineOrderDetailScreen
-            // For now, just pop back
-            navController.popBackStack()
+            OnlineOrderDetailScreen(
+                onNavigateBack = { navController.popBackStack() },
+            )
         }
 
         // P4-07: Owner dashboard
