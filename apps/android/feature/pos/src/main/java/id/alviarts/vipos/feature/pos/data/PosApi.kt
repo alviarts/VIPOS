@@ -274,4 +274,28 @@ interface PosApi {
         @Path("id") shiftId: Int,
         @Body body: CashierShiftCloseRequestDto,
     ): CashierShiftCloseResponseDto
+
+    // -- Transaction history endpoints (P4-05) ---------------
+
+    /**
+     * Get paginated transaction history with optional filters.
+     * Supports filtering by date, date range, and status.
+     */
+    @GET("api/v1/transactions")
+    suspend fun getTransactionHistory(
+        @Query("date") date: String? = null,
+        @Query("start_date") startDate: String? = null,
+        @Query("end_date") endDate: String? = null,
+        @Query("status") status: String? = null,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20,
+    ): TransactionHistoryResponseDto
+
+    /**
+     * Get single transaction detail with items.
+     */
+    @GET("api/v1/transactions/{id}")
+    suspend fun getTransactionDetail(
+        @Path("id") transactionId: Long,
+    ): TransactionDetailDto
 }
