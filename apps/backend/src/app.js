@@ -158,6 +158,9 @@ function mountVersionedRoutes(parent) {
   // Data export (CSV/JSON).
   parent.use('/export', require('./routes/export-data'));
 
+  // Tenant onboarding / self-service signup (P6-02).
+  parent.use('/onboarding', require('./routes/onboarding'));
+
   // P3-16 Loyalty point redemption.
   parent.use('/loyalty', require('./routes/loyalty-redeem'));
 
