@@ -176,6 +176,9 @@ function mountVersionedRoutes(parent) {
   // Dashboard summary for owner KPI (P4-07).
   parent.use('/dashboard', require('./routes/dashboard-summary'));
 
+  // Analytics event ingestion.
+  parent.use('/analytics', require('./routes/analytics-events'));
+
   // P3-16 Loyalty point redemption.
   parent.use('/loyalty', require('./routes/loyalty-redeem'));
 
