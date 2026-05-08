@@ -1,8 +1,10 @@
 package id.alviarts.vipos.feature.pos.data
 
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -218,26 +220,6 @@ interface PosApi {
         @Query("status") status: String? = null,
     ): AppointmentListResponseDto
 
-    // -- Inventory (P4-03 + P4-04) -------------------------------
-
-    /**
-     * List inventory movements for the current outlet.
-     */
-    @GET("api/v1/inventory")
-    suspend fun listInventoryMovements(
-        @Query("page") page: Long = 1,
-        @Query("per_page") perPage: Long = 20,
-        @Query("type") type: String? = null,
-    ): InventoryMovementListDto
-
-    /**
-     * Request an inventory mutation (cashier-initiated).
-     */
-    @POST("api/v1/inventory")
-    suspend fun createInventoryMutation(
-        @Body body: InventoryMutationRequestDto,
-    ): InventoryMovementDto
-
     // -- Transaction history (P4-05) ----------------------------
 
     /**
@@ -426,4 +408,83 @@ interface PosApi {
         @Path("id") appointmentId: Long,
         @Body body: AppointmentActionRequestDto,
     ): AppointmentDto
+
+    // -- Inventory endpoints (P4-03, P4-04) ----------------
+
+    /**
+     * Get inventory movements with optional filters.
+     */
+    @GET("api/inventory/movements")
+    suspend fun getInventoryMovements(
+        @Query("product_id") productId: Long? = null,
+        @Query("tipe") tipe: String? = null,
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+        @Query("limit") limit: Int = 100,
+    ): List<InventoryMovementDto>
+
+    /**
+     * Create inventory movement (stok_in, stok_out, opname).
+     */
+    @POST("api/inventory/movements")
+    suspend fun createInventoryMovement(
+        @Body body: InventoryMovementCreateRequestDto,
+    ): InventoryMovementDto
+
+    /**
+     * Get inventory summary for all products.
+     */
+    @GET("api/inventory/summary")
+    suspend fun getInventorySummary(): List<InventorySummaryDto>
+
+    /**
+     * Get stock opname list with optional status filter.
+     */
+    @GET("api/stock-opname")
+    suspend fun getStockOpnameList(
+        @Query("status") status: String? = null,
+    ): List<StockOpnameDto>
+
+    /**
+     * Get single stock opname detail with items.
+     */
+    @GET("api/stock-opname/{id}")
+    suspend fun getStockOpnameDetail(
+        @Path("id") opnameId: Long,
+    ): StockOpnameDto
+
+    /**
+     * Create new stock opname session.
+     */
+    @POST("api/stock-opname")
+    suspend fun createStockOpname(
+        @Body body: StockOpnameCreateRequestDto,
+    ): StockOpnameDto
+
+    /**
+     * Update physical count for an item in stock opname.
+     */
+    @PUT("api/stock-opname/{id}/items/{product_id}")
+    suspend fun updateStockOpnameItem(
+        @Path("id") opnameId: Long,
+        @Path("product_id") productId: Long,
+        @Body body: StockOpnameUpdateItemRequestDto,
+    ): StockOpnameDto
+
+    /**
+     * Finalize stock opname and apply adjustments.
+     */
+    @POST("api/stock-opname/{id}/finalize")
+    suspend fun finalizeStockOpname(
+        @Path("id") opnameId: Long,
+        @Body body: StockOpnameFinalizeRequestDto,
+    ): StockOpnameDto
+
+    /**
+     * Delete draft stock opname.
+     */
+    @DELETE("api/stock-opname/{id}")
+    suspend fun deleteStockOpname(
+        @Path("id") opnameId: Long,
+    ): Unit
 }

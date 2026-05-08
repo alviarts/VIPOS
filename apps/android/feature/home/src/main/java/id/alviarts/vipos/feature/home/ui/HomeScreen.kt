@@ -41,6 +41,7 @@ fun HomeRoute(
     onOpenOnlineOrderQueue: () -> Unit = {},
     onOpenOwnerDashboard: () -> Unit = {},
     onOpenAppointmentList: () -> Unit = {},
+    onOpenStockMovementList: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -61,6 +62,7 @@ fun HomeRoute(
         onOpenOnlineOrderQueueClick = onOpenOnlineOrderQueue,
         onOpenOwnerDashboardClick = onOpenOwnerDashboard,
         onOpenAppointmentListClick = onOpenAppointmentList,
+        onOpenStockMovementListClick = onOpenStockMovementList,
     )
 }
 
@@ -74,6 +76,7 @@ internal fun HomeScreen(
     onOpenOnlineOrderQueueClick: () -> Unit = {},
     onOpenOwnerDashboardClick: () -> Unit = {},
     onOpenAppointmentListClick: () -> Unit = {},
+    onOpenStockMovementListClick: () -> Unit = {},
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -156,6 +159,17 @@ internal fun HomeScreen(
                     .widthIn(max = 360.dp),
             ) {
                 Text("Janji Temu")
+            }
+            Spacer(Modifier.height(8.dp))
+            
+            OutlinedButton(
+                onClick = onOpenStockMovementListClick,
+                enabled = !isLoggingOut,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 360.dp),
+            ) {
+                Text("Pergerakan Stok")
             }
             Spacer(Modifier.height(24.dp))
             

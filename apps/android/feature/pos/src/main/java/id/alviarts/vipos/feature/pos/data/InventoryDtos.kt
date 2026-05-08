@@ -4,63 +4,108 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Wire DTOs for inventory mutation endpoints (P4-03 + P4-04).
+ * Wire DTOs for inventory management (P4-03, P4-04).
+ * 
+ * Covers:
+ * - Stock movements (stok_in, stok_out, opname)
+ * - Stock opname (physical count)
  */
 
-// -- Inventory movements (P4-03) ------------------------------
+// -- Stock Movements (P4-03) ----------------------------------
 
 @Serializable
 data class InventoryMovementDto(
     @SerialName("id") val id: Long,
     @SerialName("product_id") val productId: Long,
     @SerialName("product_name") val productName: String? = null,
-    @SerialName("type") val type: String, // "in", "out", "transfer", "adjustment"
-    @SerialName("quantity") val quantity: Int,
+    @SerialName("product_sku") val productSku: String? = null,
+    @SerialName("product_satuan") val productSatuan: String? = null,
+    @SerialName("tipe") val tipe: String, // stok_in, stok_out, opname
+    @SerialName("qty") val qty: Int,
+    @SerialName("tanggal") val tanggal: String,
+    @SerialName("keterangan") val keterangan: String? = null,
+    @SerialName("unit_cost") val unitCost: Long? = null,
     @SerialName("reason") val reason: String? = null,
-    @SerialName("reference") val reference: String? = null,
+    @SerialName("stok_sebelum") val stokSebelum: Int? = null,
+    @SerialName("stok_sesudah") val stokSesudah: Int? = null,
+    @SerialName("user_id") val userId: Long? = null,
+    @SerialName("user_name") val userName: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
 )
 
 @Serializable
-data class InventoryMovementListDto(
-    @SerialName("data") val data: List<InventoryMovementDto>,
-    @SerialName("total") val total: Int = 0,
-)
-
-@Serializable
-data class InventoryMutationRequestDto(
+data class InventoryMovementCreateRequestDto(
     @SerialName("product_id") val productId: Long,
-    @SerialName("type") val type: String,
-    @SerialName("quantity") val quantity: Int,
+    @SerialName("tipe") val tipe: String, // stok_in, stok_out, opname
+    @SerialName("qty") val qty: Int,
+    @SerialName("tanggal") val tanggal: String,
+    @SerialName("keterangan") val keterangan: String? = null,
+    @SerialName("unit_cost") val unitCost: Long? = null,
     @SerialName("reason") val reason: String? = null,
 )
 
-// -- Stock opname (P4-04) -------------------------------------
+@Serializable
+data class InventorySummaryDto(
+    @SerialName("product_id") val productId: Long,
+    @SerialName("product_name") val productName: String,
+    @SerialName("product_sku") val productSku: String? = null,
+    @SerialName("current_stock") val currentStock: Int,
+    @SerialName("min_stock") val minStock: Int? = null,
+    @SerialName("avg_cost") val avgCost: Long? = null,
+    @SerialName("total_value") val totalValue: Long? = null,
+    @SerialName("last_movement_date") val lastMovementDate: String? = null,
+)
+
+// -- Stock Opname (P4-04) -------------------------------------
+
+@Serializable
+data class StockOpnameDto(
+    @SerialName("id") val id: Long,
+    @SerialName("kode") val kode: String,
+    @SerialName("tanggal") val tanggal: String,
+    @SerialName("status") val status: String, // draft, finalized
+    @SerialName("keterangan") val keterangan: String? = null,
+    @SerialName("created_by") val createdBy: Long? = null,
+    @SerialName("created_by_name") val createdByName: String? = null,
+    @SerialName("finalized_by") val finalizedBy: Long? = null,
+    @SerialName("finalized_by_name") val finalizedByName: String? = null,
+    @SerialName("finalized_at") val finalizedAt: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("item_count") val itemCount: Int = 0,
+    @SerialName("counted_count") val countedCount: Int = 0,
+    @SerialName("variance_count") val varianceCount: Int = 0,
+    @SerialName("items") val items: List<StockOpnameItemDto> = emptyList(),
+)
 
 @Serializable
 data class StockOpnameItemDto(
+    @SerialName("id") val id: Long? = null,
+    @SerialName("opname_id") val opnameId: Long? = null,
     @SerialName("product_id") val productId: Long,
     @SerialName("product_name") val productName: String? = null,
-    @SerialName("system_stock") val systemStock: Int = 0,
-    @SerialName("physical_stock") val physicalStock: Int? = null,
-    @SerialName("variance") val variance: Int? = null,
+    @SerialName("product_sku") val productSku: String? = null,
+    @SerialName("product_satuan") val productSatuan: String? = null,
+    @SerialName("qty_sistem") val qtySistem: Int,
+    @SerialName("qty_fisik") val qtyFisik: Int? = null,
+    @SerialName("selisih") val selisih: Int? = null,
+    @SerialName("keterangan") val keterangan: String? = null,
 )
 
 @Serializable
-data class StockOpnameSessionDto(
-    @SerialName("id") val id: Long,
-    @SerialName("status") val status: String = "open",
-    @SerialName("items") val items: List<StockOpnameItemDto> = emptyList(),
-    @SerialName("created_at") val createdAt: String? = null,
+data class StockOpnameCreateRequestDto(
+    @SerialName("tanggal") val tanggal: String,
+    @SerialName("keterangan") val keterangan: String? = null,
+    @SerialName("product_ids") val productIds: List<Long>? = null, // null = all products
 )
 
 @Serializable
-data class StockOpnameSubmitItemDto(
+data class StockOpnameUpdateItemRequestDto(
     @SerialName("product_id") val productId: Long,
-    @SerialName("physical_stock") val physicalStock: Int,
+    @SerialName("qty_fisik") val qtyFisik: Int,
+    @SerialName("keterangan") val keterangan: String? = null,
 )
 
 @Serializable
-data class StockOpnameSubmitRequestDto(
-    @SerialName("items") val items: List<StockOpnameSubmitItemDto>,
+data class StockOpnameFinalizeRequestDto(
+    @SerialName("apply_adjustments") val applyAdjustments: Boolean = true,
 )

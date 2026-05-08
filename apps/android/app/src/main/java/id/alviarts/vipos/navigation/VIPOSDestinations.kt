@@ -140,4 +140,20 @@ sealed interface VIPOSDestination {
     data object AppointmentCreate : VIPOSDestination {
         override val route: String = "appointment_create"
     }
+
+    /**
+     * P4-03: Stock movement list screen. Shows inventory
+     * movements with type and date filters.
+     */
+    data object StockMovementList : VIPOSDestination {
+        override val route: String = "stock_movement_list"
+    }
+
+    /**
+     * P4-03: Stock movement create screen. Form to create
+     * new stock in/out movement.
+     */
+    data object StockMovementCreate : VIPOSDestination {
+        override val route: String = "stock_movement_create"
+    }
 }

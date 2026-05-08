@@ -17,6 +17,8 @@ import id.alviarts.vipos.feature.pos.ui.appointment.AppointmentListScreen
 import id.alviarts.vipos.feature.pos.ui.dashboard.OwnerDashboardScreen
 import id.alviarts.vipos.feature.pos.ui.history.TransactionDetailScreen
 import id.alviarts.vipos.feature.pos.ui.history.TransactionHistoryScreen
+import id.alviarts.vipos.feature.pos.ui.inventory.StockMovementCreateScreen
+import id.alviarts.vipos.feature.pos.ui.inventory.StockMovementListScreen
 import id.alviarts.vipos.feature.pos.ui.onlineorder.OnlineOrderDetailScreen
 import id.alviarts.vipos.feature.pos.ui.onlineorder.OnlineOrderQueueScreen
 
@@ -158,6 +160,11 @@ fun VIPOSNavHost(
                         launchSingleTop = true
                     }
                 },
+                onOpenStockMovementList = {
+                    navController.navigate(VIPOSDestination.StockMovementList.route) {
+                        launchSingleTop = true
+                    }
+                },
             )
         }
         composable(VIPOSDestination.Pos.route) {
@@ -276,6 +283,27 @@ fun VIPOSNavHost(
                         // Pop create screen so back button goes to list
                         popUpTo(VIPOSDestination.AppointmentList.route)
                     }
+                },
+            )
+        }
+
+        // P4-03: Stock movement list
+        composable(VIPOSDestination.StockMovementList.route) {
+            StockMovementListScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onCreateClick = {
+                    navController.navigate(VIPOSDestination.StockMovementCreate.route)
+                },
+            )
+        }
+
+        // P4-03: Stock movement create
+        composable(VIPOSDestination.StockMovementCreate.route) {
+            StockMovementCreateScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onSuccess = {
+                    // Navigate back to list after successful creation
+                    navController.popBackStack()
                 },
             )
         }
