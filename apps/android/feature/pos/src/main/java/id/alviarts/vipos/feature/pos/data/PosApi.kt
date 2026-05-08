@@ -141,6 +141,37 @@ interface PosApi {
         @Path("id") customerId: Long,
     ): CustomerDto
 
+    // -- Online orders (P4-01) -----------------------------------
+
+    /**
+     * List pending/active online orders for the kasir queue.
+     */
+    @GET("api/v1/online-orders")
+    suspend fun listOnlineOrders(
+        @Query("status") status: String? = "pending",
+        @Query("page") page: Long = 1,
+    ): OnlineOrderListResponseDto
+
+    /**
+     * Accept/reject/mark-ready an online order.
+     */
+    @POST("api/v1/online-orders/{id}/action")
+    suspend fun onlineOrderAction(
+        @Path("id") orderId: Long,
+        @Body body: OnlineOrderActionRequestDto,
+    ): OnlineOrderDto
+
+    // -- Appointments (P4-02) ---------------------------------
+
+    /**
+     * List today's appointments/reservations.
+     */
+    @GET("api/v1/appointments")
+    suspend fun listAppointments(
+        @Query("date") date: String? = null,
+        @Query("status") status: String? = null,
+    ): AppointmentListResponseDto
+
     // -- Inventory (P4-03 + P4-04) -------------------------------
 
     /**
