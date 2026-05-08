@@ -5,6 +5,8 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import id.alviarts.vipos.feature.pos.data.CashierShiftRepository
+import id.alviarts.vipos.feature.pos.data.DefaultCashierShiftRepository
 import id.alviarts.vipos.feature.pos.data.DefaultQrisRepository
 import id.alviarts.vipos.feature.pos.data.DefaultTransactionRepository
 import id.alviarts.vipos.feature.pos.data.PosApi
@@ -100,4 +102,10 @@ abstract class PosBindingsModule {
     abstract fun bindQrisRepository(
         impl: DefaultQrisRepository,
     ): QrisRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCashierShiftRepository(
+        impl: DefaultCashierShiftRepository,
+    ): CashierShiftRepository
 }

@@ -111,4 +111,40 @@ interface PosApi {
     suspend fun pollQrisStatus(
         @Path("ref_id") refId: String,
     ): QrisStatusResponseDto
+
+    // -- Cashier shift endpoints (P3-14) ----------------------
+
+    /**
+     * Get the current open shift for the authenticated user.
+     * Returns `{ shift: null }` if no shift is open.
+     */
+    @GET("api/v1/cashier-shift/active")
+    suspend fun getActiveShift(): CashierShiftResponseDto
+
+    /**
+     * Open a new cashier shift with the given opening cash.
+     * Returns 409 if a shift is already open.
+     */
+    @POST("api/v1/cashier-shift/open")
+    suspend fun openShift(
+        @Body body: CashierShiftOpenRequestDto,
+    ): CashierShiftResponseDto
+
+    /**
+     * Get shift summary for the close screen (transaction
+     * breakdown, expected cash, etc.).
+     */
+    @GET("api/v1/cashier-shift/{id}/summary")
+    suspend fun getShiftSummary(
+        @Path("id") shiftId: Int,
+    ): CashierShiftSummaryDto
+
+    /**
+     * Close an open shift with cash reconciliation.
+     */
+    @POST("api/v1/cashier-shift/{id}/close")
+    suspend fun closeShift(
+        @Path("id") shiftId: Int,
+        @Body body: CashierShiftCloseRequestDto,
+    ): CashierShiftCloseResponseDto
 }

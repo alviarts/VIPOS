@@ -67,10 +67,21 @@ router.post('/', authenticateToken, async (req, res) => {
     const change_amount = payment_amount - total_amount;
     const invoice_number = generateInvoiceNumber();
 
+    // Auto-link to the user's currently open cashier shift (P3-14).
+    // If no shift is open, cashier_shift_id stays NULL — the
+    // transaction is still valid, just not linked to a shift session.
+    const { rows: activeShiftRows } = await query(
+      `SELECT id FROM cashier_shifts
+       WHERE tenant_id = $1 AND user_id = $2 AND status = 'open'
+       ORDER BY opened_at DESC LIMIT 1`,
+      [req.tenantId ?? null, req.user.id],
+    );
+    const cashierShiftId = activeShiftRows.length > 0 ? activeShiftRows[0].id : null;
+
     const transactionId = await tx(async (txQuery) => {
       const ins = await txQuery(
-        `INSERT INTO transactions (invoice_number, user_id, total_amount, payment_amount, change_amount, payment_method, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+        `INSERT INTO transactions (invoice_number, user_id, total_amount, payment_amount, change_amount, payment_method, notes, cashier_shift_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
         [
           invoice_number,
           req.user.id,
@@ -79,6 +90,7 @@ router.post('/', authenticateToken, async (req, res) => {
           change_amount,
           payment_method || 'cash',
           notes || null,
+          cashierShiftId,
         ]
       );
       const newId = ins.rows[0].id;

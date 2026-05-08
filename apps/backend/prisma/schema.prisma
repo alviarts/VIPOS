@@ -2185,6 +2185,7 @@ model transactions {
   invoice_number         String
   user_id                Int
   customer_id            Int?
+  cashier_shift_id       Int?
   total_amount           Float
   payment_amount         Float
   change_amount          Float
@@ -2198,12 +2199,14 @@ model transactions {
   coupon_redemptions     coupon_redemptions[]
   loyalty_transactions   loyalty_transactions[]
   transaction_items      transaction_items[]
+  cashier_shifts         cashier_shifts?          @relation(fields: [cashier_shift_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "transactions_cashier_shift_fk")
   customers              customers?               @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tenants                tenants                  @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "transactions_tenant_fk")
   users                  users                    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([tenant_id, invoice_number])
   @@index([tenant_id], map: "idx_transactions_tenant")
+  @@index([cashier_shift_id], map: "idx_transactions_cashier_shift")
 }
 
 model uoms {
@@ -2246,6 +2249,7 @@ model users {
   b2b_sales_orders                              b2b_sales_orders[]
   capital_applications                          capital_applications[]
   cash_transactions                             cash_transactions[]
+  cashier_shifts                                cashier_shifts[]
   commission_assignments                        commission_assignments[]
   employees                                     employees?
   gl_expenses                                   gl_expenses[]
@@ -2303,6 +2307,8 @@ model tenants {
   capital_applications          capital_applications[]
   cash_accounts                 cash_accounts[]
   cash_transactions             cash_transactions[]
+  cashier_shift_cash_movements  cashier_shift_cash_movements[]
+  cashier_shifts                cashier_shifts[]
   categories                    categories[]
   commission_assignments        commission_assignments[]
   commission_groups             commission_groups[]
@@ -2416,6 +2422,62 @@ model audit_logs {
   @@index([tenant_id, entity, entity_id], map: "idx_audit_logs_tenant_entity")
   @@index([tenant_id, user_id, created_at(sort: Desc)], map: "idx_audit_logs_tenant_user")
   @@index([tenant_id, action, created_at(sort: Desc)], map: "idx_audit_logs_tenant_action")
+}
+
+/// Cashier shift sessions (P3-14).
+///
+/// Tracks the lifecycle of a kasir's work session: open (with
+/// opening cash count) → active (transactions accumulate) → closed
+/// (with closing cash reconciliation). Each transaction created
+/// during an open shift is linked via `transactions.cashier_shift_id`.
+///
+/// Status state machine:
+///   open   → closed  (normal close with reconciliation)
+///
+/// Cash movements (drops/pickups) during a shift are tracked in
+/// `cashier_shift_cash_movements` so the expected closing cash
+/// can be computed as:
+///   opening_cash + cash_sales - cash_drops + cash_pickups
+model cashier_shifts {
+  id                      Int       @id @default(autoincrement())
+  tenant_id               Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  user_id                 Int
+  opening_cash            BigInt    @default(0)
+  closing_cash_counted    BigInt?
+  closing_cash_expected   BigInt?
+  variance                BigInt?
+  variance_reason         String?
+  status                  String    @default("open") @db.VarChar(16)
+  opened_at               DateTime  @default(now()) @db.Timestamptz(6)
+  closed_at               DateTime? @db.Timestamptz(6)
+  notes                   String?
+  created_at              DateTime  @default(now()) @db.Timestamptz(6)
+  tenants                 tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "cashier_shifts_tenant_fk")
+  users                   users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "cashier_shifts_user_fk")
+  transactions            transactions[]
+  cash_movements          cashier_shift_cash_movements[]
+
+  @@index([tenant_id, status], map: "idx_cashier_shifts_tenant_status")
+  @@index([tenant_id, user_id, opened_at(sort: Desc)], map: "idx_cashier_shifts_tenant_user")
+}
+
+/// Cash drops (kas keluar) and pickups (kas masuk) during a
+/// cashier shift (P3-14). These adjust the expected closing cash
+/// so the reconciliation at shift close is accurate.
+model cashier_shift_cash_movements {
+  id               Int            @id @default(autoincrement())
+  tenant_id        Int            @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  cashier_shift_id Int
+  user_id          Int
+  type             String         @db.VarChar(16)  // 'drop' or 'pickup'
+  amount           BigInt
+  reason           String?
+  created_at       DateTime       @default(now()) @db.Timestamptz(6)
+  tenants          tenants        @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "cash_movements_tenant_fk")
+  cashier_shifts   cashier_shifts @relation(fields: [cashier_shift_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "cash_movements_shift_fk")
+
+  @@index([cashier_shift_id], map: "idx_cash_movements_shift")
+  @@index([tenant_id, created_at(sort: Desc)], map: "idx_cash_movements_tenant_created")
 }
 
 /// QRIS Dynamic invocations (P3-08 slice 5c follow-up).

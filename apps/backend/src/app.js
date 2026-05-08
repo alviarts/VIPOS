@@ -134,6 +134,9 @@ function mountVersionedRoutes(parent) {
   parent.use('/schedule-swap', swapRouter);
   parent.use('/approval-chain', require('./routes/approval-chain'));
 
+  // P3-14 Cashier shift management.
+  parent.use('/cashier-shift', require('./routes/cashier-shift'));
+
   // P1-15 Keuangan.
   const {
     accountRouter,
