@@ -140,6 +140,15 @@ router.post('/', authenticateToken, async (req, res) => {
       await query('SELECT * FROM transaction_items WHERE transaction_id = $1', [transactionId])
     ).rows;
 
+    // P3-16: Auto-earn loyalty points if a customer is linked.
+    // Looks up active earn rules and credits points based on
+    // the transaction total. Runs async (fire-and-forget) so it
+    // doesn't block the response to the kasir.
+    if (req.body.customer_id) {
+      earnLoyaltyPoints(req.tenantId, req.body.customer_id, total_amount, transactionId)
+        .catch((err) => console.error('Loyalty earn error (non-blocking):', err));
+    }
+
     res.status(201).json({ ...transaction, items: transactionItems });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -273,6 +282,71 @@ router.post('/:id/void', authenticateToken, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+/**
+ * Auto-earn loyalty points for a customer (P3-16).
+ *
+ * Looks up active `earn_per_total` rules and credits points
+ * based on the transaction total. Creates a `loyalty_transactions`
+ * ledger entry and updates the customer's `points` balance.
+ *
+ * This is fire-and-forget from the transaction commit — a failure
+ * here does NOT roll back the transaction. The kasir sees the
+ * receipt immediately; points are a background bonus.
+ */
+async function earnLoyaltyPoints(tenantId, customerId, totalAmount, transactionId) {
+  // Find active earn rules for this tenant.
+  const { rows: rules } = await query(
+    `SELECT id, earn_rate, bonus_points
+     FROM loyalty_rules
+     WHERE tenant_id = $1
+       AND rule_type = 'earn_per_total'
+       AND is_active = 1
+       AND (valid_from IS NULL OR valid_from <= NOW())
+       AND (valid_until IS NULL OR valid_until >= NOW())
+     ORDER BY id
+     LIMIT 1`,
+    [tenantId],
+  );
+
+  if (rules.length === 0) return;
+
+  const rule = rules[0];
+  const earnRate = rule.earn_rate || 0;
+  const bonusPoints = rule.bonus_points || 0;
+
+  // Calculate points: (total / earn_rate) + bonus
+  // earn_rate = "1 point per X rupiah" (e.g. earn_rate=10000 means 1 point per Rp 10k)
+  const earnedPoints = earnRate > 0
+    ? Math.floor(totalAmount / earnRate) + bonusPoints
+    : bonusPoints;
+
+  if (earnedPoints <= 0) return;
+
+  // Get current balance
+  const { rows: customerRows } = await query(
+    `SELECT points FROM customers WHERE id = $1 AND tenant_id = $2`,
+    [customerId, tenantId],
+  );
+  if (customerRows.length === 0) return;
+
+  const currentPoints = customerRows[0].points || 0;
+  const newBalance = currentPoints + earnedPoints;
+
+  // Update customer points
+  await query(
+    `UPDATE customers SET points = $1 WHERE id = $2 AND tenant_id = $3`,
+    [newBalance, customerId, tenantId],
+  );
+
+  // Record ledger entry
+  await query(
+    `INSERT INTO loyalty_transactions
+       (tenant_id, customer_id, type, points, balance_after, transaction_id, rule_id)
+     VALUES ($1, $2, 'earn', $3, $4, $5, $6)`,
+    [tenantId, customerId, earnedPoints, newBalance, transactionId, rule.id],
+  );
+}
 
 module.exports = router;
 // Exposed for unit tests in `__tests__/generate-invoice-number.test.mjs`
