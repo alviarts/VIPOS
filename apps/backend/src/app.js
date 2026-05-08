@@ -161,6 +161,9 @@ function mountVersionedRoutes(parent) {
   // Tenant onboarding / self-service signup (P6-02).
   parent.use('/onboarding', require('./routes/onboarding'));
 
+  // Tenant configuration (key-value settings).
+  parent.use('/config', require('./routes/tenant-config'));
+
   // P3-16 Loyalty point redemption.
   parent.use('/loyalty', require('./routes/loyalty-redeem'));
 
