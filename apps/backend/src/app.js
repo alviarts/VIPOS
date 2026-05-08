@@ -146,6 +146,9 @@ function mountVersionedRoutes(parent) {
   // Production readiness probe.
   parent.use('/health', require('./routes/health-ready'));
 
+  // Stock alerts for low-stock monitoring.
+  parent.use('/stock-alerts', require('./routes/stock-alerts'));
+
   // P3-16 Loyalty point redemption.
   parent.use('/loyalty', require('./routes/loyalty-redeem'));
 
