@@ -490,4 +490,53 @@ interface PosApi {
     suspend fun deleteStockOpname(
         @Path("id") opnameId: Long,
     ): Unit
+
+    // ========================================================================
+    // Reports (P4-06)
+    // ========================================================================
+
+    /**
+     * Get sales summary report with KPIs, daily trend, top products, and payment breakdown.
+     */
+    @GET("api/reports/sales-summary")
+    suspend fun getSalesSummaryReport(
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+        @Query("cashier_id") cashierId: Long? = null,
+        @Query("payment_method") paymentMethod: String? = null,
+    ): SalesSummaryReportDto
+
+    /**
+     * Get sales detail report with list of transactions.
+     */
+    @GET("api/reports/sales-detail")
+    suspend fun getSalesDetailReport(
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+        @Query("cashier_id") cashierId: Long? = null,
+        @Query("payment_method") paymentMethod: String? = null,
+        @Query("limit") limit: Int? = null,
+        @Query("offset") offset: Int? = null,
+    ): SalesDetailReportDto
+
+    /**
+     * Get sales by product report.
+     */
+    @GET("api/reports/sales-by-product")
+    suspend fun getSalesByProductReport(
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+        @Query("category_id") categoryId: Long? = null,
+        @Query("limit") limit: Int? = null,
+    ): SalesByProductReportDto
+
+    /**
+     * Get sales by payment method report.
+     */
+    @GET("api/reports/sales-by-payment-method")
+    suspend fun getSalesByPaymentMethodReport(
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+    ): SalesByPaymentMethodReportDto
 }
+

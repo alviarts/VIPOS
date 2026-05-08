@@ -184,4 +184,12 @@ sealed interface VIPOSDestination {
     data object StockOpnameCreate : VIPOSDestination {
         override val route: String = "stock_opname_create"
     }
+
+    /**
+     * P4-06: Sales report screen. Shows sales summary
+     * with KPIs, trends, and breakdowns.
+     */
+    data object SalesReport : VIPOSDestination {
+        override val route: String = "sales_report"
+    }
 }

@@ -22,6 +22,7 @@ import id.alviarts.vipos.feature.pos.ui.inventory.StockMovementListScreen
 import id.alviarts.vipos.feature.pos.ui.stockopname.StockOpnameCreateScreen
 import id.alviarts.vipos.feature.pos.ui.stockopname.StockOpnameDetailScreen
 import id.alviarts.vipos.feature.pos.ui.stockopname.StockOpnameListScreen
+import id.alviarts.vipos.feature.pos.ui.reports.SalesReportScreen
 import id.alviarts.vipos.feature.pos.ui.onlineorder.OnlineOrderDetailScreen
 import id.alviarts.vipos.feature.pos.ui.onlineorder.OnlineOrderQueueScreen
 
@@ -170,6 +171,11 @@ fun VIPOSNavHost(
                 },
                 onOpenStockOpnameList = {
                     navController.navigate(VIPOSDestination.StockOpnameList.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenSalesReport = {
+                    navController.navigate(VIPOSDestination.SalesReport.route) {
                         launchSingleTop = true
                     }
                 },
@@ -357,6 +363,13 @@ fun VIPOSNavHost(
                         popUpTo(VIPOSDestination.StockOpnameList.route)
                     }
                 },
+            )
+        }
+
+        // P4-06: Sales report
+        composable(VIPOSDestination.SalesReport.route) {
+            SalesReportScreen(
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     }
