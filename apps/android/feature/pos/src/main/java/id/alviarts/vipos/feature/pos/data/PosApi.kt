@@ -141,6 +141,26 @@ interface PosApi {
         @Path("id") customerId: Long,
     ): CustomerDto
 
+    // -- Inventory (P4-03 + P4-04) -------------------------------
+
+    /**
+     * List inventory movements for the current outlet.
+     */
+    @GET("api/v1/inventory")
+    suspend fun listInventoryMovements(
+        @Query("page") page: Long = 1,
+        @Query("per_page") perPage: Long = 20,
+        @Query("type") type: String? = null,
+    ): InventoryMovementListDto
+
+    /**
+     * Request an inventory mutation (cashier-initiated).
+     */
+    @POST("api/v1/inventory")
+    suspend fun createInventoryMutation(
+        @Body body: InventoryMutationRequestDto,
+    ): InventoryMovementDto
+
     // -- Transaction history (P4-05) ----------------------------
 
     /**
