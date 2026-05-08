@@ -140,6 +140,9 @@ function mountVersionedRoutes(parent) {
   // P3-15 Coupon validation + active promos.
   parent.use('/coupon', require('./routes/coupon'));
 
+  // P4-10 Transaction actions: void, refund, reprint.
+  parent.use('/transactions', require('./routes/transaction-actions'));
+
   // P1-15 Keuangan.
   const {
     accountRouter,
