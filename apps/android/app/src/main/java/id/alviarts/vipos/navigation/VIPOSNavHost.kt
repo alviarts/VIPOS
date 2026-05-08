@@ -15,8 +15,8 @@ import id.alviarts.vipos.feature.pos.ui.appointment.AppointmentCreateScreen
 import id.alviarts.vipos.feature.pos.ui.appointment.AppointmentDetailScreen
 import id.alviarts.vipos.feature.pos.ui.appointment.AppointmentListScreen
 import id.alviarts.vipos.feature.pos.ui.dashboard.OwnerDashboardScreen
-import id.alviarts.vipos.feature.pos.ui.history.TransactionDetailScreen
-import id.alviarts.vipos.feature.pos.ui.history.TransactionHistoryScreen
+import id.alviarts.vipos.feature.pos.ui.transaction.TransactionDetailScreen
+import id.alviarts.vipos.feature.pos.ui.transaction.TransactionListScreen
 import id.alviarts.vipos.feature.pos.ui.inventory.StockMovementCreateScreen
 import id.alviarts.vipos.feature.pos.ui.inventory.StockMovementListScreen
 import id.alviarts.vipos.feature.pos.ui.stockopname.StockOpnameCreateScreen
@@ -195,7 +195,7 @@ fun VIPOSNavHost(
 
         // P4-05: Transaction history
         composable(VIPOSDestination.TransactionHistory.route) {
-            TransactionHistoryScreen(
+            TransactionListScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onTransactionClick = { transactionId ->
                     navController.navigate(
@@ -213,8 +213,12 @@ fun VIPOSNavHost(
                     type = NavType.LongType
                 },
             ),
-        ) {
+        ) { backStackEntry ->
+            val transactionId = backStackEntry.arguments
+                ?.getLong(VIPOSDestination.TransactionDetail.ARG_TRANSACTION_ID)
+                ?: 0L
             TransactionDetailScreen(
+                transactionId = transactionId,
                 onNavigateBack = { navController.popBackStack() },
             )
         }

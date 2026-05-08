@@ -55,3 +55,36 @@ data class ProductsPageDto(
     @SerialName("per_page") val perPage: Long = 0,
     @SerialName("total_pages") val totalPages: Long = 0,
 )
+
+/**
+ * Transaction creation DTOs (P3-08).
+ */
+@Serializable
+data class TransactionRequestItemDto(
+    @SerialName("product_id") val productId: Long,
+    @SerialName("quantity") val quantity: Int,
+    @SerialName("price") val price: Long,
+    @SerialName("notes") val notes: String? = null,
+)
+
+@Serializable
+data class TransactionRequestDto(
+    @SerialName("items") val items: List<TransactionRequestItemDto>,
+    @SerialName("payment_method") val paymentMethod: String,
+    @SerialName("payment_amount") val paymentAmount: Long,
+    @SerialName("customer_id") val customerId: Long? = null,
+    @SerialName("notes") val notes: String? = null,
+    @SerialName("cashier_shift_id") val cashierShiftId: Long? = null,
+)
+
+@Serializable
+data class TransactionResponseDto(
+    @SerialName("id") val id: Long,
+    @SerialName("invoice_number") val invoiceNumber: String,
+    @SerialName("total_amount") val totalAmount: Long,
+    @SerialName("payment_amount") val paymentAmount: Long,
+    @SerialName("change_amount") val changeAmount: Long,
+    @SerialName("payment_method") val paymentMethod: String,
+    @SerialName("status") val status: String,
+    @SerialName("created_at") val createdAt: String,
+)
