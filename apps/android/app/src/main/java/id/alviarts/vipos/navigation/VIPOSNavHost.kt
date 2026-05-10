@@ -25,7 +25,8 @@ import id.alviarts.vipos.feature.pos.ui.stockopname.StockOpnameListScreen
 import id.alviarts.vipos.feature.pos.ui.reports.SalesReportScreen
 import id.alviarts.vipos.feature.pos.ui.employee.EmployeeListScreen
 import id.alviarts.vipos.feature.pos.ui.employee.EmployeeDetailScreen
-import id.alviarts.vipos.feature.pos.ui.employee.EmployeeFormScreen
+import id.alviarts.vipos.feature.pos.ui.employee.EmployeeCreateScreen
+import id.alviarts.vipos.feature.pos.ui.employee.EmployeeEditScreen
 import id.alviarts.vipos.feature.pos.ui.onlineorder.OnlineOrderDetailScreen
 import id.alviarts.vipos.feature.pos.ui.onlineorder.OnlineOrderQueueScreen
 
@@ -408,12 +409,15 @@ fun VIPOSNavHost(
                     type = NavType.LongType
                 },
             ),
-        ) {
+        ) { backStackEntry ->
+            val employeeId = backStackEntry.arguments
+                ?.getLong(VIPOSDestination.EmployeeDetail.ARG_EMPLOYEE_ID) ?: 0L
             EmployeeDetailScreen(
+                employeeId = employeeId,
                 onNavigateBack = { navController.popBackStack() },
-                onEditClick = { employeeId ->
+                onEditClick = { empId ->
                     navController.navigate(
-                        VIPOSDestination.EmployeeEdit.routeFor(employeeId),
+                        VIPOSDestination.EmployeeEdit.routeFor(empId),
                     )
                 },
             )
@@ -421,10 +425,15 @@ fun VIPOSNavHost(
 
         // P4-08: Employee create
         composable(VIPOSDestination.EmployeeCreate.route) {
-            EmployeeFormScreen(
-                employeeId = null,
+            EmployeeCreateScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onSuccess = { navController.popBackStack() },
+                onEmployeeCreated = { employeeId ->
+                    // Navigate to detail after successful creation
+                    navController.navigate(VIPOSDestination.EmployeeDetail.routeFor(employeeId)) {
+                        // Pop create screen from back stack
+                        popUpTo(VIPOSDestination.EmployeeList.route)
+                    }
+                },
             )
         }
 
@@ -438,11 +447,10 @@ fun VIPOSNavHost(
             ),
         ) { backStackEntry ->
             val employeeId = backStackEntry.arguments
-                ?.getLong(VIPOSDestination.EmployeeEdit.ARG_EMPLOYEE_ID)
-            EmployeeFormScreen(
+                ?.getLong(VIPOSDestination.EmployeeEdit.ARG_EMPLOYEE_ID) ?: 0L
+            EmployeeEditScreen(
                 employeeId = employeeId,
                 onNavigateBack = { navController.popBackStack() },
-                onSuccess = { navController.popBackStack() },
             )
         }
     }
