@@ -585,6 +585,54 @@ interface PosApi {
     suspend fun deleteEmployee(
         @Path("id") employeeId: Long,
     ): Unit
+
+    // ========================================================================
+    // Customer Loyalty (P4-09)
+    // ========================================================================
+
+    /**
+     * Get customer loyalty summary (points balance, total earned/redeemed).
+     */
+    @GET("api/loyalty/customer/{customerId}")
+    suspend fun getCustomerLoyalty(
+        @Path("customerId") customerId: Long,
+    ): CustomerLoyaltyDto
+
+    /**
+     * Get loyalty transactions for a customer.
+     */
+    @GET("api/loyalty/transactions")
+    suspend fun getLoyaltyTransactions(
+        @Query("customer_id") customerId: Long? = null,
+        @Query("type") type: String? = null,
+        @Query("from_date") fromDate: String? = null,
+        @Query("to_date") toDate: String? = null,
+    ): List<LoyaltyTransactionDto>
+
+    /**
+     * Manual point adjustment (admin only).
+     */
+    @POST("api/loyalty/adjust")
+    suspend fun adjustLoyaltyPoints(
+        @Body request: LoyaltyAdjustRequestDto,
+    ): LoyaltyTransactionDto
+
+    /**
+     * Redeem points for discount.
+     */
+    @POST("api/loyalty/redeem")
+    suspend fun redeemLoyaltyPoints(
+        @Body request: LoyaltyRedeemRequestDto,
+    ): LoyaltyTransactionDto
+
+    /**
+     * Get list of loyalty rules.
+     */
+    @GET("api/loyalty-rule")
+    suspend fun getLoyaltyRules(
+        @Query("is_active") isActive: Boolean? = null,
+        @Query("rule_type") ruleType: String? = null,
+    ): List<LoyaltyRuleDto>
 }
 
 
