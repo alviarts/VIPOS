@@ -156,7 +156,9 @@ class TransactionRepositoryTest {
                   "total_amount": 30000,
                   "payment_amount": 30000,
                   "change_amount": 0,
-                  "payment_method": "QRIS_STATIC"
+                  "payment_method": "QRIS_STATIC",
+                  "status": "completed",
+                  "created_at": "2026-05-07T20:00:00Z"
                 }
                 """.trimIndent(),
             ),
@@ -197,7 +199,9 @@ class TransactionRepositoryTest {
                   "total_amount": 25000,
                   "payment_amount": 25000,
                   "change_amount": 0,
-                  "payment_method": "QRIS_DYNAMIC"
+                  "payment_method": "QRIS_DYNAMIC",
+                  "status": "completed",
+                  "created_at": "2026-05-07T20:00:00Z"
                 }
                 """.trimIndent(),
             ),
@@ -237,7 +241,9 @@ class TransactionRepositoryTest {
                   "total_amount": 71000,
                   "payment_amount": 71000,
                   "change_amount": 0,
-                  "payment_method": "EDC"
+                  "payment_method": "EDC",
+                  "status": "completed",
+                  "created_at": "2026-05-07T20:00:00Z"
                 }
                 """.trimIndent(),
             ),
@@ -429,7 +435,9 @@ class TransactionRepositoryTest {
                   "total_amount": 30000,
                   "payment_amount": 30000,
                   "change_amount": 0,
-                  "payment_method": "CASH"
+                  "payment_method": "CASH",
+                  "status": "completed",
+                  "created_at": "2026-05-07T20:00:00Z"
                 }
                 """.trimIndent(),
             ),
@@ -469,7 +477,9 @@ class TransactionRepositoryTest {
                   "total_amount": 30000,
                   "payment_amount": 30000,
                   "change_amount": 0,
-                  "payment_method": "CASH"
+                  "payment_method": "CASH",
+                  "status": "completed",
+                  "created_at": "2026-05-07T20:00:00Z"
                 }
                 """.trimIndent(),
             ),
