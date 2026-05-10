@@ -27,6 +27,8 @@ import id.alviarts.vipos.feature.pos.ui.employee.EmployeeListScreen
 import id.alviarts.vipos.feature.pos.ui.employee.EmployeeDetailScreen
 import id.alviarts.vipos.feature.pos.ui.employee.EmployeeCreateScreen
 import id.alviarts.vipos.feature.pos.ui.employee.EmployeeEditScreen
+import id.alviarts.vipos.feature.pos.ui.loyalty.LoyaltyCustomerScreen
+import id.alviarts.vipos.feature.pos.ui.loyalty.LoyaltyTransactionListScreen
 import id.alviarts.vipos.feature.pos.ui.onlineorder.OnlineOrderDetailScreen
 import id.alviarts.vipos.feature.pos.ui.onlineorder.OnlineOrderQueueScreen
 
@@ -450,6 +452,45 @@ fun VIPOSNavHost(
                 ?.getLong(VIPOSDestination.EmployeeEdit.ARG_EMPLOYEE_ID) ?: 0L
             EmployeeEditScreen(
                 employeeId = employeeId,
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        // P4-09: Customer loyalty
+        composable(
+            route = VIPOSDestination.LoyaltyCustomer.route,
+            arguments = listOf(
+                navArgument(VIPOSDestination.LoyaltyCustomer.ARG_CUSTOMER_ID) {
+                    type = NavType.LongType
+                },
+            ),
+        ) { backStackEntry ->
+            val customerId = backStackEntry.arguments
+                ?.getLong(VIPOSDestination.LoyaltyCustomer.ARG_CUSTOMER_ID) ?: 0L
+            LoyaltyCustomerScreen(
+                customerId = customerId,
+                onNavigateBack = { navController.popBackStack() },
+                onViewHistory = { custId ->
+                    navController.navigate(
+                        VIPOSDestination.LoyaltyTransactionList.routeFor(custId),
+                    )
+                },
+            )
+        }
+
+        // P4-09: Loyalty transaction history
+        composable(
+            route = VIPOSDestination.LoyaltyTransactionList.route,
+            arguments = listOf(
+                navArgument(VIPOSDestination.LoyaltyTransactionList.ARG_CUSTOMER_ID) {
+                    type = NavType.LongType
+                },
+            ),
+        ) { backStackEntry ->
+            val customerId = backStackEntry.arguments
+                ?.getLong(VIPOSDestination.LoyaltyTransactionList.ARG_CUSTOMER_ID) ?: 0L
+            LoyaltyTransactionListScreen(
+                customerId = customerId,
                 onNavigateBack = { navController.popBackStack() },
             )
         }

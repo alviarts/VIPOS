@@ -232,4 +232,28 @@ sealed interface VIPOSDestination {
         fun routeFor(employeeId: Long): String =
             "employee_edit/$employeeId"
     }
+
+    /**
+     * P4-09: Customer loyalty screen. Shows customer
+     * points balance and loyalty summary.
+     */
+    data object LoyaltyCustomer : VIPOSDestination {
+        const val ARG_CUSTOMER_ID: String = "customerId"
+        override val route: String = "loyalty_customer/{$ARG_CUSTOMER_ID}"
+
+        fun routeFor(customerId: Long): String =
+            "loyalty_customer/$customerId"
+    }
+
+    /**
+     * P4-09: Loyalty transaction history screen. Shows
+     * list of loyalty transactions with filters.
+     */
+    data object LoyaltyTransactionList : VIPOSDestination {
+        const val ARG_CUSTOMER_ID: String = "customerId"
+        override val route: String = "loyalty_transactions/{$ARG_CUSTOMER_ID}"
+
+        fun routeFor(customerId: Long): String =
+            "loyalty_transactions/$customerId"
+    }
 }
