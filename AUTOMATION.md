@@ -1,8 +1,8 @@
 # VIPOS Development Automation Guide
 
-**Last Updated**: 2026-05-10 (Session 5 - P4-09 Customer Loyalty COMPLETE)  
+**Last Updated**: 2026-05-10 (Session 5 Extended - P4-11 Multi-outlet COMPLETE)  
 **Current Branch**: main  
-**Latest Commit**: 486b407 "feat(P4-09): complete customer loyalty UI with screens and navigation"
+**Latest Commit**: 47e3477 "feat(P4-11): complete multi-outlet UI with list screen and outlet switching"
 
 ---
 
@@ -109,20 +109,35 @@
   - Commits: 94d0e1c (DTOs/ViewModel), 486b407 (UI complete)
   - **Session 5 Achievement**
 
+- ✅ **P4-11: Multi-outlet** (COMPLETE) 🆕
+  - ✅ Backend API: `/api/outlet/*` (6 endpoints)
+  - ✅ Outlet list with active/inactive filter
+  - ✅ Outlet switching with confirmation dialog
+  - ✅ Main outlet badge
+  - ✅ Active outlet indicator
+  - ✅ OutletViewModel with full CRUD support
+  - ✅ Navigation wired (1 destination)
+  - Backend: `/api/outlet/*` (complete)
+  - Database: outlets table (already exists)
+  - Commits: a6cc03e (backend/DTOs), 47e3477 (UI complete)
+  - **Session 5 Extended Achievement**
+
 ---
 
 ## 🔨 PENDING FEATURES
 
-### HIGH PRIORITY (Backend Ready)
+### HIGH PRIORITY
 1. **End-to-End Testing** - 2-3 hours
    - Manual testing of all features
    - Document bugs and issues
    - Fix critical bugs
 
 ### MEDIUM PRIORITY
-2. **P4-11: Multi-outlet** - 4-5 hours
-   - Backend: Need to build
-   - Manage multiple stores, switch outlet
+2. **UI Polish** - 2-3 hours
+   - Loading states consistency
+   - Error handling improvements
+   - Empty states with illustrations
+   - Date pickers (Material 3)
 
 ---
 
