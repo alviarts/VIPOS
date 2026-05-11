@@ -256,4 +256,12 @@ sealed interface VIPOSDestination {
         fun routeFor(customerId: Long): String =
             "loyalty_transactions/$customerId"
     }
+
+    /**
+     * P4-11: Outlet list screen. Shows list of outlets
+     * with switch functionality.
+     */
+    data object OutletList : VIPOSDestination {
+        override val route: String = "outlet_list"
+    }
 }

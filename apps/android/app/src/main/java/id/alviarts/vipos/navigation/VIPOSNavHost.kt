@@ -29,6 +29,7 @@ import id.alviarts.vipos.feature.pos.ui.employee.EmployeeCreateScreen
 import id.alviarts.vipos.feature.pos.ui.employee.EmployeeEditScreen
 import id.alviarts.vipos.feature.pos.ui.loyalty.LoyaltyCustomerScreen
 import id.alviarts.vipos.feature.pos.ui.loyalty.LoyaltyTransactionListScreen
+import id.alviarts.vipos.feature.pos.ui.outlet.OutletListScreen
 import id.alviarts.vipos.feature.pos.ui.onlineorder.OnlineOrderDetailScreen
 import id.alviarts.vipos.feature.pos.ui.onlineorder.OnlineOrderQueueScreen
 
@@ -492,6 +493,16 @@ fun VIPOSNavHost(
             LoyaltyTransactionListScreen(
                 customerId = customerId,
                 onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
+        // P4-11: Outlet list
+        composable(VIPOSDestination.OutletList.route) {
+            OutletListScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onOutletClick = { outletId ->
+                    // Navigate to detail if needed
+                },
             )
         }
     }
