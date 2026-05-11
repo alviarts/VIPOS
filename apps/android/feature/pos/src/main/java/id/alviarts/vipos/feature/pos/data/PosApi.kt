@@ -633,6 +633,59 @@ interface PosApi {
         @Query("is_active") isActive: Boolean? = null,
         @Query("rule_type") ruleType: String? = null,
     ): List<LoyaltyRuleDto>
+
+    // ========================================================================
+    // Multi-outlet (P4-11)
+    // ========================================================================
+
+    /**
+     * Get list of outlets.
+     */
+    @GET("api/outlet")
+    suspend fun getOutlets(
+        @Query("is_active") isActive: Boolean? = null,
+    ): List<OutletDto>
+
+    /**
+     * Get single outlet detail.
+     */
+    @GET("api/outlet/{id}")
+    suspend fun getOutletDetail(
+        @Path("id") outletId: Long,
+    ): OutletDto
+
+    /**
+     * Create new outlet (admin only).
+     */
+    @POST("api/outlet")
+    suspend fun createOutlet(
+        @Body request: OutletCreateRequestDto,
+    ): OutletDto
+
+    /**
+     * Update outlet (admin only).
+     */
+    @PUT("api/outlet/{id}")
+    suspend fun updateOutlet(
+        @Path("id") outletId: Long,
+        @Body request: OutletUpdateRequestDto,
+    ): OutletDto
+
+    /**
+     * Delete outlet (admin only).
+     */
+    @DELETE("api/outlet/{id}")
+    suspend fun deleteOutlet(
+        @Path("id") outletId: Long,
+    ): Unit
+
+    /**
+     * Switch active outlet for current session.
+     */
+    @POST("api/outlet/switch")
+    suspend fun switchOutlet(
+        @Body request: OutletSwitchRequestDto,
+    ): OutletSwitchResponseDto
 }
 
 

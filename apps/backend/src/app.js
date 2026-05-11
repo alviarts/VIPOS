@@ -137,6 +137,9 @@ function mountVersionedRoutes(parent) {
   // P3-14 Cashier shift management.
   parent.use('/cashier-shift', require('./routes/cashier-shift'));
 
+  // P4-11 Multi-outlet management.
+  parent.use('/outlet', require('./routes/outlet'));
+
   // Note: Transaction void/refund already handled by the existing
   // /transactions route. The transaction-actions.js file adds
   // receipt reprint which is mounted separately.
