@@ -1,110 +1,304 @@
-// P2-05 PR-A — extended health probe.
-//
-// `GET /health` reports application status plus dependency health
-// (Postgres, Redis). Returns 200 when the application can serve
-// traffic, 503 when a *required* dependency is down. Postgres is the
-// only required dependency; Redis is optional (queues degrade to
-// synchronous fallback when unavailable, see `lib/queue.js`).
-//
-// Response shape:
-//   {
-//     status: 'ok' | 'degraded',
-//     version: <pkg.version>,
-//     timestamp: <iso8601>,
-//     db: { ok: boolean, latency_ms: number, error?: string },
-//     redis: { enabled: boolean, ok: boolean, latency_ms: number, error?: string }
-//   }
-//
-// Error messages are intentionally truncated and stripped of
-// connection-string-style payloads to avoid leaking infrastructure
-// details to public health monitors.
+/**
+ * Health Check & System Status Endpoint
+ *
+ * Provides comprehensive health information for monitoring:
+ * - Database connectivity
+ * - Disk space
+ * - Memory usage
+ * - Backup status
+ * - Service uptime
+ *
+ * Endpoints:
+ * - GET /health - Basic health check (for load balancer)
+ * - GET /health/detailed - Detailed system status (for monitoring)
+ * - GET /health/backup - Backup status check
+ */
 
 const express = require('express');
+const fs = require('fs').promises;
+const { exec } = require('child_process');
+const { promisify } = require('util');
+const path = require('path');
 
-const { runAsSystem, query } = require('../db');
-const queueLib = require('../lib/queue');
-const { logger } = require('../lib/logger');
-
-let pkgVersion = 'unknown';
-try {
-  // Eagerly cache the version so subsequent /health hits are cheap.
-  pkgVersion = require('../../package.json').version || 'unknown';
-} catch {
-  pkgVersion = 'unknown';
-}
-
-function safeErrorMessage(err) {
-  if (!err) return undefined;
-  const raw = String(err.message || err);
-  // Trim noisy stack-style payloads + cap length.
-  return raw.split('\n')[0].slice(0, 200);
-}
-
-async function probeDb() {
-  const started = Date.now();
-  try {
-    await runAsSystem(() => query('SELECT 1'));
-    return { ok: true, latency_ms: Date.now() - started };
-  } catch (err) {
-    return {
-      ok: false,
-      latency_ms: Date.now() - started,
-      error: safeErrorMessage(err),
-    };
-  }
-}
-
-async function probeRedis() {
-  if (!queueLib.isQueueEnabled()) {
-    return { enabled: false, ok: true, latency_ms: 0 };
-  }
-  const started = Date.now();
-  try {
-    const conn = queueLib.getConnection();
-    await conn.ping();
-    return { enabled: true, ok: true, latency_ms: Date.now() - started };
-  } catch (err) {
-    return {
-      enabled: true,
-      ok: false,
-      latency_ms: Date.now() - started,
-      error: safeErrorMessage(err),
-    };
-  }
-}
-
-async function buildHealthPayload() {
-  const [db, redis] = await Promise.all([probeDb(), probeRedis()]);
-  // DB is required → degraded if down. Redis is optional → still 'ok'.
-  const status = db.ok ? 'ok' : 'degraded';
-  return {
-    status,
-    version: pkgVersion,
-    timestamp: new Date().toISOString(),
-    db,
-    redis,
-  };
-}
-
+const execAsync = promisify(exec);
 const router = express.Router();
 
-router.get('/', async (_req, res) => {
+// Cache for health check results (avoid hammering system)
+let healthCache = {
+  data: null,
+  timestamp: 0,
+  ttl: 30000, // 30 seconds
+};
+
+/**
+ * Basic health check - fast, minimal overhead
+ * Used by load balancers and uptime monitors
+ */
+router.get('/', async (req, res) => {
   try {
-    const payload = await buildHealthPayload();
-    const httpStatus = payload.status === 'ok' ? 200 : 503;
-    res.status(httpStatus).json(payload);
-  } catch (err) {
-    logger.error({ component: 'health', err: { message: err.message } }, 'health probe failed');
-    res.status(503).json({
-      status: 'degraded',
-      version: pkgVersion,
+    // Quick database check
+    const db = req.app.get('db');
+    await db.get('SELECT 1');
+
+    res.status(200).json({
+      status: 'healthy',
       timestamp: new Date().toISOString(),
-      error: safeErrorMessage(err),
+      uptime: process.uptime(),
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'unhealthy',
+      error: error.message,
+      timestamp: new Date().toISOString(),
     });
   }
 });
 
-module.exports = {
-  router,
-  buildHealthPayload,
-};
+/**
+ * Detailed health check - comprehensive system status
+ * Used by monitoring dashboards (Grafana, etc)
+ */
+router.get('/detailed', async (req, res) => {
+  try {
+    // Check cache
+    const now = Date.now();
+    if (healthCache.data && now - healthCache.timestamp < healthCache.ttl) {
+      return res.json(healthCache.data);
+    }
+
+    const health = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      checks: {},
+    };
+
+    // 1. Database Check
+    try {
+      const db = req.app.get('db');
+      const startTime = Date.now();
+      await db.get('SELECT 1');
+      const latency = Date.now() - startTime;
+
+      // Get database size
+      let dbSize = 0;
+      try {
+        const dbPath = process.env.DATABASE_PATH || 'apps/backend/data/vipos.db';
+        const stats = await fs.stat(dbPath);
+        dbSize = stats.size;
+      } catch (_e) {
+        // PostgreSQL or file not accessible
+      }
+
+      health.checks.database = {
+        status: 'healthy',
+        latency: `${latency}ms`,
+        size: formatBytes(dbSize),
+        type: process.env.DATABASE_URL?.startsWith('postgres') ? 'PostgreSQL' : 'SQLite',
+      };
+    } catch (error) {
+      health.status = 'unhealthy';
+      health.checks.database = {
+        status: 'unhealthy',
+        error: error.message,
+      };
+    }
+
+    // 2. Disk Space Check
+    try {
+      const diskInfo = await getDiskSpace();
+      const usagePercent = (diskInfo.used / diskInfo.total) * 100;
+
+      health.checks.disk = {
+        status: usagePercent > 90 ? 'critical' : usagePercent > 80 ? 'warning' : 'healthy',
+        total: formatBytes(diskInfo.total),
+        used: formatBytes(diskInfo.used),
+        available: formatBytes(diskInfo.available),
+        usagePercent: `${usagePercent.toFixed(1)}%`,
+      };
+
+      if (usagePercent > 90) {
+        health.status = 'degraded';
+      }
+    } catch (error) {
+      health.checks.disk = {
+        status: 'unknown',
+        error: error.message,
+      };
+    }
+
+    // 3. Memory Check
+    const memUsage = process.memoryUsage();
+    const totalMem = require('os').totalmem();
+    const freeMem = require('os').freemem();
+    const usedMem = totalMem - freeMem;
+    const memPercent = (usedMem / totalMem) * 100;
+
+    health.checks.memory = {
+      status: memPercent > 90 ? 'critical' : memPercent > 80 ? 'warning' : 'healthy',
+      process: {
+        rss: formatBytes(memUsage.rss),
+        heapUsed: formatBytes(memUsage.heapUsed),
+        heapTotal: formatBytes(memUsage.heapTotal),
+      },
+      system: {
+        total: formatBytes(totalMem),
+        used: formatBytes(usedMem),
+        free: formatBytes(freeMem),
+        usagePercent: `${memPercent.toFixed(1)}%`,
+      },
+    };
+
+    // 4. Uptime
+    health.checks.uptime = {
+      status: 'healthy',
+      process: formatUptime(process.uptime()),
+      system: formatUptime(require('os').uptime()),
+    };
+
+    // 5. Node.js Version
+    health.checks.runtime = {
+      status: 'healthy',
+      node: process.version,
+      platform: process.platform,
+      arch: process.arch,
+    };
+
+    // Cache the result
+    healthCache.data = health;
+    healthCache.timestamp = now;
+
+    res.json(health);
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+/**
+ * Backup status check
+ * Verifies that backups are running and recent
+ */
+router.get('/backup', async (req, res) => {
+  try {
+    const backupDir = process.env.BACKUP_ROOT || '/var/backups/vipos';
+    const status = {
+      status: 'unknown',
+      timestamp: new Date().toISOString(),
+      backups: [],
+    };
+
+    try {
+      // Find all backup files
+      const files = await fs.readdir(backupDir);
+      const backupFiles = files.filter(
+        (f) => f.startsWith('vipos-backup-') && f.endsWith('.tar.gz')
+      );
+
+      if (backupFiles.length === 0) {
+        status.status = 'critical';
+        status.message = 'No backups found';
+        return res.status(200).json(status);
+      }
+
+      // Get info for each backup
+      for (const file of backupFiles.slice(0, 10)) {
+        // Last 10 backups
+        const filePath = path.join(backupDir, file);
+        const stats = await fs.stat(filePath);
+
+        status.backups.push({
+          filename: file,
+          size: formatBytes(stats.size),
+          created: stats.mtime.toISOString(),
+          ageHours: Math.floor((Date.now() - stats.mtime.getTime()) / 3600000),
+        });
+      }
+
+      // Sort by date (newest first)
+      status.backups.sort((a, b) => new Date(b.created) - new Date(a.created));
+
+      // Check latest backup age
+      const latestBackup = status.backups[0];
+      const ageHours = latestBackup.ageHours;
+
+      if (ageHours < 48) {
+        status.status = 'healthy';
+        status.message = `Latest backup is ${ageHours} hours old`;
+      } else if (ageHours < 168) {
+        status.status = 'warning';
+        status.message = `Latest backup is ${ageHours} hours old (> 2 days)`;
+      } else {
+        status.status = 'critical';
+        status.message = `Latest backup is ${ageHours} hours old (> 7 days)`;
+      }
+
+      status.latestBackup = latestBackup;
+      status.totalBackups = status.backups.length;
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        status.status = 'critical';
+        status.message = 'Backup directory not found';
+      } else {
+        throw error;
+      }
+    }
+
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// ---------- Helper Functions ----------
+
+function formatBytes(bytes) {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+}
+
+function formatUptime(seconds) {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+
+  const parts = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+
+  return parts.join(' ') || '< 1m';
+}
+
+async function getDiskSpace() {
+  try {
+    // Try df command (Linux/Unix)
+    const { stdout } = await execAsync('df -k .');
+    const lines = stdout.trim().split('\n');
+    const data = lines[1].split(/\s+/);
+
+    return {
+      total: parseInt(data[1]) * 1024, // Convert KB to bytes
+      used: parseInt(data[2]) * 1024,
+      available: parseInt(data[3]) * 1024,
+    };
+  } catch (_error) {
+    // Fallback for Windows or if df fails
+    return {
+      total: 0,
+      used: 0,
+      available: 0,
+    };
+  }
+}
+
+module.exports = router;
