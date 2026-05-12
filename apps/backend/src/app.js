@@ -237,6 +237,14 @@ function mountVersionedRoutes(parent) {
   // P1-17 Reports.
   parent.use('/reports', require('./routes/reports'));
 
+  // Hardware Integration - Printer, Scanner, EDC
+  parent.use('/printers', require('./routes/printers'));
+  parent.use('/scanners', require('./routes/scanners'));
+  parent.use('/edc', require('./routes/edc'));
+
+  // Advanced Analytics
+  parent.use('/analytics', require('./routes/analytics'));
+
   // P2-04 PR-B: notification + email producer ingress (admin-only).
   // The actual delivery happens in worker processes — see
   // `apps/backend/src/jobs/notification.js` and `jobs/email.js`.
