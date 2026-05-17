@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
 }
 
 android {
@@ -126,6 +128,8 @@ dependencies {
     // feature in the app — exercises the AuthInterceptor by
     // calling `GET /api/v1/products` through the shared Retrofit.
     implementation(project(":feature:pos"))
+    // Crashlytics module for error reporting and monitoring
+    implementation(project(":core:crashlytics"))
 
     // P3-06: `:app/AppModule` uses `runBlocking { tokenStorage.read() }`
     // to bridge the suspending TokenStorage API to the synchronous
@@ -174,6 +178,11 @@ dependencies {
     // runs when the device has network connectivity and drains
     // pending outbox entries to the server.
     implementation(libs.androidx.work.runtime.ktx)
+
+    // Firebase for production monitoring (Crashlytics + Analytics)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.analytics)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 

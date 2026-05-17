@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import dagger.hilt.android.AndroidEntryPoint
 import id.alviarts.vipos.core.common.AppConfig
+import id.alviarts.vipos.core.crashlytics.CrashlyticsManager
 import id.alviarts.vipos.core.designsystem.theme.VIPOSTheme
 import id.alviarts.vipos.navigation.SessionGate
 import javax.inject.Inject
@@ -27,6 +28,11 @@ class MainActivity : ComponentActivity() {
      */
     @Inject lateinit var appConfig: AppConfig
 
+    /**
+     * Crashlytics manager for error reporting and monitoring.
+     */
+    @Inject lateinit var crashlytics: CrashlyticsManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // P3-01e: install the system splash window before
         // super.onCreate() so the Theme.VIPOS.Splash background is
@@ -35,6 +41,10 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
 
         super.onCreate(savedInstanceState)
+
+        // Initialize Crashlytics
+        initializeCrashlytics()
+
         Log.i(TAG_BOOT, "cold start in env=${appConfig.environment}")
         setContent {
             VIPOSTheme {
@@ -59,6 +69,24 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * Initialize Crashlytics with app context.
+     */
+    private fun initializeCrashlytics() {
+        // Enable Crashlytics collection (disable in dev if needed)
+        val enableCrashlytics = appConfig.environment != "dev"
+        crashlytics.setCrashlyticsCollectionEnabled(enableCrashlytics)
+
+        // Set environment context
+        crashlytics.setCustomKey("environment", appConfig.environment)
+        crashlytics.setCustomKey("api_base_url", appConfig.apiBaseUrl)
+        crashlytics.setCustomKey("app_version", BuildConfig.VERSION_NAME)
+        crashlytics.setCustomKey("version_code", BuildConfig.VERSION_CODE)
+
+        crashlytics.log("App started - environment: ${appConfig.environment}")
+        Log.i(TAG_BOOT, "Crashlytics initialized (enabled=$enableCrashlytics)")
     }
 
     private companion object {
