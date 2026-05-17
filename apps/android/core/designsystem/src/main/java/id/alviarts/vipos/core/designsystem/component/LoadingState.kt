@@ -1,26 +1,33 @@
 package id.alviarts.vipos.core.designsystem.component
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 /**
- * Loading state component with circular progress indicator and optional message.
+ * Loading state component with progress indicator.
  * 
- * Usage:
- * ```
- * LoadingState(
- *     message = "Loading products..."
- * )
- * ```
+ * Features:
+ * - Circular progress indicator
+ * - Optional message
+ * - Centered layout
  */
 @Composable
 fun LoadingState(
-    modifier: Modifier = Modifier,
     message: String? = null,
+    modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier.fillMaxSize(),
@@ -28,15 +35,19 @@ fun LoadingState(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.Center,
         ) {
             CircularProgressIndicator()
-
+            
             if (message != null) {
+                Spacer(Modifier.height(16.dp))
+                
                 Text(
                     text = message,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 32.dp),
                 )
             }
         }
@@ -44,55 +55,14 @@ fun LoadingState(
 }
 
 /**
- * Loading overlay for showing loading on top of content.
+ * Inline loading indicator for buttons or small spaces.
  */
 @Composable
-fun LoadingOverlay(
-    isLoading: Boolean,
+fun InlineLoadingIndicator(
     modifier: Modifier = Modifier,
-    message: String? = null,
-) {
-    if (isLoading) {
-        Box(
-            modifier = modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center,
-        ) {
-            Surface(
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                LoadingState(message = message)
-            }
-        }
-    }
-}
-
-/**
- * Inline loading indicator for buttons or small areas.
- */
-@Composable
-fun InlineLoading(
-    modifier: Modifier = Modifier,
-    size: androidx.compose.ui.unit.Dp = 16.dp,
 ) {
     CircularProgressIndicator(
-        modifier = modifier.size(size),
         strokeWidth = 2.dp,
+        modifier = modifier.height(20.dp),
     )
-}
-
-/**
- * Loading button content.
- */
-@Composable
-fun LoadingButtonContent(
-    isLoading: Boolean,
-    text: String,
-    modifier: Modifier = Modifier,
-) {
-    if (isLoading) {
-        InlineLoading()
-    } else {
-        Text(text = text, modifier = modifier)
-    }
 }

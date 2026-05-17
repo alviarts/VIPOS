@@ -1,55 +1,70 @@
 package id.alviarts.vipos.core.designsystem.component
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 
 /**
  * Confirmation dialog for destructive actions.
  * 
- * Usage:
- * ```
- * ConfirmationDialog(
- *     title = "Delete Item",
- *     message = "Are you sure you want to delete this item?",
- *     confirmText = "Delete",
- *     onConfirm = { viewModel.delete() },
- *     onDismiss = { showDialog = false }
- * )
- * ```
+ * Features:
+ * - Warning icon
+ * - Title and message
+ * - Confirm and dismiss buttons
+ * - Customizable colors
  */
 @Composable
 fun ConfirmationDialog(
     title: String,
     message: String,
-    confirmText: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
+    confirmText: String = "Confirm",
     dismissText: String = "Cancel",
-    isDestructive: Boolean = true,
+    icon: ImageVector = Icons.Default.Warning,
+    isDestructive: Boolean = false,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = title) },
-        text = { Text(text = message) },
-        confirmButton = {
-            Button(
-                onClick = onConfirm,
-                colors = if (isDestructive) {
-                    ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                    )
+        icon = {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (isDestructive) {
+                    MaterialTheme.colorScheme.error
                 } else {
-                    ButtonDefaults.buttonColors()
+                    MaterialTheme.colorScheme.primary
+                },
+            )
+        },
+        title = {
+            Text(text = title)
+        },
+        text = {
+            Text(text = message)
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onConfirm()
+                    onDismiss()
                 },
             ) {
-                Text(text = confirmText)
+                Text(
+                    text = confirmText,
+                    color = if (isDestructive) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                )
             }
         },
         dismissButton = {
@@ -57,67 +72,66 @@ fun ConfirmationDialog(
                 Text(text = dismissText)
             }
         },
-        modifier = modifier,
     )
 }
 
 /**
  * Delete confirmation dialog.
+ * Pre-configured for delete actions.
  */
 @Composable
 fun DeleteConfirmationDialog(
     itemName: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     ConfirmationDialog(
-        title = "Delete $itemName",
-        message = "Are you sure you want to delete this $itemName? This action cannot be undone.",
-        confirmText = "Delete",
+        title = stringResource(id.alviarts.vipos.R.string.confirm_delete_title),
+        message = stringResource(id.alviarts.vipos.R.string.confirm_delete_message),
+        confirmText = stringResource(id.alviarts.vipos.R.string.delete),
+        dismissText = stringResource(id.alviarts.vipos.R.string.cancel),
         onConfirm = onConfirm,
         onDismiss = onDismiss,
-        modifier = modifier,
-        isDestructive = true,
-    )
-}
-
-/**
- * Discard changes confirmation dialog.
- */
-@Composable
-fun DiscardChangesDialog(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    ConfirmationDialog(
-        title = "Discard Changes",
-        message = "You have unsaved changes. Are you sure you want to discard them?",
-        confirmText = "Discard",
-        onConfirm = onConfirm,
-        onDismiss = onDismiss,
-        modifier = modifier,
         isDestructive = true,
     )
 }
 
 /**
  * Logout confirmation dialog.
+ * Pre-configured for logout action.
  */
 @Composable
 fun LogoutConfirmationDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     ConfirmationDialog(
-        title = "Logout",
-        message = "Are you sure you want to logout?",
-        confirmText = "Logout",
+        title = stringResource(id.alviarts.vipos.R.string.confirm_logout_title),
+        message = stringResource(id.alviarts.vipos.R.string.confirm_logout_message),
+        confirmText = stringResource(id.alviarts.vipos.R.string.yes),
+        dismissText = stringResource(id.alviarts.vipos.R.string.no),
         onConfirm = onConfirm,
         onDismiss = onDismiss,
-        modifier = modifier,
-        isDestructive = false,
+        icon = MenuIcons.Logout,
+    )
+}
+
+/**
+ * Discard changes confirmation dialog.
+ * Pre-configured for discarding unsaved changes.
+ */
+@Composable
+fun DiscardChangesDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ConfirmationDialog(
+        title = stringResource(id.alviarts.vipos.R.string.confirm_discard_title),
+        message = stringResource(id.alviarts.vipos.R.string.confirm_discard_message),
+        confirmText = stringResource(id.alviarts.vipos.R.string.yes),
+        dismissText = stringResource(id.alviarts.vipos.R.string.no),
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+        isDestructive = true,
     )
 }

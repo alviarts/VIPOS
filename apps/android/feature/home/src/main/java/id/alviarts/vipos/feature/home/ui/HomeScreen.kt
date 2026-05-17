@@ -4,14 +4,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.Button
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,14 +22,21 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import id.alviarts.vipos.core.designsystem.component.MenuDivider
+import id.alviarts.vipos.core.designsystem.component.MenuIcons
+import id.alviarts.vipos.core.designsystem.component.MenuSection
+import id.alviarts.vipos.core.designsystem.component.PrimaryMenuButton
+import id.alviarts.vipos.core.designsystem.component.SecondaryMenuButton
 import id.alviarts.vipos.core.designsystem.theme.VIPOSTheme
 
 /**
- * Composable entry point for the home destination (P3-08).
- *
- * Today this is a placeholder welcome surface with a logout
- * button. The kasir UI lands in P3-06 (cart + checkout) and
- * P3-07 (settings + profile).
+ * Composable entry point for the home destination.
+ * 
+ * Enhanced with:
+ * - Material Icons for all buttons
+ * - Visual grouping with Cards
+ * - Section headers for organization
+ * - Scrollable layout for small screens
  */
 @Composable
 fun HomeRoute(
@@ -95,144 +100,150 @@ internal fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
         ) {
-            Text(
-                text = stringResource(id.alviarts.vipos.R.string.home_welcome),
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Text(
-                text = displayName,
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Spacer(Modifier.height(16.dp))
-            Text(
-                text = stringResource(id.alviarts.vipos.R.string.home_choose_menu),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(32.dp))
-            
-            // Main menu buttons
-            Button(
-                onClick = onOpenPosClick,
-                enabled = !isLoggingOut,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 360.dp),
+            // Welcome Header
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(horizontal = 24.dp),
             ) {
-                Text(stringResource(id.alviarts.vipos.R.string.home_open_cashier))
+                Text(
+                    text = stringResource(id.alviarts.vipos.R.string.home_welcome),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = displayName,
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(id.alviarts.vipos.R.string.home_choose_menu),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-            Spacer(Modifier.height(8.dp))
             
-            OutlinedButton(
-                onClick = onOpenTransactionHistoryClick,
-                enabled = !isLoggingOut,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 360.dp),
-            ) {
-                Text(stringResource(id.alviarts.vipos.R.string.home_transaction_history))
-            }
-            Spacer(Modifier.height(8.dp))
-            
-            OutlinedButton(
-                onClick = onOpenOnlineOrderQueueClick,
-                enabled = !isLoggingOut,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 360.dp),
-            ) {
-                Text(stringResource(id.alviarts.vipos.R.string.home_online_orders))
-            }
-            Spacer(Modifier.height(8.dp))
-            
-            OutlinedButton(
-                onClick = onOpenOwnerDashboardClick,
-                enabled = !isLoggingOut,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 360.dp),
-            ) {
-                Text("Dashboard")
-            }
-            Spacer(Modifier.height(8.dp))
-            
-            OutlinedButton(
-                onClick = onOpenAppointmentListClick,
-                enabled = !isLoggingOut,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 360.dp),
-            ) {
-                Text("Janji Temu")
-            }
-            Spacer(Modifier.height(8.dp))
-            
-            OutlinedButton(
-                onClick = onOpenStockMovementListClick,
-                enabled = !isLoggingOut,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 360.dp),
-            ) {
-                Text("Pergerakan Stok")
-            }
-            Spacer(Modifier.height(8.dp))
-            
-            OutlinedButton(
-                onClick = onOpenStockOpnameListClick,
-                enabled = !isLoggingOut,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 360.dp),
-            ) {
-                Text("Stock Opname")
-            }
-            Spacer(Modifier.height(8.dp))
-            
-            OutlinedButton(
-                onClick = onOpenSalesReportClick,
-                enabled = !isLoggingOut,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 360.dp),
-            ) {
-                Text("Laporan Penjualan")
-            }
-            Spacer(Modifier.height(8.dp))
-            
-            OutlinedButton(
-                onClick = onOpenEmployeeListClick,
-                enabled = !isLoggingOut,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 360.dp),
-            ) {
-                Text("Karyawan")
-            }
             Spacer(Modifier.height(24.dp))
             
-            OutlinedButton(
-                onClick = onLogoutClick,
-                enabled = !isLoggingOut,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 360.dp),
+            // Main Action Section
+            MenuSection(title = "Transaksi") {
+                PrimaryMenuButton(
+                    text = stringResource(id.alviarts.vipos.R.string.home_open_cashier),
+                    icon = MenuIcons.PointOfSale,
+                    onClick = onOpenPosClick,
+                    enabled = !isLoggingOut,
+                )
+                
+                MenuDivider()
+                
+                SecondaryMenuButton(
+                    text = stringResource(id.alviarts.vipos.R.string.home_transaction_history),
+                    icon = MenuIcons.TransactionHistory,
+                    onClick = onOpenTransactionHistoryClick,
+                    enabled = !isLoggingOut,
+                )
+                
+                MenuDivider()
+                
+                SecondaryMenuButton(
+                    text = stringResource(id.alviarts.vipos.R.string.home_online_orders),
+                    icon = MenuIcons.OnlineOrders,
+                    onClick = onOpenOnlineOrderQueueClick,
+                    enabled = !isLoggingOut,
+                )
+            }
+            
+            Spacer(Modifier.height(16.dp))
+            
+            // Management Section
+            MenuSection(title = "Manajemen") {
+                SecondaryMenuButton(
+                    text = stringResource(id.alviarts.vipos.R.string.home_appointments),
+                    icon = MenuIcons.Appointments,
+                    onClick = onOpenAppointmentListClick,
+                    enabled = !isLoggingOut,
+                )
+                
+                MenuDivider()
+                
+                SecondaryMenuButton(
+                    text = stringResource(id.alviarts.vipos.R.string.home_stock_movement),
+                    icon = MenuIcons.StockMovement,
+                    onClick = onOpenStockMovementListClick,
+                    enabled = !isLoggingOut,
+                )
+                
+                MenuDivider()
+                
+                SecondaryMenuButton(
+                    text = stringResource(id.alviarts.vipos.R.string.home_stock_opname),
+                    icon = MenuIcons.StockOpname,
+                    onClick = onOpenStockOpnameListClick,
+                    enabled = !isLoggingOut,
+                )
+                
+                MenuDivider()
+                
+                SecondaryMenuButton(
+                    text = stringResource(id.alviarts.vipos.R.string.home_employees),
+                    icon = MenuIcons.Employees,
+                    onClick = onOpenEmployeeListClick,
+                    enabled = !isLoggingOut,
+                )
+            }
+            
+            Spacer(Modifier.height(16.dp))
+            
+            // Reports Section
+            MenuSection(title = "Laporan") {
+                SecondaryMenuButton(
+                    text = stringResource(id.alviarts.vipos.R.string.home_sales_report),
+                    icon = MenuIcons.SalesReport,
+                    onClick = onOpenSalesReportClick,
+                    enabled = !isLoggingOut,
+                )
+                
+                MenuDivider()
+                
+                SecondaryMenuButton(
+                    text = stringResource(id.alviarts.vipos.R.string.home_owner_dashboard),
+                    icon = MenuIcons.Dashboard,
+                    onClick = onOpenOwnerDashboardClick,
+                    enabled = !isLoggingOut,
+                )
+            }
+            
+            Spacer(Modifier.height(24.dp))
+            
+            // Logout Button
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
+                SecondaryMenuButton(
+                    text = if (isLoggingOut) {
+                        stringResource(id.alviarts.vipos.R.string.home_logging_out)
+                    } else {
+                        stringResource(id.alviarts.vipos.R.string.home_logout)
+                    },
+                    icon = MenuIcons.Logout,
+                    onClick = onLogoutClick,
+                    enabled = !isLoggingOut,
+                )
+                
                 if (isLoggingOut) {
+                    Spacer(Modifier.height(8.dp))
                     CircularProgressIndicator(
                         strokeWidth = 2.dp,
                         modifier = Modifier.height(20.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
                     )
-                } else {
-                    Text("Keluar")
                 }
             }
+            
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
