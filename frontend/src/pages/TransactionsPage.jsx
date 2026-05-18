@@ -212,16 +212,27 @@ export default function TransactionsPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                <tr>
-                  <td colSpan="7" className="text-center py-12 text-gray-400">
-                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent mx-auto" />
-                  </td>
-                </tr>
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-4 py-3"><div className="skeleton h-3 w-28" /></td>
+                    <td className="px-4 py-3"><div className="skeleton h-3 w-20" /></td>
+                    <td className="px-4 py-3 text-right"><div className="skeleton h-3 w-20 ml-auto" /></td>
+                    <td className="px-4 py-3"><div className="skeleton h-3 w-16" /></td>
+                    <td className="px-4 py-3"><div className="skeleton h-5 w-16 rounded-full" /></td>
+                    <td className="px-4 py-3 text-right"><div className="skeleton h-3 w-24 ml-auto" /></td>
+                    <td className="px-4 py-3"><div className="skeleton h-7 w-16 ml-auto rounded-lg" /></td>
+                  </tr>
+                ))
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="text-center py-12 text-gray-400">
-                    <Receipt className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                    <p>Tidak ada transaksi</p>
+                  <td colSpan="7" className="py-14">
+                    <div className="empty-state">
+                      <div className="empty-state-icon"><Receipt className="w-7 h-7" /></div>
+                      <p className="text-sm font-medium text-gray-700">Tidak ada transaksi</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Coba ubah filter tanggal atau kata kunci pencarian.
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -289,13 +300,30 @@ export default function TransactionsPage() {
       {/* Card list (mobile) */}
       <div className="md:hidden space-y-2">
         {loading ? (
-          <div className="card text-center py-12 text-gray-400">
-            <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent mx-auto" />
-          </div>
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="card space-y-2">
+              <div className="flex justify-between">
+                <div className="space-y-2 flex-1">
+                  <div className="skeleton h-3 w-28" />
+                  <div className="skeleton h-3 w-24" />
+                  <div className="skeleton h-3 w-36" />
+                </div>
+                <div className="space-y-2 text-right">
+                  <div className="skeleton h-4 w-20 ml-auto" />
+                  <div className="skeleton h-5 w-14 rounded-full ml-auto" />
+                </div>
+              </div>
+            </div>
+          ))
         ) : filtered.length === 0 ? (
-          <div className="card text-center py-12 text-gray-400">
-            <Receipt className="w-10 h-10 mx-auto mb-2 opacity-40" />
-            <p>Tidak ada transaksi</p>
+          <div className="card">
+            <div className="empty-state">
+              <div className="empty-state-icon"><Receipt className="w-7 h-7" /></div>
+              <p className="text-sm font-medium text-gray-700">Tidak ada transaksi</p>
+              <p className="text-xs text-gray-400 mt-1">
+                Ubah filter tanggal atau pencarian untuk melihat data lain.
+              </p>
+            </div>
           </div>
         ) : (
           filtered.map((tx) => {

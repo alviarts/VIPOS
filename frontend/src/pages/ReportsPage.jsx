@@ -53,11 +53,7 @@ export default function ReportsPage() {
   const avgTicket = totalTx > 0 ? totalRevenue / totalTx : 0;
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-4 border-primary-500 border-t-transparent" />
-      </div>
-    );
+    return <ReportsSkeleton />;
   }
 
   return (
@@ -235,6 +231,51 @@ function SummaryCard({ icon: Icon, label, value, tone }) {
         </div>
         <div className={`w-10 h-10 rounded-xl ${t.bg} ${t.text} flex items-center justify-center flex-shrink-0`}>
           <Icon className="w-5 h-5" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReportsSkeleton() {
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <div className="skeleton h-6 w-44" />
+          <div className="skeleton h-3 w-36" />
+        </div>
+        <div className="skeleton h-8 w-56 rounded-full" />
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="stat-card">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-2 flex-1">
+                <div className="skeleton h-3 w-20" />
+                <div className="skeleton h-5 w-24" />
+              </div>
+              <div className="skeleton w-10 h-10 rounded-xl" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="grid lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 card space-y-3">
+          <div className="skeleton h-4 w-32" />
+          <div className="skeleton h-64 w-full rounded-xl" />
+        </div>
+        <div className="card space-y-3">
+          <div className="skeleton h-4 w-36" />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <div className="flex justify-between">
+                <div className="skeleton h-3 w-20" />
+                <div className="skeleton h-3 w-10" />
+              </div>
+              <div className="skeleton h-1.5 w-full rounded-full" />
+            </div>
+          ))}
         </div>
       </div>
     </div>

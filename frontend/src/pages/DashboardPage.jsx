@@ -60,11 +60,7 @@ export default function DashboardPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-4 border-primary-500 border-t-transparent" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (
@@ -385,6 +381,52 @@ function EmptyMini({ text, icon: Icon }) {
         <Icon className="w-5 h-5" />
       </div>
       <p className="text-xs">{text}</p>
+    </div>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <div className="skeleton h-6 w-48" />
+          <div className="skeleton h-3 w-32" />
+        </div>
+        <div className="skeleton h-9 w-32 rounded-full" />
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="stat-card">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-2 flex-1">
+                <div className="skeleton h-3 w-20" />
+                <div className="skeleton h-5 w-24" />
+              </div>
+              <div className="skeleton w-10 h-10 rounded-xl" />
+            </div>
+            <div className="skeleton h-2 w-16 mt-3" />
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="card lg:col-span-2 space-y-3">
+          <div className="skeleton h-4 w-32" />
+          <div className="skeleton h-48 w-full rounded-xl" />
+        </div>
+        <div className="card space-y-3">
+          <div className="skeleton h-4 w-28" />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <div className="flex justify-between">
+                <div className="skeleton h-3 w-20" />
+                <div className="skeleton h-3 w-10" />
+              </div>
+              <div className="skeleton h-1.5 w-full rounded-full" />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
