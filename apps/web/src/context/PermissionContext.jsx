@@ -89,9 +89,18 @@ export function PermissionProvider({ children, mockTier }) {
       return cur >= min;
     };
 
-    const canAccess = ({ roles, minTier } = {}) => hasRole(roles) && hasTier(minTier);
+    const isFullAccess = FULL_ACCESS_ROLES.has(role);
 
-    return { role, tier, hasRole, hasTier, canAccess };
+    // `hideForNonAdmin` is a feature-flag-style toggle used by `menu-groups.js`
+    // to keep WIP / not-yet-stable features visible only to OWNER/ADMIN. Flip
+    // it off (or remove the flag entirely) when a feature is ready for general
+    // release. ADMIN/OWNER always bypass this flag.
+    const canAccess = ({ roles, minTier, hideForNonAdmin } = {}) => {
+      if (hideForNonAdmin && !isFullAccess) return false;
+      return hasRole(roles) && hasTier(minTier);
+    };
+
+    return { role, tier, hasRole, hasTier, canAccess, isFullAccess };
   }, [role, tier]);
 
   return <PermissionContext.Provider value={value}>{children}</PermissionContext.Provider>;
