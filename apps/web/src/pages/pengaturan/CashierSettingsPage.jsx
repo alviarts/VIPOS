@@ -14,7 +14,10 @@ export default function CashierSettingsPage() {
   useEffect(() => {
     Promise.all([api.get('/auth/users'), api.get('/finance/accounts')])
       .then(([u, a]) => {
-        setCashiers((u.data || []).filter((x) => ['kasir', 'admin'].includes(x.role)));
+        // Tenant-level cashier list. Include 'kasir' plus admin-tier roles
+        // (owner/admin) so the seeded admin + tenant owner can also operate
+        // the till when needed.
+        setCashiers((u.data || []).filter((x) => ['kasir', 'admin', 'owner'].includes(x.role)));
         setAccounts((a.data || []).filter((x) => ['ASET', 'PENDAPATAN', 'BEBAN'].includes(x.type)));
       })
       .catch(() => toast.error('Gagal load'));

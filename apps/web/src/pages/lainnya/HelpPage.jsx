@@ -4,6 +4,33 @@ import toast from 'react-hot-toast';
 import api from '../../utils/api';
 import { PageHeader, EmptyState } from '../../components/ui';
 
+const PANDUAN_INTRO = [
+  {
+    title: 'Mulai berjualan dalam 3 langkah',
+    steps: [
+      'Tambahkan produk lewat menu Produk → tombol "Tambah Produk".',
+      'Buka menu Kasir, scan/pilih produk, lalu tekan "Bayar" untuk menyelesaikan transaksi.',
+      'Lihat hasil di Dashboard atau Laporan untuk memantau penjualan harian.',
+    ],
+  },
+  {
+    title: 'Kelola pegawai & hak akses',
+    steps: [
+      'Buka Karyawan → Daftar Karyawan untuk menambah pegawai baru.',
+      'Atur role (admin / manager / kasir) sesuai tugas; role menentukan menu yang bisa diakses.',
+      'Owner & admin bisa melihat semua menu. Kasir hanya melihat menu yang relevan untuk transaksi.',
+    ],
+  },
+  {
+    title: 'Backup, langganan & dukungan',
+    steps: [
+      'Profil & ubah password ada di Pengaturan → Akun & Profil.',
+      'Butuh bantuan? Kirim "Masukan" lewat tab di halaman ini, tim akan membalas via email.',
+      'Update fitur terbaru ditandai dengan badge di sidebar. Beberapa fitur masih dalam tahap pengembangan dan disembunyikan otomatis.',
+    ],
+  },
+];
+
 const FEEDBACK_TYPES = [
   { value: 'bug', label: 'Bug / Error' },
   { value: 'feature', label: 'Permintaan Fitur' },
@@ -87,6 +114,21 @@ export default function HelpPage() {
     <div>
       <PageHeader title="Bantuan" subtitle="Panduan & Masukan" icon={HelpCircle} />
 
+      <section className="rounded-xl border border-primary-100 bg-primary-50/40 p-4 text-sm text-gray-700">
+        <h2 className="mb-2 text-sm font-semibold text-primary-800">Panduan Penggunaan Singkat</h2>
+        <div className="grid gap-3 md:grid-cols-3">
+          {PANDUAN_INTRO.map((s) => (
+            <div key={s.title} className="rounded-lg bg-white p-3 shadow-sm">
+              <p className="mb-1 text-xs font-semibold text-primary-700">{s.title}</p>
+              <ol className="list-decimal space-y-1 pl-4 text-xs text-gray-600">
+                {s.steps.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ol>
+            </div>
+          ))}
+        </div>
+      </section>
       <div className="flex gap-2 mb-4 border-b border-gray-200">
         {[
           { key: 'panduan', label: 'Panduan Penggunaan' },
