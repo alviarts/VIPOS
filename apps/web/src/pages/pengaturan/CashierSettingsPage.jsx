@@ -12,7 +12,7 @@ export default function CashierSettingsPage() {
   const [tab, setTab] = useState('cashier');
 
   useEffect(() => {
-    Promise.all([api.get('/users'), api.get('/account')])
+    Promise.all([api.get('/auth/users'), api.get('/finance/accounts')])
       .then(([u, a]) => {
         setCashiers((u.data || []).filter((x) => ['kasir', 'admin'].includes(x.role)));
         setAccounts((a.data || []).filter((x) => ['ASET', 'PENDAPATAN', 'BEBAN'].includes(x.type)));

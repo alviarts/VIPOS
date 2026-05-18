@@ -7,7 +7,9 @@ const ALL_TIERS = [TIERS.LITE, TIERS.STARTER, TIERS.ADVANCE, TIERS.PRIME, TIERS.
 const tierRank = Object.fromEntries(ALL_TIERS.map((t, i) => [t, i]));
 
 function canAccessFor(role, tier) {
-  return ({ roles, minTier } = {}) => {
+  const canSeeHidden = role === ROLES.ADMIN;
+  return ({ roles, minTier, hideForNonAdmin } = {}) => {
+    if (hideForNonAdmin && !canSeeHidden) return false;
     if (
       role !== ROLES.OWNER &&
       role !== ROLES.ADMIN &&
@@ -38,9 +40,34 @@ describe('MENU_GROUPS', () => {
 });
 
 describe('filterMenuGroups by role', () => {
-  it('OWNER lihat semua group', () => {
-    const visible = filterMenuGroups(MENU_GROUPS, canAccessFor(ROLES.OWNER, TIERS.PRIME_PLUS));
+  it('ADMIN lihat semua group termasuk hidden ones', () => {
+    const visible = filterMenuGroups(MENU_GROUPS, canAccessFor(ROLES.ADMIN, TIERS.PRIME_PLUS));
     expect(visible.map((g) => g.id)).toEqual(MENU_GROUPS.map((g) => g.id));
+  });
+
+  it('OWNER tidak lihat group "lainnya" (hideForNonAdmin)', () => {
+    const visible = filterMenuGroups(MENU_GROUPS, canAccessFor(ROLES.OWNER, TIERS.PRIME_PLUS));
+    expect(visible.map((g) => g.id)).not.toContain('lainnya');
+  });
+
+  it('OWNER tidak lihat menu hidden (Langganan, Akses Support, Two-Factor Auth) di pengaturan', () => {
+    const visible = filterMenuGroups(MENU_GROUPS, canAccessFor(ROLES.OWNER, TIERS.PRIME_PLUS));
+    const pengaturan = visible.find((g) => g.id === 'pengaturan');
+    expect(pengaturan).toBeDefined();
+    const labels = pengaturan.items.map((i) => i.label);
+    expect(labels).not.toContain('Langganan');
+    expect(labels).not.toContain('Akses Support');
+    expect(labels).not.toContain('Two-Factor Auth');
+  });
+
+  it('ADMIN lihat menu hidden (Langganan, Akses Support, Two-Factor Auth) di pengaturan', () => {
+    const visible = filterMenuGroups(MENU_GROUPS, canAccessFor(ROLES.ADMIN, TIERS.PRIME_PLUS));
+    const pengaturan = visible.find((g) => g.id === 'pengaturan');
+    expect(pengaturan).toBeDefined();
+    const labels = pengaturan.items.map((i) => i.label);
+    expect(labels).toContain('Langganan');
+    expect(labels).toContain('Akses Support');
+    expect(labels).toContain('Two-Factor Auth');
   });
 
   it('KASIR tidak lihat group keuangan (semua item butuh manager)', () => {
@@ -66,15 +93,15 @@ describe('filterMenuGroups by tier', () => {
     expect(ids).not.toContain('appointment');
   });
 
-  it('ADVANCE tier expose appointment + capital tapi sembunyikan KDS bila ada (Prime-only)', () => {
-    const visible = filterMenuGroups(MENU_GROUPS, canAccessFor(ROLES.OWNER, TIERS.ADVANCE));
+  it('ADVANCE tier expose appointment + capital untuk ADMIN (groups hideForNonAdmin)', () => {
+    const visible = filterMenuGroups(MENU_GROUPS, canAccessFor(ROLES.ADMIN, TIERS.ADVANCE));
     const ids = visible.map((g) => g.id);
     expect(ids).toContain('appointment');
     expect(ids).toContain('capital');
   });
 
-  it('PRIME tier expose semua item order_online termasuk marketplace', () => {
-    const visible = filterMenuGroups(MENU_GROUPS, canAccessFor(ROLES.OWNER, TIERS.PRIME));
+  it('PRIME tier expose semua item order_online termasuk marketplace (ADMIN-only)', () => {
+    const visible = filterMenuGroups(MENU_GROUPS, canAccessFor(ROLES.ADMIN, TIERS.PRIME));
     const oo = visible.find((g) => g.id === 'order_online');
     expect(oo).toBeDefined();
     expect(oo.items.find((i) => i.label === 'Marketplace')).toBeTruthy();

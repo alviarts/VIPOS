@@ -40,7 +40,7 @@ export default function AppShell({ notificationCount = 3 }) {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-gray-50">
       <Sidebar
         collapsed={collapsed}
         onToggleCollapsed={handleToggleCollapsed}

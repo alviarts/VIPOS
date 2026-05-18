@@ -6,8 +6,10 @@ import { Lock, ShieldCheck } from 'lucide-react';
 import api from '../../utils/api';
 import { PageHeader } from '../../components/ui';
 import { formatDate } from '../../utils/format';
+import { usePermission } from '../../context/PermissionContext';
 
 export default function AccountProfilePage() {
+  const { canSeeHidden } = usePermission();
   const [profile, setProfile] = useState(null);
   const [form, setForm] = useState({ name: '', email: '', phone: '', photo_url: '' });
   const [pwd, setPwd] = useState({ current_password: '', new_password: '', confirm: '' });
@@ -175,22 +177,24 @@ export default function AccountProfilePage() {
             </form>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-              <ShieldCheck className="h-4 w-4 text-primary-600" /> Two-Factor Authentication
-            </h2>
-            <p className="mb-3 text-xs text-gray-500">
-              {profile.totp_enabled
-                ? '2FA aktif — login butuh kode autentikator.'
-                : '2FA belum aktif. Aktifkan untuk keamanan ekstra.'}
-            </p>
-            <Link
-              to="/setup-2fa"
-              className="inline-block rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-100"
-            >
-              {profile.totp_enabled ? 'Kelola 2FA' : 'Setup 2FA'}
-            </Link>
-          </div>
+          {canSeeHidden && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                <ShieldCheck className="h-4 w-4 text-primary-600" /> Two-Factor Authentication
+              </h2>
+              <p className="mb-3 text-xs text-gray-500">
+                {profile.totp_enabled
+                  ? '2FA aktif — login butuh kode autentikator.'
+                  : '2FA belum aktif. Aktifkan untuk keamanan ekstra.'}
+              </p>
+              <Link
+                to="/setup-2fa"
+                className="inline-block rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-100"
+              >
+                {profile.totp_enabled ? 'Kelola 2FA' : 'Setup 2FA'}
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -53,12 +53,25 @@ describe('Sidebar', () => {
     window.localStorage.clear();
   });
 
-  it('renders 14 menu groups for OWNER on PRIME tier', () => {
+  it('renders 5 menu groups for OWNER on PRIME tier (WIP groups hidden)', () => {
     renderSidebar({ role: ROLES.OWNER, tier: TIERS.PRIME });
-    // Each group renders a button with data-testid="group-{id}".
-    // 12 base groups + Promosi (P1-08) + Invoice B2B (P1-10).
+    // Groups with hideForNonAdmin (promosi, order_online, invoice_b2b,
+    // appointment, lainnya, layanan, inspirasi, capital, supplies) are hidden
+    // for tenant OWNER. Only penjualan, karyawan, keuangan, pengaturan, bantuan
+    // remain visible (5).
+    const groupButtons = document.querySelectorAll('[data-testid^="group-"]');
+    expect(groupButtons.length).toBe(5);
+  });
+
+  it('renders all 14 menu groups for ADMIN on PRIME tier', () => {
+    renderSidebar({ role: ROLES.ADMIN, tier: TIERS.PRIME });
     const groupButtons = document.querySelectorAll('[data-testid^="group-"]');
     expect(groupButtons.length).toBe(14);
+  });
+
+  it('hides "lainnya" group for OWNER (hideForNonAdmin)', () => {
+    renderSidebar({ role: ROLES.OWNER, tier: TIERS.PRIME });
+    expect(document.querySelector('[data-testid="group-lainnya"]')).toBeNull();
   });
 
   it('hides finance group entirely for KASIR role', () => {

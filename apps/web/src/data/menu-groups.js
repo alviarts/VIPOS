@@ -425,7 +425,13 @@ export const MENU_GROUPS = [
       { path: '/settings/profile', label: 'Akun & Profil', icon: UserCog, roles: [] },
       { path: '/settings/outlets', label: 'Outlet', icon: Store, roles: [ROLES.MANAGER] },
       { path: '/settings/notifications', label: 'Notifikasi', icon: Bell, roles: [] },
-      { path: '/settings/subscription', label: 'Langganan', icon: Crown, roles: [ROLES.MANAGER] },
+      {
+        path: '/settings/subscription',
+        label: 'Langganan',
+        icon: Crown,
+        roles: [ROLES.MANAGER],
+        hideForNonAdmin: true,
+      },
       { path: '/settings/payments', label: 'Pembayaran', icon: CreditCard, roles: [ROLES.MANAGER] },
       { path: '/settings/print', label: 'Cetak', icon: Printer, roles: [ROLES.MANAGER] },
       { path: '/settings/cashier', label: 'Kasir', icon: Calculator, roles: [ROLES.MANAGER] },
@@ -435,6 +441,7 @@ export const MENU_GROUPS = [
         label: 'Akses Support',
         icon: Lock,
         roles: [ROLES.MANAGER],
+        hideForNonAdmin: true,
       },
       {
         path: '/settings/import-export',
@@ -444,13 +451,20 @@ export const MENU_GROUPS = [
       },
       { path: '/settings', label: 'Lainnya', icon: Sparkles, roles: [ROLES.MANAGER] },
       { path: '/settings/change-password', label: 'Ubah Password', icon: Sparkles, roles: [] },
-      { path: '/settings/2fa', label: 'Two-Factor Auth', icon: Sparkles, roles: [] },
+      {
+        path: '/settings/2fa',
+        label: 'Two-Factor Auth',
+        icon: Sparkles,
+        roles: [],
+        hideForNonAdmin: true,
+      },
     ],
   },
   {
     id: 'lainnya',
     label: 'Lainnya',
     icon: MoreHorizontal,
+    hideForNonAdmin: true,
     items: [
       {
         path: '/lainnya',
