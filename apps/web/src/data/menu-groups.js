@@ -1,0 +1,555 @@
+// VIPOS — Sidebar menu group definitions
+//
+// Mirrors the 11 (+ promo) menu groups described in
+// `docs/v3/workflow/phase_1_web_dashboard.md` § P1-01 acceptance criteria,
+// cross-referenced with `docs/v2/05_PERMISSIONS.md` (per-menu role matrix)
+// and `docs/v2/06_FEATURE_TIERS.md` (per-feature tier gating).
+//
+// Each item carries:
+//   - `path`      — react-router path (or `null` when the group is static)
+//   - `roles`     — array of role IDs allowed to see the entry. `[]` means
+//                    "everyone with a session". OWNER/ADMIN bypass this list.
+//   - `minTier`   — minimum subscription tier required (LITE → PRIME_PLUS).
+//                    Falsy means "available on all tiers".
+//   - `disabled`  — render disabled-look entry but keep visible (for "coming
+//                    soon" stubs).
+//   - `hideForNonAdmin` — when truthy, the entry (group or item) is only
+//                    visible to OWNER / ADMIN roles. Used as a "WIP" feature
+//                    flag so functionality can stay wired up internally while
+//                    hidden from registered tenant users. Flip the flag off
+//                    (or remove it) when a feature graduates.
+//
+// Icons resolved from `lucide-react`. Keep grouping order stable since we
+// snapshot it in `Sidebar.test.jsx`.
+import {
+  BarChart3,
+  BookOpen,
+  Building2,
+  CalendarRange,
+  ClipboardCheck,
+  Compass,
+  HandCoins,
+  HeartHandshake,
+  ClipboardList,
+  FileText,
+  HelpCircle,
+  LayoutDashboard,
+  Receipt,
+  TrendingDown,
+  LifeBuoy,
+  MoreHorizontal,
+  Package,
+  ShoppingBag,
+  ShoppingCart,
+  Smartphone,
+  Sparkles,
+  Store,
+  Tag,
+  TrendingUp,
+  Truck,
+  Users,
+  UserCheck,
+  Wallet,
+  Warehouse,
+  Boxes,
+  Megaphone,
+  Bell,
+  Crown,
+  CreditCard,
+  Printer,
+  Calculator,
+  HardDrive,
+  Lock,
+  ArrowDownUp,
+  UserCog,
+  ChefHat,
+  ArrowLeftRight,
+  Factory,
+  Hash,
+  Calendar,
+} from 'lucide-react';
+import { ROLES, TIERS } from '../context/PermissionContext';
+
+export const MENU_GROUPS = [
+  {
+    id: 'penjualan',
+    label: 'Penjualan',
+    icon: LayoutDashboard,
+    items: [
+      { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: [] },
+      {
+        path: '/cashier',
+        label: 'Kasir',
+        icon: ShoppingCart,
+        roles: [ROLES.MANAGER, ROLES.KASIR, ROLES.WAITERS],
+      },
+      {
+        path: '/products',
+        label: 'Produk',
+        icon: Package,
+        roles: [ROLES.MANAGER, ROLES.KASIR, ROLES.STAFF],
+      },
+      {
+        path: '/products/recipes',
+        label: 'Master Resep',
+        icon: ChefHat,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
+        hideForNonAdmin: true,
+      },
+      {
+        path: '/products/bundles',
+        label: 'Paket Produk',
+        icon: ShoppingBag,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
+        hideForNonAdmin: true,
+      },
+      {
+        path: '/products/batches',
+        label: 'Batch / Lot Tracking',
+        icon: Calendar,
+        roles: [ROLES.MANAGER, ROLES.WAREHOUSE, ROLES.STAFF],
+        hideForNonAdmin: true,
+      },
+      {
+        path: '/products/serials',
+        label: 'Serial Number Tracking',
+        icon: Hash,
+        roles: [ROLES.MANAGER, ROLES.WAREHOUSE, ROLES.STAFF],
+        hideForNonAdmin: true,
+      },
+      {
+        path: '/categories',
+        label: 'Kategori',
+        icon: Tag,
+        roles: [ROLES.MANAGER, ROLES.KASIR, ROLES.STAFF],
+      },
+      {
+        path: '/departments',
+        label: 'Departemen',
+        icon: Boxes,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
+        hideForNonAdmin: true,
+      },
+      {
+        path: '/inventory',
+        label: 'Inventori',
+        icon: Warehouse,
+        roles: [ROLES.MANAGER, ROLES.WAREHOUSE, ROLES.STAFF],
+      },
+      {
+        path: '/inventory/transfers',
+        label: 'Mutasi Antar Outlet',
+        icon: ArrowLeftRight,
+        roles: [ROLES.MANAGER, ROLES.WAREHOUSE],
+        hideForNonAdmin: true,
+      },
+      {
+        path: '/inventory/production',
+        label: 'Manajemen Produksi',
+        icon: Factory,
+        roles: [ROLES.MANAGER, ROLES.WAREHOUSE],
+        hideForNonAdmin: true,
+      },
+      {
+        path: '/inventory/opname',
+        label: 'Stok Opname',
+        icon: ClipboardCheck,
+        roles: [ROLES.MANAGER, ROLES.WAREHOUSE],
+      },
+      {
+        path: '/transactions',
+        label: 'Riwayat Transaksi',
+        icon: BarChart3,
+        roles: [ROLES.MANAGER, ROLES.KASIR, ROLES.STAFF],
+      },
+      {
+        path: '/reports',
+        label: 'Laporan',
+        icon: TrendingUp,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
+      },
+      {
+        path: '/commissions',
+        label: 'Komisi',
+        icon: HandCoins,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
+        hideForNonAdmin: true,
+      },
+    ],
+  },
+  {
+    id: 'promosi',
+    label: 'Promosi',
+    icon: Sparkles,
+    hideForNonAdmin: true,
+    items: [
+      {
+        path: '/promos',
+        label: 'Promo',
+        icon: Sparkles,
+        roles: [ROLES.MANAGER, ROLES.KASIR, ROLES.STAFF],
+      },
+      {
+        path: '/coupons',
+        label: 'Kupon',
+        icon: Tag,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
+      },
+      {
+        path: '/loyalty',
+        label: 'Loyalty Poin',
+        icon: HeartHandshake,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
+      },
+      {
+        path: '/marketing',
+        label: 'Marketing',
+        icon: Megaphone,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
+      },
+    ],
+  },
+  {
+    id: 'order_online',
+    label: 'Order Online',
+    icon: ShoppingBag,
+    minTier: TIERS.STARTER,
+    hideForNonAdmin: true,
+    items: [
+      {
+        path: '/order-online/orders',
+        label: 'Pesanan Online',
+        icon: ShoppingBag,
+        roles: [ROLES.MANAGER, ROLES.KASIR, ROLES.STAFF],
+        minTier: TIERS.STARTER,
+      },
+      {
+        path: '/order-online/marketplace',
+        label: 'Marketplace',
+        icon: Store,
+        roles: [ROLES.MANAGER, ROLES.KASIR, ROLES.STAFF],
+        minTier: TIERS.ADVANCE,
+      },
+      {
+        path: '/order-online/majoo-order',
+        label: 'majoo Order',
+        icon: Sparkles,
+        roles: [ROLES.MANAGER],
+        minTier: TIERS.STARTER,
+      },
+      {
+        path: '/order-online/consumer-app',
+        label: 'Consumer App',
+        icon: Smartphone,
+        roles: [ROLES.MANAGER],
+        minTier: TIERS.ADVANCE,
+      },
+    ],
+  },
+  {
+    id: 'invoice_b2b',
+    label: 'Invoice B2B',
+    icon: FileText,
+    hideForNonAdmin: true,
+    items: [
+      {
+        path: '/quotations',
+        label: 'Penawaran',
+        icon: FileText,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
+      },
+      {
+        path: '/sales-orders',
+        label: 'Sales Order',
+        icon: ClipboardList,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
+      },
+      {
+        path: '/delivery-orders',
+        label: 'Surat Jalan',
+        icon: Truck,
+        roles: [ROLES.MANAGER, ROLES.WAREHOUSE, ROLES.STAFF],
+      },
+      {
+        path: '/invoices',
+        label: 'Invoice',
+        icon: Receipt,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
+      },
+      {
+        path: '/receipts',
+        label: 'Bukti Pembayaran',
+        icon: Wallet,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
+      },
+      {
+        path: '/aging-report',
+        label: 'Aging Report',
+        icon: TrendingDown,
+        roles: [ROLES.MANAGER],
+      },
+    ],
+  },
+  {
+    id: 'appointment',
+    label: 'Appointment',
+    icon: CalendarRange,
+    minTier: TIERS.ADVANCE,
+    hideForNonAdmin: true,
+    items: [
+      {
+        path: '/appointment',
+        label: 'Daftar Reservasi',
+        icon: ClipboardList,
+        roles: [ROLES.MANAGER, ROLES.KASIR, ROLES.STAFF, ROLES.WAITERS],
+        minTier: TIERS.ADVANCE,
+      },
+      {
+        path: '/appointment-calendar',
+        label: 'Kalender',
+        icon: CalendarRange,
+        roles: [ROLES.MANAGER, ROLES.KASIR, ROLES.STAFF, ROLES.WAITERS],
+        minTier: TIERS.ADVANCE,
+      },
+    ],
+  },
+  {
+    id: 'karyawan',
+    label: 'Karyawan',
+    icon: Users,
+    items: [
+      { path: '/employees', label: 'Daftar Karyawan', icon: Users, roles: [ROLES.MANAGER] },
+      {
+        path: '/customers',
+        label: 'Pelanggan',
+        icon: HeartHandshake,
+        roles: [ROLES.MANAGER, ROLES.KASIR, ROLES.STAFF],
+      },
+      {
+        path: '/customer-groups',
+        label: 'Grup & Tag Pelanggan',
+        icon: Tag,
+        roles: [ROLES.MANAGER],
+      },
+      {
+        path: '/payroll',
+        label: 'Payroll',
+        icon: Wallet,
+        roles: [ROLES.MANAGER],
+        minTier: TIERS.ADVANCE,
+      },
+      {
+        path: '/permissions',
+        label: 'Hak Akses',
+        icon: ClipboardCheck,
+        roles: [ROLES.MANAGER],
+      },
+      {
+        path: '/attendance',
+        label: 'Absensi',
+        icon: ClipboardList,
+        roles: [ROLES.MANAGER],
+      },
+      {
+        path: '/schedule',
+        label: 'Jadwal Kerja',
+        icon: CalendarRange,
+        roles: [ROLES.MANAGER],
+      },
+      {
+        path: '/approval-workflow',
+        label: 'Approval Workflow',
+        icon: ClipboardCheck,
+        roles: [ROLES.MANAGER],
+        minTier: TIERS.PRIME,
+      },
+    ],
+  },
+  {
+    id: 'keuangan',
+    label: 'Keuangan',
+    icon: Wallet,
+    items: [
+      {
+        path: '/finance/accounts',
+        label: 'Daftar Akun',
+        icon: BookOpen,
+        roles: [ROLES.MANAGER],
+      },
+      {
+        path: '/finance/journal',
+        label: 'Jurnal Umum',
+        icon: FileText,
+        roles: [ROLES.MANAGER],
+      },
+      { path: '/finance', label: 'Kas & Bank', icon: Wallet, roles: [ROLES.MANAGER] },
+      {
+        path: '/finance/income',
+        label: 'Penerimaan',
+        icon: HandCoins,
+        roles: [ROLES.MANAGER],
+      },
+      {
+        path: '/finance/expense',
+        label: 'Pengeluaran',
+        icon: TrendingDown,
+        roles: [ROLES.MANAGER],
+      },
+      {
+        path: '/finance/vendors',
+        label: 'Mitra (Vendor)',
+        icon: UserCheck,
+        roles: [ROLES.MANAGER],
+        hideForNonAdmin: true,
+      },
+      {
+        path: '/finance/fixed-assets',
+        label: 'Aset Tetap',
+        icon: Building2,
+        roles: [ROLES.MANAGER],
+        hideForNonAdmin: true,
+      },
+      {
+        path: '/finance/reports',
+        label: 'Laporan Keuangan',
+        icon: BarChart3,
+        roles: [ROLES.MANAGER],
+      },
+    ],
+  },
+  {
+    id: 'pengaturan',
+    label: 'Pengaturan',
+    icon: Sparkles,
+    items: [
+      { path: '/settings/profile', label: 'Akun & Profil', icon: UserCog, roles: [] },
+      { path: '/settings/outlets', label: 'Outlet', icon: Store, roles: [ROLES.MANAGER] },
+      { path: '/settings/notifications', label: 'Notifikasi', icon: Bell, roles: [] },
+      {
+        path: '/settings/subscription',
+        label: 'Langganan',
+        icon: Crown,
+        roles: [ROLES.MANAGER],
+        hideForNonAdmin: true,
+      },
+      { path: '/settings/payments', label: 'Pembayaran', icon: CreditCard, roles: [ROLES.MANAGER] },
+      { path: '/settings/print', label: 'Cetak', icon: Printer, roles: [ROLES.MANAGER] },
+      { path: '/settings/cashier', label: 'Kasir', icon: Calculator, roles: [ROLES.MANAGER] },
+      { path: '/settings/terminals', label: 'Terminal', icon: HardDrive, roles: [ROLES.MANAGER] },
+      {
+        path: '/settings/support-access',
+        label: 'Akses Support',
+        icon: Lock,
+        roles: [ROLES.MANAGER],
+        hideForNonAdmin: true,
+      },
+      {
+        path: '/settings/import-export',
+        label: 'Import / Export',
+        icon: ArrowDownUp,
+        roles: [ROLES.MANAGER],
+      },
+      { path: '/settings', label: 'Lainnya', icon: Sparkles, roles: [ROLES.MANAGER] },
+      { path: '/settings/change-password', label: 'Ubah Password', icon: Sparkles, roles: [] },
+      {
+        path: '/settings/2fa',
+        label: 'Two-Factor Auth',
+        icon: Sparkles,
+        roles: [],
+        hideForNonAdmin: true,
+      },
+    ],
+  },
+  {
+    id: 'lainnya',
+    label: 'Lainnya',
+    icon: MoreHorizontal,
+    hideForNonAdmin: true,
+    items: [
+      {
+        path: '/lainnya',
+        label: 'Hub Lainnya',
+        icon: MoreHorizontal,
+        roles: [],
+      },
+    ],
+  },
+  {
+    id: 'bantuan',
+    label: 'Bantuan',
+    icon: LifeBuoy,
+    items: [{ path: '/help', label: 'Panduan & Masukan', icon: HelpCircle, roles: [] }],
+  },
+  {
+    id: 'layanan',
+    label: 'LAYANAN',
+    icon: HeartHandshake,
+    hideForNonAdmin: true,
+    items: [
+      {
+        path: '/services',
+        label: 'Katalog Layanan',
+        icon: HeartHandshake,
+        roles: [],
+      },
+    ],
+  },
+  {
+    id: 'inspirasi',
+    label: 'INSPIRASI',
+    icon: Compass,
+    hideForNonAdmin: true,
+    items: [{ path: '/inspirasi', label: 'Blog & Event', icon: Compass, roles: [] }],
+  },
+  {
+    id: 'capital',
+    label: 'Capital',
+    icon: HandCoins,
+    minTier: TIERS.ADVANCE,
+    hideForNonAdmin: true,
+    items: [
+      {
+        path: '/capital',
+        label: 'Pinjaman Modal',
+        icon: HandCoins,
+        roles: [ROLES.MANAGER],
+        minTier: TIERS.ADVANCE,
+      },
+    ],
+  },
+  {
+    id: 'supplies',
+    label: 'SUPPLIES',
+    icon: Truck,
+    hideForNonAdmin: true,
+    items: [
+      {
+        path: '/supplies',
+        label: 'Marketplace Supplier',
+        icon: Truck,
+        roles: [],
+      },
+    ],
+  },
+];
+
+// Helper used by Sidebar + tests to filter the static menu definition by the
+// current role + tier. Returns groups whose at least one item is visible, with
+// the `items` array rewritten to only the visible items.
+export function filterMenuGroups(groups, canAccess) {
+  return groups
+    .filter((group) =>
+      canAccess({ minTier: group.minTier, hideForNonAdmin: group.hideForNonAdmin })
+    )
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) =>
+        canAccess({
+          roles: item.roles,
+          minTier: item.minTier,
+          hideForNonAdmin: item.hideForNonAdmin,
+        })
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
+}

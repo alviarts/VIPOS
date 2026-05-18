@@ -1,0 +1,103 @@
+{
+  "id": "salon",
+  "name": "Salon / Spa / Beauty",
+  "tagline": "Cocok untuk salon kecantikan, spa, barbershop, klinik kecantikan",
+  "categories": [
+    { "name": "Treatment Wajah", "color": "#EC4899", "urutan": 1 },
+    { "name": "Treatment Rambut", "color": "#F97316", "urutan": 2 },
+    { "name": "Treatment Body", "color": "#A855F7", "urutan": 3 },
+    { "name": "Produk Retail", "color": "#0EA5E9", "urutan": 4 }
+  ],
+  "products": [
+    {
+      "sku": "SLN-001",
+      "name": "Facial Basic 60 menit",
+      "category": "Treatment Wajah",
+      "price": 75000,
+      "harga_modal": 25000,
+      "satuan": "sesi",
+      "description": "Facial wajah dasar: cleansing, scrub, masker",
+      "stock": 0,
+      "monitor_stok": 0
+    },
+    {
+      "sku": "SLN-002",
+      "name": "Facial Premium Whitening",
+      "category": "Treatment Wajah",
+      "price": 150000,
+      "harga_modal": 50000,
+      "satuan": "sesi",
+      "description": "Facial premium dengan serum whitening + masker emas",
+      "stock": 0,
+      "monitor_stok": 0
+    },
+    {
+      "sku": "SLN-003",
+      "name": "Cuci + Blow",
+      "category": "Treatment Rambut",
+      "price": 50000,
+      "harga_modal": 12000,
+      "satuan": "sesi",
+      "description": "Cuci rambut + styling blow dry",
+      "stock": 0,
+      "monitor_stok": 0
+    },
+    {
+      "sku": "SLN-004",
+      "name": "Creambath 90 menit",
+      "category": "Treatment Rambut",
+      "price": 85000,
+      "harga_modal": 22000,
+      "satuan": "sesi",
+      "description": "Creambath + pijat kulit kepala + steam",
+      "stock": 0,
+      "monitor_stok": 0
+    },
+    {
+      "sku": "SLN-005",
+      "name": "Pijat Refleksi 60 menit",
+      "category": "Treatment Body",
+      "price": 100000,
+      "harga_modal": 30000,
+      "satuan": "sesi",
+      "description": "Pijat refleksi kaki + relaksasi tubuh",
+      "stock": 0,
+      "monitor_stok": 0
+    },
+    {
+      "sku": "SLN-006",
+      "name": "Body Scrub Lulur Tradisional",
+      "category": "Treatment Body",
+      "price": 120000,
+      "harga_modal": 35000,
+      "satuan": "sesi",
+      "description": "Lulur tradisional Jawa + bilas air hangat",
+      "stock": 0,
+      "monitor_stok": 0
+    },
+    {
+      "sku": "SLN-007",
+      "name": "Shampoo Anti Ketombe 250ml",
+      "category": "Produk Retail",
+      "price": 45000,
+      "harga_modal": 28000,
+      "satuan": "botol",
+      "description": "Shampoo anti ketombe + tea tree oil",
+      "stock": 12,
+      "monitor_stok": 1,
+      "stok_minimum": 3
+    },
+    {
+      "sku": "SLN-008",
+      "name": "Lipstik Matte Liquid",
+      "category": "Produk Retail",
+      "price": 75000,
+      "harga_modal": 35000,
+      "satuan": "pcs",
+      "description": "Lipstik liquid matte tahan lama",
+      "stock": 18,
+      "monitor_stok": 1,
+      "stok_minimum": 4
+    }
+  ]
+}

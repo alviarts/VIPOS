@@ -1,0 +1,475 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel any in-progress run on the same ref when a new one starts.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build (web + backend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: vipos_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d vipos_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Migrations + smoke run as the schema owner (postgres superuser).
+      DATABASE_URL: postgresql://test:test@localhost:5432/vipos_test
+      DIRECT_URL: postgresql://test:test@localhost:5432/vipos_test
+      DATABASE_DRIVER: postgres
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies (root + workspaces)
+        run: npm ci
+
+      - name: Apply Prisma migrations to CI Postgres
+        working-directory: apps/backend
+        run: npx prisma migrate deploy
+
+      - name: Provision non-superuser app role for RLS
+        # P2-02: app must connect via a non-superuser role so RLS policies apply.
+        env:
+          PGPASSWORD: test
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          psql -h localhost -U test -d vipos_test -f apps/backend/scripts/setup-app-role.sql
+
+      - name: Build all workspaces
+        # BUNDLE_VISUALIZER=1 makes vite.config.js emit
+        # `apps/web/dist/stats.html` (rollup-plugin-visualizer treemap).
+        # The plugin runs as a final post-bundle write — empirical
+        # overhead on this build is <1 s — so we just always enable it
+        # in CI rather than gating per-PR. The artifact is uploaded
+        # below for click-through inspection from the run summary.
+        env:
+          BUNDLE_VISUALIZER: "1"
+        run: npm run build
+
+      - name: Upload bundle visualizer treemap
+        # Always upload (`if: always()`) so reviewers can see the
+        # treemap even when a downstream step (e.g. budget enforcement)
+        # fails — the treemap is the primary tool for diagnosing
+        # *why* the budget was tripped.
+        if: always() && hashFiles('apps/web/dist/stats.html') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-bundle-stats
+          path: apps/web/dist/stats.html
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Bundle size summary + budget enforcement
+        # PR #165: surface the web build's chunk sizes in the GH Actions
+        # step summary so PR reviewers spot eager-bundle bloat without
+        # re-running the build locally.
+        #
+        # PR #170 (Sentry SDK lazy-load) split the Sentry SDK out of the
+        # main eager `index-*.js` into its own dynamic-import chunk that
+        # *also* gets a Vite-default `index-*.js` filename. Globbing
+        # `index-*.js` therefore now matches BOTH the eager entry chunk
+        # *and* the lazy Sentry chunk, which makes the old "eager
+        # bundle" table misleading. Detect the actual eager entry by
+        # parsing the `<script src=…>` tag in `dist/index.html` (Vite
+        # only ever emits one entry script per build) — anything not
+        # referenced from `dist/index.html` is lazy by definition.
+        #
+        # Bundle-size budget (founder-approved 2026-05-06): the eager
+        # entry chunk's gzip size MUST stay below 110 kB. Today's
+        # measured eager chunk is ~102 kB gzip post-PR-170, so 110 kB
+        # gives ~8 kB of headroom for routine dep updates without
+        # flaking CI. Crossing the cap is intentionally a hard CI
+        # failure — the win from PR #170 (-25 kB gzip) is worth a
+        # regression guardrail. Bumping the cap is a deliberate act:
+        # edit BUDGET_GZIP below and document the reason in the PR
+        # body. CSS budgets and lazy-chunk budgets are intentionally
+        # not pinned yet — add them here when there's a concrete
+        # regression worth guarding against.
+        if: always()
+        run: |
+          set -euo pipefail
+          DIST=apps/web/dist/assets
+          INDEX=apps/web/dist/index.html
+          BUDGET_GZIP=$((110 * 1024))  # 112640 bytes = 110 kB gzip cap
+          if [ ! -d "$DIST" ]; then
+            echo "::warning::no $DIST directory; skipping bundle summary"
+            exit 0
+          fi
+          if [ ! -f "$INDEX" ]; then
+            echo "::error::expected $INDEX after build; cannot detect eager entry chunk"
+            exit 1
+          fi
+
+          # Vite emits exactly one `<script type="module" src="…/assets/<entry>.js">`
+          # in dist/index.html. Extract the basename so we can size it
+          # specifically (and exclude lazy chunks that share the
+          # `index-*.js` filename pattern).
+          ENTRY=$(grep -oE '<script[^>]+src="[^"]+/assets/[^"]+\.js"' "$INDEX" \
+            | head -1 \
+            | grep -oE '/assets/[^"]+\.js' \
+            | sed 's|/assets/||')
+          ENTRY_CSS=$(grep -oE '<link[^>]+href="[^"]+/assets/[^"]+\.css"' "$INDEX" \
+            | head -1 \
+            | grep -oE '/assets/[^"]+\.css' \
+            | sed 's|/assets/||' || true)
+
+          if [ -z "${ENTRY:-}" ] || [ ! -f "$DIST/$ENTRY" ]; then
+            echo "::error::failed to detect eager entry chunk from $INDEX (got '${ENTRY:-<empty>}')"
+            exit 1
+          fi
+
+          ENTRY_RAW=$(stat -c '%s' "$DIST/$ENTRY")
+          ENTRY_GZ=$(gzip -c -9 "$DIST/$ENTRY" | wc -c)
+          ENTRY_RAW_KB=$(awk -v b="$ENTRY_RAW" 'BEGIN{printf "%.2f", b/1024}')
+          ENTRY_GZ_KB=$(awk -v b="$ENTRY_GZ" 'BEGIN{printf "%.2f", b/1024}')
+          BUDGET_GZ_KB=$(awk -v b="$BUDGET_GZIP" 'BEGIN{printf "%.0f", b/1024}')
+
+          {
+            echo "## Web bundle (apps/web/dist/assets)"
+            echo
+            echo "### Eager entry chunk (initial download — budget enforced)"
+            echo
+            echo "Detected from \`apps/web/dist/index.html\`: \`$ENTRY\`"
+            echo
+            echo "| chunk | raw | gzip est. | budget (gzip) | status |"
+            echo "| ----- | --- | --------- | ------------- | ------ |"
+            if [ "$ENTRY_GZ" -le "$BUDGET_GZIP" ]; then
+              status="✅ under cap"
+            else
+              status="❌ over cap"
+            fi
+            echo "| \`$ENTRY\` | ${ENTRY_RAW_KB} kB | ${ENTRY_GZ_KB} kB | ${BUDGET_GZ_KB} kB | $status |"
+            if [ -n "${ENTRY_CSS:-}" ] && [ -f "$DIST/$ENTRY_CSS" ]; then
+              CSS_RAW=$(stat -c '%s' "$DIST/$ENTRY_CSS")
+              CSS_GZ=$(gzip -c -9 "$DIST/$ENTRY_CSS" | wc -c)
+              CSS_RAW_KB=$(awk -v b="$CSS_RAW" 'BEGIN{printf "%.2f", b/1024}')
+              CSS_GZ_KB=$(awk -v b="$CSS_GZ" 'BEGIN{printf "%.2f", b/1024}')
+              echo "| \`$ENTRY_CSS\` | ${CSS_RAW_KB} kB | ${CSS_GZ_KB} kB | (no cap yet) | ℹ️ informational |"
+            fi
+            echo
+            echo "### Top 15 chunks by raw size (informational)"
+            echo
+            echo "| chunk | raw | gzip est. |"
+            echo "| ----- | --- | --------- |"
+            # `awk 'NR<=15'` reads ALL of `ls -1S`'s output and only
+            # prints the first 15 lines — unlike `head -15`, which
+            # closes its stdin after 15 lines and SIGPIPEs `ls`.
+            # With `set -euo pipefail` active, `ls` exiting from
+            # SIGPIPE makes the pipeline exit non-zero, which has
+            # caused intermittent CI flakes since the chunk count
+            # crossed ~30 (handoff §6, 2026-05-06).
+            ls -1S "$DIST"/*.js "$DIST"/*.css 2>/dev/null | awk 'NR<=15' | while read -r f; do
+              raw=$(stat -c '%s' "$f")
+              gz=$(gzip -c -9 "$f" | wc -c)
+              raw_kb=$(awk -v b="$raw" 'BEGIN{printf "%.2f", b/1024}')
+              gz_kb=$(awk -v b="$gz" 'BEGIN{printf "%.2f", b/1024}')
+              echo "| \`$(basename "$f")\` | ${raw_kb} kB | ${gz_kb} kB |"
+            done
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+          if [ "$ENTRY_GZ" -gt "$BUDGET_GZIP" ]; then
+            echo "::error file=apps/web/src/main.jsx::eager entry chunk $ENTRY is ${ENTRY_GZ} bytes gzip (${ENTRY_GZ_KB} kB), over the ${BUDGET_GZIP}-byte (${BUDGET_GZ_KB} kB) cap. See ci.yml 'Bundle size summary + budget enforcement' for the rationale + bump procedure."
+            exit 1
+          fi
+          echo "::notice::eager entry chunk $ENTRY is ${ENTRY_GZ_KB} kB gzip (cap ${BUDGET_GZ_KB} kB)"
+
+      - name: Lazy chunk size summary + budget enforcement
+        # PR #182: per-chunk gzip cap on the lazy graph. The eager budget
+        # check above guards the first-paint critical path; this one
+        # guards against an inadvertent heavy library entering the
+        # client bundle via a dynamic-import path. PR #179
+        # (xlsx@0.18.5 -> exceljs@4.4.0 CVE migration) bumped the
+        # heaviest lazy chunk from ~143 kB gzip to ~265 kB gzip, and
+        # would have been a silent regression without this check.
+        #
+        # Strategy: cap each individual non-eager .js file at
+        # LAZY_CHUNK_BUDGET_GZIP. The eager entry chunk is excluded
+        # (it has its own cap above). The total-size of the lazy
+        # graph is intentionally NOT capped — it grows monotonically
+        # as new pages/features ship and that growth is expected;
+        # the per-chunk cap is what catches a single heavy lib.
+        #
+        # Bumping the cap is a deliberate act: edit
+        # LAZY_CHUNK_BUDGET_GZIP below, document the reason in the
+        # PR body, and link the bundle-visualizer (`web-bundle-stats`
+        # artifact, PR #176) to confirm where the new mass landed.
+        if: always()
+        run: |
+          set -euo pipefail
+          DIST=apps/web/dist/assets
+          INDEX=apps/web/dist/index.html
+          # 300 kB gzip per-chunk cap. Today's heaviest lazy chunk is
+          # `exceljs.min-*.js` at ~265 kB gzip (PR #179), so 300 kB
+          # gives ~12% headroom for routine exceljs patch updates
+          # without flaking CI.
+          LAZY_CHUNK_BUDGET_GZIP=$((300 * 1024))  # 307200 bytes = 300 kB
+          if [ ! -d "$DIST" ] || [ ! -f "$INDEX" ]; then
+            echo "::warning::no $DIST or $INDEX; skipping lazy bundle summary"
+            exit 0
+          fi
+
+          # Re-detect the eager entry the same way the eager step does
+          # so this step is independent (`if: always()` runs even if
+          # the eager step failed, so we can't rely on it exporting
+          # state).
+          ENTRY=$(grep -oE '<script[^>]+src="[^"]+/assets/[^"]+\.js"' "$INDEX" \
+            | head -1 \
+            | grep -oE '/assets/[^"]+\.js' \
+            | sed 's|/assets/||')
+
+          BUDGET_KB=$((LAZY_CHUNK_BUDGET_GZIP / 1024))
+
+          # First pass: compute gzip size of every non-eager .js file
+          # into a temp manifest (filename<tab>gzip_bytes), and tally
+          # totals.
+          MANIFEST=$(mktemp)
+          TOTAL_GZ=0
+          CHUNK_COUNT=0
+          for f in "$DIST"/*.js; do
+            [ -e "$f" ] || continue
+            bn=$(basename "$f")
+            if [ "$bn" = "$ENTRY" ]; then
+              continue
+            fi
+            gz=$(gzip -c -9 "$f" | wc -c)
+            printf '%s\t%s\n' "$gz" "$bn" >> "$MANIFEST"
+            TOTAL_GZ=$((TOTAL_GZ + gz))
+            CHUNK_COUNT=$((CHUNK_COUNT + 1))
+          done
+          TOTAL_KB=$(awk -v b="$TOTAL_GZ" 'BEGIN{printf "%.1f", b/1024}')
+
+          # Second pass: format step summary with top 10 chunks by gzip
+          # size, and collect any over-cap files for hard CI failure.
+          OVER_CAP=$(awk -F'\t' -v cap="$LAZY_CHUNK_BUDGET_GZIP" '$1 > cap' "$MANIFEST")
+
+          {
+            echo
+            echo "### Lazy chunks (per-chunk budget enforced)"
+            echo
+            echo "Total lazy bytes (gzip est.): ${TOTAL_KB} kB across ${CHUNK_COUNT} chunks. Per-chunk cap: ${BUDGET_KB} kB gzip."
+            echo
+            echo "Top 10 lazy chunks by gzip size:"
+            echo
+            echo "| chunk | gzip est. | budget (gzip) | status |"
+            echo "| ----- | --------- | ------------- | ------ |"
+            # `awk 'NR<=10'` instead of `head -10` for the same
+            # SIGPIPE-resistance reason as the eager-chunk loop
+            # above. `sort` writes the full manifest to its stdout
+            # before the consumer can ever close it; `head` closing
+            # mid-stream surfaces as a pipefail flake.
+            sort -k1,1nr "$MANIFEST" | awk 'NR<=10' | while IFS=$'\t' read -r gz bn; do
+              gz_kb=$(awk -v b="$gz" 'BEGIN{printf "%.2f", b/1024}')
+              if [ "$gz" -le "$LAZY_CHUNK_BUDGET_GZIP" ]; then
+                status="✅ under cap"
+              else
+                status="❌ over cap"
+              fi
+              echo "| \`$bn\` | ${gz_kb} kB | ${BUDGET_KB} kB | $status |"
+            done
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+          if [ -n "$OVER_CAP" ]; then
+            echo "$OVER_CAP" | while IFS=$'\t' read -r gz bn; do
+              gz_kb=$(awk -v b="$gz" 'BEGIN{printf "%.2f", b/1024}')
+              echo "::error::lazy chunk $bn is ${gz_kb} kB gzip, over the ${BUDGET_KB} kB per-chunk cap. See ci.yml 'Lazy chunk size summary + budget enforcement' for the rationale + bump procedure."
+            done
+            rm -f "$MANIFEST"
+            exit 1
+          fi
+          rm -f "$MANIFEST"
+          echo "::notice::all ${CHUNK_COUNT} lazy chunks under the ${BUDGET_KB} kB per-chunk gzip cap; total lazy ${TOTAL_KB} kB"
+
+      - name: Smoke check backend can start
+        env:
+          NODE_ENV: production
+          JWT_SECRET: ci-smoke-secret
+          PORT: 3001
+          # Backend itself runs as the non-superuser app role so RLS applies.
+          DATABASE_URL: postgresql://vipos_app:apppass@localhost:5432/vipos_test
+          DIRECT_URL: postgresql://test:test@localhost:5432/vipos_test
+          DATABASE_DRIVER: postgres
+          # P2-06: CORS allowlist is fail-closed in production. Smoke
+          # check just needs a valid value so the app can boot — the
+          # actual deploy supplies the real production allowlist.
+          CORS_ALLOWLIST: http://localhost:3001
+          # PR #102: point the disk-health probe at /tmp so the smoke
+          # curl below returns status:ok (else mount default resolves to
+          # ./var/backups which doesn't exist on the runner → 503).
+          DISK_HEALTH_MOUNT: /tmp
+        run: |
+          # Boot the backend in the background, hit /api/health, then kill it.
+          # Proves the production entry point still resolves the new monorepo
+          # paths (e.g. ../../web/dist) without throwing.
+          (cd apps/backend && node src/index.js &) >/tmp/backend.log 2>&1
+          for i in $(seq 1 20); do
+            if curl -fsS http://localhost:3001/api/health >/dev/null 2>&1; then
+              echo "backend is healthy"
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://localhost:3001/api/health || { echo "health check failed"; cat /tmp/backend.log; exit 1; }
+          # PR #102 follow-up: also smoke-test the new /api/v1/health/disk
+          # route mounting. Catches regressions where someone removes the
+          # `parent.use('/health/disk', ...)` line in app.js but doesn't
+          # update unit tests. The probe returns 200 + status:ok when
+          # DISK_HEALTH_MOUNT (/tmp here) is below the 90% threshold.
+          curl -fsS http://localhost:3001/api/v1/health/disk \
+            || { echo "disk health check failed"; cat /tmp/backend.log; exit 1; }
+          pkill -f "node src/index.js" || true
+
+  lint:
+    name: lint + format:check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (zero warnings)
+        # `lint` script enforces --max-warnings=0 since PR #110.
+        # Codebase has been lint-clean since PR #108.
+        run: npm run lint
+
+      - name: Format check (Prettier)
+        # Codebase has been format-clean since PR #109.
+        # Pre-commit hook also runs Prettier on staged files, but CI
+        # gate catches drift on direct main pushes (e.g. via REST API).
+        run: npm run format:check
+
+  test:
+    name: test (--if-present)
+    runs-on: ubuntu-latest
+    # 15 min matches the build job's headroom. The test job has more
+    # provisioning steps than build (Postgres + Redis services, MinIO
+    # docker boot, postgresql-client apt install) and one transient
+    # apt-archive slowdown can push it over a 10-minute budget — see
+    # PR #102's run 25421076324 (test job 74563134898 cancelled at
+    # 10m12s while still on `apt-get update`).
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: vipos_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d vipos_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      # P2-04: BullMQ tests need a real Redis broker. Tests gracefully
+      # skip when REDIS_URL is unset, so removing this service still
+      # keeps CI green if needed.
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Tests use vipos_app for runtime so RLS policies apply.
+      # Migrations still run as the schema owner via DIRECT_URL.
+      DATABASE_URL: postgresql://vipos_app:apppass@localhost:5432/vipos_test
+      DIRECT_URL: postgresql://test:test@localhost:5432/vipos_test
+      DATABASE_DRIVER: postgres
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: test-secret-vipos
+      # P2-08: storage integration test wiring.
+      MINIO_ENDPOINT: http://localhost:9000
+      MINIO_ACCESS_KEY: miniouser
+      MINIO_SECRET_KEY: miniopass
+      MINIO_BUCKET: vipos-bk-it
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply Prisma migrations to CI Postgres
+        working-directory: apps/backend
+        run: npx prisma migrate deploy --schema prisma/schema.prisma
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/vipos_test
+
+      - name: Provision non-superuser app role for RLS
+        env:
+          PGPASSWORD: test
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          psql -h localhost -U test -d vipos_test -f apps/backend/scripts/setup-app-role.sql
+
+      - name: Start MinIO (S3-compatible) for storage integration test
+        # P2-08: GitHub Actions service blocks can't override image
+        # entrypoints with arguments, so we boot MinIO as a step.
+        # The storage-minio test skips automatically when MINIO_ENDPOINT
+        # is unset, so this step is purely additive.
+        run: |
+          docker run -d --rm --name vipos-minio \
+            -p 9000:9000 -p 9001:9001 \
+            -e MINIO_ROOT_USER=miniouser \
+            -e MINIO_ROOT_PASSWORD=miniopass \
+            minio/minio:latest server /data --console-address ":9001"
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:9000/minio/health/live >/dev/null 2>&1; then
+              echo "minio is healthy"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "minio failed to become healthy" >&2
+          docker logs vipos-minio
+          exit 1
+
+      - name: Test
+        # MINIO_* env (used by storage-minio integration test) is set
+        # at the job level above so prior steps don't have to inherit
+        # storage credentials.
+        run: npm test --if-present

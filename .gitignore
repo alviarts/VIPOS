@@ -1,6 +1,42 @@
 node_modules/
 dist/
+build/
 .env
+.env.local
+.env.*.local
 *.db
+*.db-journal
+*.db-wal
+*.db-shm
 .DS_Store
+
+# legacy (pre-monorepo) data dir, kept so old checkouts ignore the file
 backend/data/
+
+# monorepo data dirs (SQLite + WAL files)
+apps/backend/data/
+apps/backend/database.sqlite
+apps/backend/database.db
+
+# editor / OS
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+Thumbs.db
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Pre-deploy build snapshot folders (created by deploy scripts)
+apps/web/dist.pre-deploy-*/
+apps/web/dist.backup-*/
+
+# Backend upload artifacts (user-uploaded files)
+apps/backend/uploads/
+
+# WIP / temporary scripts
+apps/backend/trigger-db-backup.tmp.js

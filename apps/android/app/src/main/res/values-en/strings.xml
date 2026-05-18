@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VIPOS</string>
+
+    <!-- Common -->
+    <string name="back">Back</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="retry">Retry</string>
+    <string name="loading">Loading…</string>
+    <string name="error_generic">An error occurred. Please try again.</string>
+    <string name="delete">Delete</string>
+    <string name="edit">Edit</string>
+    <string name="add">Add</string>
+    <string name="search">Search</string>
+    <string name="filter">Filter</string>
+    <string name="refresh">Refresh</string>
+    <string name="confirm">Confirm</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="ok">OK</string>
+    <string name="close">Close</string>
+    <string name="done">Done</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+    <string name="submit">Submit</string>
+    <string name="update">Update</string>
+    <string name="create">Create</string>
+    <string name="view">View</string>
+    <string name="details">Details</string>
+    <string name="all">All</string>
+    <string name="today">Today</string>
+    <string name="this_week">This Week</string>
+    <string name="this_month">This Month</string>
+    <string name="custom">Custom</string>
+
+    <!-- Home Screen -->
+    <string name="home_welcome">Welcome,</string>
+    <string name="home_choose_menu">Choose a menu to start.</string>
+    <string name="home_open_cashier">Open Cashier</string>
+    <string name="home_transaction_history">Transaction History</string>
+    <string name="home_online_orders">Online Orders</string>
+    <string name="home_owner_dashboard">Owner Dashboard</string>
+    <string name="home_appointments">Appointments</string>
+    <string name="home_stock_movement">Stock Movement</string>
+    <string name="home_stock_opname">Stock Opname</string>
+    <string name="home_sales_report">Sales Report</string>
+    <string name="home_employees">Employees</string>
+    <string name="home_logout">Logout</string>
+    <string name="home_logging_out">Logging out…</string>
+
+    <!-- Auth -->
+    <string name="auth_login_title">Login to VIPOS</string>
+    <string name="auth_username">Username</string>
+    <string name="auth_password">Password</string>
+    <string name="auth_login">Login</string>
+    <string name="auth_logging_in">Logging in…</string>
+    <string name="auth_forgot_password">Forgot Password?</string>
+    <string name="auth_2fa_title">2FA Verification</string>
+    <string name="auth_2fa_code">6-Digit Code</string>
+    <string name="auth_2fa_verify">Verify</string>
+    <string name="auth_2fa_resend">Resend Code</string>
+    <string name="auth_error_invalid_credentials">Invalid username or password</string>
+    <string name="auth_error_2fa_invalid">Invalid 2FA code</string>
+
+    <!-- POS Catalogue -->
+    <string name="pos_title">Cashier</string>
+    <string name="pos_search_hint">Search products…</string>
+    <string name="pos_refresh">Refresh</string>
+    <string name="pos_add_to_cart">Add</string>
+    <string name="pos_remove">Remove</string>
+    <string name="pos_checkout">Checkout</string>
+    <string name="pos_cart_empty">Cart is empty</string>
+    <string name="pos_subtotal">Subtotal</string>
+    <string name="pos_items_count">%d items</string>
+    <string name="pos_category_all">All Categories</string>
+    <string name="pos_out_of_stock">Out of Stock</string>
+    <string name="pos_low_stock">Low Stock</string>
+
+    <!-- Shift -->
+    <string name="shift_open_title">Open Shift</string>
+    <string name="shift_open_desc">Enter opening cash amount to start shift.</string>
+    <string name="shift_opening_cash_label">Opening Cash (Rp)</string>
+    <string name="shift_close_title">Close Shift</string>
+    <string name="shift_summary_title">Shift Summary</string>
+    <string name="shift_opening_cash">Opening Cash</string>
+    <string name="shift_cash_sales">Cash Sales</string>
+    <string name="shift_cash_drops">Cash Drops</string>
+    <string name="shift_cash_pickups">Cash Pickups</string>
+    <string name="shift_expected_cash">Expected Cash</string>
+    <string name="shift_counted_cash_label">Counted Cash (Rp)</string>
+    <string name="shift_variance">Variance: %s</string>
+    <string name="shift_variance_warning">Variance exceeds limit. Please provide reason.</string>
+    <string name="shift_variance_reason_label">Variance Reason</string>
+
+    <!-- Checkout -->
+    <string name="checkout_title">Checkout</string>
+    <string name="checkout_confirm_payment">Confirm Payment</string>
+    <string name="checkout_payment_method">Payment Method</string>
+    <string name="checkout_cash">Cash</string>
+    <string name="checkout_qris">QRIS</string>
+    <string name="checkout_edc">EDC/Card</string>
+    <string name="checkout_ewallet">E-Wallet</string>
+    <string name="checkout_qris_title">Dynamic QRIS</string>
+    <string name="checkout_qris_desc">Show QR code to customer to scan.</string>
+    <string name="checkout_qris_generating">Generating QR code…</string>
+    <string name="checkout_qris_paid">Paid</string>
+    <string name="checkout_qris_expired">QR expired, regenerate.</string>
+    <string name="checkout_total">Total</string>
+    <string name="checkout_amount_paid">Amount Paid</string>
+    <string name="checkout_change">Change</string>
+    <string name="checkout_success">Transaction Successful!</string>
+    <string name="checkout_print_receipt">Print Receipt</string>
+
+    <!-- Customer -->
+    <string name="customer_picker_title">Select Customer</string>
+    <string name="customer_search_hint">Search name / phone</string>
+    <string name="customer_walk_in">Walk-in Customer</string>
+    <string name="customer_add_new">+ Add New Customer</string>
+    <string name="customer_name_label">Name</string>
+    <string name="customer_phone_label">Phone (optional)</string>
+    <string name="customer_email_label">Email (optional)</string>
+    <string name="customer_address_label">Address (optional)</string>
+
+    <!-- Transaction -->
+    <string name="transaction_title">Transaction History</string>
+    <string name="transaction_list_title">Transaction List</string>
+    <string name="transaction_detail_title">Transaction Details</string>
+    <string name="transaction_invoice">Invoice</string>
+    <string name="transaction_date">Date</string>
+    <string name="transaction_time">Time</string>
+    <string name="transaction_cashier">Cashier</string>
+    <string name="transaction_customer">Customer</string>
+    <string name="transaction_items">Items</string>
+    <string name="transaction_payment_method">Payment Method</string>
+    <string name="transaction_status">Status</string>
+    <string name="transaction_status_completed">Completed</string>
+    <string name="transaction_status_pending">Pending</string>
+    <string name="transaction_status_cancelled">Cancelled</string>
+    <string name="transaction_void">Void Transaction</string>
+    <string name="transaction_void_confirm">Are you sure you want to void this transaction?</string>
+    <string name="transaction_void_reason">Void Reason</string>
+    <string name="transaction_empty">No transactions yet</string>
+    <string name="transaction_empty_desc">Transactions will appear here after checkout.</string>
+
+    <!-- Appointment -->
+    <string name="appointment_title">Appointments</string>
+    <string name="appointment_list_title">Appointment List</string>
+    <string name="appointment_detail_title">Appointment Details</string>
+    <string name="appointment_create_title">Create Appointment</string>
+    <string name="appointment_customer">Customer</string>
+    <string name="appointment_date">Date</string>
+    <string name="appointment_time">Time</string>
+    <string name="appointment_service">Service</string>
+    <string name="appointment_notes">Notes</string>
+    <string name="appointment_status">Status</string>
+    <string name="appointment_status_pending">Pending</string>
+    <string name="appointment_status_confirmed">Confirmed</string>
+    <string name="appointment_status_in_progress">In Progress</string>
+    <string name="appointment_status_completed">Completed</string>
+    <string name="appointment_status_cancelled">Cancelled</string>
+    <string name="appointment_status_no_show">No Show</string>
+    <string name="appointment_confirm">Confirm</string>
+    <string name="appointment_checkin">Check-in</string>
+    <string name="appointment_complete">Complete</string>
+    <string name="appointment_cancel">Cancel</string>
+    <string name="appointment_reschedule">Reschedule</string>
+    <string name="appointment_empty">No appointments yet</string>
+    <string name="appointment_empty_desc">Appointments will appear here.</string>
+
+    <!-- Stock Movement -->
+    <string name="stock_movement_title">Stock Movement</string>
+    <string name="stock_movement_list_title">Stock Movement List</string>
+    <string name="stock_movement_create_title">Add Stock Movement</string>
+    <string name="stock_movement_type">Type</string>
+    <string name="stock_movement_type_in">Stock In</string>
+    <string name="stock_movement_type_out">Stock Out</string>
+    <string name="stock_movement_product">Product</string>
+    <string name="stock_movement_quantity">Quantity</string>
+    <string name="stock_movement_unit_cost">Unit Cost</string>
+    <string name="stock_movement_notes">Notes</string>
+    <string name="stock_movement_date">Date</string>
+    <string name="stock_movement_empty">No stock movements yet</string>
+    <string name="stock_movement_empty_desc">Stock movements will appear here.</string>
+
+    <!-- Stock Opname -->
+    <string name="stock_opname_title">Stock Opname</string>
+    <string name="stock_opname_list_title">Stock Opname List</string>
+    <string name="stock_opname_detail_title">Stock Opname Details</string>
+    <string name="stock_opname_create_title">Create Stock Opname</string>
+    <string name="stock_opname_date">Date</string>
+    <string name="stock_opname_status">Status</string>
+    <string name="stock_opname_status_draft">Draft</string>
+    <string name="stock_opname_status_final">Final</string>
+    <string name="stock_opname_product">Product</string>
+    <string name="stock_opname_system_qty">System Qty</string>
+    <string name="stock_opname_physical_qty">Physical Qty</string>
+    <string name="stock_opname_variance">Variance</string>
+    <string name="stock_opname_finalize">Finalize</string>
+    <string name="stock_opname_finalize_confirm">Are you sure? Stock will be adjusted.</string>
+    <string name="stock_opname_delete">Delete Draft</string>
+    <string name="stock_opname_delete_confirm">Are you sure you want to delete this draft?</string>
+    <string name="stock_opname_empty">No stock opname yet</string>
+    <string name="stock_opname_empty_desc">Stock opname will appear here.</string>
+
+    <!-- Employee -->
+    <string name="employee_title">Employees</string>
+    <string name="employee_list_title">Employee List</string>
+    <string name="employee_detail_title">Employee Details</string>
+    <string name="employee_create_title">Add Employee</string>
+    <string name="employee_edit_title">Edit Employee</string>
+    <string name="employee_name">Name</string>
+    <string name="employee_phone">Phone</string>
+    <string name="employee_email">Email</string>
+    <string name="employee_position">Position</string>
+    <string name="employee_department">Department</string>
+    <string name="employee_status">Status</string>
+    <string name="employee_status_active">Active</string>
+    <string name="employee_status_inactive">Inactive</string>
+    <string name="employee_status_terminated">Terminated</string>
+    <string name="employee_empty">No employees yet</string>
+    <string name="employee_empty_desc">Employees will appear here.</string>
+
+    <!-- Sales Report -->
+    <string name="sales_report_title">Sales Report</string>
+    <string name="sales_report_period">Period</string>
+    <string name="sales_report_total_sales">Total Sales</string>
+    <string name="sales_report_total_transactions">Total Transactions</string>
+    <string name="sales_report_avg_transaction">Average Transaction</string>
+    <string name="sales_report_top_products">Top Products</string>
+    <string name="sales_report_payment_breakdown">Payment Breakdown</string>
+    <string name="sales_report_daily_trend">Daily Trend</string>
+
+    <!-- Owner Dashboard -->
+    <string name="dashboard_title">Owner Dashboard</string>
+    <string name="dashboard_today_sales">Today\'s Sales</string>
+    <string name="dashboard_today_transactions">Today\'s Transactions</string>
+    <string name="dashboard_low_stock_items">Low Stock Items</string>
+    <string name="dashboard_pending_appointments">Pending Appointments</string>
+
+    <!-- Online Orders -->
+    <string name="online_order_title">Online Orders</string>
+    <string name="online_order_queue_title">Order Queue</string>
+    <string name="online_order_detail_title">Order Details</string>
+    <string name="online_order_id">Order ID</string>
+    <string name="online_order_platform">Platform</string>
+    <string name="online_order_status">Status</string>
+    <string name="online_order_status_new">New</string>
+    <string name="online_order_status_preparing">Preparing</string>
+    <string name="online_order_status_ready">Ready</string>
+    <string name="online_order_status_completed">Completed</string>
+    <string name="online_order_accept">Accept</string>
+    <string name="online_order_reject">Reject</string>
+    <string name="online_order_mark_ready">Mark Ready</string>
+    <string name="online_order_empty">No online orders</string>
+    <string name="online_order_empty_desc">Online orders will appear here.</string>
+
+    <!-- Loyalty -->
+    <string name="loyalty_title">Loyalty</string>
+    <string name="loyalty_customer_title">Loyalty Customers</string>
+    <string name="loyalty_points">Points</string>
+    <string name="loyalty_tier">Tier</string>
+    <string name="loyalty_transactions">Transactions</string>
+    <string name="loyalty_redeem">Redeem Points</string>
+
+    <!-- Outlet -->
+    <string name="outlet_title">Outlets</string>
+    <string name="outlet_list_title">Outlet List</string>
+    <string name="outlet_switch">Switch Outlet</string>
+    <string name="outlet_current">Current Outlet</string>
+
+    <!-- Sync -->
+    <string name="sync_online">Online</string>
+    <string name="sync_offline">Offline</string>
+    <string name="sync_pending">%d pending</string>
+    <string name="sync_failed">%d failed</string>
+    <string name="sync_issues_title">Sync Failed</string>
+    <string name="sync_issues_empty">No sync issues</string>
+    <string name="sync_issues_empty_desc">All data is synced.</string>
+    <string name="sync_retry_all">Retry All</string>
+    <string name="sync_discard">Discard</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Cashier Settings</string>
+    <string name="settings_sync_section">Synchronization</string>
+    <string name="settings_hardware_section">Hardware</string>
+    <string name="settings_outlet_section">Outlet</string>
+    <string name="settings_app_section">Application</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_id">Bahasa Indonesia</string>
+    <string name="settings_language_en">English</string>
+
+    <!-- Error Messages -->
+    <string name="error_network">No internet connection</string>
+    <string name="error_server">Server error. Please try again later.</string>
+    <string name="error_timeout">Request timeout. Please try again.</string>
+    <string name="error_unknown">Unknown error occurred</string>
+    <string name="error_validation">Invalid data</string>
+    <string name="error_unauthorized">Session expired. Please login again.</string>
+    <string name="error_forbidden">You don\'t have access</string>
+    <string name="error_not_found">Data not found</string>
+
+    <!-- Success Messages -->
+    <string name="success_saved">Data saved successfully</string>
+    <string name="success_deleted">Data deleted successfully</string>
+    <string name="success_updated">Data updated successfully</string>
+    <string name="success_created">Data created successfully</string>
+
+    <!-- Confirmation Dialogs -->
+    <string name="confirm_delete_title">Delete Data?</string>
+    <string name="confirm_delete_message">This action cannot be undone.</string>
+    <string name="confirm_logout_title">Logout?</string>
+    <string name="confirm_logout_message">Are you sure you want to logout?</string>
+    <string name="confirm_discard_title">Discard Changes?</string>
+    <string name="confirm_discard_message">Unsaved changes will be lost.</string>
+
+    <!-- Empty States -->
+    <string name="empty_state_no_data">No data</string>
+    <string name="empty_state_no_results">No results found</string>
+    <string name="empty_state_try_again">Try different keywords</string>
+
+    <!-- Loading States -->
+    <string name="loading_data">Loading data…</string>
+    <string name="loading_please_wait">Please wait…</string>
+    <string name="processing">Processing…</string>
+
+    <!-- Date & Time -->
+    <string name="date_format">MM/dd/yyyy</string>
+    <string name="time_format">hh:mm a</string>
+    <string name="datetime_format">MM/dd/yyyy hh:mm a</string>
+
+    <!-- Currency -->
+    <string name="currency_format">Rp %s</string>
+    <string name="currency_symbol">Rp</string>
+</resources>

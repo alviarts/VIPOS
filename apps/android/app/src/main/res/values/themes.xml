@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!--
+      Base application theme. The Compose-based UI uses MaterialTheme,
+      so this is only used as the activity's pre-Compose theme (status-bar
+      tint while the JVM warms up). P3-02 will replace this with the real
+      teal-branded theme.
+    -->
+    <style name="Theme.VIPOS" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!--
+      Splash-screen theme (P3-01e). Inherits Theme.SplashScreen from
+      androidx.core:core-splashscreen so the system splash window is
+      rendered consistently across API 21+. The launcher activity uses
+      this theme; once installSplashScreen() runs in MainActivity.onCreate
+      Android transitions to the postSplashScreenTheme (Theme.VIPOS).
+
+      windowSplashScreenAnimatedIcon must reference a 108x108dp drawable
+      with content inside the inner 72dp safe zone — re-using the
+      adaptive-icon foreground guarantees the splash mark matches the
+      launcher icon.
+    -->
+    <style name="Theme.VIPOS.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.VIPOS</item>
+    </style>
+</resources>

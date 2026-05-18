@@ -511,7 +511,8 @@ Form "Tambahkan Produk" di Majoo adalah **multi-tab wizard** dengan 5 tab:
 3. **Laporan** (expandable — 12 kategori laporan, 19+ sub-laporan total):
    - Laporan Penjualan → 8 sub: Ringkasan, Detail, Per Periode, Outlet, Jenis Bayar, Jenis Order, Void, Refund
    - Laporan Dapur, Produk, Jasa, Promo & Loyalti, Pajak, Kasir, Deposit, Pelanggan, Karyawan, Persediaan, Settlement
-4. **Analisa Laporan** (expandable)
+4. **Analisa Laporan** (expandable) — 4 submenu:
+   - Waktu Teramai Produk, Waktu Teramai Penjualan, Perputaran Stok, Kepuasan Pelanggan
 5. **Produk** (expandable) — 14 submenu:
    - Daftar Departemen, Daftar Kategori, Daftar Produk, Produk Layanan, Produk Ekstra
    - Produk Paket, Deposit, Penjadwalan Perubahan Resep, Daftar Harga Ojek Online
@@ -553,8 +554,19 @@ Form "Tambahkan Produk" di Majoo adalah **multi-tab wizard** dengan 5 tab:
 12. Akses Support (expandable)
 13. Daftar Ekspor
 
+### D. Sidebar Menu tab "Karyawan" (8 menu):
+1. Pengaturan Karyawan → Daftar Karyawan
+2. Payroll (expandable)
+3. Hak Akses (expandable)
+4. Absensi (expandable)
+5. majoo Teams (expandable)
+6. Jadwal Kerja (expandable)
+7. Pengaturan Master (expandable)
+8. Alur Kerja Persetujuan (expandable)
+
 ### Top Nav Horizontal (7 tabs):
-**Penjualan** | Order Online | Appointment | Karyawan | **Keuangan** | **Pengaturan** | **Lainnya** (dropdown)
+**Penjualan** | Order Online* | Appointment* | **Karyawan** | **Keuangan** | **Pengaturan** | **Lainnya** (dropdown)
+> *Order Online & Appointment memerlukan upgrade ke paket ADVANCE/PRIME
 
 ### Dashboard Extra Cards (yang belum ada di VIPOS):
 - **Kontrol Fraud** — chart/data fraud detection
@@ -571,7 +583,172 @@ Form "Tambahkan Produk" di Majoo adalah **multi-tab wizard** dengan 5 tab:
 2. Informasi Karyawan
 3. Lengkapi Data Outlet
 
-## 14. TODO untuk Devin Berikutnya
+## 14. Detail Halaman Inventori (Deep Dive)
+
+### Daftar Bahan Baku
+- URL: `/inventory/bahan-baku`
+- Info banner: "Data yang tampil berdasarkan Outlet Utama (nama_outlet)"
+- Header: "Daftar Bahan Baku" + star/favorite
+- Actions: Refresh button | **Impor Bahan Baku** (link) | **Ekspor Bahan Baku** (link) | **+ Tambah Bahan Baku** (green button)
+- Search: "Cari ..."
+- Table columns: (checkbox) | SKU | NAMA | SATUAN | + (add column)
+- Empty state: SVG illustration + "Data tidak tersedia"
+
+### Form "Tambah Bahan" (Modal/Overlay):
+- Opened via "+ Tambah Bahan Baku" button → full-screen overlay with majoo logo
+- **Daftar Outlet*** (dropdown, pre-filled with current outlet, removable tags)
+- **Nama Bahan Baku*** (text, placeholder: "Contoh: Tepung")
+- **Monitor Persediaan** (toggle OFF by default, label: "Aktifkan monitor persediaan")
+- **Pengingat Stok Minimum** (number, disabled when monitor OFF, default: 0)
+- **Informasi Satuan** section:
+  - "+ Tambah Satuan" button (green outline)
+  - Table: SATUAN* | HARGA BELI | SKU*
+  - Placeholders: "Contoh: Botol" | "Rp 0" (disabled) | "Contoh: BB001"
+- Footer: **Batal** (text link) | **Simpan** (green solid button)
+- Cancel confirmation dialog: "Batal Tambah Bahan Baku" → "Membatalkan proses ini akan menghapus seluruh data yang telah diinput. Lanjutkan?" → Batal | Ya, Lanjutkan (red button)
+
+### Daftar Pemasok (Supplier)
+- URL: `/inventory/pembelian-stok/supplier`
+- Header: "Daftar Pemasok" + info icon (?) + star/favorite
+- Actions: **Ekspor Daftar Pemasok** (link) | **Impor Daftar Pemasok** (link) | **+ Tambah Pemasok** (green button)
+- Search: "Cari ..."
+- Table columns: KODE PEMASOK | NAMA | KETERANGAN | ALAMAT | NO TELEPON
+- Empty state: SVG illustration + "Data tidak tersedia"
+
+### Inventori Sub-menu URL patterns:
+- Daftar Bahan Baku → `/inventory/bahan-baku`
+- Pembelian Stok → `/inventory/pembelian-stok/...`
+- Kelola Stok → `/inventory/kelola-stok/...`
+- Produksi Stok → `/inventory/produksi-stok/...`
+- Mutasi Antar Outlet → `/inventory/mutasi-antar-outlet/...`
+- Daftar Pemasok → `/inventory/pembelian-stok/supplier`
+
+### Detail Submenu Inventori (Semua Level):
+
+**Pembelian Stok** (6 submenu + 1 expandable):
+1. Permintaan Barang
+2. Pemesanan Stok
+3. Pengiriman Pembelian
+4. Faktur Pembelian
+5. Pembayaran Faktur
+6. Retur (expandable — sub-submenu belum di-explore)
+
+**Kelola Stok** (3 submenu):
+1. Daftar Stok
+2. Stok Opname
+3. Stok Terbuang
+
+**Produksi Stok** (2 submenu):
+1. Daftar Produksi Stok
+2. Acuan Produksi Stok
+
+**Mutasi Antar Outlet** (5 submenu):
+1. Permintaan Stok
+2. Stok Harus Dikirim
+3. Kirim Stok
+4. Terima Mutasi Stok
+5. Stok Transit
+
+> Total submenu Inventori: 6 top-level menus → 17+ sub-submenus
+
+## 15. Detail Halaman Karyawan (Deep Dive)
+
+### Akses Karyawan (Default page)
+- URL: `/employee/employee-list`
+- Info banner: "Akses Data Karyawan kini melalui Menu Karyawan. Kelola data dan hak akses karyawan lebih mudah disini."
+- Header: "Akses Karyawan" + info icon (?) + star/favorite
+- Action: **+ Tambah Akses Karyawan** (green button)
+- Search: "Cari ..."
+- Table columns: NAMA KARYAWAN | NIP | DEFAULT OUTLET | JUMLAH OUTLET | POSISI | HAK AKSES | ... (action menu)
+- Pagination: "Tampilkan: 10 ▼ | Ditampilkan 1 - 1 dari 1 data | ← Sebelumnya [1] Selanjutnya →"
+- Data contoh: ads | adasd | (empty) | 1 Outlet | (empty) | Owner
+
+## 16. Detail Halaman Pelanggan (Deep Dive)
+
+### Daftar Pelanggan
+- URL: `/pelanggan/daftar-pelanggan`
+- Header: "Daftar Pelanggan" + info icon (?) + star/favorite
+- Actions: **Ekspor Data** (dropdown with arrow) | **Impor Data** | **+ Tambah Pelanggan** (green button)
+- Search: "Cari ..."
+- Table columns: (checkbox) | NAMA | KODE PELANGGAN | ALAMAT | TELEPON | JENIS KELAMIN | POIN | SALDO DEPOSIT
+- Pagination: "Tampilkan: 10 ▼ | Ditampilkan 1 - 0 dari 0 data"
+- Empty state: SVG illustration + "Data tidak tersedia"
+
+### Pelanggan Sidebar (5 submenu):
+1. Daftar Pelanggan
+2. Grup Pelanggan
+3. Grup Harga Spesial
+4. Kustom Data Pelanggan
+5. Pengaturan Data Pelanggan
+
+## 17. Tab "Layanan" (Lainnya Dropdown) — Halaman Baru
+
+### Sidebar Menu tab "Layanan" (3 menu):
+1. **Majoopay** (expandable):
+   - QRIS majoo
+   - Pengajuan EDC
+2. **Integrasi Satu Sehat** (expandable)
+3. **Aura - AI Asisten Manajer** (single page)
+
+### QRIS majoo page:
+- URL: `/pembayaran-digital/pengajuan-wallet`
+- Header: "QRIS majoo" + info icon + star/favorite
+- Info: "Pelajari fungsi QRIS Statis & Dinamis di sini" (link)
+- Empty state: "QRIS Tidak Tersedia" + "+ Tambah QRIS majoo" (green button)
+- Section 2: "Riwayat Pengajuan QRIS"
+  - Search: "Cari ..."
+  - Tabs: **QRIS Aktif** | **QRIS Belum Aktif**
+  - Table: OUTLET | STATUS | TIPE QRIS | REKENING SETTLEMENT | TANGGAL PENGAJUAN | TANGGAL UPDATE | KETERANGAN
+
+## 18. Pola UI/UX Umum Majoo (Rangkuman)
+
+### Pattern Halaman List (Daftar):
+1. **Info banner** (opsional) — kuning/hijau, pesan kontekstual
+2. **Header**: Nama halaman + info icon (?) + star/favorite
+3. **Action buttons**: Impor | Ekspor | + Tambah [item] (green solid button)
+4. **Search bar**: "Cari ..." dengan icon magnifying glass
+5. **Filter tabs** (opsional): Semua | Aktif | Tidak Aktif (atau filter lain)
+6. **Data table**: Checkbox (opsional) | kolom-kolom sortable | action menu (...)
+7. **Empty state**: SVG illustration (teal themed clipboard+magnifying glass) + "Data tidak tersedia" + "Belum ada data yang dapat ditampilkan di halaman ini"
+8. **Pagination**: "Tampilkan: [10] ▼ | Ditampilkan X - Y dari Z data | ← Sebelumnya [page numbers] Selanjutnya →"
+
+### Pattern Warna & Tombol:
+- Primary CTA: **Hijau solid** (#04C99E) — "+ Tambah ..."
+- Secondary CTA: **Hijau outline** — "Tambah Transaksi ▼"
+- Link actions: **Hijau text** (no border) — "Impor ...", "Ekspor ..."
+- Danger: **Merah** — "Ya, Lanjutkan" (delete confirmation)
+- Refresh: Icon button (circular arrows)
+
+### Pattern Navigation:
+- **Top Nav**: Tab horizontal → mengubah seluruh sidebar context
+- **Sidebar**: Accordion menu → expand/collapse submenus (up to 3 levels deep)
+- **Breadcrumb**: Tidak ada — navigasi via sidebar only
+- **URL pattern**: `/{module}/{sub-module}/{page}` (contoh: `/inventory/bahan-baku`)
+
+### Pattern Form (Add/Edit):
+- Opens as **full-screen overlay** (bukan modal kecil) with majoo logo di top center
+- Close button (X) di kiri atas
+- Fields: Label di kiri, input di kanan (layout horizontal)
+- Required fields marked with * (red asterisk)
+- Toggle switches for boolean options (OFF/ON)
+- Multi-select outlets via dropdown tags
+- Dynamic table rows with "+ Tambah" button
+- Footer sticky: **Batal** (text link left) | **Simpan** (green button right)
+
+### Pattern Confirmation Dialog:
+- Title: "Batal [Action Name]" — e.g. "Batal Tambah Bahan Baku"
+- Body: "Membatalkan proses ini akan menghapus seluruh data yang telah diinput. Lanjutkan?"
+- Buttons: **Batal** (text/outline) | **Ya, Lanjutkan** (red solid button)
+- Also used for delete: "Hapus [Item]?" → "Ya, Hapus" (red)
+
+### Pattern 404 Page:
+- Full-screen with teal blob decorations
+- SVG illustration (clipboard with "404" and exclamation mark)
+- Title: "Halaman tidak ditemukan"
+- Subtitle: "Silakan mencoba beberapa saat lagi"
+- Button: **Kembali** (green solid)
+
+## 19. TODO untuk Devin Berikutnya
 
 ### Prioritas Tinggi:
 1. **Test locally** — `cd backend && npm install && npm run seed` → `cd frontend && npm install` → start both
@@ -601,7 +778,7 @@ Form "Tambahkan Produk" di Majoo adalah **multi-tab wizard** dengan 5 tab:
 21. Tambah Onboarding Wizard ("Langkah Mudah Buka Outlet")
 22. Tambah Departemen management (Daftar Departemen)
 
-## 15. Akses & Kredensial
+## 20. Akses & Kredensial
 
 - **GitHub Repo**: https://github.com/alviarts/VIPOS
 - **Default login VIPOS**: admin / admin123

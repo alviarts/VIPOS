@@ -1,0 +1,537 @@
+package id.alviarts.vipos.feature.pos.ui
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import id.alviarts.vipos.feature.pos.data.CheckoutCommitRequest
+import id.alviarts.vipos.feature.pos.data.QrisRepository
+import id.alviarts.vipos.feature.pos.data.TransactionRepository
+import id.alviarts.vipos.feature.pos.domain.CheckoutCartLine
+import id.alviarts.vipos.feature.pos.domain.CheckoutInputState
+import id.alviarts.vipos.feature.pos.domain.PaymentMethod
+import id.alviarts.vipos.feature.pos.domain.PaymentMethodCatalog
+import id.alviarts.vipos.feature.pos.domain.QrisPollStatus
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+/**
+ * Drives the payment-method picker (P3-08 second slice) +
+ * method-specific input state (P3-08 third slice).
+ *
+ * Responsibilities (this slice and the previous):
+ *  - Open the picker for a given cart subtotal — snapshots the
+ *    subtotal + the available-methods projection from
+ *    [PaymentMethodCatalog] for the current online state.
+ *  - Maintain the [CheckoutUiState] picker lifecycle. The
+ *    picker is purely client-side — there's no fetch — so the
+ *    lifecycle is a deterministic `Idle → Picking → Picked`
+ *    state machine driven by the kasir's taps.
+ *  - Let the kasir change their pick mid-Picking; replacing
+ *    [CheckoutUiState.selectedMethod] in place is a no-op
+ *    against the picker lifecycle.
+ *  - **Slice 3** — initialise the per-method
+ *    [CheckoutInputState] on [confirmSelection] so the slice-4
+ *    UI has a non-null state to render its input dialog
+ *    against, and expose narrow mutators for each method's
+ *    input shape (cash tendered, EDC approval ref + last4,
+ *    QRIS Dynamic poll status).
+ *
+ * What's intentionally NOT here (slice 4+):
+ *  - Compose UI for the picker grid + per-method input dialogs.
+ *  - The actual QRIS Dynamic poll loop — the backend doesn't
+ *    expose a `/api/v1/payment/qris/:ref_id/status` endpoint
+ *    yet. The state shape exists; the
+ *    `viewModelScope`-bound poll lands with slice 5 wire-up.
+ *  - Split-bill flow — split-bill isn't a [PaymentMethod] enum
+ *    entry, so it can't be driven by the same `selectedMethod`
+ *    pivot. It needs its own picker-mode toggle + UI surface
+ *    and is layered on in a follow-up slice.
+ *  - Transaction commit — the existing
+ *    `apps/backend/src/routes/transactions.js` endpoint isn't
+ *    wired through the checkout flow until slice 5.
+ *  - Cart-aware filters (credit only allowed for non-walk-in
+ *    customer, deposit only allowed when balance > 0, loyalty
+ *    point only when points ≥ threshold). The catalogue
+ *    indirection is already in place to layer those on top —
+ *    a future slice will inject a cart-aware
+ *    [PaymentMethodCatalog] decorator that further filters the
+ *    output of [DefaultPaymentMethodCatalog].
+ *  - Per-merchant allow-list filter — same indirection. Needs
+ *    a backend org-config column or settings endpoint that
+ *    doesn't exist yet; tracked as a green-risk follow-up.
+ *
+ * The catalogue is injected as a constructor arg so the
+ * production Hilt graph wires the standard impl while unit
+ * tests can pass a fake. The Hilt binding is provided in
+ * `PosModule` (slice 2 — see
+ * `apps/android/feature/pos/src/main/java/id/alviarts/vipos/feature/pos/di/PosModule.kt`).
+ */
+@HiltViewModel
+class CheckoutViewModel @Inject constructor(
+    private val catalog: PaymentMethodCatalog,
+    private val transactionRepository: TransactionRepository,
+    private val qrisRepository: QrisRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(CheckoutUiState())
+    val uiState: StateFlow<CheckoutUiState> = _uiState.asStateFlow()
+
+    /**
+     * Handle to the in-flight QRIS poll coroutine. Cancelled on
+     * [cancel], [reopenPicker], or when the poll reaches a
+     * terminal status ([QrisPollStatus.Paid] /
+     * [QrisPollStatus.Expired] / [QrisPollStatus.Failed]).
+     * `null` when no poll is active.
+     */
+    private var qrisPollJob: Job? = null
+
+    /**
+     * Open the picker for a fresh cart.
+     *
+     * Snapshots [cartSubtotalIdr] + [cartLines] + the catalogue
+     * projection at the time of the call. Subsequent network
+     * state changes (e.g. WiFi drops mid-pick) do NOT shrink the
+     * available methods, and subsequent cart edits in the
+     * background catalogue do NOT mutate the in-flight commit
+     * payload — the kasir's view of the checkout stays stable
+     * until [cancel] resets it.
+     *
+     * Calling [start] on a [CheckoutPickerStatus.Picking] or
+     * [CheckoutPickerStatus.Picked] state is treated as a
+     * "re-open with a fresh cart" — the previous selection is
+     * cleared and the picker re-opens with the new subtotal +
+     * a re-snapshotted catalogue. Useful when the kasir voids
+     * the cart and starts a new transaction without leaving the
+     * checkout flow.
+     *
+     * Calling [start] with a non-positive [cartSubtotalIdr] is
+     * supported but the [CheckoutUiState.isReadyToCommit]
+     * predicate stays `false` — the kasir would have to add
+     * something to the cart before settling. The empty-cart
+     * UX (showing a "cart kosong" banner instead of the picker
+     * grid) is the slice-4 UI's call.
+     *
+     * [cartLines] defaults to `emptyList()` so existing callers
+     * (slice 4 unit tests) keep compiling. Production callers
+     * (the kasir route) always pass the live cart projection so
+     * the slice-5b commit payload has the items to send.
+     */
+    fun start(
+        cartSubtotalIdr: Long,
+        isOnline: Boolean,
+        cartLines: List<CheckoutCartLine> = emptyList(),
+    ) {
+        _uiState.update {
+            CheckoutUiState(
+                cartSubtotalIdr = cartSubtotalIdr,
+                availableMethods = catalog.availableMethods(isOnline = isOnline),
+                pickerStatus = CheckoutPickerStatus.Picking,
+                selectedMethod = null,
+                cartLines = cartLines,
+            )
+        }
+    }
+
+    /**
+     * Pick [method] in the open picker.
+     *
+     * Replaces any previous selection. Silently no-ops if:
+     *  - the picker isn't open
+     *    ([CheckoutPickerStatus.Picking] is the only writable
+     *    state); or
+     *  - [method] isn't in the snapshotted
+     *    [CheckoutUiState.availableMethods] (defensive against
+     *    a UI tap firing for a method that's been filtered out
+     *    by the catalogue but still rendered in a stale frame).
+     */
+    fun selectMethod(method: PaymentMethod) {
+        _uiState.update { state ->
+            if (state.pickerStatus !is CheckoutPickerStatus.Picking) return@update state
+            if (method !in state.availableMethods) return@update state
+            state.copy(selectedMethod = method)
+        }
+    }
+
+    /**
+     * Clear the current pick without leaving the picker. The
+     * kasir taps the highlighted card a second time (or hits a
+     * "Reset" affordance) and the grid returns to the
+     * unselected state.
+     *
+     * No-op when nothing is picked, or when the picker is not
+     * open.
+     */
+    fun clearSelection() {
+        _uiState.update { state ->
+            if (state.pickerStatus !is CheckoutPickerStatus.Picking) return@update state
+            if (state.selectedMethod == null) return@update state
+            state.copy(selectedMethod = null)
+        }
+    }
+
+    /**
+     * Confirm the current pick and advance to the
+     * method-specific input step.
+     *
+     * Lifecycle: `Picking → Picked`.
+     *
+     * Slice 3 — also seeds [CheckoutUiState.inputState] with a
+     * fresh per-method default for the methods that need one
+     * (cash, EDC, QRIS Dynamic). Methods that don't need a
+     * per-method input (QRIS Statis, bank transfer, credit,
+     * deposit, voucher, loyalty, other) advance to Picked with
+     * [CheckoutUiState.inputState] left as `null`; the slice-4
+     * UI surfaces a single-tap settle dialog for those instead.
+     *
+     * No-op when nothing is picked or when the picker is not
+     * open. The slice-4 UI gates the CTA on
+     * [CheckoutUiState.isReadyToConfirmMethod] so this path is
+     * only exercisable from a valid state.
+     */
+    fun confirmSelection() {
+        _uiState.update { state ->
+            if (!state.isReadyToConfirmMethod) return@update state
+            state.copy(
+                pickerStatus = CheckoutPickerStatus.Picked,
+                inputState = freshInputStateFor(state.selectedMethod),
+            )
+        }
+        // Kick off the QRIS mint + poll loop when the kasir
+        // confirms QRIS_DYNAMIC. The loop runs in viewModelScope
+        // and self-cancels on terminal status.
+        if (_uiState.value.selectedMethod == PaymentMethod.QRIS_DYNAMIC) {
+            startQrisMintAndPoll()
+        }
+    }
+
+    /**
+     * Re-open the picker after a [confirmSelection] without
+     * losing the kasir's previous pick. Used by the slice-4 UI
+     * "back" affordance to let the kasir change their method
+     * after seeing the method-specific dialog.
+     *
+     * Lifecycle: `Picked → Picking`. Clears any
+     * [CheckoutUiState.inputState] the kasir had filled in for
+     * the previous method — re-confirming the same method
+     * starts the input state fresh, since persisting half-typed
+     * tendered amounts across method-pivots leads to "huh, why
+     * does the cash dialog already have a number?" UX
+     * confusion.
+     *
+     * No-op when not in [CheckoutPickerStatus.Picked] (i.e. the
+     * picker is already open or the flow hasn't started yet).
+     */
+    fun reopenPicker() {
+        cancelQrisPoll()
+        _uiState.update { state ->
+            if (state.pickerStatus !is CheckoutPickerStatus.Picked) return@update state
+            state.copy(
+                pickerStatus = CheckoutPickerStatus.Picking,
+                inputState = null,
+            )
+        }
+    }
+
+    /**
+     * Update tendered IDR for an in-flight cash payment.
+     *
+     * No-op when the picker hasn't advanced past
+     * [CheckoutPickerStatus.Picked] for [PaymentMethod.CASH] or
+     * when [CheckoutUiState.inputState] isn't a
+     * [CheckoutInputState.CashInput]. Negative tendered values
+     * are clamped to zero so the cash dialog can never show a
+     * negative tendered field.
+     */
+    fun setCashTendered(tenderedIdr: Long) {
+        val clamped = if (tenderedIdr < 0L) 0L else tenderedIdr
+        _uiState.update { state ->
+            val current = state.inputState
+            if (state.pickerStatus !is CheckoutPickerStatus.Picked) return@update state
+            if (current !is CheckoutInputState.CashInput) return@update state
+            state.copy(inputState = current.copy(tenderedIdr = clamped))
+        }
+    }
+
+    /**
+     * Update the EDC approval/ref number for an in-flight EDC
+     * payment.
+     *
+     * No-op when [CheckoutUiState.inputState] isn't a
+     * [CheckoutInputState.EdcInput] or when the picker hasn't
+     * advanced past [CheckoutPickerStatus.Picked]. The string
+     * is stored verbatim — leading/trailing whitespace is only
+     * trimmed at validation time so the kasir can paste a ref
+     * with a trailing newline without the field rejecting it.
+     */
+    fun setEdcApprovalRef(approvalRef: String) {
+        _uiState.update { state ->
+            val current = state.inputState
+            if (state.pickerStatus !is CheckoutPickerStatus.Picked) return@update state
+            if (current !is CheckoutInputState.EdcInput) return@update state
+            state.copy(inputState = current.copy(approvalRef = approvalRef))
+        }
+    }
+
+    /**
+     * Update the optional last-4-of-card field for an in-flight
+     * EDC payment. Pass `null` to clear it.
+     *
+     * No-op when the slice-4 dialog isn't open against a
+     * [CheckoutInputState.EdcInput]. Length validation is the
+     * UI's job — this just persists whatever the kasir typed.
+     */
+    fun setEdcLast4(last4: String?) {
+        _uiState.update { state ->
+            val current = state.inputState
+            if (state.pickerStatus !is CheckoutPickerStatus.Picked) return@update state
+            if (current !is CheckoutInputState.EdcInput) return@update state
+            state.copy(inputState = current.copy(last4 = last4))
+        }
+    }
+
+    /**
+     * Persist a gateway-reported QRIS Dynamic poll status into
+     * the in-flight checkout state.
+     *
+     * The full poll loop ([viewModelScope]-bound, owns the
+     * timer + retry logic) lands with slice 5 wire-up; this
+     * mutator is what each poll tick calls into. Slice-4 tests
+     * also drive it directly to simulate the gateway timeline.
+     *
+     * No-op when the slice-4 dialog isn't open against a
+     * [CheckoutInputState.QrisDynamicInput].
+     */
+    fun setQrisStatus(refId: String?, status: QrisPollStatus) {
+        _uiState.update { state ->
+            val current = state.inputState
+            if (state.pickerStatus !is CheckoutPickerStatus.Picked) return@update state
+            if (current !is CheckoutInputState.QrisDynamicInput) return@update state
+            state.copy(inputState = current.copy(refId = refId, status = status))
+        }
+    }
+
+    /**
+     * Reset the entire flow back to [CheckoutPickerStatus.Idle].
+     * Called when the kasir dismisses the checkout sheet/screen.
+     * Clears the snapshotted subtotal + available methods so a
+     * subsequent [start] always sees a fresh state.
+     */
+    fun cancel() {
+        cancelQrisPoll()
+        _uiState.update { CheckoutUiState() }
+    }
+
+    /**
+     * Commit the in-flight checkout against
+     * `POST /api/v1/transactions` (P3-08 slice 5b).
+     *
+     * Pre-conditions (silent no-op when violated):
+     *  - [CheckoutUiState.isReadyForCommit] is `true` (picker
+     *    advanced to Picked, method picked, subtotal positive,
+     *    per-method input validates against the subtotal). The
+     *    slice-4 dialog CTAs already gate on this predicate so a
+     *    UI tap can't fire from an invalid state — this guard is
+     *    defensive against direct test invocations.
+     *  - [CheckoutUiState.commitStatus] is not already
+     *    [CheckoutCommitStatus.Submitting] (re-entrancy guard
+     *    against tap-repeat).
+     *
+     * State transitions on a valid call:
+     *  - Idle → Submitting (request fires).
+     *  - Submitting → Succeeded (on `Result.success`).
+     *  - Submitting → Failed (on `Result.failure`).
+     *
+     * On Succeeded, the catalogue route is expected to:
+     *  1. Run the side-effects (clear cart, show receipt toast).
+     *  2. Call [cancel] to dismiss the sheet.
+     *
+     * On Failed, the route shows a snackbar with
+     * [CheckoutCommitStatus.Failed.message] and the kasir taps
+     * "Bayar" again to retry. Retry first calls
+     * [acknowledgeCommitFailure] (to flip Failed → Idle so
+     * `isReadyForCommit` goes `true` again) then re-invokes
+     * [commit].
+     */
+    fun commit() {
+        val current = _uiState.value
+        if (!current.isReadyForCommit) return
+        if (current.commitStatus is CheckoutCommitStatus.Submitting) return
+        val method = current.selectedMethod ?: return
+
+        _uiState.update { it.copy(commitStatus = CheckoutCommitStatus.Submitting) }
+
+        viewModelScope.launch {
+            val result = transactionRepository.commit(
+                CheckoutCommitRequest(
+                    cartLines = current.cartLines,
+                    cartSubtotalIdr = current.cartSubtotalIdr,
+                    paymentMethod = method,
+                    inputState = current.inputState,
+                ),
+            )
+            _uiState.update { state ->
+                result.fold(
+                    onSuccess = { outcome ->
+                        state.copy(
+                            commitStatus = CheckoutCommitStatus.Succeeded(
+                                invoiceNumber = outcome.invoiceNumber,
+                                totalAmountIdr = outcome.totalAmountIdr,
+                                changeAmountIdr = outcome.changeAmountIdr,
+                            ),
+                        )
+                    },
+                    onFailure = { throwable ->
+                        state.copy(
+                            commitStatus = CheckoutCommitStatus.Failed(
+                                message = throwable.localizedMessage
+                                    ?: throwable.message
+                                    ?: DEFAULT_COMMIT_FAILURE_MESSAGE,
+                            ),
+                        )
+                    },
+                )
+            }
+        }
+    }
+
+    /**
+     * Reset [CheckoutUiState.commitStatus] from
+     * [CheckoutCommitStatus.Failed] back to
+     * [CheckoutCommitStatus.Idle] so [isReadyForCommit] becomes
+     * `true` again and the kasir can retry [commit].
+     *
+     * No-op when the current commit status is anything other
+     * than Failed — defensive against the catalogue route's
+     * `LaunchedEffect` firing redundantly.
+     */
+    fun acknowledgeCommitFailure() {
+        _uiState.update { state ->
+            if (state.commitStatus !is CheckoutCommitStatus.Failed) return@update state
+            state.copy(commitStatus = CheckoutCommitStatus.Idle)
+        }
+    }
+
+    // -- QRIS Dynamic mint + poll loop (P3-08 slice 5c) --------
+
+    /**
+     * Mint a QRIS Dynamic QR and start polling for payment
+     * confirmation every [QRIS_POLL_INTERVAL_MS] milliseconds.
+     *
+     * Flow:
+     *  1. POST `/api/v1/payment/qris/dynamic` with the
+     *     snapshotted cart subtotal.
+     *  2. On success → seed [QrisDynamicInput] with the
+     *     gateway-issued `refId` + status `Awaiting`.
+     *  3. Poll `GET /api/v1/payment/qris/:ref_id/status` every
+     *     3 seconds.
+     *  4. On each poll → update [QrisDynamicInput.status] via
+     *     [setQrisStatus].
+     *  5. Stop on terminal status: `Paid`, `Expired`, `Failed`.
+     *
+     * On mint failure → set status to `Failed` with the error
+     * message so the UI shows the error banner immediately.
+     *
+     * The coroutine is scoped to [viewModelScope] and tracked
+     * via [qrisPollJob] so [cancel] / [reopenPicker] can kill
+     * it mid-flight.
+     */
+    private fun startQrisMintAndPoll() {
+        cancelQrisPoll()
+        val subtotal = _uiState.value.cartSubtotalIdr
+        qrisPollJob = viewModelScope.launch {
+            // Step 1: Mint
+            val mintResult = qrisRepository.mint(subtotal)
+            mintResult.fold(
+                onSuccess = { mint ->
+                    setQrisStatus(mint.refId, mint.status)
+                    // Store the QR code URL for the UI to render.
+                    _uiState.update { state ->
+                        val current = state.inputState
+                        if (current !is CheckoutInputState.QrisDynamicInput) return@update state
+                        state.copy(
+                            inputState = current.copy(
+                                refId = mint.refId,
+                                status = mint.status,
+                                qrCodeUrl = mint.qrCodeUrl,
+                            ),
+                        )
+                    }
+                    // Step 2: Poll loop
+                    val refId = mint.refId
+                    while (true) {
+                        delay(QRIS_POLL_INTERVAL_MS)
+                        val pollResult = qrisRepository.pollStatus(refId)
+                        pollResult.fold(
+                            onSuccess = { poll ->
+                                setQrisStatus(poll.refId, poll.status)
+                                // Stop on terminal status
+                                if (poll.status is QrisPollStatus.Paid ||
+                                    poll.status is QrisPollStatus.Expired ||
+                                    poll.status is QrisPollStatus.Failed
+                                ) return@launch
+                            },
+                            onFailure = { throwable ->
+                                setQrisStatus(
+                                    refId,
+                                    QrisPollStatus.Failed(
+                                        throwable.localizedMessage
+                                            ?: throwable.message
+                                            ?: DEFAULT_QRIS_FAILURE_MESSAGE,
+                                    ),
+                                )
+                                return@launch
+                            },
+                        )
+                    }
+                },
+                onFailure = { throwable ->
+                    setQrisStatus(
+                        null,
+                        QrisPollStatus.Failed(
+                            throwable.localizedMessage
+                                ?: throwable.message
+                                ?: DEFAULT_QRIS_FAILURE_MESSAGE,
+                        ),
+                    )
+                },
+            )
+        }
+    }
+
+    /**
+     * Cancel any in-flight QRIS poll coroutine. Safe to call
+     * even when no poll is active (no-op).
+     */
+    private fun cancelQrisPoll() {
+        qrisPollJob?.cancel()
+        qrisPollJob = null
+    }
+
+    /**
+     * Map a confirmed [PaymentMethod] to the per-method input
+     * state shape the slice-4 UI expects. Returns `null` for
+     * methods that don't need a per-method input (single-tap
+     * settle in slice 4).
+     */
+    private fun freshInputStateFor(method: PaymentMethod?): CheckoutInputState? = when (method) {
+        PaymentMethod.CASH -> CheckoutInputState.CashInput()
+        PaymentMethod.EDC -> CheckoutInputState.EdcInput()
+        PaymentMethod.QRIS_DYNAMIC -> CheckoutInputState.QrisDynamicInput()
+        else -> null
+    }
+
+    private companion object {
+        private const val DEFAULT_COMMIT_FAILURE_MESSAGE: String =
+            "Tidak bisa menyimpan transaksi. Coba lagi."
+        private const val DEFAULT_QRIS_FAILURE_MESSAGE: String =
+            "Gagal memproses QRIS. Coba lagi."
+        /** Poll interval in milliseconds (3 seconds). */
+        private const val QRIS_POLL_INTERVAL_MS: Long = 3_000L
+    }
+}
