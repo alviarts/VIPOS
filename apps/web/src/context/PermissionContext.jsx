@@ -47,8 +47,14 @@ const TIER_RANK = {
   [TIERS.PRIME_PLUS]: 4,
 };
 
-// Roles with full owner-level access.
+// Roles with full owner-level access. Used by hasRole() so OWNER/ADMIN are
+// never blocked by per-route role lists.
 const FULL_ACCESS_ROLES = new Set([ROLES.OWNER, ROLES.ADMIN]);
+
+// Roles that bypass the menu-level hideForNonAdmin flag. Reserved for the
+// SaaS-level admin account (ADMIN) so that they can keep monitoring WIP
+// features in the sidebar. Tenant OWNERs are intentionally EXCLUDED here so
+// that newly registered users do not see WIP menus.
 
 function normalizeRole(role) {
   if (!role) return ROLES.STAFF;
@@ -89,9 +95,21 @@ export function PermissionProvider({ children, mockTier }) {
       return cur >= min;
     };
 
-    const canAccess = ({ roles, minTier } = {}) => hasRole(roles) && hasTier(minTier);
+    const isFullAccess = FULL_ACCESS_ROLES.has(role);
+    const canSeeHidden = role === ROLES.ADMIN;
 
-    return { role, tier, hasRole, hasTier, canAccess };
+    // `hideForNonAdmin` is a feature-flag-style toggle used by `menu-groups.js`
+    // to keep WIP / not-yet-stable features visible only to the SaaS-level
+    // ADMIN account. Tenant OWNER does NOT bypass this flag because newly
+    // registered tenants are auto-assigned the OWNER role. Flip the flag off
+    // (or remove the field entirely) when a feature is ready for general
+    // release.
+    const canAccess = ({ roles, minTier, hideForNonAdmin } = {}) => {
+      if (hideForNonAdmin && !canSeeHidden) return false;
+      return hasRole(roles) && hasTier(minTier);
+    };
+
+    return { role, tier, hasRole, hasTier, canAccess, isFullAccess, canSeeHidden };
   }, [role, tier]);
 
   return <PermissionContext.Provider value={value}>{children}</PermissionContext.Provider>;

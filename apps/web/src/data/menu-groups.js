@@ -13,6 +13,11 @@
 //                    Falsy means "available on all tiers".
 //   - `disabled`  — render disabled-look entry but keep visible (for "coming
 //                    soon" stubs).
+//   - `hideForNonAdmin` — when truthy, the entry (group or item) is only
+//                    visible to OWNER / ADMIN roles. Used as a "WIP" feature
+//                    flag so functionality can stay wired up internally while
+//                    hidden from registered tenant users. Flip the flag off
+//                    (or remove it) when a feature graduates.
 //
 // Icons resolved from `lucide-react`. Keep grouping order stable since we
 // snapshot it in `Sidebar.test.jsx`.
@@ -89,24 +94,28 @@ export const MENU_GROUPS = [
         label: 'Master Resep',
         icon: ChefHat,
         roles: [ROLES.MANAGER, ROLES.STAFF],
+        hideForNonAdmin: true,
       },
       {
         path: '/products/bundles',
         label: 'Paket Produk',
         icon: ShoppingBag,
         roles: [ROLES.MANAGER, ROLES.STAFF],
+        hideForNonAdmin: true,
       },
       {
         path: '/products/batches',
         label: 'Batch / Lot Tracking',
         icon: Calendar,
         roles: [ROLES.MANAGER, ROLES.WAREHOUSE, ROLES.STAFF],
+        hideForNonAdmin: true,
       },
       {
         path: '/products/serials',
         label: 'Serial Number Tracking',
         icon: Hash,
         roles: [ROLES.MANAGER, ROLES.WAREHOUSE, ROLES.STAFF],
+        hideForNonAdmin: true,
       },
       {
         path: '/categories',
@@ -119,6 +128,7 @@ export const MENU_GROUPS = [
         label: 'Departemen',
         icon: Boxes,
         roles: [ROLES.MANAGER, ROLES.STAFF],
+        hideForNonAdmin: true,
       },
       {
         path: '/inventory',
@@ -131,12 +141,14 @@ export const MENU_GROUPS = [
         label: 'Mutasi Antar Outlet',
         icon: ArrowLeftRight,
         roles: [ROLES.MANAGER, ROLES.WAREHOUSE],
+        hideForNonAdmin: true,
       },
       {
         path: '/inventory/production',
         label: 'Manajemen Produksi',
         icon: Factory,
         roles: [ROLES.MANAGER, ROLES.WAREHOUSE],
+        hideForNonAdmin: true,
       },
       {
         path: '/inventory/opname',
@@ -161,6 +173,7 @@ export const MENU_GROUPS = [
         label: 'Komisi',
         icon: HandCoins,
         roles: [ROLES.MANAGER, ROLES.STAFF],
+        hideForNonAdmin: true,
       },
     ],
   },
@@ -168,6 +181,7 @@ export const MENU_GROUPS = [
     id: 'promosi',
     label: 'Promosi',
     icon: Sparkles,
+    hideForNonAdmin: true,
     items: [
       {
         path: '/promos',
@@ -200,6 +214,7 @@ export const MENU_GROUPS = [
     label: 'Order Online',
     icon: ShoppingBag,
     minTier: TIERS.STARTER,
+    hideForNonAdmin: true,
     items: [
       {
         path: '/order-online/orders',
@@ -235,6 +250,7 @@ export const MENU_GROUPS = [
     id: 'invoice_b2b',
     label: 'Invoice B2B',
     icon: FileText,
+    hideForNonAdmin: true,
     items: [
       {
         path: '/quotations',
@@ -279,6 +295,7 @@ export const MENU_GROUPS = [
     label: 'Appointment',
     icon: CalendarRange,
     minTier: TIERS.ADVANCE,
+    hideForNonAdmin: true,
     items: [
       {
         path: '/appointment',
@@ -383,12 +400,14 @@ export const MENU_GROUPS = [
         label: 'Mitra (Vendor)',
         icon: UserCheck,
         roles: [ROLES.MANAGER],
+        hideForNonAdmin: true,
       },
       {
         path: '/finance/fixed-assets',
         label: 'Aset Tetap',
         icon: Building2,
         roles: [ROLES.MANAGER],
+        hideForNonAdmin: true,
       },
       {
         path: '/finance/reports',
@@ -451,6 +470,7 @@ export const MENU_GROUPS = [
     id: 'layanan',
     label: 'LAYANAN',
     icon: HeartHandshake,
+    hideForNonAdmin: true,
     items: [
       {
         path: '/services',
@@ -464,6 +484,7 @@ export const MENU_GROUPS = [
     id: 'inspirasi',
     label: 'INSPIRASI',
     icon: Compass,
+    hideForNonAdmin: true,
     items: [{ path: '/inspirasi', label: 'Blog & Event', icon: Compass, roles: [] }],
   },
   {
@@ -471,6 +492,7 @@ export const MENU_GROUPS = [
     label: 'Capital',
     icon: HandCoins,
     minTier: TIERS.ADVANCE,
+    hideForNonAdmin: true,
     items: [
       {
         path: '/capital',
@@ -485,6 +507,7 @@ export const MENU_GROUPS = [
     id: 'supplies',
     label: 'SUPPLIES',
     icon: Truck,
+    hideForNonAdmin: true,
     items: [
       {
         path: '/supplies',
@@ -501,10 +524,18 @@ export const MENU_GROUPS = [
 // the `items` array rewritten to only the visible items.
 export function filterMenuGroups(groups, canAccess) {
   return groups
-    .filter((group) => canAccess({ minTier: group.minTier }))
+    .filter((group) =>
+      canAccess({ minTier: group.minTier, hideForNonAdmin: group.hideForNonAdmin })
+    )
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => canAccess({ roles: item.roles, minTier: item.minTier })),
+      items: group.items.filter((item) =>
+        canAccess({
+          roles: item.roles,
+          minTier: item.minTier,
+          hideForNonAdmin: item.hideForNonAdmin,
+        })
+      ),
     }))
     .filter((group) => group.items.length > 0);
 }

@@ -30,3 +30,13 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 *.log
+
+# Pre-deploy build snapshot folders (created by deploy scripts)
+apps/web/dist.pre-deploy-*/
+apps/web/dist.backup-*/
+
+# Backend upload artifacts (user-uploaded files)
+apps/backend/uploads/
+
+# WIP / temporary scripts
+apps/backend/trigger-db-backup.tmp.js

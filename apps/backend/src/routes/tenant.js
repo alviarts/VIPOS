@@ -113,14 +113,14 @@ router.post('/register', async (req, res) => {
       const userRow = (
         await txQuery(
           `INSERT INTO users (username, password, name, role, email, tenant_id)
-           VALUES ($1, $2, $3, 'admin', $4, $5)
+           VALUES ($1, $2, $3, 'owner', $4, $5)
            RETURNING id, username, name, role, email, tenant_id`,
           [admin_username, hashed, admin_name, admin_email || null, tenantRow.id]
         )
       ).rows[0];
       await txQuery(
         `INSERT INTO tenant_users (tenant_id, user_id, role, is_default)
-         VALUES ($1, $2, 'admin', TRUE)`,
+         VALUES ($1, $2, 'owner', TRUE)`,
         [tenantRow.id, userRow.id]
       );
       return { tenant: tenantRow, user: userRow };

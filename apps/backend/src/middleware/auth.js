@@ -30,7 +30,12 @@ function authenticateToken(req, res, next) {
 }
 
 function requireAdmin(req, res, next) {
-  if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+  // Tenant OWNER is the highest in-tenant role and effectively the "admin" of
+  // their own tenant, so it bypasses this gate alongside the SaaS-level
+  // ADMIN and SUPER_ADMIN. The frontend `hideForNonAdmin` flag still uses a
+  // strict role === ADMIN check (PermissionContext) so tenant owners do not
+  // see WIP menus reserved for the platform admin.
+  if (req.user.role !== 'owner' && req.user.role !== 'admin' && req.user.role !== 'super_admin') {
     return res.status(403).json({ error: 'Akses ditolak. Hanya admin yang diizinkan.' });
   }
   next();
