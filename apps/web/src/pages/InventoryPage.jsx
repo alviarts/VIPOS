@@ -1,36 +1,15 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Plus,
-  Search,
-  Warehouse,
-  X,
-  ArrowUpCircle,
-  ArrowDownCircle,
-  ClipboardCheck,
-  Box,
-  AlertTriangle,
-  History,
+  Plus, Search, Warehouse, X, ArrowUpCircle, ArrowDownCircle, ClipboardCheck,
+  Box, AlertTriangle,
 } from 'lucide-react';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format';
 import {
-  ConfirmationDialog,
-  EmptyState,
-  Pagination,
-  FilterTabs,
-  PageHeader,
+  ConfirmationDialog, EmptyState, Pagination, FilterTabs, PageHeader,
 } from '../components/ui';
-
-// Lazy-load ProductMovementHistoryDialog — most inventory visits don't
-// open the per-product history view. Mounted on demand keyed on
-// {historyProduct} so the chunk only fetches when the user clicks
-// the History icon.
-const ProductMovementHistoryDialog = lazy(
-  () => import('../components/inventory/ProductMovementHistoryDialog')
-);
 
 const TIPE_LABEL = {
   stok_in: 'Stok Masuk',
@@ -62,11 +41,8 @@ export default function InventoryPage() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [confirmSave, setConfirmSave] = useState(false);
-  const [historyProduct, setHistoryProduct] = useState(null);
 
-  useEffect(() => {
-    loadAll();
-  }, []);
+  useEffect(() => { loadAll(); }, []);
 
   const loadAll = async () => {
     try {
@@ -78,7 +54,7 @@ export default function InventoryPage() {
       setMovements(movRes.data);
       setProducts(prodRes.data);
       setSummary(sumRes.data);
-    } catch (_err) {
+    } catch (err) {
       toast.error('Gagal memuat inventori');
     }
   };
@@ -96,21 +72,16 @@ export default function InventoryPage() {
     });
   }, [movements, tipeFilter, search]);
 
-  const counts = useMemo(
-    () => ({
-      all: movements.length,
-      stok_in: movements.filter((m) => m.tipe === 'stok_in').length,
-      stok_out: movements.filter((m) => m.tipe === 'stok_out').length,
-      opname: movements.filter((m) => m.tipe === 'opname').length,
-    }),
-    [movements]
-  );
+  const counts = useMemo(() => ({
+    all: movements.length,
+    stok_in: movements.filter((m) => m.tipe === 'stok_in').length,
+    stok_out: movements.filter((m) => m.tipe === 'stok_out').length,
+    opname: movements.filter((m) => m.tipe === 'opname').length,
+  }), [movements]);
 
   const total = filtered.length;
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
-  useEffect(() => {
-    setPage(1);
-  }, [tipeFilter, search]);
+  useEffect(() => { setPage(1); }, [tipeFilter, search]);
 
   const openForm = (tipe) => {
     setForm({ ...initForm(), tipe });
@@ -121,7 +92,8 @@ export default function InventoryPage() {
   const validate = () => {
     const errs = {};
     if (!form.product_id) errs.product_id = 'Produk wajib dipilih';
-    if (!form.qty || parseInt(form.qty, 10) <= 0) errs.qty = 'Jumlah harus lebih dari 0';
+    if (!form.qty || parseInt(form.qty, 10) <= 0)
+      errs.qty = 'Jumlah harus lebih dari 0';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -134,20 +106,13 @@ export default function InventoryPage() {
   const handleConfirmSave = async () => {
     setSaving(true);
     try {
-      const payload = {
+      await api.post('/inventory/movements', {
         product_id: parseInt(form.product_id, 10),
         tipe: form.tipe,
         qty: parseInt(form.qty, 10),
         tanggal: form.tanggal,
         keterangan: form.keterangan.trim() || null,
-      };
-      if (form.tipe === 'stok_in' && form.unit_cost !== '' && form.unit_cost != null) {
-        payload.unit_cost = parseFloat(form.unit_cost);
-      }
-      if (form.tipe === 'stok_out' && form.reason) {
-        payload.reason = form.reason;
-      }
-      await api.post('/inventory/movements', payload);
+      });
       toast.success(`${TIPE_LABEL[form.tipe]} berhasil dicatat`);
       setConfirmSave(false);
       setShowForm(false);
@@ -176,9 +141,12 @@ export default function InventoryPage() {
             >
               <ArrowDownCircle className="w-4 h-4" /> Stok Keluar
             </button>
-            <Link to="/inventory/opname" className="btn-primary flex items-center gap-2 text-sm">
-              <ClipboardCheck className="w-4 h-4" /> Stok Opname
-            </Link>
+            <button
+              onClick={() => openForm('opname')}
+              className="btn-primary flex items-center gap-2 text-sm"
+            >
+              <ClipboardCheck className="w-4 h-4" /> Opname Stok
+            </button>
           </>
         )}
       </PageHeader>
@@ -243,7 +211,6 @@ export default function InventoryPage() {
                 <th className="table-header px-4 py-3 text-right">Stok Sesudah</th>
                 <th className="table-header px-4 py-3 text-left">Keterangan</th>
                 <th className="table-header px-4 py-3 text-left">User</th>
-                <th className="table-header px-4 py-3 text-center w-20">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -261,34 +228,12 @@ export default function InventoryPage() {
                     {m.tipe === 'stok_in' ? '+' : m.tipe === 'stok_out' ? '-' : ''}
                     {formatNumber(m.qty)}
                   </td>
-                  <td className="px-4 py-3 text-right text-gray-500">
-                    {formatNumber(m.stok_sebelum)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium text-gray-900">
-                    {formatNumber(m.stok_sesudah)}
-                  </td>
-                  <td
-                    className="px-4 py-3 text-gray-600 max-w-xs truncate"
-                    title={m.keterangan || ''}
-                  >
+                  <td className="px-4 py-3 text-right text-gray-500">{formatNumber(m.stok_sebelum)}</td>
+                  <td className="px-4 py-3 text-right font-medium text-gray-900">{formatNumber(m.stok_sesudah)}</td>
+                  <td className="px-4 py-3 text-gray-600 max-w-xs truncate" title={m.keterangan || ''}>
                     {m.keterangan || '-'}
                   </td>
                   <td className="px-4 py-3 text-gray-500">{m.user_name || '-'}</td>
-                  <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={() =>
-                        setHistoryProduct({
-                          id: m.product_id,
-                          name: m.product_name,
-                          sku: m.product_sku,
-                        })
-                      }
-                      className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"
-                      title="Lihat riwayat per produk"
-                    >
-                      <History className="w-4 h-4" />
-                    </button>
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -298,16 +243,11 @@ export default function InventoryPage() {
         {paged.length === 0 && (
           <EmptyState
             description="Belum ada pergerakan stok yang tercatat."
-            action={
-              isAdmin && (
-                <button
-                  onClick={() => openForm('stok_in')}
-                  className="btn-primary text-sm flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" /> Catat Stok Masuk
-                </button>
-              )
-            }
+            action={isAdmin && (
+              <button onClick={() => openForm('stok_in')} className="btn-primary text-sm flex items-center gap-2">
+                <Plus className="w-4 h-4" /> Catat Stok Masuk
+              </button>
+            )}
           />
         )}
 
@@ -340,26 +280,15 @@ export default function InventoryPage() {
         onCancel={() => setConfirmSave(false)}
         onConfirm={handleConfirmSave}
       />
-
-      {historyProduct && (
-        <Suspense fallback={null}>
-          <ProductMovementHistoryDialog
-            product={historyProduct}
-            onClose={() => setHistoryProduct(null)}
-          />
-        </Suspense>
-      )}
     </div>
   );
 }
 
 function SummaryCard({ icon, label, value, highlight }) {
   return (
-    <div
-      className={`bg-white rounded-xl border p-4 flex items-center gap-3 ${
-        highlight ? 'border-amber-200 bg-amber-50/50' : 'border-gray-200'
-      }`}
-    >
+    <div className={`bg-white rounded-xl border p-4 flex items-center gap-3 ${
+      highlight ? 'border-amber-200 bg-amber-50/50' : 'border-gray-200'
+    }`}>
       <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center flex-shrink-0">
         {icon}
       </div>
@@ -388,18 +317,8 @@ function initForm() {
     qty: '',
     tanggal: new Date().toISOString().slice(0, 10),
     keterangan: '',
-    unit_cost: '',
-    reason: '',
   };
 }
-
-const REASON_OPTIONS = [
-  { value: 'damaged', label: 'Rusak' },
-  { value: 'expired', label: 'Kedaluwarsa' },
-  { value: 'shrinkage', label: 'Selisih (Shrinkage)' },
-  { value: 'production', label: 'Pemakaian Produksi' },
-  { value: 'other', label: 'Lainnya' },
-];
 
 function buildConfirmMessage(form, products) {
   const product = products.find((p) => String(p.id) === String(form.product_id));
@@ -422,7 +341,9 @@ function MovementFormPage({ form, setForm, products, errors, onCancel, onSave })
           <button onClick={onCancel} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600">
             <X className="w-5 h-5" />
           </button>
-          <h2 className="text-lg font-semibold text-gray-900">Catat {TIPE_LABEL[form.tipe]}</h2>
+          <h2 className="text-lg font-semibold text-gray-900">
+            Catat {TIPE_LABEL[form.tipe]}
+          </h2>
         </div>
       </div>
 
@@ -430,7 +351,9 @@ function MovementFormPage({ form, setForm, products, errors, onCancel, onSave })
         <div className="max-w-2xl mx-auto p-4 sm:p-6">
           <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Tipe</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Tipe
+              </label>
               <select
                 value={form.tipe}
                 onChange={(e) => set({ tipe: e.target.value })}
@@ -458,9 +381,7 @@ function MovementFormPage({ form, setForm, products, errors, onCancel, onSave })
                   </option>
                 ))}
               </select>
-              {errors.product_id && (
-                <p className="text-xs text-red-500 mt-1">{errors.product_id}</p>
-              )}
+              {errors.product_id && <p className="text-xs text-red-500 mt-1">{errors.product_id}</p>}
               {product && (
                 <p className="text-xs text-gray-500 mt-1">
                   Stok saat ini: <strong>{product.stock}</strong> {product.satuan || ''}
@@ -494,49 +415,6 @@ function MovementFormPage({ form, setForm, products, errors, onCancel, onSave })
                 />
               </div>
             </div>
-
-            {form.tipe === 'stok_in' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Harga Beli per Unit
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
-                    Rp
-                  </span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.unit_cost}
-                    onChange={(e) => set({ unit_cost: e.target.value })}
-                    className="input-field pl-9"
-                    placeholder="0"
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Opsional. Akan otomatis update <strong>harga modal</strong> via weighted average.
-                </p>
-              </div>
-            )}
-
-            {form.tipe === 'stok_out' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Alasan</label>
-                <select
-                  value={form.reason}
-                  onChange={(e) => set({ reason: e.target.value })}
-                  className="input-field"
-                >
-                  <option value="">- Pilih alasan -</option>
-                  {REASON_OPTIONS.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Keterangan</label>
