@@ -798,6 +798,8 @@ model gl_accounts {
   gl_recurring_bills_gl_recurring_bills_payment_account_idTogl_accounts gl_recurring_bills[]       @relation("gl_recurring_bills_payment_account_idTogl_accounts")
   gl_vendors                                                            gl_vendors[]
   payment_methods                                                       payment_methods[]
+  budget_items                                                          budget_items[]
+  bank_reconciliations                                                  bank_reconciliations[]
 
   @@unique([tenant_id, code])
   @@index([parent_id], map: "idx_gl_accounts_parent")
@@ -979,6 +981,7 @@ model gl_journals {
   gl_journal_lines             gl_journal_lines[]
   users                        users?                         @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tenants                      tenants                        @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "gl_journals_tenant_fk")
+  bank_reconciliation_items    bank_reconciliation_items[]
 
   @@unique([tenant_id, journal_no])
   @@index([journal_date], map: "idx_gl_journals_date")
@@ -1517,6 +1520,8 @@ model outlets {
   outlet_floor_plans outlet_floor_plans[]
   tenants            tenants              @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "outlets_tenant_fk")
   terminals          terminals[]
+  outlet_transfers_from outlet_transfers[] @relation("outlet_transfers_from")
+  outlet_transfers_to   outlet_transfers[] @relation("outlet_transfers_to")
 
   @@unique([tenant_id, code])
   @@index([tenant_id], map: "idx_outlets_tenant")
@@ -1699,6 +1704,38 @@ model product_variants {
   @@index([tenant_id], map: "idx_product_variants_tenant")
 }
 
+model product_bundles {
+  id          Int                     @id @default(autoincrement())
+  name        String
+  sku         String
+  price       Float
+  description String?
+  is_active   Int                     @default(1)
+  created_at  DateTime?               @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime?               @default(now()) @db.Timestamptz(6)
+  tenant_id   Int                     @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants     tenants                 @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "product_bundles_tenant_fk")
+  bundle_items product_bundle_items[]
+
+  @@unique([tenant_id, sku])
+  @@index([tenant_id], map: "idx_product_bundles_tenant")
+}
+
+model product_bundle_items {
+  id               Int              @id @default(autoincrement())
+  bundle_id        Int
+  product_id       Int
+  quantity         Float
+  created_at       DateTime?        @default(now()) @db.Timestamptz(6)
+  tenant_id        Int              @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  product_bundles  product_bundles  @relation(fields: [bundle_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products         products         @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants          tenants          @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "product_bundle_items_tenant_fk")
+
+  @@index([bundle_id], map: "idx_product_bundle_items_bundle")
+  @@index([tenant_id], map: "idx_product_bundle_items_tenant")
+}
+
 model products {
   id                                                                Int                             @id @default(autoincrement())
   name                                                              String
@@ -1736,10 +1773,20 @@ model products {
   product_recipe_items_product_recipe_items_ingredient_idToproducts product_recipe_items[]          @relation("product_recipe_items_ingredient_idToproducts")
   product_recipe_items_product_recipe_items_product_idToproducts    product_recipe_items[]          @relation("product_recipe_items_product_idToproducts")
   product_variants                                                  product_variants[]
+  product_bundle_items                                              product_bundle_items[]
   categories                                                        categories?                     @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tenants                                                           tenants                         @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "products_tenant_fk")
   stock_opname_items                                                stock_opname_items[]
   transaction_items                                                 transaction_items[]
+  product_recipes                                                   product_recipes[]
+  recipe_ingredients                                                recipe_ingredients[]
+  outlet_transfer_items                                             outlet_transfer_items[]
+  production_orders                                                 production_orders[]
+  production_order_materials                                        production_order_materials[]
+  product_time_prices                                               product_time_prices[]
+  product_batches                                                   product_batches[]
+  product_serials                                                   product_serials[]
+  warehouse_stock                                                   warehouse_stock[]
 
   @@unique([tenant_id, sku])
   @@index([tenant_id], map: "idx_products_tenant")
@@ -2199,6 +2246,7 @@ model transactions {
   coupon_redemptions     coupon_redemptions[]
   loyalty_transactions   loyalty_transactions[]
   transaction_items      transaction_items[]
+  product_serials        product_serials[]
   cashier_shifts         cashier_shifts?          @relation(fields: [cashier_shift_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "transactions_cashier_shift_fk")
   customers              customers?               @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tenants                tenants                  @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "transactions_tenant_fk")
@@ -2274,6 +2322,15 @@ model users {
   terminals                                     terminals[]
   transactions                                  transactions[]
   tenants                                       tenants                   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "users_tenant_fk")
+  product_recipes                               product_recipes[]
+  outlet_transfers_created_by                   outlet_transfers[]        @relation("outlet_transfers_created_by")
+  outlet_transfers_approved_by                  outlet_transfers[]        @relation("outlet_transfers_approved_by")
+  outlet_transfers_received_by                  outlet_transfers[]        @relation("outlet_transfers_received_by")
+  outlet_transfer_status_history                outlet_transfer_status_history[]
+  production_orders                             production_orders[]
+  budgets                                       budgets[]
+  bank_reconciliations                          bank_reconciliations[]
+  warehouses                                    warehouses[]
 
   @@index([tenant_id], map: "idx_users_tenant")
 }
@@ -2361,6 +2418,8 @@ model tenants {
   permission_overrides          permission_overrides[]
   product_recipe_items          product_recipe_items[]
   product_variants              product_variants[]
+  product_bundles               product_bundles[]
+  product_bundle_items          product_bundle_items[]
   products                      products[]
   promos                        promos[]
   qris_dynamic_invocations      qris_dynamic_invocations[]
@@ -2387,6 +2446,23 @@ model tenants {
   transactions                  transactions[]
   uoms                          uoms[]
   users                         users[]
+  product_recipes               product_recipes[]
+  recipe_ingredients            recipe_ingredients[]
+  recipe_steps                  recipe_steps[]
+  outlet_transfers              outlet_transfers[]
+  outlet_transfer_items         outlet_transfer_items[]
+  outlet_transfer_status_history outlet_transfer_status_history[]
+  production_orders             production_orders[]
+  production_order_materials    production_order_materials[]
+  product_time_prices           product_time_prices[]
+  product_batches               product_batches[]
+  product_serials               product_serials[]
+  budgets                       budgets[]
+  budget_items                  budget_items[]
+  bank_reconciliations          bank_reconciliations[]
+  bank_reconciliation_items     bank_reconciliation_items[]
+  warehouses                    warehouses[]
+  warehouse_stock               warehouse_stock[]
 }
 
 model tenant_users {
@@ -2509,4 +2585,378 @@ model qris_dynamic_invocations {
 
   @@index([tenant_id, created_at(sort: Desc)], map: "idx_qris_invocations_tenant_created")
   @@index([tenant_id, status], map: "idx_qris_invocations_tenant_status")
+}
+
+// ============================================
+// PRODUCT RECIPES (Master Resep)
+// ============================================
+
+model product_recipes {
+  id                 Int                  @id @default(autoincrement())
+  product_id         Int
+  name               String
+  description        String?
+  yield_quantity     Float                @default(1)
+  yield_unit         String               @default("pcs")
+  cost_per_unit      Float?               @default(0)
+  preparation_time   Int?                 @default(0) // minutes
+  cooking_time       Int?                 @default(0) // minutes
+  is_active          Int                  @default(1)
+  version            Int                  @default(1)
+  created_by         Int?
+  created_at         DateTime?            @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime?            @default(now()) @db.Timestamptz(6)
+  tenant_id          Int                  @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  products           products             @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users              users?               @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants            tenants              @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "product_recipes_tenant_fk")
+  recipe_ingredients recipe_ingredients[]
+  recipe_steps       recipe_steps[]
+
+  @@unique([tenant_id, product_id, version])
+  @@index([tenant_id], map: "idx_product_recipes_tenant")
+  @@index([product_id], map: "idx_product_recipes_product")
+}
+
+model recipe_ingredients {
+  id                   Int              @id @default(autoincrement())
+  recipe_id            Int
+  ingredient_product_id Int
+  quantity             Float
+  unit                 String
+  cost                 Float?           @default(0)
+  notes                String?
+  sort_order           Int?             @default(0)
+  tenant_id            Int              @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  product_recipes      product_recipes  @relation(fields: [recipe_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products             products         @relation(fields: [ingredient_product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants              tenants          @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "recipe_ingredients_tenant_fk")
+
+  @@index([tenant_id], map: "idx_recipe_ingredients_tenant")
+  @@index([recipe_id], map: "idx_recipe_ingredients_recipe")
+}
+
+model recipe_steps {
+  id              Int             @id @default(autoincrement())
+  recipe_id       Int
+  step_number     Int
+  instruction     String
+  duration_minutes Int?            @default(0)
+  image_url       String?
+  tenant_id       Int             @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  product_recipes product_recipes @relation(fields: [recipe_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants         tenants         @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "recipe_steps_tenant_fk")
+
+  @@unique([recipe_id, step_number])
+  @@index([tenant_id], map: "idx_recipe_steps_tenant")
+  @@index([recipe_id], map: "idx_recipe_steps_recipe")
+}
+
+// ============================================
+// PRODUCTION MANAGEMENT (Manajemen Produksi)
+// ============================================
+
+model production_orders {
+  id                        Int                           @id @default(autoincrement())
+  order_number              String
+  product_id                Int
+  quantity                  Float
+  status                    String                        @default("PLANNED") // PLANNED, IN_PROGRESS, COMPLETED, CANCELLED
+  scheduled_date            DateTime?                     @db.Timestamptz(6)
+  started_date              DateTime?                     @db.Timestamptz(6)
+  completed_date            DateTime?                     @db.Timestamptz(6)
+  notes                     String?
+  created_by                Int?
+  created_at                DateTime?                     @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime?                     @default(now()) @db.Timestamptz(6)
+  tenant_id                 Int                           @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  products                  products                      @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  created_by_user           users?                        @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                   tenants                       @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "production_orders_tenant_fk")
+  production_order_materials production_order_materials[]
+
+  @@unique([tenant_id, order_number])
+  @@index([tenant_id], map: "idx_production_orders_tenant")
+  @@index([product_id], map: "idx_production_orders_product")
+  @@index([status], map: "idx_production_orders_status")
+  @@index([scheduled_date], map: "idx_production_orders_scheduled")
+}
+
+model production_order_materials {
+  id                  Int               @id @default(autoincrement())
+  production_order_id Int
+  material_product_id Int
+  required_quantity   Float
+  used_quantity       Float?            @default(0)
+  tenant_id           Int               @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  production_orders   production_orders @relation(fields: [production_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products            products          @relation(fields: [material_product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants             tenants           @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "production_order_materials_tenant_fk")
+
+  @@index([tenant_id], map: "idx_production_order_materials_tenant")
+  @@index([production_order_id], map: "idx_production_order_materials_order")
+}
+
+// ============================================
+// INTER-OUTLET TRANSFERS (Mutasi Antar Outlet)
+// ============================================
+
+model outlet_transfers {
+  id                        Int                         @id @default(autoincrement())
+  transfer_number           String
+  from_outlet_id            Int
+  to_outlet_id              Int
+  status                    String                      @default("DRAFT") // DRAFT, SUBMITTED, APPROVED, SHIPPED, RECEIVED, CANCELLED
+  notes                     String?
+  shipping_date             DateTime?                   @db.Timestamptz(6)
+  received_date             DateTime?                   @db.Timestamptz(6)
+  created_by                Int?
+  approved_by               Int?
+  received_by               Int?
+  created_at                DateTime?                   @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime?                   @default(now()) @db.Timestamptz(6)
+  tenant_id                 Int                         @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  from_outlet               outlets                     @relation("outlet_transfers_from", fields: [from_outlet_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  to_outlet                 outlets                     @relation("outlet_transfers_to", fields: [to_outlet_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  created_by_user           users?                      @relation("outlet_transfers_created_by", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  approved_by_user          users?                      @relation("outlet_transfers_approved_by", fields: [approved_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  received_by_user          users?                      @relation("outlet_transfers_received_by", fields: [received_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                   tenants                     @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "outlet_transfers_tenant_fk")
+  transfer_items            outlet_transfer_items[]
+  transfer_status_history   outlet_transfer_status_history[]
+
+  @@unique([tenant_id, transfer_number])
+  @@index([tenant_id], map: "idx_outlet_transfers_tenant")
+  @@index([from_outlet_id], map: "idx_outlet_transfers_from")
+  @@index([to_outlet_id], map: "idx_outlet_transfers_to")
+  @@index([status], map: "idx_outlet_transfers_status")
+}
+
+model outlet_transfer_items {
+  id                Int               @id @default(autoincrement())
+  transfer_id       Int
+  product_id        Int
+  quantity          Float
+  unit_cost         Float?            @default(0)
+  notes             String?
+  received_quantity Float?            @default(0)
+  tenant_id         Int               @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  outlet_transfers  outlet_transfers  @relation(fields: [transfer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products          products          @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants           tenants           @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "outlet_transfer_items_tenant_fk")
+
+  @@index([tenant_id], map: "idx_outlet_transfer_items_tenant")
+  @@index([transfer_id], map: "idx_outlet_transfer_items_transfer")
+}
+
+model outlet_transfer_status_history {
+  id                Int               @id @default(autoincrement())
+  transfer_id       Int
+  status            String
+  notes             String?
+  created_by        Int?
+  created_at        DateTime?         @default(now()) @db.Timestamptz(6)
+  tenant_id         Int               @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  outlet_transfers  outlet_transfers  @relation(fields: [transfer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users             users?            @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants           tenants           @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "outlet_transfer_status_history_tenant_fk")
+
+  @@index([tenant_id], map: "idx_outlet_transfer_status_history_tenant")
+  @@index([transfer_id], map: "idx_outlet_transfer_status_history_transfer")
+}
+
+/// Time-based pricing for products
+model product_time_prices {
+  id            Int       @id @default(autoincrement())
+  product_id    Int
+  day_of_week   Int       // 0=Sunday, 1=Monday, ..., 6=Saturday
+  time_start    String    // HH:MM format
+  time_end      String    // HH:MM format
+  price         Float
+  is_active     Int       @default(1)
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id     Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  products      products  @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants       tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "product_time_prices_tenant_fk")
+
+  @@index([tenant_id], map: "idx_product_time_prices_tenant")
+  @@index([product_id], map: "idx_product_time_prices_product")
+  @@index([day_of_week], map: "idx_product_time_prices_day")
+  @@index([is_active], map: "idx_product_time_prices_active")
+}
+
+/// Batch/Lot tracking for products
+model product_batches {
+  id            Int       @id @default(autoincrement())
+  product_id    Int
+  batch_number  String
+  quantity      Float
+  expiry_date   DateTime? @db.Date
+  received_date DateTime? @db.Date
+  notes         String?
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+  tenant_id     Int       @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  products      products  @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants       tenants   @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "product_batches_tenant_fk")
+
+  @@unique([tenant_id, product_id, batch_number])
+  @@index([tenant_id], map: "idx_product_batches_tenant")
+  @@index([product_id], map: "idx_product_batches_product")
+  @@index([expiry_date], map: "idx_product_batches_expiry")
+}
+
+/// Serial number tracking for products
+model product_serials {
+  id            Int           @id @default(autoincrement())
+  product_id    Int
+  serial_number String
+  status        String        @default("available") // available, sold, returned, defective
+  sold_date     DateTime?     @db.Timestamptz(6)
+  transaction_id Int?
+  notes         String?
+  created_at    DateTime?     @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime?     @default(now()) @db.Timestamptz(6)
+  tenant_id     Int           @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  products      products      @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  transactions  transactions? @relation(fields: [transaction_id], references: [id], onUpdate: NoAction)
+  tenants       tenants       @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "product_serials_tenant_fk")
+
+  @@unique([tenant_id, serial_number])
+  @@index([tenant_id], map: "idx_product_serials_tenant")
+  @@index([product_id], map: "idx_product_serials_product")
+  @@index([status], map: "idx_product_serials_status")
+}
+
+// ============================================
+// BUDGET PLANNING (Perencanaan Anggaran)
+// ============================================
+
+model budgets {
+  id            Int            @id @default(autoincrement())
+  name          String
+  period_start  DateTime       @db.Date
+  period_end    DateTime       @db.Date
+  total_amount  Float
+  category      String?        // operational, capital, marketing, etc.
+  status        String         @default("draft") // draft, approved, active, closed
+  notes         String?
+  created_by    Int?
+  created_at    DateTime?      @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime?      @default(now()) @db.Timestamptz(6)
+  tenant_id     Int            @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants       tenants        @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "budgets_tenant_fk")
+  users         users?         @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  budget_items  budget_items[]
+
+  @@index([tenant_id], map: "idx_budgets_tenant")
+  @@index([period_start], map: "idx_budgets_period_start")
+  @@index([status], map: "idx_budgets_status")
+}
+
+model budget_items {
+  id            Int         @id @default(autoincrement())
+  budget_id     Int
+  account_id    Int
+  amount        Float
+  actual_amount Float?      @default(0)
+  notes         String?
+  tenant_id     Int         @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  budgets       budgets     @relation(fields: [budget_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  gl_accounts   gl_accounts @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants       tenants     @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "budget_items_tenant_fk")
+
+  @@index([tenant_id], map: "idx_budget_items_tenant")
+  @@index([budget_id], map: "idx_budget_items_budget")
+  @@index([account_id], map: "idx_budget_items_account")
+}
+
+// ============================================
+// BANK RECONCILIATION (Rekonsiliasi Bank)
+// ============================================
+
+model bank_reconciliations {
+  id                          Int                           @id @default(autoincrement())
+  account_id                  Int
+  statement_date              DateTime                      @db.Date
+  statement_balance           Float
+  book_balance                Float
+  status                      String                        @default("in_progress") // in_progress, completed, approved
+  reconciled_by               Int?
+  reconciled_at               DateTime?                     @db.Timestamptz(6)
+  notes                       String?
+  created_at                  DateTime?                     @default(now()) @db.Timestamptz(6)
+  updated_at                  DateTime?                     @default(now()) @db.Timestamptz(6)
+  tenant_id                   Int                           @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  gl_accounts                 gl_accounts                   @relation(fields: [account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                       users?                        @relation(fields: [reconciled_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                     tenants                       @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "bank_reconciliations_tenant_fk")
+  bank_reconciliation_items   bank_reconciliation_items[]
+
+  @@index([tenant_id], map: "idx_bank_reconciliations_tenant")
+  @@index([account_id], map: "idx_bank_reconciliations_account")
+  @@index([statement_date], map: "idx_bank_reconciliations_date")
+  @@index([status], map: "idx_bank_reconciliations_status")
+}
+
+model bank_reconciliation_items {
+  id                     Int                    @id @default(autoincrement())
+  reconciliation_id      Int
+  transaction_id         Int?
+  description            String
+  amount                 Float
+  is_matched             Int                    @default(0)
+  matched_at             DateTime?              @db.Timestamptz(6)
+  notes                  String?
+  tenant_id              Int                    @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  bank_reconciliations   bank_reconciliations   @relation(fields: [reconciliation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  gl_journals            gl_journals?           @relation(fields: [transaction_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants                tenants                @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "bank_reconciliation_items_tenant_fk")
+
+  @@index([tenant_id], map: "idx_bank_reconciliation_items_tenant")
+  @@index([reconciliation_id], map: "idx_bank_reconciliation_items_reconciliation")
+}
+
+// ============================================
+// MULTI-WAREHOUSE MANAGEMENT (Manajemen Gudang)
+// ============================================
+
+model warehouses {
+  id              Int               @id @default(autoincrement())
+  code            String
+  name            String
+  address         String?
+  phone           String?
+  manager_id      Int?
+  is_active       Int               @default(1)
+  created_at      DateTime?         @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime?         @default(now()) @db.Timestamptz(6)
+  tenant_id       Int               @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  tenants         tenants           @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "warehouses_tenant_fk")
+  users           users?            @relation(fields: [manager_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  warehouse_stock warehouse_stock[]
+
+  @@unique([tenant_id, code])
+  @@index([tenant_id], map: "idx_warehouses_tenant")
+  @@index([is_active], map: "idx_warehouses_active")
+}
+
+model warehouse_stock {
+  id           Int        @id @default(autoincrement())
+  warehouse_id Int
+  product_id   Int
+  quantity     Float      @default(0)
+  min_quantity Float?     @default(0)
+  max_quantity Float?
+  updated_at   DateTime?  @default(now()) @db.Timestamptz(6)
+  tenant_id    Int        @default(dbgenerated("(current_setting('app.current_tenant'::text, true))::integer"))
+  warehouses   warehouses @relation(fields: [warehouse_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products     products   @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tenants      tenants    @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "warehouse_stock_tenant_fk")
+
+  @@unique([warehouse_id, product_id])
+  @@index([tenant_id], map: "idx_warehouse_stock_tenant")
+  @@index([warehouse_id], map: "idx_warehouse_stock_warehouse")
+  @@index([product_id], map: "idx_warehouse_stock_product")
 }

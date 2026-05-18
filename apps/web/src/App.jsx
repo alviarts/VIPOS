@@ -25,12 +25,18 @@ const Setup2FAPage = lazy(() => import('./pages/Setup2FAPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const CashierPage = lazy(() => import('./pages/CashierPage'));
 const ProductsPage = lazy(() => import('./pages/ProductsPage'));
+const RecipesPage = lazy(() => import('./pages/RecipesPage'));
+const BundlesPage = lazy(() => import('./pages/BundlesPage'));
+const BatchesPage = lazy(() => import('./pages/BatchesPage'));
+const SerialsPage = lazy(() => import('./pages/SerialsPage'));
 const CategoriesPage = lazy(() => import('./pages/CategoriesPage'));
 const DepartmentsPage = lazy(() => import('./pages/DepartmentsPage'));
 const CustomersPage = lazy(() => import('./pages/CustomersPage'));
 const CustomerDetailPage = lazy(() => import('./pages/CustomerDetailPage'));
 const CustomerGroupsPage = lazy(() => import('./pages/CustomerGroupsPage'));
 const InventoryPage = lazy(() => import('./pages/InventoryPage'));
+const TransfersPage = lazy(() => import('./pages/TransfersPage'));
+const ProductionPage = lazy(() => import('./pages/ProductionPage'));
 const StockOpnamePage = lazy(() => import('./pages/StockOpnamePage'));
 const FinancePage = lazy(() => import('./pages/FinancePage'));
 const TransactionsPage = lazy(() => import('./pages/TransactionsPage'));
@@ -44,6 +50,8 @@ const InventoryReportsPage = lazy(() => import('./pages/reports/InventoryReports
 const EmployeeReportsPage = lazy(() => import('./pages/reports/EmployeeReportsPage'));
 const MarketingReportsPage = lazy(() => import('./pages/reports/MarketingReportsPage'));
 const ScheduledReportsPage = lazy(() => import('./pages/reports/ScheduledReportsPage'));
+const KitchenReportPage = lazy(() => import('./pages/reports/KitchenReportPage'));
+const RefundReportPage = lazy(() => import('./pages/reports/RefundReportPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const QuotationsPage = lazy(() => import('./pages/QuotationsPage'));
 const SalesOrdersPage = lazy(() => import('./pages/SalesOrdersPage'));
@@ -93,6 +101,10 @@ const ServicesPage = lazy(() => import('./pages/lainnya/ServicesPage'));
 const InspirasiPage = lazy(() => import('./pages/lainnya/InspirasiPage'));
 const CapitalPage = lazy(() => import('./pages/lainnya/CapitalPage'));
 const SuppliesPage = lazy(() => import('./pages/lainnya/SuppliesPage'));
+const WarehousesPage = lazy(() => import('./pages/WarehousesPage'));
+const AdvancedReportsPage = lazy(() => import('./pages/reports/AdvancedReportsPage'));
+const BudgetPlanningPage = lazy(() => import('./pages/finance/BudgetPlanningPage'));
+const BankReconciliationPage = lazy(() => import('./pages/finance/BankReconciliationPage'));
 
 function Spinner() {
   return (
@@ -138,14 +150,21 @@ export default function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="cashier" element={<CashierPage />} />
           <Route path="products" element={<ProductsPage />} />
+          <Route path="products/recipes" element={<RecipesPage />} />
+          <Route path="products/bundles" element={<BundlesPage />} />
+          <Route path="products/batches" element={<BatchesPage />} />
+          <Route path="products/serials" element={<SerialsPage />} />
           <Route path="categories" element={<CategoriesPage />} />
           <Route path="departments" element={<DepartmentsPage />} />
           <Route path="customers" element={<CustomersPage />} />
           <Route path="customers/:id" element={<CustomerDetailPage />} />
           <Route path="customer-groups" element={<CustomerGroupsPage />} />
           <Route path="inventory" element={<InventoryPage />} />
+          <Route path="inventory/transfers" element={<TransfersPage />} />
+          <Route path="inventory/production" element={<ProductionPage />} />
           <Route path="inventory/opname" element={<StockOpnamePage />} />
           <Route path="inventory/opname/:id" element={<StockOpnamePage />} />
+          <Route path="inventory/warehouses" element={<WarehousesPage />} />
           <Route path="promos" element={<PromosPage />} />
           <Route path="coupons" element={<CouponsPage />} />
           <Route path="loyalty" element={<LoyaltyPage />} />
@@ -189,6 +208,8 @@ export default function App() {
           <Route path="reports/employee" element={<EmployeeReportsPage />} />
           <Route path="reports/marketing" element={<MarketingReportsPage />} />
           <Route path="reports/scheduled" element={<ScheduledReportsPage />} />
+          <Route path="reports/kitchen" element={<KitchenReportPage />} />
+          <Route path="reports/refund" element={<RefundReportPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="settings/change-password" element={<ChangePasswordPage />} />
           <Route path="settings/2fa" element={<Setup2FAPage />} />

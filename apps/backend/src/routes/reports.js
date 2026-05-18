@@ -145,6 +145,26 @@ router.get('/catalog', authenticateToken, (req, res) => {
       ],
     },
     {
+      group: 'kitchen',
+      label: 'Dapur & F&B',
+      reports: [
+        { key: 'kitchen-orders', label: 'Order Harian', tier: 'lite' },
+        { key: 'kitchen-items', label: 'Item per Kategori', tier: 'lite' },
+        { key: 'kitchen-performance', label: 'Performa Dapur', tier: 'starter' },
+        { key: 'kitchen-waste', label: 'Waste/Void', tier: 'lite' },
+      ],
+    },
+    {
+      group: 'refund',
+      label: 'Refund',
+      reports: [
+        { key: 'refund-list', label: 'Daftar Refund', tier: 'lite' },
+        { key: 'refund-summary', label: 'Ringkasan Refund', tier: 'lite' },
+        { key: 'refund-by-reason', label: 'Refund per Alasan', tier: 'starter' },
+        { key: 'refund-by-product', label: 'Refund per Produk', tier: 'starter' },
+      ],
+    },
+    {
       group: 'financial',
       label: 'Keuangan',
       reports: [
@@ -157,6 +177,22 @@ router.get('/catalog', authenticateToken, (req, res) => {
       group: 'marketing',
       label: 'Marketing',
       reports: [{ key: 'marketing-campaign', label: 'Campaign', tier: 'prime' }],
+    },
+    {
+      group: 'advanced',
+      label: 'Laporan Lanjutan',
+      reports: [
+        { key: 'product-performance', label: 'Performa Produk', tier: 'starter' },
+        { key: 'customer-lifetime-value', label: 'Customer Lifetime Value', tier: 'starter' },
+        { key: 'staff-performance', label: 'Performa Staff', tier: 'starter' },
+        { key: 'payment-method-analysis', label: 'Analisis Metode Bayar', tier: 'lite' },
+        { key: 'hourly-sales', label: 'Penjualan per Jam', tier: 'lite' },
+        { key: 'category-performance', label: 'Performa Kategori', tier: 'starter' },
+        { key: 'discount-usage', label: 'Penggunaan Diskon', tier: 'lite' },
+        { key: 'tax-report', label: 'Laporan Pajak', tier: 'lite' },
+        { key: 'profit-margin', label: 'Margin Keuntungan', tier: 'starter' },
+        { key: 'inventory-turnover', label: 'Perputaran Inventori', tier: 'starter' },
+      ],
     },
   ]);
 });
@@ -1426,5 +1462,353 @@ router.post('/schedule/:id/run', authenticateToken, requireTier('prime'), async 
     queue: queue.name,
   });
 });
+
+// ---------------------------------------------------------------------------
+// ADDITIONAL REPORTS (10 new reports for 100% completion)
+// ---------------------------------------------------------------------------
+
+// 1. Product Performance Report
+router.get(
+  '/product-performance',
+  authenticateToken,
+  validate({ query: ReportFilterQuerySchema }),
+  async (req, res) => {
+    const { from, to } = defaultRange(req.query);
+    const ctx = makeCtx();
+    const where = ["t.status = 'completed'"];
+    where.push(whereDateRange('t.created_at', from, to, ctx));
+    const whereSql = where.join(' AND ');
+
+    const sql = `
+      SELECT
+        p.id,
+        p.name AS product_name,
+        p.sku,
+        c.name AS category_name,
+        SUM(ti.qty) AS total_qty_sold,
+        SUM(ti.subtotal) AS total_revenue,
+        AVG(ti.price) AS avg_price,
+        COUNT(DISTINCT t.id) AS transaction_count,
+        SUM(ti.subtotal - (ti.qty * COALESCE(p.cost, 0))) AS gross_profit
+      FROM transactions t
+      JOIN transaction_items ti ON ti.transaction_id = t.id
+      JOIN products p ON p.id = ti.product_id
+      LEFT JOIN categories c ON c.id = p.category_id
+      WHERE ${whereSql}
+      GROUP BY p.id, p.name, p.sku, c.name
+      ORDER BY total_revenue DESC
+    `;
+    const result = await query(sql, ctx.params);
+    res.json({ rows: result.rows });
+  }
+);
+
+// 2. Customer Lifetime Value Report
+router.get(
+  '/customer-lifetime-value',
+  authenticateToken,
+  validate({ query: ReportFilterQuerySchema }),
+  async (req, res) => {
+    const { from, to } = defaultRange(req.query);
+    const ctx = makeCtx();
+    const where = ["t.status = 'completed'"];
+    where.push(whereDateRange('t.created_at', from, to, ctx));
+    const whereSql = where.join(' AND ');
+
+    const sql = `
+      SELECT
+        c.id,
+        c.name AS customer_name,
+        c.phone,
+        c.email,
+        COUNT(DISTINCT t.id) AS total_transactions,
+        SUM(t.total_amount) AS lifetime_value,
+        AVG(t.total_amount) AS avg_transaction_value,
+        MIN(t.created_at) AS first_purchase,
+        MAX(t.created_at) AS last_purchase,
+        COALESCE(c.loyalty_points, 0) AS loyalty_points
+      FROM customers c
+      LEFT JOIN transactions t ON t.customer_id = c.id AND ${whereSql}
+      GROUP BY c.id, c.name, c.phone, c.email, c.loyalty_points
+      HAVING COUNT(DISTINCT t.id) > 0
+      ORDER BY lifetime_value DESC
+    `;
+    const result = await query(sql, ctx.params);
+    res.json({ rows: result.rows });
+  }
+);
+
+// 3. Staff Performance Report
+router.get(
+  '/staff-performance',
+  authenticateToken,
+  validate({ query: ReportFilterQuerySchema }),
+  async (req, res) => {
+    const { from, to } = defaultRange(req.query);
+    const ctx = makeCtx();
+    const where = ["t.status = 'completed'"];
+    where.push(whereDateRange('t.created_at', from, to, ctx));
+    const whereSql = where.join(' AND ');
+
+    const sql = `
+      SELECT
+        u.id,
+        u.name AS staff_name,
+        u.email,
+        COUNT(DISTINCT t.id) AS total_transactions,
+        SUM(t.total_amount) AS total_sales,
+        AVG(t.total_amount) AS avg_transaction_value,
+        SUM(ti.qty) AS total_items_sold,
+        COUNT(DISTINCT DATE(t.created_at)) AS days_worked
+      FROM users u
+      LEFT JOIN transactions t ON t.user_id = u.id AND ${whereSql}
+      LEFT JOIN transaction_items ti ON ti.transaction_id = t.id
+      WHERE u.role IN ('cashier', 'staff', 'manager')
+      GROUP BY u.id, u.name, u.email
+      HAVING COUNT(DISTINCT t.id) > 0
+      ORDER BY total_sales DESC
+    `;
+    const result = await query(sql, ctx.params);
+    res.json({ rows: result.rows });
+  }
+);
+
+// 4. Payment Method Analysis
+router.get(
+  '/payment-method-analysis',
+  authenticateToken,
+  validate({ query: ReportFilterQuerySchema }),
+  async (req, res) => {
+    const { from, to } = defaultRange(req.query);
+    const ctx = makeCtx();
+    const where = ["t.status = 'completed'"];
+    where.push(whereDateRange('t.created_at', from, to, ctx));
+    const whereSql = where.join(' AND ');
+
+    const sql = `
+      SELECT
+        ${canonicalPaymentMethodSql('t.payment_method')} AS payment_method,
+        COUNT(t.id) AS transaction_count,
+        SUM(t.total_amount) AS total_amount,
+        AVG(t.total_amount) AS avg_transaction_value,
+        SUM(t.total_amount) * 100.0 / NULLIF(SUM(SUM(t.total_amount)) OVER (), 0) AS percentage
+      FROM transactions t
+      WHERE ${whereSql}
+      GROUP BY ${canonicalPaymentMethodSql('t.payment_method')}
+      ORDER BY total_amount DESC
+    `;
+    const result = await query(sql, ctx.params);
+    res.json({ rows: result.rows });
+  }
+);
+
+// 5. Hourly Sales Report
+router.get(
+  '/hourly-sales',
+  authenticateToken,
+  validate({ query: ReportFilterQuerySchema }),
+  async (req, res) => {
+    const { from, to } = defaultRange(req.query);
+    const ctx = makeCtx();
+    const where = ["t.status = 'completed'"];
+    where.push(whereDateRange('t.created_at', from, to, ctx));
+    const whereSql = where.join(' AND ');
+
+    const sql = `
+      SELECT
+        EXTRACT(HOUR FROM t.created_at) AS hour,
+        COUNT(t.id) AS transaction_count,
+        SUM(t.total_amount) AS total_sales,
+        AVG(t.total_amount) AS avg_transaction_value,
+        SUM(ti.qty) AS total_items_sold
+      FROM transactions t
+      LEFT JOIN transaction_items ti ON ti.transaction_id = t.id
+      WHERE ${whereSql}
+      GROUP BY EXTRACT(HOUR FROM t.created_at)
+      ORDER BY hour
+    `;
+    const result = await query(sql, ctx.params);
+    res.json({ rows: result.rows });
+  }
+);
+
+// 6. Category Performance Report
+router.get(
+  '/category-performance',
+  authenticateToken,
+  validate({ query: ReportFilterQuerySchema }),
+  async (req, res) => {
+    const { from, to } = defaultRange(req.query);
+    const ctx = makeCtx();
+    const where = ["t.status = 'completed'"];
+    where.push(whereDateRange('t.created_at', from, to, ctx));
+    const whereSql = where.join(' AND ');
+
+    const sql = `
+      SELECT
+        c.id,
+        c.name AS category_name,
+        COUNT(DISTINCT p.id) AS product_count,
+        SUM(ti.qty) AS total_qty_sold,
+        SUM(ti.subtotal) AS total_revenue,
+        AVG(ti.price) AS avg_price,
+        COUNT(DISTINCT t.id) AS transaction_count,
+        SUM(ti.subtotal - (ti.qty * COALESCE(p.cost, 0))) AS gross_profit
+      FROM categories c
+      LEFT JOIN products p ON p.category_id = c.id
+      LEFT JOIN transaction_items ti ON ti.product_id = p.id
+      LEFT JOIN transactions t ON t.id = ti.transaction_id AND ${whereSql}
+      GROUP BY c.id, c.name
+      HAVING SUM(ti.qty) > 0
+      ORDER BY total_revenue DESC
+    `;
+    const result = await query(sql, ctx.params);
+    res.json({ rows: result.rows });
+  }
+);
+
+// 7. Discount Usage Report
+router.get(
+  '/discount-usage',
+  authenticateToken,
+  validate({ query: ReportFilterQuerySchema }),
+  async (req, res) => {
+    const { from, to } = defaultRange(req.query);
+    const ctx = makeCtx();
+    const where = ["t.status = 'completed'", 't.discount_amount > 0'];
+    where.push(whereDateRange('t.created_at', from, to, ctx));
+    const whereSql = where.join(' AND ');
+
+    const sql = `
+      SELECT
+        DATE(t.created_at) AS date,
+        COUNT(t.id) AS transaction_count,
+        SUM(t.discount_amount) AS total_discount,
+        AVG(t.discount_amount) AS avg_discount,
+        SUM(t.total_amount) AS total_sales,
+        SUM(t.discount_amount) * 100.0 / NULLIF(SUM(t.total_amount + t.discount_amount), 0) AS discount_percentage
+      FROM transactions t
+      WHERE ${whereSql}
+      GROUP BY DATE(t.created_at)
+      ORDER BY date DESC
+    `;
+    const result = await query(sql, ctx.params);
+    res.json({ rows: result.rows });
+  }
+);
+
+// 8. Tax Report
+router.get(
+  '/tax-report',
+  authenticateToken,
+  validate({ query: ReportFilterQuerySchema }),
+  async (req, res) => {
+    const { from, to } = defaultRange(req.query);
+    const ctx = makeCtx();
+    const where = ["t.status = 'completed'"];
+    where.push(whereDateRange('t.created_at', from, to, ctx));
+    const whereSql = where.join(' AND ');
+
+    const sql = `
+      SELECT
+        DATE(t.created_at) AS date,
+        COUNT(t.id) AS transaction_count,
+        SUM(t.subtotal) AS subtotal,
+        SUM(t.tax_amount) AS total_tax,
+        SUM(t.total_amount) AS total_with_tax,
+        AVG(t.tax_amount) AS avg_tax_per_transaction
+      FROM transactions t
+      WHERE ${whereSql}
+      GROUP BY DATE(t.created_at)
+      ORDER BY date DESC
+    `;
+    const result = await query(sql, ctx.params);
+    res.json({ rows: result.rows });
+  }
+);
+
+// 9. Profit Margin Report
+router.get(
+  '/profit-margin',
+  authenticateToken,
+  validate({ query: ReportFilterQuerySchema }),
+  async (req, res) => {
+    const { from, to } = defaultRange(req.query);
+    const ctx = makeCtx();
+    const where = ["t.status = 'completed'"];
+    where.push(whereDateRange('t.created_at', from, to, ctx));
+    const whereSql = where.join(' AND ');
+
+    const sql = `
+      SELECT
+        p.id,
+        p.name AS product_name,
+        p.sku,
+        c.name AS category_name,
+        SUM(ti.qty) AS total_qty_sold,
+        SUM(ti.subtotal) AS total_revenue,
+        SUM(ti.qty * COALESCE(p.cost, 0)) AS total_cost,
+        SUM(ti.subtotal - (ti.qty * COALESCE(p.cost, 0))) AS gross_profit,
+        CASE
+          WHEN SUM(ti.subtotal) > 0 THEN
+            (SUM(ti.subtotal - (ti.qty * COALESCE(p.cost, 0))) * 100.0 / SUM(ti.subtotal))
+          ELSE 0
+        END AS profit_margin_percentage
+      FROM products p
+      LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN transaction_items ti ON ti.product_id = p.id
+      LEFT JOIN transactions t ON t.id = ti.transaction_id AND ${whereSql}
+      GROUP BY p.id, p.name, p.sku, c.name
+      HAVING SUM(ti.qty) > 0
+      ORDER BY gross_profit DESC
+    `;
+    const result = await query(sql, ctx.params);
+    res.json({ rows: result.rows });
+  }
+);
+
+// 10. Inventory Turnover Report
+router.get(
+  '/inventory-turnover',
+  authenticateToken,
+  validate({ query: ReportFilterQuerySchema }),
+  async (req, res) => {
+    const { from, to } = defaultRange(req.query);
+    const ctx = makeCtx();
+    const where = ["t.status = 'completed'"];
+    where.push(whereDateRange('t.created_at', from, to, ctx));
+    const whereSql = where.join(' AND ');
+
+    const sql = `
+      SELECT
+        p.id,
+        p.name AS product_name,
+        p.sku,
+        c.name AS category_name,
+        p.stock AS current_stock,
+        SUM(ti.qty) AS qty_sold,
+        COALESCE(p.stock + SUM(ti.qty), 0) AS avg_inventory,
+        CASE
+          WHEN COALESCE(p.stock + SUM(ti.qty), 0) > 0 THEN
+            SUM(ti.qty) * 1.0 / NULLIF((p.stock + SUM(ti.qty)) / 2.0, 0)
+          ELSE 0
+        END AS turnover_ratio,
+        CASE
+          WHEN SUM(ti.qty) > 0 THEN
+            EXTRACT(DAY FROM (${ph(ctx, to)}::date - ${ph(ctx, from)}::date)) * 1.0 / NULLIF(SUM(ti.qty) * 1.0 / NULLIF((p.stock + SUM(ti.qty)) / 2.0, 0), 0)
+          ELSE 0
+        END AS days_to_sell
+      FROM products p
+      LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN transaction_items ti ON ti.product_id = p.id
+      LEFT JOIN transactions t ON t.id = ti.transaction_id AND ${whereSql}
+      GROUP BY p.id, p.name, p.sku, c.name, p.stock
+      HAVING SUM(ti.qty) > 0
+      ORDER BY turnover_ratio DESC
+    `;
+    const result = await query(sql, ctx.params);
+    res.json({ rows: result.rows });
+  }
+);
 
 module.exports = router;

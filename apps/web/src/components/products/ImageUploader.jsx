@@ -13,7 +13,7 @@ function resolveUrl(url) {
   if (!url) return '';
   if (url.startsWith('http')) return url;
   // Backend returns "/uploads/..."; combine with base URL minus trailing /api.
-  const base = api.defaults.baseURL.replace(/\/api\/?$/, '');
+  const base = api.defaults.baseURL.replace(/\/api.*$/, '');
   return `${base}${url}`;
 }
 

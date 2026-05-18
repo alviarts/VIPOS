@@ -19,7 +19,7 @@ const NO_DEPARTMENT_ID = '__none__';
 function resolveIconUrl(url) {
   if (!url) return '';
   if (url.startsWith('http')) return url;
-  const base = api.defaults.baseURL.replace(/\/api\/?$/, '');
+  const base = api.defaults.baseURL.replace(/\/api.*$/, '');
   return `${base}${url}`;
 }
 

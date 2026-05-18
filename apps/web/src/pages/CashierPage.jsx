@@ -1,3 +1,4 @@
+// FORCE REBUILD - Image fix
 import { useState, useEffect, useRef } from 'react';
 import {
   Search,
@@ -16,6 +17,14 @@ import api from '../utils/api';
 import { formatCurrency } from '../utils/format';
 import { toWireCode, formatPaymentMethodLabel } from '../utils/paymentMethod';
 import toast from 'react-hot-toast';
+
+// Helper to resolve image URLs
+function resolveImageUrl(url) {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  const base = api.defaults.baseURL.replace(/\/api.*$/, '');
+  return `${base}${url}`;
+}
 
 export default function CashierPage() {
   const [products, setProducts] = useState([]);
@@ -201,6 +210,10 @@ export default function CashierPage() {
             {filteredProducts.map((product) => {
               const tracked = isStockTracked(product);
               const blocked = isOutOfStock(product);
+              const imageUrl = Array.isArray(product.image_urls) && product.image_urls.length > 0
+                ? resolveImageUrl(product.image_urls[0])
+                : null;
+              
               return (
                 <button
                   key={product.id}
@@ -209,8 +222,16 @@ export default function CashierPage() {
                   className={`card text-left hover:shadow-md hover:border-primary-200 transition-all active:scale-[0.98]
                     ${blocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  <div className="w-full aspect-square bg-gray-100 rounded-xl mb-3 flex items-center justify-center">
-                    <Package className="w-8 h-8 text-gray-300" />
+                  <div className="w-full aspect-square bg-gray-100 rounded-xl mb-3 flex items-center justify-center overflow-hidden">
+                    {imageUrl ? (
+                      <img 
+                        src={imageUrl} 
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Package className="w-8 h-8 text-gray-300" />
+                    )}
                   </div>
                   <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{product.sku}</p>

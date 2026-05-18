@@ -83,6 +83,20 @@ router.get('/', authenticateToken, async (req, res) => {
           offset,
         ])
       ).rows;
+      
+      // Parse image_urls from JSON string to array
+      data.forEach(product => {
+        if (product.image_urls) {
+          try {
+            product.image_urls = JSON.parse(product.image_urls);
+          } catch {
+            product.image_urls = [];
+          }
+        } else {
+          product.image_urls = [];
+        }
+      });
+      
       return res.json({
         data,
         total,
@@ -93,6 +107,20 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 
     const products = (await query(`${PRODUCT_SELECT}${whereClause}${orderBy}`, params)).rows;
+    
+    // Parse image_urls from JSON string to array
+    products.forEach(product => {
+      if (product.image_urls) {
+        try {
+          product.image_urls = JSON.parse(product.image_urls);
+        } catch {
+          product.image_urls = [];
+        }
+      } else {
+        product.image_urls = [];
+      }
+    });
+    
     res.json(products);
   } catch (err) {
     res.status(500).json({ error: err.message });

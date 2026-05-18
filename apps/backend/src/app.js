@@ -26,7 +26,7 @@ const { metricsMiddleware } = require('./middleware/metrics');
 const { configureTrustProxy, helmetMiddleware, corsMiddleware } = require('./lib/security');
 const { apiRateLimit } = require('./lib/rate-limit');
 const { logger } = require('./lib/logger');
-const { router: healthRouter } = require('./routes/health');
+const healthRouter = require('./routes/health');
 const { router: healthBackupRouter } = require('./routes/health-backup');
 const { router: healthDiskRouter } = require('./routes/health-disk');
 const { router: metricsRouter } = require('./routes/metrics');
@@ -49,6 +49,16 @@ function mountVersionedRoutes(parent) {
   // sub-paths, so they mount at the resource root.
   parent.use('/', require('./routes/product-variants'));
   parent.use('/', require('./routes/product-recipe'));
+  parent.use('/recipes', require('./routes/recipes'));
+  parent.use('/transfers', require('./routes/transfers'));
+  parent.use('/production', require('./routes/production'));
+  parent.use('/bundles', require('./routes/bundles'));
+  parent.use('/batches', require('./routes/batches'));
+  parent.use('/serials', require('./routes/serials'));
+  parent.use('/time-prices', require('./routes/time-prices'));
+  parent.use('/budgets', require('./routes/budgets'));
+  parent.use('/bank-reconciliation', require('./routes/bank-reconciliation'));
+  parent.use('/warehouses', require('./routes/warehouses'));
   parent.use('/uploads', require('./routes/uploads').router);
   parent.use('/categories', require('./routes/categories'));
   parent.use('/departments', require('./routes/departments'));

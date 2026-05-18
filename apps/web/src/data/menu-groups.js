@@ -57,6 +57,11 @@ import {
   Lock,
   ArrowDownUp,
   UserCog,
+  ChefHat,
+  ArrowLeftRight,
+  Factory,
+  Hash,
+  Calendar,
 } from 'lucide-react';
 import { ROLES, TIERS } from '../context/PermissionContext';
 
@@ -80,6 +85,30 @@ export const MENU_GROUPS = [
         roles: [ROLES.MANAGER, ROLES.KASIR, ROLES.STAFF],
       },
       {
+        path: '/products/recipes',
+        label: 'Master Resep',
+        icon: ChefHat,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
+      },
+      {
+        path: '/products/bundles',
+        label: 'Paket Produk',
+        icon: ShoppingBag,
+        roles: [ROLES.MANAGER, ROLES.STAFF],
+      },
+      {
+        path: '/products/batches',
+        label: 'Batch / Lot Tracking',
+        icon: Calendar,
+        roles: [ROLES.MANAGER, ROLES.WAREHOUSE, ROLES.STAFF],
+      },
+      {
+        path: '/products/serials',
+        label: 'Serial Number Tracking',
+        icon: Hash,
+        roles: [ROLES.MANAGER, ROLES.WAREHOUSE, ROLES.STAFF],
+      },
+      {
         path: '/categories',
         label: 'Kategori',
         icon: Tag,
@@ -96,6 +125,18 @@ export const MENU_GROUPS = [
         label: 'Inventori',
         icon: Warehouse,
         roles: [ROLES.MANAGER, ROLES.WAREHOUSE, ROLES.STAFF],
+      },
+      {
+        path: '/inventory/transfers',
+        label: 'Mutasi Antar Outlet',
+        icon: ArrowLeftRight,
+        roles: [ROLES.MANAGER, ROLES.WAREHOUSE],
+      },
+      {
+        path: '/inventory/production',
+        label: 'Manajemen Produksi',
+        icon: Factory,
+        roles: [ROLES.MANAGER, ROLES.WAREHOUSE],
       },
       {
         path: '/inventory/opname',

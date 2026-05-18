@@ -9,7 +9,7 @@ import api, { getAccessToken } from '../../utils/api';
 function resolveUrl(url) {
   if (!url) return '';
   if (url.startsWith('http')) return url;
-  const base = api.defaults.baseURL.replace(/\/api\/?$/, '');
+  const base = api.defaults.baseURL.replace(/\/api.*$/, '');
   return `${base}${url}`;
 }
 
